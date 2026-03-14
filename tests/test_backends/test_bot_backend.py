@@ -309,6 +309,65 @@ async def test_api_error_has_error_code():
 # --- Verify request body ---
 
 
+async def test_connect_non_unauthorized_error():
+    """Non-Unauthorized errors during connect should be re-raised as-is."""
+    body = {"ok": False, "description": "Too Many Requests", "error_code": 429}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(429, json=body)
+
+    bot = BotBackend("123456:ABC-DEF")
+    bot._client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url=bot._base_url,
+    )
+    with pytest.raises(TelegramAPIError, match="Too Many Requests"):
+        await bot.connect()
+
+
+async def test_call_form_error():
+    """_call_form should raise TelegramAPIError on non-ok response."""
+    body = {"ok": False, "description": "Bad Request: file too big"}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(400, json=body)
+
+    bot = BotBackend("123456:ABC-DEF")
+    bot._client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url=bot._base_url,
+    )
+    with pytest.raises(TelegramAPIError, match="file too big"):
+        await bot._call_form("sendDocument", files={"document": ("test.txt", b"data")}, chat_id=123)
+
+
+async def test_get_members_non_list_result():
+    """When getChatAdministrators returns non-list result."""
+    bot = _make_bot("not a list")
+    result = await bot.get_members(123)
+    assert result == []
+
+
+async def test_send_media_document_type():
+    """Verify document media type uses correct field name."""
+    msg = {"message_id": 52}
+    bot = _make_bot(msg)
+    result = await bot.send_media(
+        123, "document", "https://example.com/doc.pdf", caption="Doc"
+    )
+    assert result["message_id"] == 52
+
+
+async def test_send_media_file_document(tmp_path):
+    """Verify file upload with document type."""
+    f = tmp_path / "test.pdf"
+    f.write_bytes(b"fake pdf")
+    msg = {"message_id": 53}
+    bot = _make_bot(msg)
+    result = await bot.send_media(123, "document", str(f))
+    assert result["message_id"] == 53
+
+
 async def test_send_message_request_body():
     """Verify the correct JSON body is sent to the Telegram API."""
     captured = {}

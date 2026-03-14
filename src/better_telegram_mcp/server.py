@@ -50,11 +50,7 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
 
         assert _settings.api_id is not None
         assert _settings.api_hash is not None
-        _backend = UserBackend(
-            _settings.api_id,
-            _settings.api_hash,
-            session_path=_settings.session_path,
-        )
+        _backend = UserBackend(_settings)
 
     await _backend.connect()
     logger.info("Connected to Telegram ({})", _settings.mode)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -162,6 +162,34 @@ async def test_lifespan_bot_mode(mock_backend):
                         mock_bot.connect.assert_awaited_once()
 
                     mock_bot.disconnect.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_lifespan_user_mode():
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import _lifespan
+
+    mock_settings = MagicMock()
+    mock_settings.mode = "user"
+    mock_settings.api_id = 12345
+    mock_settings.api_hash = "testhash"
+
+    mock_user_backend = AsyncMock()
+
+    with (
+        patch.object(srv, "Settings", return_value=mock_settings),
+        patch.dict(
+            "sys.modules",
+            {"better_telegram_mcp.backends.user_backend": type(
+                "module", (), {"UserBackend": MagicMock(return_value=mock_user_backend)}
+            )()},
+        ),
+    ):
+        async with _lifespan(mcp):
+            assert srv._backend is mock_user_backend
+            mock_user_backend.connect.assert_awaited_once()
+
+        mock_user_backend.disconnect.assert_awaited_once()
 
 
 def test_main_calls_run():

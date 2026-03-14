@@ -163,6 +163,21 @@ async def test_topics_create(mock_backend):
 
 
 @pytest.mark.asyncio
+async def test_topics_close_with_id(mock_backend):
+    mock_backend.manage_topics.return_value = {"closed": True}
+    result = json.loads(
+        await handle_chats(
+            mock_backend, "topics", chat_id=123,
+            topic_action="close", topic_id=42,
+        )
+    )
+    assert result["closed"] is True
+    mock_backend.manage_topics.assert_awaited_once_with(
+        123, "close", topic_id=42
+    )
+
+
+@pytest.mark.asyncio
 async def test_topics_missing_chat_id(mock_backend):
     result = json.loads(
         await handle_chats(mock_backend, "topics", topic_action="list")
