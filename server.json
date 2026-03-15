@@ -1,22 +1,58 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.n24q02m/better-telegram-mcp",
-  "version": "1.0.0",
+  "description": "MCP server for Telegram with dual-mode Bot API and MTProto. 6 composite tools for messages, chats, media, and contacts.",
+  "repository": {
+    "url": "https://github.com/n24q02m/better-telegram-mcp.git",
+    "source": "github"
+  },
+  "version": "1.0.4",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "better-telegram-mcp",
+      "version": "1.0.4",
       "runtimeHint": "uvx",
-      "runtimeArgs": [
-        "--python",
-        "3.13"
-      ],
-      "version": "1.0.0"
+      "runtimeArgs": ["--python", "3.13"],
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "description": "Telegram bot token from @BotFather (for bot mode)",
+          "isRequired": false,
+          "isSecret": true,
+          "name": "TELEGRAM_BOT_TOKEN"
+        },
+        {
+          "description": "Telegram API ID from my.telegram.org (for user mode)",
+          "isRequired": false,
+          "isSecret": false,
+          "name": "TELEGRAM_API_ID"
+        },
+        {
+          "description": "Telegram API hash from my.telegram.org (for user mode)",
+          "isRequired": false,
+          "isSecret": true,
+          "name": "TELEGRAM_API_HASH"
+        }
+      ]
     },
     {
       "registryType": "oci",
       "identifier": "docker.io/n24q02m/better-telegram-mcp:latest",
-      "runtimeHint": "docker"
+      "runtimeHint": "docker",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "description": "Telegram bot token from @BotFather (for bot mode)",
+          "isRequired": false,
+          "isSecret": true,
+          "name": "TELEGRAM_BOT_TOKEN"
+        }
+      ]
     }
   ]
 }
