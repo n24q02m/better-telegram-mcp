@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.5 (2026-03-15)
+
+### Bug Fixes
+
+- Add description and repository to server.json for MCP Registry
+  ([`a921541`](https://github.com/n24q02m/better-telegram-mcp/commit/a921541aac8edf1fa292f125b2a27db835a38cd7))
+
+
 ## v1.0.4 (2026-03-15)
 
 ### Bug Fixes
