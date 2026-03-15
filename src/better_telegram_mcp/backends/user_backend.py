@@ -69,7 +69,7 @@ class UserBackend(TelegramBackend):
         self._client = TelegramClient(
             str(session_path),
             s.api_id,
-            s.api_hash,  # type: ignore[arg-type]
+            s.api_hash,
         )
         await self._client.connect()
 
