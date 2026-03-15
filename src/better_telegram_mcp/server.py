@@ -79,9 +79,13 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
     if _settings.mode == "user" and not await _backend.is_authorized():
         if _settings.phone:
             logger.info("Session not authorized. Sending OTP to {}...", _settings.phone)
-            await _backend.send_code(_settings.phone)
-            _pending_auth = True
-            logger.info("OTP sent. Waiting for auth via config tool.")
+            try:
+                await _backend.send_code(_settings.phone)
+                _pending_auth = True
+                logger.info("OTP sent. Waiting for auth via config tool.")
+            except Exception as e:
+                logger.error("Failed to send OTP: {}. Check API credentials.", e)
+                _pending_auth = True  # Still pending — user can retry via config(action='send_code')
         else:
             logger.warning(
                 "Session not authorized and TELEGRAM_PHONE not set. "
