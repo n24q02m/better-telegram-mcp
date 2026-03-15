@@ -710,7 +710,6 @@ class TestClearCache:
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         mock_session = MagicMock()
-        mock_session.cache = MagicMock()
         mock_client.session = mock_session
 
         settings = _make_settings(tmp_path)
@@ -719,7 +718,7 @@ class TestClearCache:
 
         await backend.clear_cache()
 
-        mock_session.cache.clear.assert_called_once()
+        mock_session.save.assert_called_once()
 
     async def test_clear_cache_not_connected(self, tmp_path):
         from better_telegram_mcp.backends.user_backend import UserBackend
@@ -1035,7 +1034,9 @@ class TestListContacts:
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         users = [_mock_user(user_id=i) for i in range(2)]
-        mock_client.get_contacts = AsyncMock(return_value=users)
+        contacts_result = MagicMock()
+        contacts_result.users = users
+        mock_client.return_value = contacts_result
 
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)
@@ -1053,7 +1054,7 @@ class TestListContacts:
 
         contacts_obj = MagicMock()
         contacts_obj.users = [_mock_user()]
-        mock_client.get_contacts = AsyncMock(return_value=contacts_obj)
+        mock_client.return_value = contacts_obj
 
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)

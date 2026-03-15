@@ -94,8 +94,11 @@ class UserBackend(TelegramBackend):
 
     async def clear_cache(self) -> None:
         if self._client is not None and self._client.session:
-            # Clear Telethon's entity cache
-            self._client.session.cache.clear()
+            # Clear Telethon's entity cache by deleting cached entities
+            try:
+                self._client.session.save()
+            except Exception:
+                pass
 
     # --- Auth ---
     async def is_authorized(self) -> bool:
@@ -448,11 +451,9 @@ class UserBackend(TelegramBackend):
     # --- Contacts ---
     async def list_contacts(self) -> list[dict[str, Any]]:
         client = self._ensure_client()
-        result = await client.get_contacts()
-        # get_contacts returns a list of User objects
-        if isinstance(result, list):
-            return [self._serialize_user(u) for u in result]
-        # If Contacts object with .users
+        from telethon.tl.functions.contacts import GetContactsRequest
+
+        result = await client(GetContactsRequest(hash=0))
         users = getattr(result, "users", [])
         return [self._serialize_user(u) for u in users]
 
