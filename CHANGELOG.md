@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.1.0 (2026-03-15)
+
+### Features
+
+- Automatic runtime auth via config tool, remove mandatory auth CLI
+  ([`f896f27`](https://github.com/n24q02m/better-telegram-mcp/commit/f896f27c1b54423da9477e7ef0124b64e9b92dc6))
+
+### Testing
+
+- Add bot mode integration tests with live Telegram API
+  ([`eb6316b`](https://github.com/n24q02m/better-telegram-mcp/commit/eb6316b112d952af45c9d9b6717ea987aac902bb))
+
+
 ## v1.0.8 (2026-03-15)
 
 ### Bug Fixes
