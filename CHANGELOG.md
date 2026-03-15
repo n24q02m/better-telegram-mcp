@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.8 (2026-03-15)
+
+### Bug Fixes
+
+- Add email notify CI job, sync all GitHub secrets, fix minor issues
+  ([`a6eca53`](https://github.com/n24q02m/better-telegram-mcp/commit/a6eca5306dbcee78c555b899024904cc8e432289))
+
+
 ## v1.0.7 (2026-03-15)
 
 ### Bug Fixes
