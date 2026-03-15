@@ -9,8 +9,7 @@ class ModeError(Exception):
         if required_mode == "user":
             msg = (
                 "This action requires user mode. "
-                "Set TELEGRAM_API_ID + TELEGRAM_API_HASH, "
-                "then run: uvx better-telegram-mcp auth"
+                "Set TELEGRAM_API_ID + TELEGRAM_API_HASH + TELEGRAM_PHONE."
             )
         else:
             msg = f"This action requires {required_mode} mode."
@@ -33,6 +32,16 @@ class TelegramBackend(ABC):
     async def disconnect(self) -> None: ...
     @abstractmethod
     async def is_connected(self) -> bool: ...
+
+    # --- Auth ---
+    @abstractmethod
+    async def is_authorized(self) -> bool: ...
+    @abstractmethod
+    async def send_code(self, phone: str) -> None: ...
+    @abstractmethod
+    async def sign_in(
+        self, phone: str, code: str, *, password: str | None = None
+    ) -> dict[str, Any]: ...
 
     # --- Cache ---
     @abstractmethod

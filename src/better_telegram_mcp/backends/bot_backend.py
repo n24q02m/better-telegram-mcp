@@ -63,6 +63,17 @@ class BotBackend(TelegramBackend):
     async def is_connected(self) -> bool:
         return self._connected
 
+    async def is_authorized(self) -> bool:
+        return self._connected
+
+    async def send_code(self, phone: str) -> None:
+        pass  # Bot is always authorized
+
+    async def sign_in(
+        self, phone: str, code: str, *, password: str | None = None
+    ) -> dict[str, Any]:
+        return {"message": "Bot mode does not require sign-in."}
+
     async def clear_cache(self) -> None:
         pass  # Bot API is stateless, no cache to clear
 

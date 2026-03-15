@@ -97,7 +97,7 @@ class TestConnect:
         mock_client.is_user_authorized.assert_awaited_once()
         assert await backend.is_connected() is True
 
-    async def test_connect_unauthorized_raises(
+    async def test_connect_unauthorized_stays_connected(
         self, tmp_path, mock_client, mock_client_class
     ):
         from better_telegram_mcp.backends.user_backend import UserBackend
@@ -106,10 +106,12 @@ class TestConnect:
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)
 
-        with pytest.raises(ConnectionError, match="Run: uvx better-telegram-mcp auth"):
-            await backend.connect()
+        # Should NOT raise anymore - stays connected for runtime auth
+        await backend.connect()
 
-        mock_client.disconnect.assert_awaited_once()
+        # Client should still be available (not disconnected)
+        assert backend._client is not None
+        mock_client.connect.assert_awaited_once()
 
 
 class TestDisconnect:
@@ -1136,6 +1138,140 @@ class TestBlockUser:
         result = await backend.block_user(123, unblock=True)
 
         assert result is True
+
+
+class TestIsAuthorized:
+    async def test_is_authorized_true(self, tmp_path, mock_client, mock_client_class):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_client.is_user_authorized = AsyncMock(return_value=True)
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        assert await backend.is_authorized() is True
+
+    async def test_is_authorized_false(self, tmp_path, mock_client, mock_client_class):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_client.is_user_authorized = AsyncMock(return_value=False)
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        assert await backend.is_authorized() is False
+
+    async def test_is_authorized_no_client(self, tmp_path):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+
+        assert await backend.is_authorized() is False
+
+
+class TestSendCode:
+    async def test_send_code(self, tmp_path, mock_client, mock_client_class):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_client.send_code_request = AsyncMock()
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        await backend.send_code("+84912345678")
+
+        mock_client.send_code_request.assert_awaited_once_with("+84912345678")
+
+    async def test_send_code_not_connected(self, tmp_path):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+
+        with pytest.raises(RuntimeError, match="Not connected"):
+            await backend.send_code("+84912345678")
+
+
+class TestSignIn:
+    async def test_sign_in_success(self, tmp_path, mock_client, mock_client_class):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_me = MagicMock()
+        mock_me.first_name = "Test"
+        mock_me.username = "testuser"
+        mock_client.sign_in = AsyncMock()
+        mock_client.get_me = AsyncMock(return_value=mock_me)
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        result = await backend.sign_in("+84912345678", "12345")
+
+        mock_client.sign_in.assert_awaited_once_with("+84912345678", "12345")
+        assert result["authenticated_as"] == "Test"
+        assert result["username"] == "testuser"
+
+    async def test_sign_in_2fa_with_password(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_me = MagicMock()
+        mock_me.first_name = "Test"
+        mock_me.username = "testuser"
+        mock_client.sign_in = AsyncMock(
+            side_effect=[Exception("SessionPasswordNeeded"), mock_me]
+        )
+        mock_client.get_me = AsyncMock(return_value=mock_me)
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        result = await backend.sign_in("+84912345678", "12345", password="my2fapass")
+
+        assert mock_client.sign_in.await_count == 2
+        assert result["authenticated_as"] == "Test"
+
+    async def test_sign_in_2fa_without_password_raises(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_client.sign_in = AsyncMock(side_effect=Exception("SessionPasswordNeeded"))
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        with pytest.raises(Exception, match="SessionPasswordNeeded"):
+            await backend.sign_in("+84912345678", "12345")
+
+    async def test_sign_in_sets_session_permissions(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        # Create a fake session file
+        session_file = tmp_path / "test_session.session"
+        session_file.write_text("fake")
+        session_file.chmod(0o644)
+
+        mock_me = MagicMock()
+        mock_me.first_name = "Test"
+        mock_me.username = "testuser"
+        mock_client.sign_in = AsyncMock()
+        mock_client.get_me = AsyncMock(return_value=mock_me)
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        await backend.sign_in("+84912345678", "12345")
+
+        assert session_file.stat().st_mode & 0o777 == 0o600
 
 
 class TestSerializeMessage:

@@ -39,8 +39,8 @@ class Settings(BaseSettings):
             msg = (
                 "No Telegram credentials found.\n"
                 "Bot mode:  Set TELEGRAM_BOT_TOKEN (get from @BotFather)\n"
-                "User mode: Set TELEGRAM_API_ID + TELEGRAM_API_HASH (get from my.telegram.org)\n"
-                "           Then run: uvx better-telegram-mcp auth"
+                "User mode: Set TELEGRAM_API_ID + TELEGRAM_API_HASH + TELEGRAM_PHONE\n"
+                "           (get API credentials from my.telegram.org)"
             )
             raise ValueError(msg)
         return self

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from pathlib import Path
 from typing import Any
 
+from loguru import logger
 from telethon import TelegramClient
 from telethon.tl.functions.contacts import (
     AddContactRequest,
@@ -74,10 +76,7 @@ class UserBackend(TelegramBackend):
         await self._client.connect()
 
         if not await self._client.is_user_authorized():
-            await self._client.disconnect()
-            self._client = None
-            msg = "Session not authorized. Run: uvx better-telegram-mcp auth"
-            raise ConnectionError(msg)
+            logger.warning("Session not authorized. Auth required via config tool.")
 
     async def disconnect(self) -> None:
         if self._client is not None:
@@ -97,6 +96,40 @@ class UserBackend(TelegramBackend):
         if self._client is not None and self._client.session:
             # Clear Telethon's entity cache
             self._client.session.cache.clear()
+
+    # --- Auth ---
+    async def is_authorized(self) -> bool:
+        if self._client is None:
+            return False
+        return await self._client.is_user_authorized()
+
+    async def send_code(self, phone: str) -> None:
+        client = self._ensure_client()
+        await client.send_code_request(phone)
+
+    async def sign_in(
+        self, phone: str, code: str, *, password: str | None = None
+    ) -> dict[str, Any]:
+        client = self._ensure_client()
+        try:
+            await client.sign_in(phone, code)
+        except Exception:
+            if password:
+                await client.sign_in(password=password)
+            else:
+                raise
+
+        me = await client.get_me()
+        # Set session file permissions to 600
+        s = self._settings
+        session_file = (s.data_dir / s.session_name).with_suffix(".session")
+        if session_file.exists():
+            os.chmod(session_file, 0o600)
+
+        return {
+            "authenticated_as": getattr(me, "first_name", ""),
+            "username": getattr(me, "username", None),
+        }
 
     # --- Messages ---
     async def send_message(

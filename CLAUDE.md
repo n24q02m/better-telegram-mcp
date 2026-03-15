@@ -9,7 +9,7 @@ MCP server cho Telegram. Dual-mode: Bot API (httpx) + MTProto (Telethon).
 - `uv run ruff check src/ tests/` — Lint
 - `uv run ty check src/` — Type check
 - `uv run better-telegram-mcp` — Run server (stdio)
-- `uv run better-telegram-mcp auth` — Interactive Telethon auth
+- `uv run better-telegram-mcp auth` — Interactive Telethon auth (legacy, optional)
 
 ## Architecture
 

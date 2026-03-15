@@ -17,6 +17,7 @@ def test_ensure_mode_fails_wrong_mode(mock_backend):
 def test_mode_error_message():
     err = ModeError("user")
     assert "TELEGRAM_API_ID" in str(err)
+    assert "TELEGRAM_PHONE" in str(err)
 
 
 def test_mode_error_non_user():

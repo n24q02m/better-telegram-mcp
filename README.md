@@ -44,43 +44,34 @@ TELEGRAM_BOT_TOKEN=123456:ABC-DEF uvx --python 3.13 better-telegram-mcp
 2. Login with your phone number (OTP sent via Telegram, not SMS)
 3. Click "API development tools"
 4. Create an app, note `api_id` (integer) and `api_hash` (32-char hex)
-5. Authenticate once, then run:
+5. Run the server with your credentials:
 
 ```bash
-export TELEGRAM_API_ID=12345
-export TELEGRAM_API_HASH=a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4
-
-# Step 1: Authenticate (interactive, one-time)
-uvx --python 3.13 better-telegram-mcp auth
-
-# Step 2: Run the server
-uvx --python 3.13 better-telegram-mcp
+TELEGRAM_API_ID=12345 TELEGRAM_API_HASH=a1b2c3d4e5... TELEGRAM_PHONE=+84912345678 \
+  uvx --python 3.13 better-telegram-mcp
 ```
 
-## Auth CLI
+On first run, the server automatically sends an OTP code to your Telegram app. When the AI agent calls any tool, it receives an auth prompt. Complete authentication via:
 
-The `auth` command creates a Telethon session file for user mode. This must be done once before using user mode.
-
-```bash
-# Basic auth (prompts for phone + OTP)
-TELEGRAM_API_ID=... TELEGRAM_API_HASH=... uvx --python 3.13 better-telegram-mcp auth
-
-# With phone number pre-set (only prompts for OTP)
-TELEGRAM_API_ID=... TELEGRAM_API_HASH=... TELEGRAM_PHONE=+84912345678 \
-  uvx --python 3.13 better-telegram-mcp auth
-
-# With 2FA password pre-set
-TELEGRAM_API_ID=... TELEGRAM_API_HASH=... TELEGRAM_PASSWORD=my2fapass \
-  uvx --python 3.13 better-telegram-mcp auth
-
-# Named session (for multiple accounts)
-TELEGRAM_API_ID=... TELEGRAM_API_HASH=... \
-  uvx --python 3.13 better-telegram-mcp auth --session-name work
 ```
+config(action='auth', code='YOUR_CODE')
+```
+
+The session is saved locally. Subsequent runs authenticate automatically.
+
+**2FA handling**: If your account has Two-Step Verification enabled, set `TELEGRAM_PASSWORD` env var. The server uses it automatically during sign-in.
 
 **Session file**: Stored at `~/.better-telegram-mcp/<name>.session` with `600` permissions (owner-only). Treat this file like a password.
 
-**2FA handling**: If your account has Two-Step Verification enabled, set `TELEGRAM_PASSWORD` env var or enter it interactively when prompted.
+## Auth CLI (Legacy)
+
+For environments where interactive auth is preferred, the `auth` CLI command is still available:
+
+```bash
+TELEGRAM_API_ID=... TELEGRAM_API_HASH=... uvx --python 3.13 better-telegram-mcp auth
+```
+
+This is optional. The recommended approach is automatic runtime auth via the `config` tool as described above.
 
 ## Configuration
 
@@ -91,8 +82,8 @@ All configuration is via environment variables with `TELEGRAM_` prefix:
 | `TELEGRAM_BOT_TOKEN` | Bot mode | - | Bot token from [@BotFather](https://t.me/BotFather) |
 | `TELEGRAM_API_ID` | User mode | - | API ID from [my.telegram.org](https://my.telegram.org) |
 | `TELEGRAM_API_HASH` | User mode | - | API hash from [my.telegram.org](https://my.telegram.org) |
-| `TELEGRAM_PHONE` | No | Interactive prompt | Phone number for auth (e.g., `+84912345678`) |
-| `TELEGRAM_PASSWORD` | No | Interactive prompt | 2FA password (if enabled) |
+| `TELEGRAM_PHONE` | User mode | - | Phone number for auto-auth (e.g., `+84912345678`) |
+| `TELEGRAM_PASSWORD` | No | - | 2FA password (if enabled) |
 | `TELEGRAM_SESSION_NAME` | No | `default` | Session file name (for multiple accounts) |
 | `TELEGRAM_DATA_DIR` | No | `~/.better-telegram-mcp` | Data directory for session files |
 
@@ -106,8 +97,8 @@ All configuration is via environment variables with `TELEGRAM_` prefix:
 # Bot mode
 claude mcp add telegram -e TELEGRAM_BOT_TOKEN=123456:ABC-DEF -- uvx --python 3.13 better-telegram-mcp
 
-# User mode (after running auth)
-claude mcp add telegram -e TELEGRAM_API_ID=12345 -e TELEGRAM_API_HASH=abc123 -- uvx --python 3.13 better-telegram-mcp
+# User mode (auto-auth on first run)
+claude mcp add telegram -e TELEGRAM_API_ID=12345 -e TELEGRAM_API_HASH=abc123 -e TELEGRAM_PHONE=+84912345678 -- uvx --python 3.13 better-telegram-mcp
 ```
 
 ### Claude Desktop / Cursor
@@ -150,10 +141,11 @@ Add to `.vscode/mcp.json`:
 # Bot mode
 docker run -i --rm -e TELEGRAM_BOT_TOKEN=123456:ABC-DEF n24q02m/better-telegram-mcp
 
-# User mode (auth must be done on host first, then mount session)
+# User mode (auto-auth on first run, mount session dir for persistence)
 docker run -i --rm \
   -e TELEGRAM_API_ID=12345 \
   -e TELEGRAM_API_HASH=abcdef123456 \
+  -e TELEGRAM_PHONE=+84912345678 \
   -v ~/.better-telegram-mcp:/data \
   n24q02m/better-telegram-mcp
 ```
@@ -178,7 +170,7 @@ Docker config for MCP clients:
 }
 ```
 
-**Note**: For user mode in Docker, authenticate on the host first (`uvx better-telegram-mcp auth`), then mount the session directory with `-v ~/.better-telegram-mcp:/data`.
+**Note**: For user mode in Docker, mount the session directory with `-v ~/.better-telegram-mcp:/data` so the session persists across container restarts. On first run, complete auth via `config(action='auth', code='YOUR_CODE')`.
 
 ## Mode Capabilities
 
@@ -225,9 +217,9 @@ help(topic="all")       # Everything
 |---|---|---|
 | `No Telegram credentials found` | Neither bot token nor API credentials set | Set `TELEGRAM_BOT_TOKEN` or `TELEGRAM_API_ID` + `TELEGRAM_API_HASH` |
 | `Invalid bot token` | Token revoked or wrong | Regenerate via `/token` in [@BotFather](https://t.me/BotFather) |
-| `Session not authorized` | Session file missing or expired | Run `uvx better-telegram-mcp auth` |
+| `Authentication required` | Session not yet authorized | Use `config(action='auth', code='YOUR_CODE')` after receiving OTP |
 | `PhoneNumberInvalidError` | Wrong phone format | Include country code with `+` (e.g., `+84912345678`) |
-| `SessionPasswordNeededError` | 2FA enabled | Set `TELEGRAM_PASSWORD` env or enter interactively |
+| `SessionPasswordNeededError` | 2FA enabled | Set `TELEGRAM_PASSWORD` env var |
 | `FloodWaitError` | Too many auth attempts | Wait the indicated seconds |
 | `requires user mode` | Action not available in bot mode | Switch to user mode (API ID + Hash) |
 | Session lost after Docker restart | Data volume not mounted | Add `-v ~/.better-telegram-mcp:/data` |

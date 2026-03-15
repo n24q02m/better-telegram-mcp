@@ -15,9 +15,11 @@ from .tools.contacts import handle_contacts
 from .tools.help_tool import handle_help
 from .tools.media import handle_media
 from .tools.messages import handle_messages
+from .utils.formatting import err
 
 _backend: TelegramBackend | None = None
 _settings: Settings | None = None
+_pending_auth: bool = False
 _runtime_config: dict[str, int] = {
     "message_limit": 20,
     "timeout": 30,
@@ -38,9 +40,23 @@ def get_settings() -> Settings:
     return _settings
 
 
+def _auth_required_response() -> str:
+    return err(
+        "Authentication required. OTP code has been sent to your Telegram app. "
+        "Use: config(action='auth', code='YOUR_CODE') to complete authentication."
+    )
+
+
+def _auth_missing_phone_response() -> str:
+    return err(
+        "User mode requires TELEGRAM_PHONE env var for automatic auth. "
+        "Set it in your MCP config alongside TELEGRAM_API_ID and TELEGRAM_API_HASH."
+    )
+
+
 @asynccontextmanager
 async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
-    global _backend, _settings
+    global _backend, _settings, _pending_auth
     _settings = Settings()
     logger.info("Mode: {}", _settings.mode)
 
@@ -58,6 +74,21 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
 
     await _backend.connect()
     logger.info("Connected to Telegram ({})", _settings.mode)
+
+    # Auto-auth flow for user mode
+    if _settings.mode == "user" and not await _backend.is_authorized():
+        if _settings.phone:
+            logger.info("Session not authorized. Sending OTP to {}...", _settings.phone)
+            await _backend.send_code(_settings.phone)
+            _pending_auth = True
+            logger.info("OTP sent. Waiting for auth via config tool.")
+        else:
+            logger.warning(
+                "Session not authorized and TELEGRAM_PHONE not set. "
+                "Auth will need to be initiated via config(action='send_code')."
+            )
+            _pending_auth = True
+
     try:
         yield
     finally:
@@ -98,6 +129,8 @@ async def messages(
     offset_id: int | None = None,
 ) -> str:
     """send|edit|delete|forward|pin|react|search|history"""
+    if _pending_auth:
+        return _auth_required_response()
     return await handle_messages(
         get_backend(),
         action,
@@ -139,6 +172,8 @@ async def chats(
     topic_name: str | None = None,
 ) -> str:
     """list|info|create|join|leave|members|admin|settings|topics"""
+    if _pending_auth:
+        return _auth_required_response()
     return await handle_chats(
         get_backend(),
         action,
@@ -174,6 +209,8 @@ async def media(
     output_dir: str | None = None,
 ) -> str:
     """send_photo|send_file|send_voice|send_video|download"""
+    if _pending_auth:
+        return _auth_required_response()
     return await handle_media(
         get_backend(),
         action,
@@ -204,6 +241,8 @@ async def contacts(
     unblock: bool = False,
 ) -> str:
     """list|search|add|block (user mode only)"""
+    if _pending_auth:
+        return _auth_required_response()
     return await handle_contacts(
         get_backend(),
         action,
@@ -227,13 +266,15 @@ async def contacts(
 )
 async def config(
     action: str,
+    code: str | None = None,
     message_limit: int | None = None,
     timeout: int | None = None,
 ) -> str:
-    """status|set|cache_clear"""
+    """status|set|cache_clear|auth|send_code"""
     return await handle_config(
         get_backend(),
         action,
+        code=code,
         message_limit=message_limit,
         timeout=timeout,
     )

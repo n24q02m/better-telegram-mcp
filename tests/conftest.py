@@ -15,6 +15,15 @@ class MockBackend(TelegramBackend):
     async def is_connected(self) -> bool:
         return True
 
+    async def is_authorized(self) -> bool:
+        return True
+
+    async def send_code(self, phone: str) -> None: ...
+    async def sign_in(
+        self, phone: str, code: str, *, password: str | None = None
+    ) -> dict[str, Any]:
+        return {"authenticated_as": "Test", "username": "testuser"}
+
     async def send_message(
         self,
         chat_id: str | int,
@@ -111,6 +120,11 @@ class MockBackend(TelegramBackend):
         self.connect = AsyncMock()
         self.disconnect = AsyncMock()
         self.is_connected = AsyncMock(return_value=True)
+        self.is_authorized = AsyncMock(return_value=True)
+        self.send_code = AsyncMock()
+        self.sign_in = AsyncMock(
+            return_value={"authenticated_as": "Test", "username": "testuser"}
+        )
 
 
 @pytest.fixture
