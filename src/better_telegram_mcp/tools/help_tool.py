@@ -21,9 +21,7 @@ def handle_help(topic: str | None = None) -> str:
         return err("No documentation found.")
 
     if topic not in _VALID_TOPICS:
-        return err(
-            f"Unknown topic '{topic}'. Valid: messages|chats|media|contacts|all"
-        )
+        return err(f"Unknown topic '{topic}'. Valid: messages|chats|media|contacts|all")
 
     doc = _load_doc(topic)
     if doc:

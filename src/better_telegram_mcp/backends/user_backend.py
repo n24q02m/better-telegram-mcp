@@ -67,17 +67,16 @@ class UserBackend(TelegramBackend):
         s.data_dir.mkdir(parents=True, exist_ok=True)
 
         self._client = TelegramClient(
-            str(session_path), s.api_id, s.api_hash  # type: ignore[arg-type]
+            str(session_path),
+            s.api_id,
+            s.api_hash,  # type: ignore[arg-type]
         )
         await self._client.connect()
 
         if not await self._client.is_user_authorized():
             await self._client.disconnect()
             self._client = None
-            msg = (
-                "Session not authorized. "
-                "Run: uvx better-telegram-mcp auth"
-            )
+            msg = "Session not authorized. Run: uvx better-telegram-mcp auth"
             raise ConnectionError(msg)
 
     async def disconnect(self) -> None:
@@ -123,9 +122,7 @@ class UserBackend(TelegramBackend):
         )
         return self._serialize_message(msg)
 
-    async def delete_message(
-        self, chat_id: str | int, message_id: int
-    ) -> bool:
+    async def delete_message(self, chat_id: str | int, message_id: int) -> bool:
         client = self._ensure_client()
         result = await client.delete_messages(chat_id, [message_id])
         # Telethon returns AffectedMessages; truthy if deleted
@@ -141,9 +138,7 @@ class UserBackend(TelegramBackend):
             msg = msg[0]
         return self._serialize_message(msg)
 
-    async def pin_message(
-        self, chat_id: str | int, message_id: int
-    ) -> bool:
+    async def pin_message(self, chat_id: str | int, message_id: int) -> bool:
         client = self._ensure_client()
         await client.pin_message(chat_id, message_id)
         return True
@@ -193,9 +188,7 @@ class UserBackend(TelegramBackend):
         return [self._serialize_message(m) for m in messages]
 
     # --- Chats ---
-    async def list_chats(
-        self, *, limit: int = 50
-    ) -> list[dict[str, Any]]:
+    async def list_chats(self, *, limit: int = 50) -> list[dict[str, Any]]:
         client = self._ensure_client()
         dialogs = await client.get_dialogs(limit=limit)
         return [self._serialize_dialog(d) for d in dialogs]
@@ -245,9 +238,7 @@ class UserBackend(TelegramBackend):
             await client(ImportChatInviteRequest(invite_hash))
         else:
             # Public username/link
-            await client(
-                ImportChatInviteRequest(link_or_hash)
-            )
+            await client(ImportChatInviteRequest(link_or_hash))
         return True
 
     async def leave_chat(self, chat_id: str | int) -> bool:
@@ -299,9 +290,7 @@ class UserBackend(TelegramBackend):
         )
         return True
 
-    async def update_chat_settings(
-        self, chat_id: str | int, **kwargs: Any
-    ) -> bool:
+    async def update_chat_settings(self, chat_id: str | int, **kwargs: Any) -> bool:
         client = self._ensure_client()
         if "title" in kwargs:
             from telethon.tl.functions.channels import EditTitleRequest
@@ -310,9 +299,7 @@ class UserBackend(TelegramBackend):
         if "description" in kwargs:
             from telethon.tl.functions.channels import EditAboutRequest
 
-            await client(
-                EditAboutRequest(channel=chat_id, about=kwargs["description"])
-            )
+            await client(EditAboutRequest(channel=chat_id, about=kwargs["description"]))
         return True
 
     async def manage_topics(
@@ -378,7 +365,13 @@ class UserBackend(TelegramBackend):
     ) -> str:
         client = self._ensure_client()
         messages = await client.get_messages(chat_id, ids=message_id)
-        msg = messages if not isinstance(messages, list) else messages[0] if messages else None
+        msg = (
+            messages
+            if not isinstance(messages, list)
+            else messages[0]
+            if messages
+            else None
+        )
         if msg is None or msg.media is None:
             msg_text = "Message has no media to download."
             raise ValueError(msg_text)
@@ -406,9 +399,7 @@ class UserBackend(TelegramBackend):
         users = getattr(result, "users", [])
         return [self._serialize_user(u) for u in users]
 
-    async def search_contacts(
-        self, query: str
-    ) -> list[dict[str, Any]]:
+    async def search_contacts(self, query: str) -> list[dict[str, Any]]:
         client = self._ensure_client()
         from telethon.tl.functions.contacts import SearchRequest
 
@@ -434,9 +425,7 @@ class UserBackend(TelegramBackend):
         )
         return bool(result)
 
-    async def block_user(
-        self, user_id: int, *, unblock: bool = False
-    ) -> bool:
+    async def block_user(self, user_id: int, *, unblock: bool = False) -> bool:
         client = self._ensure_client()
         if unblock:
             await client(UnblockRequest(id=user_id))

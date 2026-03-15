@@ -46,12 +46,8 @@ async def handle_messages(
 
             case "forward":
                 if not from_chat or not to_chat or message_id is None:
-                    return err(
-                        "'forward' requires from_chat, to_chat, and message_id"
-                    )
-                result = await backend.forward_message(
-                    from_chat, to_chat, message_id
-                )
+                    return err("'forward' requires from_chat, to_chat, and message_id")
+                result = await backend.forward_message(from_chat, to_chat, message_id)
                 return ok(result)
 
             case "pin":
@@ -63,9 +59,7 @@ async def handle_messages(
             case "react":
                 if not chat_id or message_id is None or not emoji:
                     return err("'react' requires chat_id, message_id, and emoji")
-                result = await backend.react_to_message(
-                    chat_id, message_id, emoji
-                )
+                result = await backend.react_to_message(chat_id, message_id, emoji)
                 return ok({"reacted": result})
 
             case "search":

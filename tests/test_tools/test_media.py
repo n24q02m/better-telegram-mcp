@@ -12,8 +12,10 @@ from better_telegram_mcp.tools.media import handle_media
 async def test_send_photo(mock_backend):
     result = json.loads(
         await handle_media(
-            mock_backend, "send_photo",
-            chat_id=123, file_path_or_url="https://example.com/photo.jpg",
+            mock_backend,
+            "send_photo",
+            chat_id=123,
+            file_path_or_url="https://example.com/photo.jpg",
             caption="Nice photo",
         )
     )
@@ -27,8 +29,10 @@ async def test_send_photo(mock_backend):
 async def test_send_file(mock_backend):
     result = json.loads(
         await handle_media(
-            mock_backend, "send_file",
-            chat_id=123, file_path_or_url="/tmp/doc.pdf",
+            mock_backend,
+            "send_file",
+            chat_id=123,
+            file_path_or_url="/tmp/doc.pdf",
         )
     )
     assert result["message_id"] == 3
@@ -41,8 +45,10 @@ async def test_send_file(mock_backend):
 async def test_send_voice(mock_backend):
     result = json.loads(
         await handle_media(
-            mock_backend, "send_voice",
-            chat_id=123, file_path_or_url="/tmp/voice.ogg",
+            mock_backend,
+            "send_voice",
+            chat_id=123,
+            file_path_or_url="/tmp/voice.ogg",
         )
     )
     assert result["message_id"] == 3
@@ -55,8 +61,10 @@ async def test_send_voice(mock_backend):
 async def test_send_video(mock_backend):
     result = json.loads(
         await handle_media(
-            mock_backend, "send_video",
-            chat_id=123, file_path_or_url="/tmp/video.mp4",
+            mock_backend,
+            "send_video",
+            chat_id=123,
+            file_path_or_url="/tmp/video.mp4",
         )
     )
     assert result["message_id"] == 3
@@ -67,14 +75,13 @@ async def test_send_video(mock_backend):
 
 @pytest.mark.asyncio
 async def test_send_photo_missing_params(mock_backend):
-    result = json.loads(
-        await handle_media(mock_backend, "send_photo", chat_id=123)
-    )
+    result = json.loads(await handle_media(mock_backend, "send_photo", chat_id=123))
     assert "error" in result
 
     result = json.loads(
         await handle_media(
-            mock_backend, "send_photo",
+            mock_backend,
+            "send_photo",
             file_path_or_url="https://example.com/photo.jpg",
         )
     )
@@ -85,8 +92,11 @@ async def test_send_photo_missing_params(mock_backend):
 async def test_download(mock_backend):
     result = json.loads(
         await handle_media(
-            mock_backend, "download",
-            chat_id=123, message_id=10, output_dir="/tmp",
+            mock_backend,
+            "download",
+            chat_id=123,
+            message_id=10,
+            output_dir="/tmp",
         )
     )
     assert result["path"] == "/tmp/file.jpg"
@@ -94,14 +104,10 @@ async def test_download(mock_backend):
 
 @pytest.mark.asyncio
 async def test_download_missing_params(mock_backend):
-    result = json.loads(
-        await handle_media(mock_backend, "download", chat_id=123)
-    )
+    result = json.loads(await handle_media(mock_backend, "download", chat_id=123))
     assert "error" in result
 
-    result = json.loads(
-        await handle_media(mock_backend, "download", message_id=10)
-    )
+    result = json.loads(await handle_media(mock_backend, "download", message_id=10))
     assert "error" in result
 
 
@@ -117,8 +123,10 @@ async def test_mode_error(mock_backend):
     mock_backend.send_media.side_effect = ModeError("user")
     result = json.loads(
         await handle_media(
-            mock_backend, "send_photo",
-            chat_id=123, file_path_or_url="https://example.com/photo.jpg",
+            mock_backend,
+            "send_photo",
+            chat_id=123,
+            file_path_or_url="https://example.com/photo.jpg",
         )
     )
     assert "error" in result
@@ -129,9 +137,7 @@ async def test_mode_error(mock_backend):
 async def test_general_exception(mock_backend):
     mock_backend.download_media.side_effect = RuntimeError("disk full")
     result = json.loads(
-        await handle_media(
-            mock_backend, "download", chat_id=123, message_id=10
-        )
+        await handle_media(mock_backend, "download", chat_id=123, message_id=10)
     )
     assert "error" in result
     assert "RuntimeError" in result["error"]

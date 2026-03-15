@@ -121,7 +121,9 @@ class TestAuthAsync:
         mock_client.is_user_authorized = AsyncMock(return_value=True)
         mock_client.get_me = AsyncMock(return_value=mock_me)
 
-        with patch("better_telegram_mcp.cli.TelegramClient", return_value=mock_client) as cls:
+        with patch(
+            "better_telegram_mcp.cli.TelegramClient", return_value=mock_client
+        ) as cls:
             await _auth_async()  # no session_name arg
 
         # Should use "custom_session" from env
@@ -135,7 +137,9 @@ class TestRunAuth:
         """run_auth parses --session-name from argv."""
         from better_telegram_mcp.cli import run_auth
 
-        monkeypatch.setattr(sys, "argv", ["prog", "auth", "--session-name", "my_session"])
+        monkeypatch.setattr(
+            sys, "argv", ["prog", "auth", "--session-name", "my_session"]
+        )
 
         with patch("better_telegram_mcp.cli.asyncio") as mock_asyncio:
             mock_asyncio.run = MagicMock()
@@ -203,7 +207,9 @@ class TestAuthFlow:
         mock_client = AsyncMock()
         mock_client.is_user_authorized = AsyncMock(return_value=False)
         mock_client.send_code_request = AsyncMock()
-        mock_client.sign_in = AsyncMock(side_effect=[Exception("2FA required"), mock_me])
+        mock_client.sign_in = AsyncMock(
+            side_effect=[Exception("2FA required"), mock_me]
+        )
         mock_client.get_me = AsyncMock(return_value=mock_me)
 
         with (
@@ -233,7 +239,9 @@ class TestAuthFlow:
         mock_client = AsyncMock()
         mock_client.is_user_authorized = AsyncMock(return_value=False)
         mock_client.send_code_request = AsyncMock()
-        mock_client.sign_in = AsyncMock(side_effect=[Exception("2FA required"), mock_me])
+        mock_client.sign_in = AsyncMock(
+            side_effect=[Exception("2FA required"), mock_me]
+        )
         mock_client.get_me = AsyncMock(return_value=mock_me)
 
         # First input: code, Second input: 2FA password

@@ -37,9 +37,7 @@ async def handle_chats(
             case "create":
                 if not title:
                     return err("'create' requires title")
-                result = await backend.create_chat(
-                    title, is_channel=is_channel
-                )
+                result = await backend.create_chat(title, is_channel=is_channel)
                 return ok(result)
 
             case "join":
@@ -63,9 +61,7 @@ async def handle_chats(
             case "admin":
                 if not chat_id or user_id is None:
                     return err("'admin' requires chat_id and user_id")
-                result = await backend.promote_admin(
-                    chat_id, user_id, demote=demote
-                )
+                result = await backend.promote_admin(chat_id, user_id, demote=demote)
                 action_word = "demoted" if demote else "promoted"
                 return ok({action_word: result})
 
@@ -94,9 +90,7 @@ async def handle_chats(
                     kwargs_t["topic_id"] = topic_id
                 if topic_name is not None:
                     kwargs_t["name"] = topic_name
-                result = await backend.manage_topics(
-                    chat_id, topic_action, **kwargs_t
-                )
+                result = await backend.manage_topics(chat_id, topic_action, **kwargs_t)
                 return ok(result)
 
             case _:

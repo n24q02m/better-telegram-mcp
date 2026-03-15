@@ -20,7 +20,9 @@ async def _auth_async(session_name: str | None = None) -> None:
         print("Get them from https://my.telegram.org")
         sys.exit(1)
 
-    data_dir = Path(os.environ.get("TELEGRAM_DATA_DIR", Path.home() / ".better-telegram-mcp"))
+    data_dir = Path(
+        os.environ.get("TELEGRAM_DATA_DIR", Path.home() / ".better-telegram-mcp")
+    )
     data_dir.mkdir(parents=True, exist_ok=True)
 
     name = session_name or os.environ.get("TELEGRAM_SESSION_NAME", "default")
@@ -61,7 +63,11 @@ async def _auth_async(session_name: str | None = None) -> None:
 
 def run_auth() -> None:
     parser = argparse.ArgumentParser(description="Authenticate Telegram")
-    parser.add_argument("--session-name", default=None, help="Session name (default: from env or 'default')")
+    parser.add_argument(
+        "--session-name",
+        default=None,
+        help="Session name (default: from env or 'default')",
+    )
     # Parse only known args to avoid conflict with __main__.py
     args, _ = parser.parse_known_args(sys.argv[2:])
     asyncio.run(_auth_async(args.session_name))

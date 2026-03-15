@@ -6,46 +6,106 @@ on:
 
 permissions:
   contents: write
+  packages: write
   id-token: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
+    name: Semantic Release
     runs-on: ubuntu-latest
-    concurrency: release
+    outputs:
+      released: ${{ steps.release.outputs.released }}
+      tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.release.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           token: ${{ secrets.GH_PAT }}
+          fetch-depth: 0
 
-      - uses: astral-sh/setup-uv@v6
-        with:
-          python-version: "3.13"
-
-      - run: uv sync
-
-      - name: Semantic Release
+      - uses: python-semantic-release/python-semantic-release@v10
         id: release
-        uses: python-semantic-release/python-semantic-release@v10
         with:
           github_token: ${{ secrets.GH_PAT }}
 
-      - name: Publish to PyPI
+      - uses: python-semantic-release/publish-action@v10
         if: steps.release.outputs.released == 'true'
-        uses: python-semantic-release/upload-to-pypi@v10
         with:
-          pypi_token: ${{ secrets.PYPI_TOKEN }}
+          github_token: ${{ secrets.GH_PAT }}
+          tag: ${{ steps.release.outputs.tag }}
 
-      - name: Build and push Docker
-        if: steps.release.outputs.released == 'true'
+  publish-pypi:
+    name: Publish to PyPI
+    needs: release
+    if: needs.release.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - run: uv build
+      - name: Publish to PyPI
+        run: uv publish
         env:
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+
+  publish-docker:
+    name: Publish Docker
+    needs: release
+    if: needs.release.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            n24q02m/better-telegram-mcp:latest
+            n24q02m/better-telegram-mcp:${{ needs.release.outputs.version }}
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ needs.release.outputs.version }}
+
+  publish-mcp-registry:
+    name: Publish to MCP Registry
+    needs: [release, publish-pypi, publish-docker]
+    if: needs.release.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+
+      - name: Update server.json version
         run: |
-          echo "$DOCKERHUB_TOKEN" | docker login -u n24q02m --password-stdin
-          docker build -t n24q02m/better-telegram-mcp:latest -t "n24q02m/better-telegram-mcp:$RELEASE_VERSION" .
-          docker push n24q02m/better-telegram-mcp --all-tags
+          VERSION="${{ needs.release.outputs.version }}"
+          jq --arg v "$VERSION" '.version = $v | .packages = [.packages[] | if .registryType == "oci" then del(.version) else .version = $v end]' server.json > server.json.tmp && mv server.json.tmp server.json
+
+      - name: Install MCP Publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+
+      - name: Login to MCP Registry
+        run: ./mcp-publisher login github-oidc
 
       - name: Publish to MCP Registry
-        if: steps.release.outputs.released == 'true'
-        uses: anthropics/mcp-publisher@v1
+        run: ./mcp-publisher publish

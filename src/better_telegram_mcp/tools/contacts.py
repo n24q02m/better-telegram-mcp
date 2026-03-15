@@ -43,10 +43,7 @@ async def handle_contacts(
                 return ok({action_word: result})
 
             case _:
-                return err(
-                    f"Unknown action '{action}'. "
-                    "Valid: list|search|add|block"
-                )
+                return err(f"Unknown action '{action}'. Valid: list|search|add|block")
     except ModeError as e:
         return err(str(e))
     except Exception as e:

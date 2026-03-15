@@ -23,8 +23,12 @@ async def test_send(mock_backend):
 async def test_send_with_reply_and_parse_mode(mock_backend):
     result = json.loads(
         await handle_messages(
-            mock_backend, "send", chat_id=123, text="hi",
-            reply_to=5, parse_mode="HTML",
+            mock_backend,
+            "send",
+            chat_id=123,
+            text="hi",
+            reply_to=5,
+            parse_mode="HTML",
         )
     )
     assert result["message_id"] == 1
@@ -38,9 +42,7 @@ async def test_send_missing_params(mock_backend):
     result = json.loads(await handle_messages(mock_backend, "send"))
     assert "error" in result
 
-    result = json.loads(
-        await handle_messages(mock_backend, "send", chat_id=123)
-    )
+    result = json.loads(await handle_messages(mock_backend, "send", chat_id=123))
     assert "error" in result
 
 
@@ -73,18 +75,14 @@ async def test_edit_missing_params(mock_backend):
 @pytest.mark.asyncio
 async def test_delete(mock_backend):
     result = json.loads(
-        await handle_messages(
-            mock_backend, "delete", chat_id=123, message_id=1
-        )
+        await handle_messages(mock_backend, "delete", chat_id=123, message_id=1)
     )
     assert result["deleted"] is True
 
 
 @pytest.mark.asyncio
 async def test_delete_missing_params(mock_backend):
-    result = json.loads(
-        await handle_messages(mock_backend, "delete", chat_id=123)
-    )
+    result = json.loads(await handle_messages(mock_backend, "delete", chat_id=123))
     assert "error" in result
 
 
@@ -92,8 +90,11 @@ async def test_delete_missing_params(mock_backend):
 async def test_forward(mock_backend):
     result = json.loads(
         await handle_messages(
-            mock_backend, "forward",
-            from_chat=1, to_chat=2, message_id=10,
+            mock_backend,
+            "forward",
+            from_chat=1,
+            to_chat=2,
+            message_id=10,
         )
     )
     assert result["message_id"] == 2
@@ -110,18 +111,14 @@ async def test_forward_missing_params(mock_backend):
 @pytest.mark.asyncio
 async def test_pin(mock_backend):
     result = json.loads(
-        await handle_messages(
-            mock_backend, "pin", chat_id=123, message_id=1
-        )
+        await handle_messages(mock_backend, "pin", chat_id=123, message_id=1)
     )
     assert result["pinned"] is True
 
 
 @pytest.mark.asyncio
 async def test_pin_missing_params(mock_backend):
-    result = json.loads(
-        await handle_messages(mock_backend, "pin", chat_id=123)
-    )
+    result = json.loads(await handle_messages(mock_backend, "pin", chat_id=123))
     assert "error" in result
 
 
@@ -138,9 +135,7 @@ async def test_react(mock_backend):
 @pytest.mark.asyncio
 async def test_react_missing_params(mock_backend):
     result = json.loads(
-        await handle_messages(
-            mock_backend, "react", chat_id=123, message_id=1
-        )
+        await handle_messages(mock_backend, "react", chat_id=123, message_id=1)
     )
     assert "error" in result
 
@@ -187,9 +182,7 @@ async def test_unknown_action(mock_backend):
 @pytest.mark.asyncio
 async def test_mode_error(mock_backend):
     mock_backend.search_messages.side_effect = ModeError("user")
-    result = json.loads(
-        await handle_messages(mock_backend, "search", query="test")
-    )
+    result = json.loads(await handle_messages(mock_backend, "search", query="test"))
     assert "error" in result
     assert "user mode" in result["error"]
 

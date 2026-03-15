@@ -54,17 +54,13 @@ class TelegramBackend(ABC):
         parse_mode: str | None = None,
     ) -> dict[str, Any]: ...
     @abstractmethod
-    async def delete_message(
-        self, chat_id: str | int, message_id: int
-    ) -> bool: ...
+    async def delete_message(self, chat_id: str | int, message_id: int) -> bool: ...
     @abstractmethod
     async def forward_message(
         self, from_chat: str | int, to_chat: str | int, message_id: int
     ) -> dict[str, Any]: ...
     @abstractmethod
-    async def pin_message(
-        self, chat_id: str | int, message_id: int
-    ) -> bool: ...
+    async def pin_message(self, chat_id: str | int, message_id: int) -> bool: ...
     @abstractmethod
     async def react_to_message(
         self, chat_id: str | int, message_id: int, emoji: str
@@ -88,13 +84,9 @@ class TelegramBackend(ABC):
 
     # --- Chats ---
     @abstractmethod
-    async def list_chats(
-        self, *, limit: int = 50
-    ) -> list[dict[str, Any]]: ...
+    async def list_chats(self, *, limit: int = 50) -> list[dict[str, Any]]: ...
     @abstractmethod
-    async def get_chat_info(
-        self, chat_id: str | int
-    ) -> dict[str, Any]: ...
+    async def get_chat_info(self, chat_id: str | int) -> dict[str, Any]: ...
     @abstractmethod
     async def create_chat(
         self, title: str, *, is_channel: bool = False
@@ -112,9 +104,7 @@ class TelegramBackend(ABC):
         self, chat_id: str | int, user_id: int, *, demote: bool = False
     ) -> bool: ...
     @abstractmethod
-    async def update_chat_settings(
-        self, chat_id: str | int, **kwargs: Any
-    ) -> bool: ...
+    async def update_chat_settings(self, chat_id: str | int, **kwargs: Any) -> bool: ...
     @abstractmethod
     async def manage_topics(
         self, chat_id: str | int, action: str, **kwargs: Any
@@ -143,14 +133,10 @@ class TelegramBackend(ABC):
     @abstractmethod
     async def list_contacts(self) -> list[dict[str, Any]]: ...
     @abstractmethod
-    async def search_contacts(
-        self, query: str
-    ) -> list[dict[str, Any]]: ...
+    async def search_contacts(self, query: str) -> list[dict[str, Any]]: ...
     @abstractmethod
     async def add_contact(
         self, phone: str, first_name: str, *, last_name: str | None = None
     ) -> bool: ...
     @abstractmethod
-    async def block_user(
-        self, user_id: int, *, unblock: bool = False
-    ) -> bool: ...
+    async def block_user(self, user_id: int, *, unblock: bool = False) -> bool: ...

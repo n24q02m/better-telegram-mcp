@@ -97,7 +97,9 @@ class TestConnect:
         mock_client.is_user_authorized.assert_awaited_once()
         assert await backend.is_connected() is True
 
-    async def test_connect_unauthorized_raises(self, tmp_path, mock_client, mock_client_class):
+    async def test_connect_unauthorized_raises(
+        self, tmp_path, mock_client, mock_client_class
+    ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         mock_client.is_user_authorized = AsyncMock(return_value=False)
@@ -142,7 +144,9 @@ class TestIsConnected:
 
         assert await backend.is_connected() is False
 
-    async def test_is_connected_sync_return(self, tmp_path, mock_client, mock_client_class):
+    async def test_is_connected_sync_return(
+        self, tmp_path, mock_client, mock_client_class
+    ):
         """When Telethon's is_connected() returns a sync bool."""
         from better_telegram_mcp.backends.user_backend import UserBackend
 
@@ -153,7 +157,9 @@ class TestIsConnected:
 
         assert await backend.is_connected() is True
 
-    async def test_is_connected_async_return(self, tmp_path, mock_client, mock_client_class):
+    async def test_is_connected_async_return(
+        self, tmp_path, mock_client, mock_client_class
+    ):
         """When Telethon's is_connected() returns a coroutine."""
         from better_telegram_mcp.backends.user_backend import UserBackend
 
@@ -223,7 +229,9 @@ class TestDeleteMessage:
 
 
 class TestForwardMessage:
-    async def test_forward_message_single(self, tmp_path, mock_client, mock_client_class):
+    async def test_forward_message_single(
+        self, tmp_path, mock_client, mock_client_class
+    ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         mock_client.forward_messages = AsyncMock(return_value=_mock_message(msg_id=2))
@@ -236,7 +244,9 @@ class TestForwardMessage:
 
         assert result["message_id"] == 2
 
-    async def test_forward_message_list_return(self, tmp_path, mock_client, mock_client_class):
+    async def test_forward_message_list_return(
+        self, tmp_path, mock_client, mock_client_class
+    ):
         """When forward_messages returns a list instead of single message."""
         from better_telegram_mcp.backends.user_backend import UserBackend
 
@@ -339,7 +349,9 @@ class TestGetHistory:
         assert len(result) == 5
         mock_client.get_messages.assert_awaited_once_with(123, limit=5)
 
-    async def test_get_history_with_offset(self, tmp_path, mock_client, mock_client_class):
+    async def test_get_history_with_offset(
+        self, tmp_path, mock_client, mock_client_class
+    ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         mock_client.get_messages = AsyncMock(return_value=[])
@@ -350,9 +362,7 @@ class TestGetHistory:
 
         await backend.get_history(123, limit=10, offset_id=50)
 
-        mock_client.get_messages.assert_awaited_once_with(
-            123, limit=10, offset_id=50
-        )
+        mock_client.get_messages.assert_awaited_once_with(123, limit=10, offset_id=50)
 
 
 class TestListChats:
@@ -374,7 +384,9 @@ class TestListChats:
 
 
 class TestGetChatInfo:
-    async def test_get_chat_info_channel(self, tmp_path, mock_client, mock_client_class):
+    async def test_get_chat_info_channel(
+        self, tmp_path, mock_client, mock_client_class
+    ):
         from telethon.tl.types import Channel
 
         from better_telegram_mcp.backends.user_backend import UserBackend
@@ -477,7 +489,9 @@ class TestCreateChat:
 
         assert result["id"] == 200
 
-    async def test_create_chat_no_chats_returned(self, tmp_path, mock_client, mock_client_class):
+    async def test_create_chat_no_chats_returned(
+        self, tmp_path, mock_client, mock_client_class
+    ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         mock_result = MagicMock()
@@ -647,12 +661,15 @@ class TestUpdateChatSettings:
 
         # Patch the EditAboutRequest import inside user_backend
         mock_edit_about = MagicMock()
-        with patch.dict("sys.modules", {
-            "telethon.tl.functions.channels": MagicMock(
-                EditTitleRequest=MagicMock(),
-                EditAboutRequest=mock_edit_about,
-            ),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "telethon.tl.functions.channels": MagicMock(
+                    EditTitleRequest=MagicMock(),
+                    EditAboutRequest=mock_edit_about,
+                ),
+            },
+        ):
             settings = _make_settings(tmp_path)
             backend = UserBackend(settings)
             await backend.connect()
@@ -666,12 +683,15 @@ class TestUpdateChatSettings:
 
         mock_client.return_value = MagicMock()
 
-        with patch.dict("sys.modules", {
-            "telethon.tl.functions.channels": MagicMock(
-                EditTitleRequest=MagicMock(),
-                EditAboutRequest=MagicMock(),
-            ),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "telethon.tl.functions.channels": MagicMock(
+                    EditTitleRequest=MagicMock(),
+                    EditAboutRequest=MagicMock(),
+                ),
+            },
+        ):
             settings = _make_settings(tmp_path)
             backend = UserBackend(settings)
             await backend.connect()
@@ -704,11 +724,14 @@ class TestManageTopics:
         mock_result.updates = [mock_update]
         mock_client.return_value = mock_result
 
-        with patch.dict("sys.modules", {
-            "telethon.tl.functions.channels": MagicMock(
-                CreateForumTopicRequest=MagicMock(return_value=MagicMock()),
-            ),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "telethon.tl.functions.channels": MagicMock(
+                    CreateForumTopicRequest=MagicMock(return_value=MagicMock()),
+                ),
+            },
+        ):
             settings = _make_settings(tmp_path)
             backend = UserBackend(settings)
             await backend.connect()
@@ -717,18 +740,23 @@ class TestManageTopics:
 
             assert result["topic_id"] == 42
 
-    async def test_topics_create_no_updates(self, tmp_path, mock_client, mock_client_class):
+    async def test_topics_create_no_updates(
+        self, tmp_path, mock_client, mock_client_class
+    ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         mock_result = MagicMock()
         mock_result.updates = []
         mock_client.return_value = mock_result
 
-        with patch.dict("sys.modules", {
-            "telethon.tl.functions.channels": MagicMock(
-                CreateForumTopicRequest=MagicMock(return_value=MagicMock()),
-            ),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "telethon.tl.functions.channels": MagicMock(
+                    CreateForumTopicRequest=MagicMock(return_value=MagicMock()),
+                ),
+            },
+        ):
             settings = _make_settings(tmp_path)
             backend = UserBackend(settings)
             await backend.connect()
@@ -742,11 +770,14 @@ class TestManageTopics:
 
         mock_client.return_value = MagicMock()
 
-        with patch.dict("sys.modules", {
-            "telethon.tl.functions.channels": MagicMock(
-                EditForumTopicRequest=MagicMock(return_value=MagicMock()),
-            ),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "telethon.tl.functions.channels": MagicMock(
+                    EditForumTopicRequest=MagicMock(return_value=MagicMock()),
+                ),
+            },
+        ):
             settings = _make_settings(tmp_path)
             backend = UserBackend(settings)
             await backend.connect()
@@ -849,7 +880,9 @@ class TestDownloadMedia:
 
         assert result == "/tmp/photo.jpg"
 
-    async def test_download_media_no_media_raises(self, tmp_path, mock_client, mock_client_class):
+    async def test_download_media_no_media_raises(
+        self, tmp_path, mock_client, mock_client_class
+    ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         msg = _mock_message()
@@ -863,7 +896,9 @@ class TestDownloadMedia:
         with pytest.raises(ValueError, match="no media"):
             await backend.download_media(123, 1)
 
-    async def test_download_media_with_output_dir(self, tmp_path, mock_client, mock_client_class):
+    async def test_download_media_with_output_dir(
+        self, tmp_path, mock_client, mock_client_class
+    ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         msg = _mock_message()
@@ -875,13 +910,17 @@ class TestDownloadMedia:
         backend = UserBackend(settings)
         await backend.connect()
 
-        result = await backend.download_media(123, 1, output_dir=str(tmp_path / "output"))
+        result = await backend.download_media(
+            123, 1, output_dir=str(tmp_path / "output")
+        )
 
         assert result == "/output/photo.jpg"
         # Verify output_dir was created
         assert (tmp_path / "output").exists()
 
-    async def test_download_media_returns_list(self, tmp_path, mock_client, mock_client_class):
+    async def test_download_media_returns_list(
+        self, tmp_path, mock_client, mock_client_class
+    ):
         """When get_messages returns a list, use first element."""
         from better_telegram_mcp.backends.user_backend import UserBackend
 
@@ -898,7 +937,9 @@ class TestDownloadMedia:
 
         assert result == "/tmp/photo.jpg"
 
-    async def test_download_media_empty_list_raises(self, tmp_path, mock_client, mock_client_class):
+    async def test_download_media_empty_list_raises(
+        self, tmp_path, mock_client, mock_client_class
+    ):
         """When get_messages returns empty list."""
         from better_telegram_mcp.backends.user_backend import UserBackend
 
@@ -911,7 +952,9 @@ class TestDownloadMedia:
         with pytest.raises(ValueError, match="no media"):
             await backend.download_media(123, 1)
 
-    async def test_download_media_none_path_raises(self, tmp_path, mock_client, mock_client_class):
+    async def test_download_media_none_path_raises(
+        self, tmp_path, mock_client, mock_client_class
+    ):
         """When download_media returns None."""
         from better_telegram_mcp.backends.user_backend import UserBackend
 
@@ -929,7 +972,9 @@ class TestDownloadMedia:
 
 
 class TestListContacts:
-    async def test_list_contacts_returns_list(self, tmp_path, mock_client, mock_client_class):
+    async def test_list_contacts_returns_list(
+        self, tmp_path, mock_client, mock_client_class
+    ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         users = [_mock_user(user_id=i) for i in range(2)]
@@ -944,7 +989,9 @@ class TestListContacts:
         assert len(result) == 2
         assert result[0]["first_name"] == "Test"
 
-    async def test_list_contacts_returns_object_with_users(self, tmp_path, mock_client, mock_client_class):
+    async def test_list_contacts_returns_object_with_users(
+        self, tmp_path, mock_client, mock_client_class
+    ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         contacts_obj = MagicMock()
@@ -991,7 +1038,9 @@ class TestAddContact:
 
         assert result is True
 
-    async def test_add_contact_no_last_name(self, tmp_path, mock_client, mock_client_class):
+    async def test_add_contact_no_last_name(
+        self, tmp_path, mock_client, mock_client_class
+    ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         mock_client.return_value = MagicMock()

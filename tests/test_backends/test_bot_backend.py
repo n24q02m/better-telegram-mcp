@@ -16,7 +16,11 @@ def _make_transport(result: dict | list | bool, ok: bool = True):
     """Create a MockTransport that returns a Telegram-style JSON response."""
     body = {"ok": ok, "result": result}
     if not ok:
-        body = {"ok": False, "description": result if isinstance(result, str) else "Error", "error_code": 400}
+        body = {
+            "ok": False,
+            "description": result if isinstance(result, str) else "Error",
+            "error_code": 400,
+        }
 
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200 if ok else 400, json=body)
@@ -40,9 +44,7 @@ def _make_bot(result: dict | list | bool = True, ok: bool = True) -> BotBackend:
 async def test_connect_success():
     bot = BotBackend("123456:ABC-DEF")
     bot._client = httpx.AsyncClient(
-        transport=_make_transport(
-            {"id": 123, "is_bot": True, "first_name": "TestBot"}
-        ),
+        transport=_make_transport({"id": 123, "is_bot": True, "first_name": "TestBot"}),
         base_url=bot._base_url,
     )
     await bot.connect()
@@ -338,7 +340,9 @@ async def test_call_form_error():
         base_url=bot._base_url,
     )
     with pytest.raises(TelegramAPIError, match="file too big"):
-        await bot._call_form("sendDocument", files={"document": ("test.txt", b"data")}, chat_id=123)
+        await bot._call_form(
+            "sendDocument", files={"document": ("test.txt", b"data")}, chat_id=123
+        )
 
 
 async def test_get_members_non_list_result():

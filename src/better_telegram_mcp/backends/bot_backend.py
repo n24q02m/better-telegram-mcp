@@ -21,9 +21,7 @@ class BotBackend(TelegramBackend):
         super().__init__("bot")
         self._token = bot_token
         self._base_url = API_BASE.format(bot_token)
-        self._client = httpx.AsyncClient(
-            base_url=self._base_url, timeout=30.0
-        )
+        self._client = httpx.AsyncClient(base_url=self._base_url, timeout=30.0)
         self._connected = False
         self._bot_info: dict[str, Any] = {}
 
@@ -33,9 +31,7 @@ class BotBackend(TelegramBackend):
         body = resp.json()
         if not body.get("ok"):
             desc = body.get("description", "Unknown error")
-            raise TelegramAPIError(
-                desc, body.get("error_code", resp.status_code)
-            )
+            raise TelegramAPIError(desc, body.get("error_code", resp.status_code))
         return body.get("result")
 
     async def _call_form(self, method: str, files: dict, **params: Any) -> Any:
@@ -100,12 +96,8 @@ class BotBackend(TelegramBackend):
             parse_mode=parse_mode,
         )
 
-    async def delete_message(
-        self, chat_id: str | int, message_id: int
-    ) -> bool:
-        return await self._call(
-            "deleteMessage", chat_id=chat_id, message_id=message_id
-        )
+    async def delete_message(self, chat_id: str | int, message_id: int) -> bool:
+        return await self._call("deleteMessage", chat_id=chat_id, message_id=message_id)
 
     async def forward_message(
         self, from_chat: str | int, to_chat: str | int, message_id: int
@@ -117,9 +109,7 @@ class BotBackend(TelegramBackend):
             message_id=message_id,
         )
 
-    async def pin_message(
-        self, chat_id: str | int, message_id: int
-    ) -> bool:
+    async def pin_message(self, chat_id: str | int, message_id: int) -> bool:
         return await self._call(
             "pinChatMessage", chat_id=chat_id, message_id=message_id
         )
@@ -158,9 +148,7 @@ class BotBackend(TelegramBackend):
         raise NotImplementedError(msg)
 
     # --- Chats ---
-    async def list_chats(
-        self, *, limit: int = 50
-    ) -> list[dict[str, Any]]:
+    async def list_chats(self, *, limit: int = 50) -> list[dict[str, Any]]:
         self.ensure_mode("user")
         return []
 
@@ -183,9 +171,7 @@ class BotBackend(TelegramBackend):
     async def get_members(
         self, chat_id: str | int, *, limit: int = 50
     ) -> list[dict[str, Any]]:
-        result = await self._call(
-            "getChatAdministrators", chat_id=chat_id
-        )
+        result = await self._call("getChatAdministrators", chat_id=chat_id)
         return result if isinstance(result, list) else []
 
     async def promote_admin(
@@ -202,13 +188,9 @@ class BotBackend(TelegramBackend):
             can_delete_messages=perms,
         )
 
-    async def update_chat_settings(
-        self, chat_id: str | int, **kwargs: Any
-    ) -> bool:
+    async def update_chat_settings(self, chat_id: str | int, **kwargs: Any) -> bool:
         if "title" in kwargs:
-            await self._call(
-                "setChatTitle", chat_id=chat_id, title=kwargs["title"]
-            )
+            await self._call("setChatTitle", chat_id=chat_id, title=kwargs["title"])
         if "description" in kwargs:
             await self._call(
                 "setChatDescription",
@@ -294,9 +276,7 @@ class BotBackend(TelegramBackend):
         self.ensure_mode("user")
         return []
 
-    async def search_contacts(
-        self, query: str
-    ) -> list[dict[str, Any]]:
+    async def search_contacts(self, query: str) -> list[dict[str, Any]]:
         self.ensure_mode("user")
         return []
 
@@ -306,8 +286,6 @@ class BotBackend(TelegramBackend):
         self.ensure_mode("user")
         return False
 
-    async def block_user(
-        self, user_id: int, *, unblock: bool = False
-    ) -> bool:
+    async def block_user(self, user_id: int, *, unblock: bool = False) -> bool:
         self.ensure_mode("user")
         return False

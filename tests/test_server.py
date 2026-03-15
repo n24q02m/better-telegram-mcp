@@ -153,9 +153,11 @@ async def test_lifespan_bot_mode(mock_backend):
                 # Patch the import inside lifespan
                 with patch.dict(
                     "sys.modules",
-                    {"better_telegram_mcp.backends.bot_backend": type(
-                        "module", (), {"BotBackend": MockBot}
-                    )()},
+                    {
+                        "better_telegram_mcp.backends.bot_backend": type(
+                            "module", (), {"BotBackend": MockBot}
+                        )()
+                    },
                 ):
                     async with _lifespan(mcp):
                         assert srv._backend is mock_bot
@@ -180,9 +182,13 @@ async def test_lifespan_user_mode():
         patch.object(srv, "Settings", return_value=mock_settings),
         patch.dict(
             "sys.modules",
-            {"better_telegram_mcp.backends.user_backend": type(
-                "module", (), {"UserBackend": MagicMock(return_value=mock_user_backend)}
-            )()},
+            {
+                "better_telegram_mcp.backends.user_backend": type(
+                    "module",
+                    (),
+                    {"UserBackend": MagicMock(return_value=mock_user_backend)},
+                )()
+            },
         ),
     ):
         async with _lifespan(mcp):
