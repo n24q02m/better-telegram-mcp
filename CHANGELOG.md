@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.1.1 (2026-03-15)
+
+### Bug Fixes
+
+- Catch send_code errors in lifespan to prevent server crash
+  ([`79ac576`](https://github.com/n24q02m/better-telegram-mcp/commit/79ac5765c68a8b9fbd06074e2d9552aabf44667c))
+
+
 ## v1.1.0 (2026-03-15)
 
 ### Features
