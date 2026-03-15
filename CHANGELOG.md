@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.2 (2026-03-15)
+
+### Bug Fixes
+
+- Implement config.set/cache_clear, topics.list, add missing repo files
+  ([`bd385cb`](https://github.com/n24q02m/better-telegram-mcp/commit/bd385cb75c8a2ecb35d76fe3f71fae9e9dc95d76))
+
+
 ## v1.0.1 (2026-03-15)
 
 ### Bug Fixes
