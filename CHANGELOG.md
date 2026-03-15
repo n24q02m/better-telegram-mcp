@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.1.2 (2026-03-15)
+
+### Bug Fixes
+
+- List_contacts uses GetContactsRequest (get_contacts not in Telethon)
+  ([`658e9a7`](https://github.com/n24q02m/better-telegram-mcp/commit/658e9a7e59030284ee1e29d22347b208b4997534))
+
+### Testing
+
+- Add user mode integration tests with live MTProto API
+  ([`658e9a7`](https://github.com/n24q02m/better-telegram-mcp/commit/658e9a7e59030284ee1e29d22347b208b4997534))
+
+
 ## v1.1.1 (2026-03-15)
 
 ### Bug Fixes
