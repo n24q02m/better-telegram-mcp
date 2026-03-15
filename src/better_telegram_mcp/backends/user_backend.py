@@ -209,10 +209,10 @@ class UserBackend(TelegramBackend):
     ) -> list[dict[str, Any]]:
         client = self._ensure_client()
         entity = chat_id if chat_id is not None else None
-        results: list[dict[str, Any]] = []
-        async for msg in client.iter_messages(entity, search=query, limit=limit):
-            results.append(self._serialize_message(msg))
-        return results
+        return [
+            self._serialize_message(msg)
+            async for msg in client.iter_messages(entity, search=query, limit=limit)
+        ]
 
     async def get_history(
         self,
@@ -226,6 +226,7 @@ class UserBackend(TelegramBackend):
         if offset_id is not None:
             kwargs["offset_id"] = offset_id
         messages = await client.get_messages(chat_id, **kwargs)
+        # Using list comprehension is typically faster than generator
         return [self._serialize_message(m) for m in messages]
 
     # --- Chats ---
@@ -300,10 +301,10 @@ class UserBackend(TelegramBackend):
         self, chat_id: str | int, *, limit: int = 50
     ) -> list[dict[str, Any]]:
         client = self._ensure_client()
-        members: list[dict[str, Any]] = []
-        async for user in client.iter_participants(chat_id, limit=limit):
-            members.append(self._serialize_user(user))
-        return members
+        return [
+            self._serialize_user(user)
+            async for user in client.iter_participants(chat_id, limit=limit)
+        ]
 
     async def promote_admin(
         self, chat_id: str | int, user_id: int, *, demote: bool = False
