@@ -40,38 +40,18 @@ TELEGRAM_BOT_TOKEN=123456:ABC-DEF uvx --python 3.13 better-telegram-mcp
 
 ### User Mode
 
-1. Go to [https://my.telegram.org](https://my.telegram.org)
-2. Login with your phone number (OTP sent via Telegram, not SMS)
-3. Click "API development tools"
-4. Create an app, note `api_id` (integer) and `api_hash` (32-char hex)
-5. Run the server with your credentials:
+1. Go to [https://my.telegram.org](https://my.telegram.org), login with your phone number
+2. Click "API development tools", create an app
+3. Note your `api_id` (integer) and `api_hash` (32-char hex string)
+4. Add to your MCP config with all required env vars (see examples below)
+5. Start using — the first tool call triggers the auth flow automatically:
+   - Server auto-sends an OTP code to your **Telegram app** (not SMS, not browser)
+   - Any tool call returns an auth prompt with instructions
+   - Enter the code: `config(action='auth', code='12345')`
+   - If 2FA is enabled: set `TELEGRAM_PASSWORD` env var (server uses it automatically)
+6. Done — session file persists at `~/.better-telegram-mcp/<name>.session`, no more auth needed on subsequent runs
 
-```bash
-TELEGRAM_API_ID=12345 TELEGRAM_API_HASH=a1b2c3d4e5... TELEGRAM_PHONE=+84912345678 \
-  uvx --python 3.13 better-telegram-mcp
-```
-
-On first run, the server automatically sends an OTP code to your Telegram app. When the AI agent calls any tool, it receives an auth prompt. Complete authentication via:
-
-```
-config(action='auth', code='YOUR_CODE')
-```
-
-The session is saved locally. Subsequent runs authenticate automatically.
-
-**2FA handling**: If your account has Two-Step Verification enabled, set `TELEGRAM_PASSWORD` env var. The server uses it automatically during sign-in.
-
-**Session file**: Stored at `~/.better-telegram-mcp/<name>.session` with `600` permissions (owner-only). Treat this file like a password.
-
-## Auth CLI (Legacy)
-
-For environments where interactive auth is preferred, the `auth` CLI command is still available:
-
-```bash
-TELEGRAM_API_ID=... TELEGRAM_API_HASH=... uvx --python 3.13 better-telegram-mcp auth
-```
-
-This is optional. The recommended approach is automatic runtime auth via the `config` tool as described above.
+> **Security**: The session file has `600` permissions (owner-only). Treat it like a password — anyone with this file can access your Telegram account.
 
 ## Configuration
 
@@ -82,8 +62,8 @@ All configuration is via environment variables with `TELEGRAM_` prefix:
 | `TELEGRAM_BOT_TOKEN` | Bot mode | - | Bot token from [@BotFather](https://t.me/BotFather) |
 | `TELEGRAM_API_ID` | User mode | - | API ID from [my.telegram.org](https://my.telegram.org) |
 | `TELEGRAM_API_HASH` | User mode | - | API hash from [my.telegram.org](https://my.telegram.org) |
-| `TELEGRAM_PHONE` | User mode | - | Phone number for auto-auth (e.g., `+84912345678`) |
-| `TELEGRAM_PASSWORD` | No | - | 2FA password (if enabled) |
+| `TELEGRAM_PHONE` | User mode | - | Phone number with country code (e.g., `+84912345678`). Required for auto OTP send on startup. |
+| `TELEGRAM_PASSWORD` | No | - | Two-Step Verification password. If set, used automatically during sign-in. If not set and 2FA is enabled, sign-in will fail with `SessionPasswordNeededError`. |
 | `TELEGRAM_SESSION_NAME` | No | `default` | Session file name (for multiple accounts) |
 | `TELEGRAM_DATA_DIR` | No | `~/.better-telegram-mcp` | Data directory for session files |
 
@@ -103,6 +83,8 @@ claude mcp add telegram -e TELEGRAM_API_ID=12345 -e TELEGRAM_API_HASH=abc123 -e 
 
 ### Claude Desktop / Cursor
 
+Bot mode:
+
 ```json
 {
   "mcpServers": {
@@ -111,6 +93,25 @@ claude mcp add telegram -e TELEGRAM_API_ID=12345 -e TELEGRAM_API_HASH=abc123 -e 
       "args": ["--python", "3.13", "better-telegram-mcp"],
       "env": {
         "TELEGRAM_BOT_TOKEN": "123456:ABC-DEF"
+      }
+    }
+  }
+}
+```
+
+User mode:
+
+```json
+{
+  "mcpServers": {
+    "telegram": {
+      "command": "uvx",
+      "args": ["--python", "3.13", "better-telegram-mcp"],
+      "env": {
+        "TELEGRAM_API_ID": "12345678",
+        "TELEGRAM_API_HASH": "your-api-hash",
+        "TELEGRAM_PHONE": "+1234567890",
+        "TELEGRAM_PASSWORD": "your-2fa-password-if-enabled"
       }
     }
   }
@@ -219,10 +220,13 @@ help(topic="all")       # Everything
 | `Invalid bot token` | Token revoked or wrong | Regenerate via `/token` in [@BotFather](https://t.me/BotFather) |
 | `Authentication required` | Session not yet authorized | Use `config(action='auth', code='YOUR_CODE')` after receiving OTP |
 | `PhoneNumberInvalidError` | Wrong phone format | Include country code with `+` (e.g., `+84912345678`) |
-| `SessionPasswordNeededError` | 2FA enabled | Set `TELEGRAM_PASSWORD` env var |
-| `FloodWaitError` | Too many auth attempts | Wait the indicated seconds |
+| `SessionPasswordNeededError` | 2FA enabled but no password | Set `TELEGRAM_PASSWORD` env var in your MCP config |
+| `FloodWaitError` | Too many auth attempts | Wait the indicated seconds before retrying |
 | `requires user mode` | Action not available in bot mode | Switch to user mode (API ID + Hash) |
 | Session lost after Docker restart | Data volume not mounted | Add `-v ~/.better-telegram-mcp:/data` |
+| OTP sent but where? | Code goes to Telegram app | Check the **Telegram app on your phone** (not SMS, not browser). Look for a message from "Telegram" with a login code. |
+| How to enter OTP code? | Need to use config tool | Call `config(action='auth', code='12345')` where `12345` is the code from your Telegram app |
+| Need to re-send OTP | Code expired or not received | Call `config(action='send_code')` to request a new code |
 
 ## Compatible With
 
@@ -242,7 +246,7 @@ help(topic="all")       # Everything
 | [better-notion-mcp](https://github.com/n24q02m/better-notion-mcp) | Notion API for AI agents | `npx -y @n24q02m/better-notion-mcp@latest` |
 | [better-email-mcp](https://github.com/n24q02m/better-email-mcp) | Email (IMAP/SMTP) for AI agents | `npx -y @n24q02m/better-email-mcp@latest` |
 | [wet-mcp](https://github.com/n24q02m/wet-mcp) | Web search, extraction, library docs | `uvx --python 3.13 wet-mcp@latest` |
-| [mnemo-mcp](https://github.com/n24q02m/mnemo-mcp) | Persistent AI memory | `uvx mnemo-mcp@latest` |
+| [mnemo-mcp](https://github.com/n24q02m/mnemo-mcp) | Persistent AI memory with hybrid search | `uvx mnemo-mcp@latest` |
 | [better-godot-mcp](https://github.com/n24q02m/better-godot-mcp) | Godot Engine for AI agents | `npx -y @n24q02m/better-godot-mcp@latest` |
 
 ## Contributing
