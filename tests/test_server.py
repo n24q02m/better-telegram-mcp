@@ -305,15 +305,18 @@ async def test_messages_blocked_during_pending_auth(mock_backend):
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
+    old_terminal = srv._auth_terminal_opened
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
+        srv._auth_terminal_opened = False
         result = json.loads(await messages(action="send", chat_id=123, text="hi"))
         assert "error" in result
         assert "Authentication required" in result["error"]
     finally:
         srv._backend = old_backend
         srv._pending_auth = old_pending
+        srv._auth_terminal_opened = old_terminal
 
 
 @pytest.mark.asyncio
@@ -323,15 +326,18 @@ async def test_chats_blocked_during_pending_auth(mock_backend):
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
+    old_terminal = srv._auth_terminal_opened
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
+        srv._auth_terminal_opened = False
         result = json.loads(await chats(action="list"))
         assert "error" in result
         assert "Authentication required" in result["error"]
     finally:
         srv._backend = old_backend
         srv._pending_auth = old_pending
+        srv._auth_terminal_opened = old_terminal
 
 
 @pytest.mark.asyncio
@@ -341,9 +347,11 @@ async def test_media_blocked_during_pending_auth(mock_backend):
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
+    old_terminal = srv._auth_terminal_opened
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
+        srv._auth_terminal_opened = False
         result = json.loads(
             await media(
                 action="send_photo",
@@ -356,6 +364,7 @@ async def test_media_blocked_during_pending_auth(mock_backend):
     finally:
         srv._backend = old_backend
         srv._pending_auth = old_pending
+        srv._auth_terminal_opened = old_terminal
 
 
 @pytest.mark.asyncio
@@ -365,15 +374,18 @@ async def test_contacts_blocked_during_pending_auth(mock_backend):
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
+    old_terminal = srv._auth_terminal_opened
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
+        srv._auth_terminal_opened = False
         result = json.loads(await contacts(action="list"))
         assert "error" in result
         assert "Authentication required" in result["error"]
     finally:
         srv._backend = old_backend
         srv._pending_auth = old_pending
+        srv._auth_terminal_opened = old_terminal
 
 
 @pytest.mark.asyncio
