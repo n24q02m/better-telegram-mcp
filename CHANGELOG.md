@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.7 (2026-03-15)
+
+### Bug Fixes
+
+- Add mcp-name to README for MCP Registry ownership verification
+  ([`9b277d9`](https://github.com/n24q02m/better-telegram-mcp/commit/9b277d9d6da9503c28d30185e8941bbd4df6b2fa))
+
+
 ## v1.0.6 (2026-03-15)
 
 ### Bug Fixes
