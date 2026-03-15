@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.6 (2026-03-15)
+
+### Bug Fixes
+
+- Shorten server.json description to <= 100 chars for MCP Registry
+  ([`fa1a39d`](https://github.com/n24q02m/better-telegram-mcp/commit/fa1a39dcba9062382782a29498b3e8440e1706ec))
+
+
 ## v1.0.5 (2026-03-15)
 
 ### Bug Fixes
