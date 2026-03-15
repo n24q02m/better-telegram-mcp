@@ -63,6 +63,9 @@ class BotBackend(TelegramBackend):
     async def is_connected(self) -> bool:
         return self._connected
 
+    async def clear_cache(self) -> None:
+        pass  # Bot API is stateless, no cache to clear
+
     # --- Messages ---
     async def send_message(
         self,
@@ -132,7 +135,6 @@ class BotBackend(TelegramBackend):
         limit: int = 20,
     ) -> list[dict[str, Any]]:
         self.ensure_mode("user")
-        return []  # unreachable
 
     async def get_history(
         self,
@@ -141,16 +143,11 @@ class BotBackend(TelegramBackend):
         limit: int = 20,
         offset_id: int | None = None,
     ) -> list[dict[str, Any]]:
-        msg = (
-            "Bot API does not support reading chat history. "
-            "Use user mode for full history access."
-        )
-        raise NotImplementedError(msg)
+        return []  # Bot API cannot read arbitrary chat history
 
     # --- Chats ---
     async def list_chats(self, *, limit: int = 50) -> list[dict[str, Any]]:
         self.ensure_mode("user")
-        return []
 
     async def get_chat_info(self, chat_id: str | int) -> dict[str, Any]:
         return await self._call("getChat", chat_id=chat_id)
@@ -159,11 +156,9 @@ class BotBackend(TelegramBackend):
         self, title: str, *, is_channel: bool = False
     ) -> dict[str, Any]:
         self.ensure_mode("user")
-        return {}
 
     async def join_chat(self, link_or_hash: str) -> bool:
         self.ensure_mode("user")
-        return False
 
     async def leave_chat(self, chat_id: str | int) -> bool:
         return await self._call("leaveChat", chat_id=chat_id)
@@ -204,7 +199,10 @@ class BotBackend(TelegramBackend):
     ) -> dict[str, Any]:
         match action:
             case "list":
-                return {"topics": []}
+                return {
+                    "error": "Bot API does not support listing forum topics. "
+                    "Use user mode for full topic access."
+                }
             case "create":
                 return await self._call(
                     "createForumTopic",
@@ -274,18 +272,14 @@ class BotBackend(TelegramBackend):
     # --- Contacts (user-only) ---
     async def list_contacts(self) -> list[dict[str, Any]]:
         self.ensure_mode("user")
-        return []
 
     async def search_contacts(self, query: str) -> list[dict[str, Any]]:
         self.ensure_mode("user")
-        return []
 
     async def add_contact(
         self, phone: str, first_name: str, *, last_name: str | None = None
     ) -> bool:
         self.ensure_mode("user")
-        return False
 
     async def block_user(self, user_id: int, *, unblock: bool = False) -> bool:
         self.ensure_mode("user")
-        return False

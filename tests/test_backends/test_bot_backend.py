@@ -124,6 +124,15 @@ async def test_react_to_message():
     assert result is True
 
 
+# --- Cache ---
+
+
+async def test_clear_cache():
+    bot = _make_bot()
+    # Should not raise — Bot API has no cache
+    await bot.clear_cache()
+
+
 # --- User-only methods raise ModeError ---
 
 
@@ -178,10 +187,10 @@ async def test_block_user_raises_mode_error():
 # --- NotImplementedError ---
 
 
-async def test_get_history_raises_not_implemented():
+async def test_get_history_returns_empty():
     bot = _make_bot()
-    with pytest.raises(NotImplementedError, match="Bot API does not support"):
-        await bot.get_history(123)
+    result = await bot.get_history(123)
+    assert result == []
 
 
 async def test_download_media_raises_not_implemented():
@@ -243,7 +252,8 @@ async def test_update_chat_settings_description():
 async def test_manage_topics_list():
     bot = _make_bot()
     result = await bot.manage_topics(123, "list")
-    assert result == {"topics": []}
+    assert "error" in result
+    assert "Bot API does not support listing forum topics" in result["error"]
 
 
 async def test_manage_topics_create():

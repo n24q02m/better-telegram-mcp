@@ -17,6 +17,7 @@ jobs:
       - run: uv sync
       - run: uv run ruff check src/ tests/
       - run: uv run ruff format --check src/ tests/
+      - run: uv run ty check src/
 
   test:
     runs-on: ubuntu-latest

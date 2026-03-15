@@ -74,7 +74,7 @@ ignore = ["E501"]
 [tool.ruff.format]
 quote-style = "double"
 
-[tool.ty]
+[tool.ty.environment]
 python-version = "3.13"
 
 [tool.ty.rules]

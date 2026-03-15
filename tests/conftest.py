@@ -79,6 +79,7 @@ class MockBackend(TelegramBackend):
         self, phone: str, first_name: str, *, last_name: str | None = None
     ) -> bool: ...
     async def block_user(self, user_id: int, *, unblock: bool = False) -> bool: ...
+    async def clear_cache(self) -> None: ...
 
     def __init__(self, mode: str = "bot"):
         super().__init__(mode)
@@ -106,6 +107,7 @@ class MockBackend(TelegramBackend):
         self.search_contacts = AsyncMock(return_value=[])
         self.add_contact = AsyncMock(return_value=True)
         self.block_user = AsyncMock(return_value=True)
+        self.clear_cache = AsyncMock()
         self.connect = AsyncMock()
         self.disconnect = AsyncMock()
         self.is_connected = AsyncMock(return_value=True)

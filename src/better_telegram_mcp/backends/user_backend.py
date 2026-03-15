@@ -93,6 +93,11 @@ class UserBackend(TelegramBackend):
             return await connected
         return bool(connected)
 
+    async def clear_cache(self) -> None:
+        if self._client is not None and self._client.session:
+            # Clear Telethon's entity cache
+            self._client.session.cache.clear()
+
     # --- Messages ---
     async def send_message(
         self,
@@ -308,8 +313,27 @@ class UserBackend(TelegramBackend):
         client = self._ensure_client()
         match action:
             case "list":
-                # Telethon does not have a direct topics API; return empty
-                return {"topics": []}
+                from telethon.tl.functions.channels import GetForumTopicsRequest
+
+                entity = await client.get_entity(chat_id)
+                result = await client(
+                    GetForumTopicsRequest(
+                        channel=entity,
+                        offset_date=None,
+                        offset_id=0,
+                        offset_topic=0,
+                        limit=kwargs.get("limit", 100),
+                    )
+                )
+                topics = [
+                    {
+                        "id": t.id,
+                        "title": t.title,
+                        "icon_emoji_id": getattr(t, "icon_emoji_id", None),
+                    }
+                    for t in result.topics
+                ]
+                return {"topics": topics, "count": len(topics)}
             case "create":
                 from telethon.tl.functions.channels import CreateForumTopicRequest
 

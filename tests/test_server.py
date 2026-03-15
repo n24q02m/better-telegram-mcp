@@ -117,6 +117,10 @@ async def test_config_tool(mock_backend):
         srv._backend = mock_backend
         result = await config(action="status")
         assert "mode" in result
+
+        # Test set action through tool
+        result = await config(action="set", message_limit=42)
+        assert "updated" in result
     finally:
         srv._backend = old
 

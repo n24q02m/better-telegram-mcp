@@ -34,6 +34,10 @@ class TelegramBackend(ABC):
     @abstractmethod
     async def is_connected(self) -> bool: ...
 
+    # --- Cache ---
+    @abstractmethod
+    async def clear_cache(self) -> None: ...
+
     # --- Messages ---
     @abstractmethod
     async def send_message(

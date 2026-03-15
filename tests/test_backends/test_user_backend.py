@@ -703,17 +703,72 @@ class TestUpdateChatSettings:
             assert result is True
 
 
-class TestManageTopics:
-    async def test_topics_list(self, tmp_path, mock_client, mock_client_class):
+class TestClearCache:
+    async def test_clear_cache(self, tmp_path, mock_client, mock_client_class):
         from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_session = MagicMock()
+        mock_session.cache = MagicMock()
+        mock_client.session = mock_session
 
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)
         await backend.connect()
 
-        result = await backend.manage_topics(123, "list")
+        await backend.clear_cache()
 
-        assert result == {"topics": []}
+        mock_session.cache.clear.assert_called_once()
+
+    async def test_clear_cache_not_connected(self, tmp_path):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+
+        # Should not raise
+        await backend.clear_cache()
+
+
+class TestManageTopics:
+    async def test_topics_list(self, tmp_path, mock_client, mock_client_class):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_entity = MagicMock()
+        mock_client.get_entity = AsyncMock(return_value=mock_entity)
+
+        mock_topic1 = MagicMock()
+        mock_topic1.id = 1
+        mock_topic1.title = "General"
+        mock_topic1.icon_emoji_id = None
+
+        mock_topic2 = MagicMock()
+        mock_topic2.id = 2
+        mock_topic2.title = "Off-topic"
+        mock_topic2.icon_emoji_id = 5368324170671202286
+
+        mock_result = MagicMock()
+        mock_result.topics = [mock_topic1, mock_topic2]
+        mock_client.return_value = mock_result
+
+        with patch.dict(
+            "sys.modules",
+            {
+                "telethon.tl.functions.channels": MagicMock(
+                    GetForumTopicsRequest=MagicMock(return_value=MagicMock()),
+                ),
+            },
+        ):
+            settings = _make_settings(tmp_path)
+            backend = UserBackend(settings)
+            await backend.connect()
+
+            result = await backend.manage_topics(123, "list")
+
+            assert result["count"] == 2
+            assert result["topics"][0]["id"] == 1
+            assert result["topics"][0]["title"] == "General"
+            assert result["topics"][1]["id"] == 2
+            assert result["topics"][1]["title"] == "Off-topic"
 
     async def test_topics_create(self, tmp_path, mock_client, mock_client_class):
         from better_telegram_mcp.backends.user_backend import UserBackend

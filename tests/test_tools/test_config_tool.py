@@ -12,6 +12,9 @@ async def test_status(mock_backend):
     result = json.loads(await handle_config(mock_backend, "status"))
     assert result["mode"] == "bot"
     assert result["connected"] is True
+    assert "config" in result
+    assert "message_limit" in result["config"]
+    assert "timeout" in result["config"]
 
 
 @pytest.mark.asyncio
@@ -22,10 +25,49 @@ async def test_status_user_mode(mock_user_backend):
 
 
 @pytest.mark.asyncio
-async def test_set(mock_backend):
+async def test_set_message_limit(mock_backend):
+    result = json.loads(await handle_config(mock_backend, "set", message_limit=50))
+    assert result["updated"]["message_limit"] == 50
+    assert result["current"]["message_limit"] == 50
+
+
+@pytest.mark.asyncio
+async def test_set_timeout(mock_backend):
+    result = json.loads(await handle_config(mock_backend, "set", timeout=60))
+    assert result["updated"]["timeout"] == 60
+    assert result["current"]["timeout"] == 60
+
+
+@pytest.mark.asyncio
+async def test_set_both(mock_backend):
+    result = json.loads(
+        await handle_config(mock_backend, "set", message_limit=100, timeout=90)
+    )
+    assert result["updated"]["message_limit"] == 100
+    assert result["updated"]["timeout"] == 90
+
+
+@pytest.mark.asyncio
+async def test_set_no_params(mock_backend):
     result = json.loads(await handle_config(mock_backend, "set"))
-    assert "message" in result
-    assert "environment variables" in result["message"]
+    assert "error" in result
+    assert "set requires" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_set_none_params(mock_backend):
+    result = json.loads(
+        await handle_config(mock_backend, "set", message_limit=None, timeout=None)
+    )
+    assert "error" in result
+    assert "set requires" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_set_persists_across_calls(mock_backend):
+    await handle_config(mock_backend, "set", message_limit=42)
+    result = json.loads(await handle_config(mock_backend, "status"))
+    assert result["config"]["message_limit"] == 42
 
 
 @pytest.mark.asyncio
@@ -33,6 +75,14 @@ async def test_cache_clear(mock_backend):
     result = json.loads(await handle_config(mock_backend, "cache_clear"))
     assert "message" in result
     assert "Cache cleared" in result["message"]
+    mock_backend.clear_cache.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_cache_clear_user_mode(mock_user_backend):
+    result = json.loads(await handle_config(mock_user_backend, "cache_clear"))
+    assert "Cache cleared" in result["message"]
+    mock_user_backend.clear_cache.assert_awaited_once()
 
 
 @pytest.mark.asyncio

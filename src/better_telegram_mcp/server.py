@@ -18,6 +18,10 @@ from .tools.messages import handle_messages
 
 _backend: TelegramBackend | None = None
 _settings: Settings | None = None
+_runtime_config: dict[str, int] = {
+    "message_limit": 20,
+    "timeout": 30,
+}
 
 
 def get_backend() -> TelegramBackend:
@@ -221,9 +225,18 @@ async def contacts(
         openWorldHint=False,
     )
 )
-async def config(action: str) -> str:
+async def config(
+    action: str,
+    message_limit: int | None = None,
+    timeout: int | None = None,
+) -> str:
     """status|set|cache_clear"""
-    return await handle_config(get_backend(), action)
+    return await handle_config(
+        get_backend(),
+        action,
+        message_limit=message_limit,
+        timeout=timeout,
+    )
 
 
 @mcp.tool(
