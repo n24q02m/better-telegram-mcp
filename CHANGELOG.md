@@ -2,6 +2,29 @@
 
 <!-- version list -->
 
+## v1.2.0 (2026-03-15)
+
+### Bug Fixes
+
+- Remove real phone number and API ID from README examples
+  ([`bf55ea4`](https://github.com/n24q02m/better-telegram-mcp/commit/bf55ea40a5827e6e3147043a11c523b10c273af0))
+
+### Chores
+
+- Align repo structure, CI/CD, and config with reference MCP servers
+  ([`30413ea`](https://github.com/n24q02m/better-telegram-mcp/commit/30413eafa864d8db02fbb1bfa33cf47e1375df9b))
+
+### Documentation
+
+- Rewrite README with runtime auth flow, fix user mode UX documentation
+  ([`b80761d`](https://github.com/n24q02m/better-telegram-mcp/commit/b80761d6370b909f064c6f2820cc19fbccfa3558))
+
+### Features
+
+- Open terminal for direct OTP input, fallback to config tool for headless
+  ([`56e7f08`](https://github.com/n24q02m/better-telegram-mcp/commit/56e7f08298f3babdf90bec213db8504b3957d8c1))
+
+
 ## v1.1.2 (2026-03-15)
 
 ### Bug Fixes
