@@ -1,5 +1,7 @@
 # better-telegram-mcp
 
+mcp-name: io.github.n24q02m/better-telegram-mcp
+
 [![CI](https://github.com/n24q02m/better-telegram-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/n24q02m/better-telegram-mcp/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/n24q02m/better-telegram-mcp/graph/badge.svg)](https://codecov.io/gh/n24q02m/better-telegram-mcp)
 [![PyPI](https://img.shields.io/pypi/v/better-telegram-mcp?logo=pypi&logoColor=white)](https://pypi.org/project/better-telegram-mcp/)
