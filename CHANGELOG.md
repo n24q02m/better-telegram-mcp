@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.4 (2026-03-15)
+
+### Bug Fixes
+
+- Remove LICENSE from .dockerignore, improve README with auth docs and troubleshooting
+  ([`1d588c7`](https://github.com/n24q02m/better-telegram-mcp/commit/1d588c75c11d0e3bd3e2f528552deed53eecf506))
+
+
 ## v1.0.3 (2026-03-15)
 
 ### Bug Fixes
