@@ -1,13 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.n24q02m/better-telegram-mcp",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "better-telegram-mcp",
       "runtimeHint": "uvx",
-      "runtimeArgs": ["--python", "3.13"]
+      "runtimeArgs": [
+        "--python",
+        "3.13"
+      ],
+      "version": "1.0.0"
     },
     {
       "registryType": "oci",
