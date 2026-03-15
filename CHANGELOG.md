@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.3 (2026-03-15)
+
+### Bug Fixes
+
+- Add ty rule ignores for Telethon dynamic types
+  ([`925bffc`](https://github.com/n24q02m/better-telegram-mcp/commit/925bffc3233861355f6f58a58e9f65760c61749e))
+
+
 ## v1.0.2 (2026-03-15)
 
 ### Bug Fixes
