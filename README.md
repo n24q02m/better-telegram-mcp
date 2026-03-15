@@ -107,7 +107,7 @@ User mode:
       "args": ["--python", "3.13", "better-telegram-mcp"],
       "env": {
         "TELEGRAM_API_ID": "12345678",
-        "TELEGRAM_API_HASH": "your-api-hash",
+        "TELEGRAM_API_HASH": "your-api-hash-from-my-telegram-org",
         "TELEGRAM_PHONE": "+1234567890",
         "TELEGRAM_PASSWORD": "your-2fa-password-if-enabled"
       }
