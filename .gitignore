@@ -1,12 +1,64 @@
+# Python
 __pycache__/
 *.py[cod]
-*.egg-info/
-dist/
+*$py.class
+*.so
+.Python
 build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
 .venv/
-*.session
-*.session-journal
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.cursor/
+
+# Testing
+.pytest_cache/
 .coverage
 htmlcov/
-.pytest_cache/
+.tox/
+.nox/
+
+# Misc
+.DS_Store
+*.log
+.env
+.env.local
+.envrc
+*.bak
+
+# Ruff
 .ruff_cache/
+
+# Build artifacts
+*.whl
+node_modules/
+temp/
+
+# Telegram session files
+*.session
+*.session-journal
+
+# AI Agent
+.jules/
+JULES.md

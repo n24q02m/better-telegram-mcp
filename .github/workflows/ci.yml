@@ -1,40 +1,170 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  issue_comment:
+    types: [created, edited]
   issues:
-    types: [opened]
+    types:
+      - opened
+      - reopened
+
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
-  lint:
+  pr-title-check:
+    name: PR Title Check
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.sender.type != 'Bot'
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - name: Harden Runner
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2
         with:
-          python-version: "3.13"
-      - run: uv sync
-      - run: uv run ruff check src/ tests/
-      - run: uv run ruff format --check src/ tests/
-      - run: uv run ty check src/
+          egress-policy: audit
 
-  test:
+      - name: Validate and auto-fix PR title
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          title=$(gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json title -q .title)
+          if [[ "$title" =~ ^(feat|fix)(\(.+\))?:.+ ]] || [[ "$title" =~ ^chore\(release\):.+ ]]; then
+            echo "Title is valid: $title"
+            exit 0
+          fi
+          clean=$(echo "$title" | sed -E 's/^[^a-zA-Z]*//; s/^(Bolt|Sentinel|Guard|Shield): *(\[.*\] *)?//')
+          if echo "$clean" | grep -qiE 'fix|bug|vulnerability|security|patch|resolve|crash|error'; then
+            new_title="fix: $(echo "$clean" | sed 's/^./\L&/')"
+          else
+            new_title="feat: $(echo "$clean" | sed 's/^./\L&/')"
+          fi
+          gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --title "$new_title"
+          echo "Auto-fixed: $title -> $new_title"
+  lint-and-test:
+    name: Lint & Test
+    if: github.event_name != 'issues'
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - name: Harden Runner
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098 # v7
+
+      - name: Setup Python 3.13
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.13"
-      - run: uv sync
-      - run: uv run pytest tests/ --cov=better_telegram_mcp --cov-report=xml --cov-fail-under=95
-      - uses: codecov/codecov-action@v5
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Run Ruff check
+        run: uv run ruff check .
+
+      - name: Run Ruff format check
+        run: uv run ruff format --check .
+
+      - name: Run ty type check
+        run: uv run ty check
+
+      - name: Run tests with coverage
+        run: |
+          if [ -d "tests" ] && [ "$(ls -A tests/*.py 2>/dev/null)" ]; then
+            uv run pytest tests/ --cov=better_telegram_mcp --cov-report=xml --cov-fail-under=95
+          else
+            echo "No tests found, skipping..."
+          fi
+
+      - name: Upload coverage to Codecov
+        if: github.event_name == 'push'
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
 
+  dependency-review:
+    name: Dependency Review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261 # v4
+        with:
+          fail-on-severity: moderate
+          comment-summary-in-pr: always
+
+  ai_pr_review:
+    name: Qodo AI Code Review
+    if: >-
+      (
+        github.event_name == 'issue_comment'
+        && github.event.sender.type != 'Bot'
+      ) || (
+        github.event_name == 'pull_request'
+        && github.event.sender.type != 'Bot'
+        && github.event.pull_request.user.login != 'n24q02m'
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Load custom instructions
+        run: |
+          if [ -f ".github/best_practices.md" ]; then
+            INSTRUCTIONS=$(cat .github/best_practices.md)
+            RANDOM_EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+            echo "CUSTOM_INSTRUCTIONS<<$RANDOM_EOF" >> "$GITHUB_ENV"
+            echo "$INSTRUCTIONS" >> "$GITHUB_ENV"
+            echo "$RANDOM_EOF" >> "$GITHUB_ENV"
+          fi
+
+      - name: PR Agent action step
+        uses: qodo-ai/pr-agent@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PR_REVIEWER__EXTRA_INSTRUCTIONS: ${{ env.CUSTOM_INSTRUCTIONS }}
+          PR_CODE_SUGGESTIONS__EXTRA_INSTRUCTIONS: ${{ env.CUSTOM_INSTRUCTIONS }}
+          PR_DESCRIPTION__EXTRA_INSTRUCTIONS: ${{ env.CUSTOM_INSTRUCTIONS }}
+          GITHUB_ACTION_CONFIG__AUTO_REVIEW: "true"
+          GITHUB_ACTION_CONFIG__AUTO_DESCRIBE: "true"
+          GITHUB_ACTION_CONFIG__AUTO_IMPROVE: "true"
+          GITHUB_ACTION_CONFIG__HANDLE_PR_ACTIONS: '["opened", "reopened", "ready_for_review", "synchronize"]'
+
+  # ============================================================================
+  # Email Notification (External Contributors)
+  # ============================================================================
   email-notify:
     name: Email Notification
     if: >-
@@ -43,8 +173,13 @@ jobs:
       && github.event.sender.type != 'Bot'
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2
+        with:
+          egress-policy: audit
+
       - name: Send email notification
-        uses: dawidd6/action-send-mail@v11
+        uses: dawidd6/action-send-mail@ba302ba66e88942841281c984a6b31ca6d6289e6 # v11
         with:
           server_address: smtp.gmail.com
           server_port: 587
@@ -63,3 +198,7 @@ jobs:
             Title: ${{ github.event.issue.title || github.event.pull_request.title }}
             Author: ${{ github.actor }}
             URL: ${{ github.event.issue.html_url || github.event.pull_request.html_url }}
+            Action: ${{ github.event.action }}
+
+            ---
+            ${{ github.event.issue.body || github.event.pull_request.body || 'No description provided.' }}

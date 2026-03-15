@@ -1,5 +1,11 @@
+# Mise configuration for better-telegram-mcp
+# https://mise.jdx.dev/
+#
+# Setup: mise run setup
+
 [tools]
 python = "3.13"
+node = "24"
 uv = "latest"
 
 [settings]
@@ -12,6 +18,7 @@ UV_LINK_MODE = "copy"
 description = "Setup development environment"
 run = [
   "mise install",
+  "node scripts/clean-venv.mjs",
   "uv sync --group dev",
   "uv pip install pre-commit",
   "uv run pre-commit install",
@@ -20,10 +27,11 @@ run = [
 ]
 
 [tasks.lint]
-description = "Run all quality checks"
+description = "Run all quality checks (ruff + ty)"
 run = [
   "uv run ruff check .",
   "uv run ruff format --check .",
+  "uv run ty check",
   "echo 'All checks passed!'"
 ]
 

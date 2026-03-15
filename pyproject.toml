@@ -3,18 +3,23 @@ name = "better-telegram-mcp"
 version = "1.1.2"
 description = "Production-grade MCP server for Telegram — dual-mode Bot API + MTProto, mega-tool pattern"
 readme = "README.md"
-license = "MIT"
+license = { text = "MIT" }
 requires-python = "==3.13.*"
-authors = [{ name = "n24q02m" }]
+authors = [{ name = "n24q02m", email = "quangminh2422004@gmail.com" }]
 keywords = [
     "mcp", "mcp-server", "model-context-protocol",
     "telegram", "telegram-bot", "telegram-api",
-    "claude", "claude-code", "cursor",
+    "claude", "cursor", "copilot", "antigravity", "codex", "opencode", "gemini-cli",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
-    "Programming Language :: Python :: 3.13",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Communications :: Chat",
 ]
 dependencies = [
     "mcp[cli]>=1.8.0",
@@ -95,18 +100,12 @@ fail_under = 95
 
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]
-branch = "main"
-build_command = "pip install build && python -m build"
-commit_message = "chore(release): v{version}"
 tag_format = "v{version}"
+commit_message = "chore(release): v{version}"
 major_on_zero = false
 
 [tool.semantic_release.changelog]
-exclude_commit_patterns = ["^chore", "^ci", "^docs", "^style", "^refactor"]
+changelog_file = "CHANGELOG.md"
 
 [tool.semantic_release.remote]
 type = "github"
-token = { env = "GH_TOKEN" }
-
-[tool.semantic_release.publish]
-upload_to_vcs_release = true
