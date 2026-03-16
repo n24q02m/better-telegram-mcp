@@ -19,7 +19,10 @@ async def handle_messages(
                 if not args.chat_id or not args.text:
                     return err("'send' requires chat_id and text")
                 result = await backend.send_message(
-                    args.chat_id, args.text, reply_to=args.reply_to, parse_mode=args.parse_mode
+                    args.chat_id,
+                    args.text,
+                    reply_to=args.reply_to,
+                    parse_mode=args.parse_mode,
                 )
                 return ok(result)
 
@@ -40,7 +43,9 @@ async def handle_messages(
             case "forward":
                 if not args.from_chat or not args.to_chat or args.message_id is None:
                     return err("'forward' requires from_chat, to_chat, and message_id")
-                result = await backend.forward_message(args.from_chat, args.to_chat, args.message_id)
+                result = await backend.forward_message(
+                    args.from_chat, args.to_chat, args.message_id
+                )
                 return ok(result)
 
             case "pin":
@@ -52,7 +57,9 @@ async def handle_messages(
             case "react":
                 if not args.chat_id or args.message_id is None or not args.emoji:
                     return err("'react' requires chat_id, message_id, and emoji")
-                result = await backend.react_to_message(args.chat_id, args.message_id, args.emoji)
+                result = await backend.react_to_message(
+                    args.chat_id, args.message_id, args.emoji
+                )
                 return ok({"reacted": result})
 
             case "search":
