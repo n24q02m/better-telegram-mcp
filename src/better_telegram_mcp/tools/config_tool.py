@@ -57,8 +57,7 @@ async def _handle_auth(backend: TelegramBackend, **kwargs: Any) -> str:
     phone = settings.phone
     if not phone:
         return err(
-            "TELEGRAM_PHONE env var is required for auth. "
-            "Set it in your MCP config."
+            "TELEGRAM_PHONE env var is required for auth. Set it in your MCP config."
         )
 
     password = settings.password
@@ -80,8 +79,7 @@ async def _handle_send_code(backend: TelegramBackend) -> str:
     phone = settings.phone
     if not phone:
         return err(
-            "TELEGRAM_PHONE env var is required to send OTP. "
-            "Set it in your MCP config."
+            "TELEGRAM_PHONE env var is required to send OTP. Set it in your MCP config."
         )
 
     await backend.send_code(phone)
