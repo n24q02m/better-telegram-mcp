@@ -422,6 +422,7 @@ def test_main_calls_run():
         main()
         mock_run.assert_called_once_with(transport="stdio")
 
+
 @pytest.mark.asyncio
 async def test_lifespan_user_mode_unauthorized_with_phone_send_code_exception():
     """When user mode session is unauthorized and send_code raises an exception."""
