@@ -729,7 +729,9 @@ class TestClearCache:
         # Should not raise
         await backend.clear_cache()
 
-    async def test_clear_cache_exception_swallowed(self, tmp_path, mock_client, mock_client_class):
+    async def test_clear_cache_exception_swallowed(
+        self, tmp_path, mock_client, mock_client_class
+    ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         mock_session = MagicMock()
