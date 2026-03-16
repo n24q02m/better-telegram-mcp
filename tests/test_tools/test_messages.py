@@ -5,8 +5,8 @@ import json
 import pytest
 
 from better_telegram_mcp.backends.base import ModeError
-from better_telegram_mcp.tools.messages import handle_messages
 from better_telegram_mcp.server import MessagesArgs
+from better_telegram_mcp.tools.messages import handle_messages
 
 
 @pytest.mark.asyncio
