@@ -4,6 +4,106 @@ from ..backends.base import ModeError, TelegramBackend
 from ..utils.formatting import err, ok
 
 
+async def _handle_send(
+    backend: TelegramBackend,
+    chat_id: str | int | None,
+    text: str | None,
+    reply_to: int | None,
+    parse_mode: str | None,
+) -> str:
+    if not chat_id or not text:
+        return err("'send' requires chat_id and text")
+    result = await backend.send_message(
+        chat_id, text, reply_to=reply_to, parse_mode=parse_mode
+    )
+    return ok(result)
+
+
+async def _handle_edit(
+    backend: TelegramBackend,
+    chat_id: str | int | None,
+    message_id: int | None,
+    text: str | None,
+    parse_mode: str | None,
+) -> str:
+    if not chat_id or message_id is None or not text:
+        return err("'edit' requires chat_id, message_id, and text")
+    result = await backend.edit_message(
+        chat_id, message_id, text, parse_mode=parse_mode
+    )
+    return ok(result)
+
+
+async def _handle_delete(
+    backend: TelegramBackend,
+    chat_id: str | int | None,
+    message_id: int | None,
+) -> str:
+    if not chat_id or message_id is None:
+        return err("'delete' requires chat_id and message_id")
+    result = await backend.delete_message(chat_id, message_id)
+    return ok({"deleted": result})
+
+
+async def _handle_forward(
+    backend: TelegramBackend,
+    from_chat: str | int | None,
+    to_chat: str | int | None,
+    message_id: int | None,
+) -> str:
+    if not from_chat or not to_chat or message_id is None:
+        return err("'forward' requires from_chat, to_chat, and message_id")
+    result = await backend.forward_message(from_chat, to_chat, message_id)
+    return ok(result)
+
+
+async def _handle_pin(
+    backend: TelegramBackend,
+    chat_id: str | int | None,
+    message_id: int | None,
+) -> str:
+    if not chat_id or message_id is None:
+        return err("'pin' requires chat_id and message_id")
+    result = await backend.pin_message(chat_id, message_id)
+    return ok({"pinned": result})
+
+
+async def _handle_react(
+    backend: TelegramBackend,
+    chat_id: str | int | None,
+    message_id: int | None,
+    emoji: str | None,
+) -> str:
+    if not chat_id or message_id is None or not emoji:
+        return err("'react' requires chat_id, message_id, and emoji")
+    result = await backend.react_to_message(chat_id, message_id, emoji)
+    return ok({"reacted": result})
+
+
+async def _handle_search(
+    backend: TelegramBackend,
+    chat_id: str | int | None,
+    query: str | None,
+    limit: int,
+) -> str:
+    if not query:
+        return err("'search' requires query")
+    results = await backend.search_messages(query, chat_id=chat_id, limit=limit)
+    return ok({"messages": results, "count": len(results)})
+
+
+async def _handle_history(
+    backend: TelegramBackend,
+    chat_id: str | int | None,
+    limit: int,
+    offset_id: int | None,
+) -> str:
+    if not chat_id:
+        return err("'history' requires chat_id")
+    results = await backend.get_history(chat_id, limit=limit, offset_id=offset_id)
+    return ok({"messages": results, "count": len(results)})
+
+
 async def handle_messages(
     backend: TelegramBackend,
     action: str,
@@ -23,61 +123,23 @@ async def handle_messages(
     try:
         match action:
             case "send":
-                if not chat_id or not text:
-                    return err("'send' requires chat_id and text")
-                result = await backend.send_message(
-                    chat_id, text, reply_to=reply_to, parse_mode=parse_mode
-                )
-                return ok(result)
-
+                return await _handle_send(backend, chat_id, text, reply_to, parse_mode)
             case "edit":
-                if not chat_id or message_id is None or not text:
-                    return err("'edit' requires chat_id, message_id, and text")
-                result = await backend.edit_message(
-                    chat_id, message_id, text, parse_mode=parse_mode
+                return await _handle_edit(
+                    backend, chat_id, message_id, text, parse_mode
                 )
-                return ok(result)
-
             case "delete":
-                if not chat_id or message_id is None:
-                    return err("'delete' requires chat_id and message_id")
-                result = await backend.delete_message(chat_id, message_id)
-                return ok({"deleted": result})
-
+                return await _handle_delete(backend, chat_id, message_id)
             case "forward":
-                if not from_chat or not to_chat or message_id is None:
-                    return err("'forward' requires from_chat, to_chat, and message_id")
-                result = await backend.forward_message(from_chat, to_chat, message_id)
-                return ok(result)
-
+                return await _handle_forward(backend, from_chat, to_chat, message_id)
             case "pin":
-                if not chat_id or message_id is None:
-                    return err("'pin' requires chat_id and message_id")
-                result = await backend.pin_message(chat_id, message_id)
-                return ok({"pinned": result})
-
+                return await _handle_pin(backend, chat_id, message_id)
             case "react":
-                if not chat_id or message_id is None or not emoji:
-                    return err("'react' requires chat_id, message_id, and emoji")
-                result = await backend.react_to_message(chat_id, message_id, emoji)
-                return ok({"reacted": result})
-
+                return await _handle_react(backend, chat_id, message_id, emoji)
             case "search":
-                if not query:
-                    return err("'search' requires query")
-                results = await backend.search_messages(
-                    query, chat_id=chat_id, limit=limit
-                )
-                return ok({"messages": results, "count": len(results)})
-
+                return await _handle_search(backend, chat_id, query, limit)
             case "history":
-                if not chat_id:
-                    return err("'history' requires chat_id")
-                results = await backend.get_history(
-                    chat_id, limit=limit, offset_id=offset_id
-                )
-                return ok({"messages": results, "count": len(results)})
-
+                return await _handle_history(backend, chat_id, limit, offset_id)
             case _:
                 return err(
                     f"Unknown action '{action}'. "
