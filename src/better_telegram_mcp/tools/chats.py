@@ -17,9 +17,12 @@ class ChatOptions(BaseModel):
     user_id: int | None = Field(default=None, description="User ID to manage")
     demote: bool = Field(default=False, description="Whether to demote admin")
     limit: int = Field(default=50, description="Max results to return")
-    topic_action: str | None = Field(default=None, description="Topic action to perform")
+    topic_action: str | None = Field(
+        default=None, description="Topic action to perform"
+    )
     topic_id: int | None = Field(default=None, description="Topic ID to manage")
     topic_name: str | None = Field(default=None, description="Topic name to create")
+
 
 async def handle_chats(
     backend: TelegramBackend,
@@ -41,7 +44,9 @@ async def handle_chats(
             case "create":
                 if not options.title:
                     return err("'create' requires title")
-                result = await backend.create_chat(options.title, is_channel=options.is_channel)
+                result = await backend.create_chat(
+                    options.title, is_channel=options.is_channel
+                )
                 return ok(result)
 
             case "join":
@@ -59,13 +64,17 @@ async def handle_chats(
             case "members":
                 if not options.chat_id:
                     return err("'members' requires chat_id")
-                results = await backend.get_members(options.chat_id, limit=options.limit)
+                results = await backend.get_members(
+                    options.chat_id, limit=options.limit
+                )
                 return ok({"members": results, "count": len(results)})
 
             case "admin":
                 if not options.chat_id or options.user_id is None:
                     return err("'admin' requires chat_id and user_id")
-                result = await backend.promote_admin(options.chat_id, options.user_id, demote=options.demote)
+                result = await backend.promote_admin(
+                    options.chat_id, options.user_id, demote=options.demote
+                )
                 action_word = "demoted" if options.demote else "promoted"
                 return ok({action_word: result})
 
@@ -94,7 +103,9 @@ async def handle_chats(
                     kwargs_t["topic_id"] = options.topic_id
                 if options.topic_name is not None:
                     kwargs_t["name"] = options.topic_name
-                result = await backend.manage_topics(options.chat_id, options.topic_action, **kwargs_t)
+                result = await backend.manage_topics(
+                    options.chat_id, options.topic_action, **kwargs_t
+                )
                 return ok(result)
 
             case _:

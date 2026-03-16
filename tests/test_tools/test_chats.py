@@ -18,7 +18,9 @@ async def test_list(mock_backend):
 @pytest.mark.asyncio
 async def test_info(mock_backend):
     mock_backend.get_chat_info.return_value = {"id": 123, "title": "Test"}
-    result = json.loads(await handle_chats(mock_backend, "info", ChatOptions(chat_id=123)))
+    result = json.loads(
+        await handle_chats(mock_backend, "info", ChatOptions(chat_id=123))
+    )
     assert result["id"] == 123
 
 
@@ -32,7 +34,9 @@ async def test_info_missing_params(mock_backend):
 async def test_create(mock_backend):
     mock_backend.create_chat.return_value = {"id": 456, "title": "New"}
     result = json.loads(
-        await handle_chats(mock_backend, "create", ChatOptions(title="New", is_channel=True))
+        await handle_chats(
+            mock_backend, "create", ChatOptions(title="New", is_channel=True)
+        )
     )
     assert result["id"] == 456
 
@@ -45,7 +49,9 @@ async def test_create_missing_params(mock_backend):
 
 @pytest.mark.asyncio
 async def test_join(mock_backend):
-    result = json.loads(await handle_chats(mock_backend, "join", ChatOptions(link_or_hash="abc123")))
+    result = json.loads(
+        await handle_chats(mock_backend, "join", ChatOptions(link_or_hash="abc123"))
+    )
     assert result["joined"] is True
 
 
@@ -57,7 +63,9 @@ async def test_join_missing_params(mock_backend):
 
 @pytest.mark.asyncio
 async def test_leave(mock_backend):
-    result = json.loads(await handle_chats(mock_backend, "leave", ChatOptions(chat_id=123)))
+    result = json.loads(
+        await handle_chats(mock_backend, "leave", ChatOptions(chat_id=123))
+    )
     assert result["left"] is True
 
 
@@ -93,14 +101,18 @@ async def test_admin_promote(mock_backend):
 @pytest.mark.asyncio
 async def test_admin_demote(mock_backend):
     result = json.loads(
-        await handle_chats(mock_backend, "admin", ChatOptions(chat_id=123, user_id=456, demote=True))
+        await handle_chats(
+            mock_backend, "admin", ChatOptions(chat_id=123, user_id=456, demote=True)
+        )
     )
     assert result["demoted"] is True
 
 
 @pytest.mark.asyncio
 async def test_admin_missing_params(mock_backend):
-    result = json.loads(await handle_chats(mock_backend, "admin", ChatOptions(chat_id=123)))
+    result = json.loads(
+        await handle_chats(mock_backend, "admin", ChatOptions(chat_id=123))
+    )
     assert "error" in result
 
 
@@ -122,13 +134,17 @@ async def test_settings(mock_backend):
 
 @pytest.mark.asyncio
 async def test_settings_missing_chat_id(mock_backend):
-    result = json.loads(await handle_chats(mock_backend, "settings", ChatOptions(title="X")))
+    result = json.loads(
+        await handle_chats(mock_backend, "settings", ChatOptions(title="X"))
+    )
     assert "error" in result
 
 
 @pytest.mark.asyncio
 async def test_settings_no_fields(mock_backend):
-    result = json.loads(await handle_chats(mock_backend, "settings", ChatOptions(chat_id=123)))
+    result = json.loads(
+        await handle_chats(mock_backend, "settings", ChatOptions(chat_id=123))
+    )
     assert "error" in result
 
 
@@ -136,7 +152,9 @@ async def test_settings_no_fields(mock_backend):
 async def test_topics(mock_backend):
     mock_backend.manage_topics.return_value = {"topics": []}
     result = json.loads(
-        await handle_chats(mock_backend, "topics", ChatOptions(chat_id=123, topic_action="list"))
+        await handle_chats(
+            mock_backend, "topics", ChatOptions(chat_id=123, topic_action="list")
+        )
     )
     assert "topics" in result
 
@@ -178,13 +196,17 @@ async def test_topics_close_with_id(mock_backend):
 
 @pytest.mark.asyncio
 async def test_topics_missing_chat_id(mock_backend):
-    result = json.loads(await handle_chats(mock_backend, "topics", ChatOptions(topic_action="list")))
+    result = json.loads(
+        await handle_chats(mock_backend, "topics", ChatOptions(topic_action="list"))
+    )
     assert "error" in result
 
 
 @pytest.mark.asyncio
 async def test_topics_missing_action(mock_backend):
-    result = json.loads(await handle_chats(mock_backend, "topics", ChatOptions(chat_id=123)))
+    result = json.loads(
+        await handle_chats(mock_backend, "topics", ChatOptions(chat_id=123))
+    )
     assert "error" in result
 
 
@@ -206,6 +228,8 @@ async def test_mode_error(mock_backend):
 @pytest.mark.asyncio
 async def test_general_exception(mock_backend):
     mock_backend.get_chat_info.side_effect = RuntimeError("fail")
-    result = json.loads(await handle_chats(mock_backend, "info", ChatOptions(chat_id=123)))
+    result = json.loads(
+        await handle_chats(mock_backend, "info", ChatOptions(chat_id=123))
+    )
     assert "error" in result
     assert "RuntimeError" in result["error"]
