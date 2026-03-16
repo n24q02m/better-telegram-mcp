@@ -15,7 +15,7 @@ from mcp.types import ToolAnnotations
 
 from .backends.base import TelegramBackend
 from .config import Settings
-from .tools.chats import handle_chats
+from .tools.chats import ChatOptions, handle_chats
 from .tools.config_tool import handle_config
 from .tools.contacts import handle_contacts
 from .tools.help_tool import handle_help
@@ -262,35 +262,17 @@ async def messages(
 )
 async def chats(
     action: str,
-    chat_id: str | int | None = None,
-    title: str | None = None,
-    description: str | None = None,
-    is_channel: bool = False,
-    link_or_hash: str | None = None,
-    user_id: int | None = None,
-    demote: bool = False,
-    limit: int = 50,
-    topic_action: str | None = None,
-    topic_id: int | None = None,
-    topic_name: str | None = None,
+    options: ChatOptions | None = None,
 ) -> str:
     """list|info|create|join|leave|members|admin|settings|topics"""
     if _pending_auth:
         return _auth_required_response()
+
+    opts = options if options is not None else ChatOptions()
     return await handle_chats(
         get_backend(),
         action,
-        chat_id=chat_id,
-        title=title,
-        description=description,
-        is_channel=is_channel,
-        link_or_hash=link_or_hash,
-        user_id=user_id,
-        demote=demote,
-        limit=limit,
-        topic_action=topic_action,
-        topic_id=topic_id,
-        topic_name=topic_name,
+        opts,
     )
 
 
