@@ -58,7 +58,7 @@ async def test_messages_tool(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = await messages(action="send", chat_id=123, text="hi")
+        result = await messages(srv.MessagesArgs(action="send", chat_id=123, text="hi"))
         assert "message_id" in result
     finally:
         srv._backend = old_backend
@@ -310,7 +310,7 @@ async def test_messages_blocked_during_pending_auth(mock_backend):
         srv._backend = mock_backend
         srv._pending_auth = True
         srv._auth_terminal_opened = False
-        result = json.loads(await messages(action="send", chat_id=123, text="hi"))
+        result = json.loads(await messages(srv.MessagesArgs(action="send", chat_id=123, text="hi")))
         assert "error" in result
         assert "Authentication required" in result["error"]
     finally:

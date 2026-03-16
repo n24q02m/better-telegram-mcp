@@ -1,86 +1,79 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..server import MessagesArgs
+
 from ..backends.base import ModeError, TelegramBackend
 from ..utils.formatting import err, ok
 
 
 async def handle_messages(
     backend: TelegramBackend,
-    action: str,
-    *,
-    chat_id: str | int | None = None,
-    text: str | None = None,
-    message_id: int | None = None,
-    reply_to: int | None = None,
-    parse_mode: str | None = None,
-    from_chat: str | int | None = None,
-    to_chat: str | int | None = None,
-    emoji: str | None = None,
-    query: str | None = None,
-    limit: int = 20,
-    offset_id: int | None = None,
+    args: MessagesArgs,
 ) -> str:
     try:
-        match action:
+        match args.action:
             case "send":
-                if not chat_id or not text:
+                if not args.chat_id or not args.text:
                     return err("'send' requires chat_id and text")
                 result = await backend.send_message(
-                    chat_id, text, reply_to=reply_to, parse_mode=parse_mode
+                    args.chat_id, args.text, reply_to=args.reply_to, parse_mode=args.parse_mode
                 )
                 return ok(result)
 
             case "edit":
-                if not chat_id or message_id is None or not text:
+                if not args.chat_id or args.message_id is None or not args.text:
                     return err("'edit' requires chat_id, message_id, and text")
                 result = await backend.edit_message(
-                    chat_id, message_id, text, parse_mode=parse_mode
+                    args.chat_id, args.message_id, args.text, parse_mode=args.parse_mode
                 )
                 return ok(result)
 
             case "delete":
-                if not chat_id or message_id is None:
+                if not args.chat_id or args.message_id is None:
                     return err("'delete' requires chat_id and message_id")
-                result = await backend.delete_message(chat_id, message_id)
+                result = await backend.delete_message(args.chat_id, args.message_id)
                 return ok({"deleted": result})
 
             case "forward":
-                if not from_chat or not to_chat or message_id is None:
+                if not args.from_chat or not args.to_chat or args.message_id is None:
                     return err("'forward' requires from_chat, to_chat, and message_id")
-                result = await backend.forward_message(from_chat, to_chat, message_id)
+                result = await backend.forward_message(args.from_chat, args.to_chat, args.message_id)
                 return ok(result)
 
             case "pin":
-                if not chat_id or message_id is None:
+                if not args.chat_id or args.message_id is None:
                     return err("'pin' requires chat_id and message_id")
-                result = await backend.pin_message(chat_id, message_id)
+                result = await backend.pin_message(args.chat_id, args.message_id)
                 return ok({"pinned": result})
 
             case "react":
-                if not chat_id or message_id is None or not emoji:
+                if not args.chat_id or args.message_id is None or not args.emoji:
                     return err("'react' requires chat_id, message_id, and emoji")
-                result = await backend.react_to_message(chat_id, message_id, emoji)
+                result = await backend.react_to_message(args.chat_id, args.message_id, args.emoji)
                 return ok({"reacted": result})
 
             case "search":
-                if not query:
+                if not args.query:
                     return err("'search' requires query")
                 results = await backend.search_messages(
-                    query, chat_id=chat_id, limit=limit
+                    args.query, chat_id=args.chat_id, limit=args.limit
                 )
                 return ok({"messages": results, "count": len(results)})
 
             case "history":
-                if not chat_id:
+                if not args.chat_id:
                     return err("'history' requires chat_id")
                 results = await backend.get_history(
-                    chat_id, limit=limit, offset_id=offset_id
+                    args.chat_id, limit=args.limit, offset_id=args.offset_id
                 )
                 return ok({"messages": results, "count": len(results)})
 
             case _:
                 return err(
-                    f"Unknown action '{action}'. "
+                    f"Unknown action '{args.action}'. "
                     "Valid: send|edit|delete|forward|pin|react|search|history"
                 )
     except ModeError as e:
