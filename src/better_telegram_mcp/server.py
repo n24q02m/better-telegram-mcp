@@ -1,13 +1,7 @@
 from __future__ import annotations
 
-import asyncio
-import os
-import shutil
-import subprocess
-import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
@@ -43,20 +37,10 @@ class MessagesArgs(BaseModel):
 _backend: TelegramBackend | None = None
 _settings: Settings | None = None
 _pending_auth: bool = False
-_auth_terminal_opened: bool = False
-_poll_task: asyncio.Task[None] | None = None
 _runtime_config: dict[str, int] = {
     "message_limit": 20,
     "timeout": 30,
 }
-
-_TERMINAL_EMULATORS = [
-    "gnome-terminal",
-    "xterm",
-    "konsole",
-    "xfce4-terminal",
-    "mate-terminal",
-]
 
 
 def get_backend() -> TelegramBackend:
@@ -74,92 +58,17 @@ def get_settings() -> Settings:
 
 
 def _auth_required_response() -> str:
-    if _auth_terminal_opened:
-        return err(
-            "Authentication in progress. Complete in the terminal window that just opened. "
-            "If the terminal closed, use: config(action='auth', code='YOUR_CODE') as fallback."
-        )
     return err(
-        "Authentication required. OTP code has been sent to your Telegram app. "
-        "Use: config(action='auth', code='YOUR_CODE') to complete authentication."
+        "Telegram session not authenticated. "
+        "Option 1: Run `better-telegram-mcp auth` in your terminal, then restart this MCP server. "
+        "Option 2: Use config(action='send_code') to send OTP, "
+        "then config(action='auth', code='YOUR_CODE') to complete."
     )
-
-
-def _auth_missing_phone_response() -> str:
-    return err(
-        "User mode requires TELEGRAM_PHONE env var for automatic auth. "
-        "Set it in your MCP config alongside TELEGRAM_API_ID and TELEGRAM_API_HASH."
-    )
-
-
-def _find_terminal_emulator() -> str | None:
-    """Find an available terminal emulator on the system."""
-    for t in _TERMINAL_EMULATORS:
-        if shutil.which(t):
-            return t
-    return None
-
-
-def _open_auth_terminal(settings: Settings) -> bool:
-    """Open a terminal window for interactive OTP input.
-
-    Returns True if terminal was opened, False otherwise.
-    """
-    terminal = _find_terminal_emulator()
-    if terminal is None:
-        logger.warning(
-            "No terminal emulator found. Use config(action='auth', code='...') instead."
-        )
-        return False
-
-    auth_script = str(Path(__file__).parent / "auth_terminal.py")
-    env = {
-        **os.environ,
-        "TELEGRAM_API_ID": str(settings.api_id),
-        "TELEGRAM_API_HASH": str(settings.api_hash),
-        "TELEGRAM_PHONE": str(settings.phone),
-        "TELEGRAM_DATA_DIR": str(settings.data_dir),
-        "TELEGRAM_SESSION_NAME": settings.session_name,
-    }
-    if settings.password:
-        env["TELEGRAM_PASSWORD"] = settings.password
-
-    # SECURITY: Prevent argument/command injection by avoiding shell=True
-    # and properly separating executable commands from terminal arguments.
-    if terminal in ("gnome-terminal", "konsole", "xfce4-terminal", "mate-terminal"):
-        cmd = [terminal, "--", sys.executable, auth_script]
-    else:
-        # xterm uses -e, which executes the rest of the arguments
-        cmd = [terminal, "-e", sys.executable, auth_script]
-
-    try:
-        subprocess.Popen(cmd, env=env)  # noqa: S603
-        logger.info(
-            "Auth terminal opened ({}). Complete auth in the terminal window.", terminal
-        )
-        return True
-    except Exception as e:
-        logger.warning("Failed to open terminal ({}): {}", terminal, e)
-        return False
-
-
-async def _poll_auth() -> None:
-    """Poll is_authorized() until auth completes."""
-    global _pending_auth
-    while _pending_auth:
-        await asyncio.sleep(2)
-        try:
-            if _backend is not None and await _backend.is_authorized():
-                _pending_auth = False
-                logger.info("Authentication completed!")
-                break
-        except Exception:
-            pass
 
 
 @asynccontextmanager
 async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
-    global _backend, _settings, _pending_auth, _auth_terminal_opened, _poll_task
+    global _backend, _settings, _pending_auth
     _settings = Settings()
     logger.info("Mode: {}", _settings.mode)
 
@@ -178,44 +87,17 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
     await _backend.connect()
     logger.info("Connected to Telegram ({})", _settings.mode)
 
-    # Auto-auth flow for user mode
     if _settings.mode == "user" and not await _backend.is_authorized():
-        if _settings.phone:
-            masked = _settings.phone[:4] + "***" + _settings.phone[-4:]
-            logger.info("Session not authorized. Sending OTP to {}...", masked)
-            try:
-                await _backend.send_code(_settings.phone)
-                _pending_auth = True
-
-                # Try to open a terminal for direct OTP input
-                _auth_terminal_opened = _open_auth_terminal(_settings)
-                if _auth_terminal_opened:
-                    logger.info("OTP sent. Auth terminal opened for direct input.")
-                    # Start polling for auth completion
-                    _poll_task = asyncio.create_task(_poll_auth())
-                else:
-                    logger.info("OTP sent. Waiting for auth via config tool.")
-            except Exception as e:
-                logger.error("Failed to send OTP: {}. Check API credentials.", e)
-                _pending_auth = True  # Still pending — user can retry via config(action='send_code')
-        else:
-            logger.warning(
-                "Session not authorized and TELEGRAM_PHONE not set. "
-                "Auth will need to be initiated via config(action='send_code')."
-            )
-            _pending_auth = True
+        _pending_auth = True
+        logger.warning(
+            "Session not authorized. "
+            "Run `better-telegram-mcp auth` in your terminal, then restart. "
+            "Or use config(action='send_code') + config(action='auth', code='...') via tool calls."
+        )
 
     try:
         yield
     finally:
-        # Cancel poll task if still running
-        if _poll_task is not None and not _poll_task.done():
-            _poll_task.cancel()
-            try:
-                await _poll_task
-            except asyncio.CancelledError:
-                pass
-            _poll_task = None
         await _backend.disconnect()
         logger.info("Disconnected from Telegram")
 

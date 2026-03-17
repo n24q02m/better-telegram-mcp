@@ -219,8 +219,8 @@ async def test_lifespan_user_mode():
 
 
 @pytest.mark.asyncio
-async def test_lifespan_user_mode_unauthorized_with_phone():
-    """When user mode session is unauthorized and phone is set, auto-send OTP."""
+async def test_lifespan_user_mode_unauthorized_sets_pending():
+    """When user mode session is unauthorized, set _pending_auth without auto-sending OTP."""
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import _lifespan
 
@@ -232,7 +232,6 @@ async def test_lifespan_user_mode_unauthorized_with_phone():
 
     mock_user_backend = AsyncMock()
     mock_user_backend.is_authorized = AsyncMock(return_value=False)
-    mock_user_backend.send_code = AsyncMock()
 
     old_pending = srv._pending_auth
     try:
@@ -251,46 +250,10 @@ async def test_lifespan_user_mode_unauthorized_with_phone():
         ):
             async with _lifespan(mcp):
                 assert srv._pending_auth is True
-                mock_user_backend.send_code.assert_awaited_once_with("+84912345678")
+                # Should NOT auto-send OTP
+                mock_user_backend.send_code.assert_not_awaited()
 
             mock_user_backend.disconnect.assert_awaited_once()
-    finally:
-        srv._pending_auth = old_pending
-
-
-@pytest.mark.asyncio
-async def test_lifespan_user_mode_unauthorized_no_phone():
-    """When user mode unauthorized and no phone, set pending auth without sending code."""
-    import better_telegram_mcp.server as srv
-    from better_telegram_mcp.server import _lifespan
-
-    mock_settings = MagicMock()
-    mock_settings.mode = "user"
-    mock_settings.api_id = 12345
-    mock_settings.api_hash = "testhash"
-    mock_settings.phone = None
-
-    mock_user_backend = AsyncMock()
-    mock_user_backend.is_authorized = AsyncMock(return_value=False)
-
-    old_pending = srv._pending_auth
-    try:
-        with (
-            patch.object(srv, "Settings", return_value=mock_settings),
-            patch.dict(
-                "sys.modules",
-                {
-                    "better_telegram_mcp.backends.user_backend": type(
-                        "module",
-                        (),
-                        {"UserBackend": MagicMock(return_value=mock_user_backend)},
-                    )()
-                },
-            ),
-        ):
-            async with _lifespan(mcp):
-                assert srv._pending_auth is True
-                mock_user_backend.send_code.assert_not_awaited()
     finally:
         srv._pending_auth = old_pending
 
@@ -305,20 +268,17 @@ async def test_messages_blocked_during_pending_auth(mock_backend):
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
-    old_terminal = srv._auth_terminal_opened
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        srv._auth_terminal_opened = False
         result = json.loads(
             await messages(srv.MessagesArgs(action="send", chat_id=123, text="hi"))
         )
         assert "error" in result
-        assert "Authentication required" in result["error"]
+        assert "not authenticated" in result["error"].lower()
     finally:
         srv._backend = old_backend
         srv._pending_auth = old_pending
-        srv._auth_terminal_opened = old_terminal
 
 
 @pytest.mark.asyncio
@@ -328,18 +288,15 @@ async def test_chats_blocked_during_pending_auth(mock_backend):
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
-    old_terminal = srv._auth_terminal_opened
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        srv._auth_terminal_opened = False
         result = json.loads(await chats(action="list"))
         assert "error" in result
-        assert "Authentication required" in result["error"]
+        assert "not authenticated" in result["error"].lower()
     finally:
         srv._backend = old_backend
         srv._pending_auth = old_pending
-        srv._auth_terminal_opened = old_terminal
 
 
 @pytest.mark.asyncio
@@ -349,11 +306,9 @@ async def test_media_blocked_during_pending_auth(mock_backend):
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
-    old_terminal = srv._auth_terminal_opened
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        srv._auth_terminal_opened = False
         result = json.loads(
             await media(
                 action="send_photo",
@@ -362,11 +317,10 @@ async def test_media_blocked_during_pending_auth(mock_backend):
             )
         )
         assert "error" in result
-        assert "Authentication required" in result["error"]
+        assert "not authenticated" in result["error"].lower()
     finally:
         srv._backend = old_backend
         srv._pending_auth = old_pending
-        srv._auth_terminal_opened = old_terminal
 
 
 @pytest.mark.asyncio
@@ -376,18 +330,15 @@ async def test_contacts_blocked_during_pending_auth(mock_backend):
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
-    old_terminal = srv._auth_terminal_opened
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        srv._auth_terminal_opened = False
         result = json.loads(await contacts(action="list"))
         assert "error" in result
-        assert "Authentication required" in result["error"]
+        assert "not authenticated" in result["error"].lower()
     finally:
         srv._backend = old_backend
         srv._pending_auth = old_pending
-        srv._auth_terminal_opened = old_terminal
 
 
 @pytest.mark.asyncio
@@ -414,7 +365,6 @@ async def test_help_works_during_pending_auth():
     """Help tool should always work even during pending auth."""
     from better_telegram_mcp.server import help
 
-    # help doesn't check _pending_auth, so this just verifies it works
     result = await help(topic="messages")
     assert "Telegram Messages" in result
 
@@ -423,43 +373,3 @@ def test_main_calls_run():
     with patch.object(mcp, "run") as mock_run:
         main()
         mock_run.assert_called_once_with(transport="stdio")
-
-
-@pytest.mark.asyncio
-async def test_lifespan_user_mode_unauthorized_with_phone_send_code_exception():
-    """When user mode session is unauthorized and send_code raises an exception."""
-    import better_telegram_mcp.server as srv
-    from better_telegram_mcp.server import _lifespan
-
-    mock_settings = MagicMock()
-    mock_settings.mode = "user"
-    mock_settings.api_id = 12345
-    mock_settings.api_hash = "testhash"
-    mock_settings.phone = "+84912345678"
-
-    mock_user_backend = AsyncMock()
-    mock_user_backend.is_authorized = AsyncMock(return_value=False)
-    mock_user_backend.send_code = AsyncMock(side_effect=Exception("Network Error"))
-
-    old_pending = srv._pending_auth
-    try:
-        with (
-            patch.object(srv, "Settings", return_value=mock_settings),
-            patch.dict(
-                "sys.modules",
-                {
-                    "better_telegram_mcp.backends.user_backend": type(
-                        "module",
-                        (),
-                        {"UserBackend": MagicMock(return_value=mock_user_backend)},
-                    )()
-                },
-            ),
-        ):
-            async with _lifespan(mcp):
-                assert srv._pending_auth is True
-                mock_user_backend.send_code.assert_awaited_once_with("+84912345678")
-
-            mock_user_backend.disconnect.assert_awaited_once()
-    finally:
-        srv._pending_auth = old_pending
