@@ -2,6 +2,30 @@
 
 <!-- version list -->
 
+## v2.0.0 (2026-03-17)
+
+### Bug Fixes
+
+- Remove terminal popup auth, simplify to CLI-first auth flow
+  ([`dc9d5c6`](https://github.com/n24q02m/better-telegram-mcp/commit/dc9d5c6b261ba853e938c00edc58b1cd34e9dd5f))
+
+### Features
+
+- Add web-based OTP auth flow for MCP server
+  ([`670ba67`](https://github.com/n24q02m/better-telegram-mcp/commit/670ba67d1d4fedd5b447193934a48a6397bfa2fd))
+
+- Remove CLI auth, web UI is the only auth method
+  ([`c0d02cf`](https://github.com/n24q02m/better-telegram-mcp/commit/c0d02cf63303ed53980dc20bde1a14057af9ba6a))
+
+- Remove TELEGRAM_PASSWORD env var, 2FA via web UI only
+  ([`caa3195`](https://github.com/n24q02m/better-telegram-mcp/commit/caa3195327a72aed7c4ada93c9d9e4a8491629aa))
+
+### Breaking Changes
+
+- `TELEGRAM_PASSWORD` env var no longer supported. 2FA passwords are now entered exclusively through
+  the web auth UI or via curl POST /verify with {"code":"...", "password":"..."}.
+
+
 ## v1.3.0 (2026-03-17)
 
 ### Bug Fixes
