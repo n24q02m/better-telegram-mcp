@@ -5,7 +5,7 @@ import json
 import pytest
 
 from better_telegram_mcp.backends.base import ModeError
-from better_telegram_mcp.tools.contacts import handle_contacts
+from better_telegram_mcp.tools.contacts import ContactsArgs, handle_contacts
 
 
 @pytest.mark.asyncio
@@ -17,7 +17,9 @@ async def test_list(mock_backend):
 
 @pytest.mark.asyncio
 async def test_search(mock_backend):
-    result = json.loads(await handle_contacts(mock_backend, "search", query="John"))
+    result = json.loads(
+        await handle_contacts(mock_backend, "search", ContactsArgs(query="John"))
+    )
     assert result["contacts"] == []
     assert result["count"] == 0
 
@@ -34,9 +36,11 @@ async def test_add(mock_backend):
         await handle_contacts(
             mock_backend,
             "add",
-            phone="+1234567890",
-            first_name="John",
-            last_name="Doe",
+            ContactsArgs(
+                phone="+1234567890",
+                first_name="John",
+                last_name="Doe",
+            ),
         )
     )
     assert result["added"] is True
@@ -47,23 +51,31 @@ async def test_add(mock_backend):
 
 @pytest.mark.asyncio
 async def test_add_missing_params(mock_backend):
-    result = json.loads(await handle_contacts(mock_backend, "add", phone="+123"))
+    result = json.loads(
+        await handle_contacts(mock_backend, "add", ContactsArgs(phone="+123"))
+    )
     assert "error" in result
 
-    result = json.loads(await handle_contacts(mock_backend, "add", first_name="John"))
+    result = json.loads(
+        await handle_contacts(mock_backend, "add", ContactsArgs(first_name="John"))
+    )
     assert "error" in result
 
 
 @pytest.mark.asyncio
 async def test_block(mock_backend):
-    result = json.loads(await handle_contacts(mock_backend, "block", user_id=123))
+    result = json.loads(
+        await handle_contacts(mock_backend, "block", ContactsArgs(user_id=123))
+    )
     assert result["blocked"] is True
 
 
 @pytest.mark.asyncio
 async def test_unblock(mock_backend):
     result = json.loads(
-        await handle_contacts(mock_backend, "block", user_id=123, unblock=True)
+        await handle_contacts(
+            mock_backend, "block", ContactsArgs(user_id=123, unblock=True)
+        )
     )
     assert result["unblocked"] is True
 
@@ -93,7 +105,9 @@ async def test_mode_error(mock_backend):
 async def test_general_exception(mock_backend):
     mock_backend.add_contact.side_effect = RuntimeError("network error")
     result = json.loads(
-        await handle_contacts(mock_backend, "add", phone="+1", first_name="X")
+        await handle_contacts(
+            mock_backend, "add", ContactsArgs(phone="+1", first_name="X")
+        )
     )
     assert "error" in result
     assert "RuntimeError" in result["error"]
