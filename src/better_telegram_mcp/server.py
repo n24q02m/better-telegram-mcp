@@ -107,10 +107,13 @@ def _open_auth_terminal(settings: Settings) -> bool:
     if settings.password:
         env["TELEGRAM_PASSWORD"] = settings.password
 
-    if terminal == "gnome-terminal":
+    # SECURITY: Prevent argument/command injection by avoiding shell=True
+    # and properly separating executable commands from terminal arguments.
+    if terminal in ("gnome-terminal", "konsole", "xfce4-terminal", "mate-terminal"):
         cmd = [terminal, "--", sys.executable, auth_script]
     else:
-        cmd = [terminal, "-e", f"{sys.executable} {auth_script}"]
+        # xterm uses -e, which executes the rest of the arguments
+        cmd = [terminal, "-e", sys.executable, auth_script]
 
     try:
         subprocess.Popen(cmd, env=env)  # noqa: S603

@@ -107,6 +107,7 @@ class TestOpenAuthTerminal:
             cmd = mock_popen.call_args[0][0]
             assert cmd[0] == "xterm"
             assert cmd[1] == "-e"
+            assert len(cmd) == 4
 
     def test_passes_password_env(self):
         from better_telegram_mcp.server import _open_auth_terminal
