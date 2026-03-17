@@ -7,13 +7,28 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 
 class TestAuthRequiredResponse:
-    def test_response_has_both_options(self):
+    def test_response_with_auth_url(self):
         import better_telegram_mcp.server as srv
 
-        result = json.loads(srv._auth_required_response())
-        assert "better-telegram-mcp auth" in result["error"]
-        assert "config(action='send_code')" in result["error"]
-        assert "config(action='auth'" in result["error"]
+        old = srv._auth_url
+        try:
+            srv._auth_url = "http://127.0.0.1:12345"
+            result = json.loads(srv._auth_required_response())
+            assert "127.0.0.1:12345" in result["error"]
+            assert "browser" in result["error"].lower()
+        finally:
+            srv._auth_url = old
+
+    def test_response_without_auth_url(self):
+        import better_telegram_mcp.server as srv
+
+        old = srv._auth_url
+        try:
+            srv._auth_url = None
+            result = json.loads(srv._auth_required_response())
+            assert "better-telegram-mcp auth" in result["error"]
+        finally:
+            srv._auth_url = old
 
 
 class TestLifespanUnauthorized:

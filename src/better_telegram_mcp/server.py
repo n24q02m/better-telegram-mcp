@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -37,6 +38,7 @@ class MessagesArgs(BaseModel):
 _backend: TelegramBackend | None = None
 _settings: Settings | None = None
 _pending_auth: bool = False
+_auth_url: str | None = None
 _runtime_config: dict[str, int] = {
     "message_limit": 20,
     "timeout": 30,
@@ -58,11 +60,14 @@ def get_settings() -> Settings:
 
 
 def _auth_required_response() -> str:
+    if _auth_url:
+        return err(
+            f"Telegram session not authenticated. "
+            f"Open {_auth_url} in your browser to complete authentication."
+        )
     return err(
         "Telegram session not authenticated. "
-        "Option 1: Run `better-telegram-mcp auth` in your terminal, then restart this MCP server. "
-        "Option 2: Use config(action='send_code') to send OTP, "
-        "then config(action='auth', code='YOUR_CODE') to complete."
+        "Run `better-telegram-mcp auth` in your terminal, then restart this MCP server."
     )
 
 
@@ -87,17 +92,50 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
     await _backend.connect()
     logger.info("Connected to Telegram ({})", _settings.mode)
 
+    auth_srv = None
     if _settings.mode == "user" and not await _backend.is_authorized():
         _pending_auth = True
-        logger.warning(
-            "Session not authorized. "
-            "Run `better-telegram-mcp auth` in your terminal, then restart. "
-            "Or use config(action='send_code') + config(action='auth', code='...') via tool calls."
-        )
+
+        if _settings.phone:
+            from .auth_server import AuthServer
+
+            auth_srv = AuthServer(_backend, _settings)
+            _auth_url = await auth_srv.start()
+            logger.warning(
+                "Session not authorized. Open {} to authenticate.", _auth_url
+            )
+
+            # Try to open browser automatically
+            import webbrowser
+
+            try:
+                webbrowser.open(_auth_url)
+            except Exception:
+                pass  # User can open URL manually from log/error message
+        else:
+            logger.warning(
+                "Session not authorized and TELEGRAM_PHONE not set. "
+                "Run `better-telegram-mcp auth` in your terminal."
+            )
 
     try:
+        # If auth server is running, wait for auth in background
+        if auth_srv is not None:
+
+            async def _wait_auth() -> None:
+                global _pending_auth, _auth_url
+                await auth_srv.wait_for_auth()
+                _pending_auth = False
+                _auth_url = None
+                logger.info("Authentication completed via web UI!")
+                await auth_srv.stop()
+
+            asyncio.create_task(_wait_auth())
+
         yield
     finally:
+        if auth_srv is not None:
+            await auth_srv.stop()
         await _backend.disconnect()
         logger.info("Disconnected from Telegram")
 
