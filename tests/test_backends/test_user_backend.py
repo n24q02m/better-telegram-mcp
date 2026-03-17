@@ -729,6 +729,24 @@ class TestClearCache:
         # Should not raise
         await backend.clear_cache()
 
+    async def test_clear_cache_exception_swallowed(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_session = MagicMock()
+        mock_session.save.side_effect = Exception("Storage error")
+        mock_client.session = mock_session
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        # Should not raise an exception
+        await backend.clear_cache()
+
+        mock_session.save.assert_called_once()
+
 
 class TestManageTopics:
     async def test_topics_list(self, tmp_path, mock_client, mock_client_class):
