@@ -421,3 +421,43 @@ def test_main_calls_run():
     with patch.object(mcp, "run") as mock_run:
         main()
         mock_run.assert_called_once_with(transport="stdio")
+
+
+@pytest.mark.asyncio
+async def test_lifespan_user_mode_unauthorized_with_phone_send_code_exception():
+    """When user mode session is unauthorized and send_code raises an exception."""
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import _lifespan
+
+    mock_settings = MagicMock()
+    mock_settings.mode = "user"
+    mock_settings.api_id = 12345
+    mock_settings.api_hash = "testhash"
+    mock_settings.phone = "+84912345678"
+
+    mock_user_backend = AsyncMock()
+    mock_user_backend.is_authorized = AsyncMock(return_value=False)
+    mock_user_backend.send_code = AsyncMock(side_effect=Exception("Network Error"))
+
+    old_pending = srv._pending_auth
+    try:
+        with (
+            patch.object(srv, "Settings", return_value=mock_settings),
+            patch.dict(
+                "sys.modules",
+                {
+                    "better_telegram_mcp.backends.user_backend": type(
+                        "module",
+                        (),
+                        {"UserBackend": MagicMock(return_value=mock_user_backend)},
+                    )()
+                },
+            ),
+        ):
+            async with _lifespan(mcp):
+                assert srv._pending_auth is True
+                mock_user_backend.send_code.assert_awaited_once_with("+84912345678")
+
+            mock_user_backend.disconnect.assert_awaited_once()
+    finally:
+        srv._pending_auth = old_pending
