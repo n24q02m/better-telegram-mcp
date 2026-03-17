@@ -2,6 +2,100 @@
 
 <!-- version list -->
 
+## v1.3.0 (2026-03-17)
+
+### Bug Fixes
+
+- Add security hardening for path traversal, SSRF, and info disclosure
+  ([`2f2e200`](https://github.com/n24q02m/better-telegram-mcp/commit/2f2e2009f64a93baf1bb1c4713f641a6f9cdefcf))
+
+- Fix 'Too many arguments in chats' code health issue
+  ([#5](https://github.com/n24q02m/better-telegram-mcp/pull/5),
+  [`a872546`](https://github.com/n24q02m/better-telegram-mcp/commit/a87254680a7f4076de76ae4af98155b6bc1a3b89))
+
+- Prevent command injection in terminal execution
+  ([#12](https://github.com/n24q02m/better-telegram-mcp/pull/12),
+  [`9655bb9`](https://github.com/n24q02m/better-telegram-mcp/commit/9655bb93d01dbfe84f07f841a3791c8e27810ab3))
+
+- Resolve ty type checker CI failure and align README with portfolio standard
+  ([`8906b49`](https://github.com/n24q02m/better-telegram-mcp/commit/8906b49de61af1f90be760aedfd85bd1a42cd9d1))
+
+- **ci**: Use pull_request_target for jobs requiring secrets
+  ([`16d9204`](https://github.com/n24q02m/better-telegram-mcp/commit/16d92044b7c5b96437822e1964ade8c381c0d95e))
+
+- **deps**: Update non-major dependencies
+  ([#18](https://github.com/n24q02m/better-telegram-mcp/pull/18),
+  [`060b5ce`](https://github.com/n24q02m/better-telegram-mcp/commit/060b5ce218ae202ee723f4532265555d1bf3e3ce))
+
+### Chores
+
+- Standardize repo files across MCP server portfolio
+  ([`5756415`](https://github.com/n24q02m/better-telegram-mcp/commit/57564158767a72ba10dffe04f66ba13a514098a0))
+
+- Trigger Glama repo resync after history rewrite
+  ([`3c69363`](https://github.com/n24q02m/better-telegram-mcp/commit/3c693632bb792177ab69e5ba27b29ed211964e72))
+
+- **config**: Migrate config renovate.json
+  ([#21](https://github.com/n24q02m/better-telegram-mcp/pull/21),
+  [`35a12ab`](https://github.com/n24q02m/better-telegram-mcp/commit/35a12ab44a6b6da849858a867a7de86d5dcf6033))
+
+- **deps**: Lock file maintenance ([#20](https://github.com/n24q02m/better-telegram-mcp/pull/20),
+  [`09aaed9`](https://github.com/n24q02m/better-telegram-mcp/commit/09aaed91057a03689a86c23ec489c84339f8466d))
+
+- **deps**: Update actions/download-artifact digest to 3e5f45b
+  ([#15](https://github.com/n24q02m/better-telegram-mcp/pull/15),
+  [`8d4cb4e`](https://github.com/n24q02m/better-telegram-mcp/commit/8d4cb4ed20238e23b27d69343cda0ead1ff03b1f))
+
+- **deps**: Update astral-sh/setup-uv digest to 37802ad
+  ([#16](https://github.com/n24q02m/better-telegram-mcp/pull/16),
+  [`76c8e27`](https://github.com/n24q02m/better-telegram-mcp/commit/76c8e273cd74ab3c38056579202d4cf347afd9bb))
+
+- **deps**: Update dawidd6/action-send-mail action to v15
+  ([#19](https://github.com/n24q02m/better-telegram-mcp/pull/19),
+  [`3acb374`](https://github.com/n24q02m/better-telegram-mcp/commit/3acb374ffc76720b83f56b1938c12114d0b10eea))
+
+- **deps**: Update step-security/harden-runner digest to fa2e9d6
+  ([#17](https://github.com/n24q02m/better-telegram-mcp/pull/17),
+  [`3e7819a`](https://github.com/n24q02m/better-telegram-mcp/commit/3e7819a96cecd4645f3b4d34f41bd84bac5ab40c))
+
+### Code Style
+
+- Format test_user_backend.py with ruff
+  ([#6](https://github.com/n24q02m/better-telegram-mcp/pull/6),
+  [`2d10e35`](https://github.com/n24q02m/better-telegram-mcp/commit/2d10e3522af07ca8a6cf76bab2a3c0d91048abe2))
+
+### Features
+
+- Add test for clear_cache exception handling
+  ([#6](https://github.com/n24q02m/better-telegram-mcp/pull/6),
+  [`2d10e35`](https://github.com/n24q02m/better-telegram-mcp/commit/2d10e3522af07ca8a6cf76bab2a3c0d91048abe2))
+
+- Refactor `messages` tool to use `MessagesArgs` struct model
+  ([#10](https://github.com/n24q02m/better-telegram-mcp/pull/10),
+  [`9fecb96`](https://github.com/n24q02m/better-telegram-mcp/commit/9fecb96b68235be04488249d7fafe13718ab5061))
+
+- Refactor config tool to extract match cases into separate functions
+  ([#7](https://github.com/n24q02m/better-telegram-mcp/pull/7),
+  [`92f06c1`](https://github.com/n24q02m/better-telegram-mcp/commit/92f06c13038ab1fbc8b5ca562d87beda66be7cca))
+
+- Test: cover send_code exception in user mode lifespan
+  ([#4](https://github.com/n24q02m/better-telegram-mcp/pull/4),
+  [`e7986b6`](https://github.com/n24q02m/better-telegram-mcp/commit/e7986b66839e0644d5d14a0e1a7e2355a028bce3))
+
+### Testing
+
+- Add clear_cache exception test ([#6](https://github.com/n24q02m/better-telegram-mcp/pull/6),
+  [`2d10e35`](https://github.com/n24q02m/better-telegram-mcp/commit/2d10e3522af07ca8a6cf76bab2a3c0d91048abe2))
+
+- Cover `send_code` exception in user mode lifespan
+  ([#4](https://github.com/n24q02m/better-telegram-mcp/pull/4),
+  [`e7986b6`](https://github.com/n24q02m/better-telegram-mcp/commit/e7986b66839e0644d5d14a0e1a7e2355a028bce3))
+
+- Cover `send_code` exception in user mode lifespan and fix formatting
+  ([#4](https://github.com/n24q02m/better-telegram-mcp/pull/4),
+  [`e7986b6`](https://github.com/n24q02m/better-telegram-mcp/commit/e7986b66839e0644d5d14a0e1a7e2355a028bce3))
+
+
 ## v1.2.0 (2026-03-15)
 
 ### Bug Fixes
