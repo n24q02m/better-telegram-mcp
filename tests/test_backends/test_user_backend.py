@@ -340,7 +340,14 @@ class TestGetHistory:
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         msgs = [_mock_message(msg_id=i) for i in range(5)]
-        mock_client.get_messages = AsyncMock(return_value=msgs)
+
+        async def mock_iter_messages(*args, **kwargs):
+            for m in msgs:
+                yield m
+
+        from unittest.mock import MagicMock
+
+        mock_client.iter_messages = MagicMock(side_effect=mock_iter_messages)
 
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)
@@ -349,14 +356,20 @@ class TestGetHistory:
         result = await backend.get_history(123, limit=5)
 
         assert len(result) == 5
-        mock_client.get_messages.assert_awaited_once_with(123, limit=5)
+        mock_client.iter_messages.assert_called_once_with(123, limit=5)
 
     async def test_get_history_with_offset(
         self, tmp_path, mock_client, mock_client_class
     ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
-        mock_client.get_messages = AsyncMock(return_value=[])
+        async def mock_iter_messages_empty(*args, **kwargs):
+            if False:
+                yield None
+
+        from unittest.mock import MagicMock
+
+        mock_client.iter_messages = MagicMock(side_effect=mock_iter_messages_empty)
 
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)
@@ -364,7 +377,7 @@ class TestGetHistory:
 
         await backend.get_history(123, limit=10, offset_id=50)
 
-        mock_client.get_messages.assert_awaited_once_with(123, limit=10, offset_id=50)
+        mock_client.iter_messages.assert_called_once_with(123, limit=10, offset_id=50)
 
 
 class TestListChats:
@@ -372,7 +385,14 @@ class TestListChats:
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         dialogs = [_mock_dialog(i, f"Chat {i}") for i in range(3)]
-        mock_client.get_dialogs = AsyncMock(return_value=dialogs)
+
+        async def mock_iter_dialogs(*args, **kwargs):
+            for d in dialogs:
+                yield d
+
+        from unittest.mock import MagicMock
+
+        mock_client.iter_dialogs = MagicMock(side_effect=mock_iter_dialogs)
 
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)
@@ -382,7 +402,7 @@ class TestListChats:
 
         assert len(result) == 3
         assert result[1]["title"] == "Chat 1"
-        mock_client.get_dialogs.assert_awaited_once_with(limit=10)
+        mock_client.iter_dialogs.assert_called_once_with(limit=10)
 
 
 class TestGetChatInfo:

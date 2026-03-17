@@ -33,9 +33,8 @@ class UserBackend(TelegramBackend):
 
     @staticmethod
     def _serialize_message(msg: Any) -> dict[str, Any]:
-        sender_id = None
-        if msg.sender_id is not None:
-            sender_id = msg.sender_id
+        # ⚡ Bolt: Cache property access to avoid double computation overhead
+        sender_id = msg.sender_id
         return {
             "message_id": msg.id,
             "text": msg.text or "",
@@ -226,15 +225,19 @@ class UserBackend(TelegramBackend):
         kwargs: dict[str, Any] = {"limit": limit}
         if offset_id is not None:
             kwargs["offset_id"] = offset_id
-        messages = await client.get_messages(chat_id, **kwargs)
-        # Using list comprehension is typically faster than generator
-        return [self._serialize_message(m) for m in messages]
+        # ⚡ Bolt: Use iter_messages to avoid intermediate TotalList allocation and double-iteration
+        return [
+            self._serialize_message(m)
+            async for m in client.iter_messages(chat_id, **kwargs)
+        ]
 
     # --- Chats ---
     async def list_chats(self, *, limit: int = 50) -> list[dict[str, Any]]:
         client = self._ensure_client()
-        dialogs = await client.get_dialogs(limit=limit)
-        return [self._serialize_dialog(d) for d in dialogs]
+        # ⚡ Bolt: Use iter_dialogs to skip intermediate TotalList allocation
+        return [
+            self._serialize_dialog(d) async for d in client.iter_dialogs(limit=limit)
+        ]
 
     async def get_chat_info(self, chat_id: str | int) -> dict[str, Any]:
         client = self._ensure_client()
