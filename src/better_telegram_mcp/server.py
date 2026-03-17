@@ -63,11 +63,14 @@ def _auth_required_response() -> str:
     if _auth_url:
         return err(
             f"Telegram session not authenticated. "
-            f"Open {_auth_url} in your browser to complete authentication."
+            f"Open {_auth_url} in your browser to complete authentication. "
+            f"Headless? Use: curl -X POST {_auth_url}/send-code && "
+            f"curl -X POST {_auth_url}/verify -H 'Content-Type: application/json' "
+            f'-d \'{{"code":"YOUR_OTP"}}\''
         )
     return err(
-        "Telegram session not authenticated. "
-        "Run `better-telegram-mcp auth` in your terminal, then restart this MCP server."
+        "Telegram session not authenticated and TELEGRAM_PHONE not configured. "
+        "Set TELEGRAM_PHONE in your MCP server env config, then restart."
     )
 
 
@@ -115,7 +118,7 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
         else:
             logger.warning(
                 "Session not authorized and TELEGRAM_PHONE not set. "
-                "Run `better-telegram-mcp auth` in your terminal."
+                "Set TELEGRAM_PHONE in your MCP server config, then restart."
             )
 
     try:

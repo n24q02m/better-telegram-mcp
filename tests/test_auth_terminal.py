@@ -26,7 +26,7 @@ class TestAuthRequiredResponse:
         try:
             srv._auth_url = None
             result = json.loads(srv._auth_required_response())
-            assert "better-telegram-mcp auth" in result["error"]
+            assert "TELEGRAM_PHONE" in result["error"]
         finally:
             srv._auth_url = old
 
