@@ -68,24 +68,24 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "httpx", specifier = ">=0.28.0" },
-    { name = "loguru", specifier = ">=0.7.0" },
-    { name = "mcp", extras = ["cli"], specifier = ">=1.8.0" },
-    { name = "pydantic", specifier = ">=2.10.0" },
-    { name = "pydantic-settings", specifier = ">=2.7.0" },
-    { name = "telethon", specifier = ">=1.40.0" },
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "loguru", specifier = ">=0.7.3" },
+    { name = "mcp", extras = ["cli"], specifier = ">=1.26.0" },
+    { name = "pydantic", specifier = ">=2.12.5" },
+    { name = "pydantic-settings", specifier = ">=2.13.1" },
+    { name = "telethon", specifier = ">=1.42.0" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "pre-commit", specifier = ">=4.0" },
-    { name = "pytest", specifier = ">=8.0" },
-    { name = "pytest-asyncio", specifier = ">=0.24" },
-    { name = "pytest-cov", specifier = ">=6.0" },
-    { name = "pytest-timeout", specifier = ">=2.3" },
-    { name = "pytest-xdist", specifier = ">=3.5" },
-    { name = "ruff", specifier = ">=0.9" },
-    { name = "ty", specifier = ">=0.0.1a10" },
+    { name = "pre-commit", specifier = ">=4.5.1" },
+    { name = "pytest", specifier = ">=8.4.2" },
+    { name = "pytest-asyncio", specifier = ">=0.26.0" },
+    { name = "pytest-cov", specifier = ">=6.3.0" },
+    { name = "pytest-timeout", specifier = ">=2.4.0" },
+    { name = "pytest-xdist", specifier = ">=3.8.0" },
+    { name = "ruff", specifier = ">=0.15.6" },
+    { name = "ty", specifier = ">=0.0.23" },
 ]
 
 [[package]]
