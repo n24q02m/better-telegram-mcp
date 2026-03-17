@@ -76,7 +76,7 @@ def _auth_required_response() -> str:
 
 @asynccontextmanager
 async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
-    global _backend, _settings, _pending_auth
+    global _backend, _settings, _pending_auth, _auth_url
     _settings = Settings()
     logger.info("Mode: {}", _settings.mode)
 
@@ -272,6 +272,7 @@ async def contacts(
 async def config(
     action: str,
     code: str | None = None,
+    password: str | None = None,
     message_limit: int | None = None,
     timeout: int | None = None,
 ) -> str:
@@ -280,6 +281,7 @@ async def config(
         get_backend(),
         action,
         code=code,
+        password=password,
         message_limit=message_limit,
         timeout=timeout,
     )

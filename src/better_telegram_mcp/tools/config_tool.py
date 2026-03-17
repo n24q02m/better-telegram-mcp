@@ -61,7 +61,7 @@ async def _handle_auth(backend: TelegramBackend, **kwargs: Any) -> str:
             "TELEGRAM_PHONE env var is required for auth. Set it in your MCP config."
         )
 
-    password = settings.password
+    password = kwargs.get("password")
     result = await backend.sign_in(phone, code, password=password)
 
     srv._pending_auth = False

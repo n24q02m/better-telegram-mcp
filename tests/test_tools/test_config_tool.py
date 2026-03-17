@@ -129,7 +129,6 @@ async def test_auth_success(mock_user_backend):
         srv._pending_auth = True
         mock_settings = MagicMock()
         mock_settings.phone = "+84912345678"
-        mock_settings.password = None
         srv._settings = mock_settings
 
         result = json.loads(
@@ -158,11 +157,12 @@ async def test_auth_with_2fa_password(mock_user_backend):
         srv._pending_auth = True
         mock_settings = MagicMock()
         mock_settings.phone = "+84912345678"
-        mock_settings.password = "my2fapass"
         srv._settings = mock_settings
 
         result = json.loads(
-            await handle_config(mock_user_backend, "auth", code="12345")
+            await handle_config(
+                mock_user_backend, "auth", code="12345", password="my2fapass"
+            )
         )
 
         assert "Authentication successful" in result["message"]
@@ -235,7 +235,6 @@ async def test_auth_sign_in_error(mock_user_backend):
         srv._pending_auth = True
         mock_settings = MagicMock()
         mock_settings.phone = "+84912345678"
-        mock_settings.password = None
         srv._settings = mock_settings
 
         mock_user_backend.sign_in.side_effect = Exception("PhoneCodeInvalid")

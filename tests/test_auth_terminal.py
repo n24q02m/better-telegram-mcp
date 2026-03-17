@@ -41,7 +41,7 @@ class TestLifespanUnauthorized:
         mock_settings.api_id = 12345
         mock_settings.api_hash = "testhash"
         mock_settings.phone = "+84912345678"
-        mock_settings.password = None
+        # password removed from settings — entered via web UI only
 
         mock_user_backend = AsyncMock()
         mock_user_backend.is_authorized = AsyncMock(return_value=False)
@@ -77,7 +77,7 @@ class TestLifespanUnauthorized:
         mock_settings.api_id = 12345
         mock_settings.api_hash = "testhash"
         mock_settings.phone = "+84912345678"
-        mock_settings.password = None
+        # password removed from settings — entered via web UI only
 
         mock_user_backend = AsyncMock()
         mock_user_backend.is_authorized = AsyncMock(return_value=True)
@@ -112,7 +112,7 @@ class TestLifespanUnauthorized:
         mock_settings.api_id = 12345
         mock_settings.api_hash = "testhash"
         mock_settings.phone = "+84912345678"
-        mock_settings.password = None
+        # password removed from settings — entered via web UI only
 
         mock_user_backend = AsyncMock()
         mock_user_backend.is_authorized = AsyncMock(return_value=False)

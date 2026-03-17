@@ -17,7 +17,6 @@ class Settings(BaseSettings):
     api_id: int | None = None
     api_hash: str | None = None
     phone: str | None = None
-    password: str | None = None
     session_name: str = "default"
 
     # Data

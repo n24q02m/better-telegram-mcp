@@ -183,7 +183,7 @@ class AuthServer:
                     {"ok": False, "error": "TELEGRAM_PHONE not configured"}
                 )
 
-            password = body.get("password") or self._settings.password
+            password = body.get("password") or None
             try:
                 result = await self._backend.sign_in(phone, code, password=password)
                 self._auth_name = result.get("authenticated_as", "User")
@@ -214,7 +214,7 @@ class AuthServer:
         server = uvicorn.Server(config)
         # Run in background task
         asyncio.create_task(server.serve())
-        self._server = server  # type: ignore[assignment]
+        self._server = server
         # Wait briefly for server to start
         await asyncio.sleep(0.3)
         logger.info("Auth server started at {}", self.url)

@@ -47,11 +47,11 @@ TELEGRAM_BOT_TOKEN=123456:ABC-DEF uvx --python 3.13 better-telegram-mcp
 2. Click "API development tools", create an app
 3. Note your `api_id` (integer) and `api_hash` (32-char hex string)
 4. Add to your MCP config with all required env vars (see examples below)
-5. Start using — on first run, auth happens automatically:
-   - Server auto-sends an OTP code to your **Telegram app** (not SMS, not browser)
-   - A **terminal window opens** for you to enter the OTP code directly (no AI relay needed)
-   - If 2FA is enabled: set `TELEGRAM_PASSWORD` env var, or enter it in the terminal prompt
-   - In headless environments (Docker, SSH, no desktop): use `config(action='auth', code='12345')` as fallback
+5. Start using — on first run, a **local web page** opens in your browser for OTP authentication:
+   - Click "Send OTP Code" to receive a code in your **Telegram app**
+   - Enter the OTP code on the web page
+   - If 2FA is enabled, enter your password on the same page
+   - Headless (Docker/SSH): use `curl` to hit the same endpoints (URL shown in logs/error messages)
 6. Done — session file persists at `~/.better-telegram-mcp/<name>.session`, no more auth needed on subsequent runs
 
 > **Security**: The session file has `600` permissions (owner-only). Treat it like a password — anyone with this file can access your Telegram account.
@@ -65,8 +65,7 @@ All configuration is via environment variables with `TELEGRAM_` prefix:
 | `TELEGRAM_BOT_TOKEN` | Bot mode | - | Bot token from [@BotFather](https://t.me/BotFather) |
 | `TELEGRAM_API_ID` | User mode | - | API ID from [my.telegram.org](https://my.telegram.org) |
 | `TELEGRAM_API_HASH` | User mode | - | API hash from [my.telegram.org](https://my.telegram.org) |
-| `TELEGRAM_PHONE` | User mode | - | Phone number with country code (e.g., `+84912345678`). Required for auto OTP send on startup. |
-| `TELEGRAM_PASSWORD` | No | - | Two-Step Verification password. If set, used automatically during sign-in. If not set and 2FA is enabled, sign-in will fail with `SessionPasswordNeededError`. |
+| `TELEGRAM_PHONE` | User mode | - | Phone number with country code (e.g., `+84912345678`). Required for web auth UI. |
 | `TELEGRAM_SESSION_NAME` | No | `default` | Session file name (for multiple accounts) |
 | `TELEGRAM_DATA_DIR` | No | `~/.better-telegram-mcp` | Data directory for session files |
 
@@ -81,7 +80,7 @@ All configuration is via environment variables with `TELEGRAM_` prefix:
 claude mcp add telegram -e TELEGRAM_BOT_TOKEN=123456:ABC-DEF -- uvx --python 3.13 better-telegram-mcp
 
 # User mode (auto-auth on first run)
-claude mcp add telegram -e TELEGRAM_API_ID=12345 -e TELEGRAM_API_HASH=abc123 -e TELEGRAM_PHONE=+84912345678 -- uvx --python 3.13 better-telegram-mcp
+claude mcp add telegram -e TELEGRAM_API_ID=12345 -e TELEGRAM_API_HASH=abc123 -e TELEGRAM_PHONE=+1234567890 -- uvx --python 3.13 better-telegram-mcp
 ```
 
 ### Claude Desktop / Cursor
@@ -113,8 +112,7 @@ User mode:
       "env": {
         "TELEGRAM_API_ID": "12345678",
         "TELEGRAM_API_HASH": "your-api-hash-from-my-telegram-org",
-        "TELEGRAM_PHONE": "+1234567890",
-        "TELEGRAM_PASSWORD": "your-2fa-password-if-enabled"
+        "TELEGRAM_PHONE": "+1234567890"
       }
     }
   }
@@ -174,7 +172,7 @@ Docker config for MCP clients:
 }
 ```
 
-**Note**: For user mode in Docker, mount the session directory with `-v ~/.better-telegram-mcp:/data` so the session persists across container restarts. On first run, complete auth via `config(action='auth', code='YOUR_CODE')` (terminal auth is not available in Docker).
+**Note**: For user mode in Docker, mount the session directory with `-v ~/.better-telegram-mcp:/data` so the session persists across container restarts. On first run, the auth web server starts on localhost — use port mapping (`-p 8080:PORT`) or `curl` to complete auth.
 
 ## Mode Capabilities
 
@@ -221,15 +219,14 @@ help(topic="all")       # Everything
 |---|---|---|
 | `No Telegram credentials found` | Neither bot token nor API credentials set | Set `TELEGRAM_BOT_TOKEN` or `TELEGRAM_API_ID` + `TELEGRAM_API_HASH` |
 | `Invalid bot token` | Token revoked or wrong | Regenerate via `/token` in [@BotFather](https://t.me/BotFather) |
-| `Authentication required` | Session not yet authorized | Complete auth in the terminal window, or use `config(action='auth', code='YOUR_CODE')` in headless environments |
+| `not authenticated` | Session not yet authorized | Open the auth URL shown in error message (browser or curl) |
 | `PhoneNumberInvalidError` | Wrong phone format | Include country code with `+` (e.g., `+84912345678`) |
-| `SessionPasswordNeededError` | 2FA enabled but no password | Set `TELEGRAM_PASSWORD` env var in your MCP config |
+| `SessionPasswordNeededError` | 2FA enabled | Enter 2FA password on the web auth page |
 | `FloodWaitError` | Too many auth attempts | Wait the indicated seconds before retrying |
 | `requires user mode` | Action not available in bot mode | Switch to user mode (API ID + Hash) |
 | Session lost after Docker restart | Data volume not mounted | Add `-v ~/.better-telegram-mcp:/data` |
-| OTP sent but where? | Code goes to Telegram app | Check the **Telegram app on your phone** (not SMS, not browser). Look for a message from "Telegram" with a login code. |
-| How to enter OTP code? | Terminal window should open | Enter the code in the terminal window that opens automatically. If no terminal (headless/Docker), use `config(action='auth', code='12345')` |
-| Need to re-send OTP | Code expired or not received | Call `config(action='send_code')` to request a new code |
+| OTP sent but where? | Code goes to Telegram app | Check the **Telegram app on your phone** (not SMS). Look for a message from "Telegram" with a login code. |
+| Headless auth? | No browser available | Use curl: `curl -X POST http://127.0.0.1:PORT/send-code` then `curl -X POST http://127.0.0.1:PORT/verify -d '{"code":"12345"}'` |
 
 ## Compatible With
 
