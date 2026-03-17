@@ -21,6 +21,11 @@ docs/
 Dockerfile
 docker-compose.yml
 
+# Secrets
+.env
+.env.*
+.infisical.json
+
 # Config
 .pre-commit-config.yaml
 .editorconfig

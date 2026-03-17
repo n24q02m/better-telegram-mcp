@@ -16,6 +16,7 @@ from telethon.tl.types import Channel, Chat, InputPhoneContact, User
 
 from ..config import Settings
 from .base import TelegramBackend
+from .security import validate_file_path, validate_output_dir, validate_url
 
 
 class UserBackend(TelegramBackend):
@@ -66,7 +67,7 @@ class UserBackend(TelegramBackend):
         s = self._settings
         # Telethon auto-appends .session, so pass path without extension
         session_path = s.data_dir / s.session_name
-        s.data_dir.mkdir(parents=True, exist_ok=True)
+        s.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
 
         self._client = TelegramClient(
             str(session_path),
@@ -414,6 +415,10 @@ class UserBackend(TelegramBackend):
         elif media_type == "video":
             kwargs["video_note"] = False
 
+        if file_path_or_url.startswith(("http://", "https://")):
+            validate_url(file_path_or_url)
+        else:
+            validate_file_path(file_path_or_url)
         msg = await client.send_file(chat_id, file_path_or_url, **kwargs)
         return self._serialize_message(msg)
 
@@ -439,8 +444,9 @@ class UserBackend(TelegramBackend):
 
         download_path: Path | str | None = None
         if output_dir:
-            Path(output_dir).mkdir(parents=True, exist_ok=True)
-            download_path = await client.download_media(msg, file=output_dir)
+            safe_dir = validate_output_dir(output_dir)
+            safe_dir.mkdir(parents=True, exist_ok=True)
+            download_path = await client.download_media(msg, file=str(safe_dir))
         else:
             download_path = await client.download_media(msg)
 

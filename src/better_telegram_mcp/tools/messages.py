@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from ..server import MessagesArgs
 
 from ..backends.base import ModeError, TelegramBackend
-from ..utils.formatting import err, ok
+from ..utils.formatting import err, ok, safe_error
 
 
 async def handle_messages(
@@ -86,4 +86,4 @@ async def handle_messages(
     except ModeError as e:
         return err(str(e))
     except Exception as e:
-        return err(f"{type(e).__name__}: {e}")
+        return safe_error(e)

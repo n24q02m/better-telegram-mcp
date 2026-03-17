@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..backends.base import TelegramBackend
-from ..utils.formatting import err, ok
+from ..utils.formatting import err, ok, safe_error
 
 
 async def _handle_status(backend: TelegramBackend) -> str:
@@ -115,4 +115,4 @@ async def handle_config(
                     "Valid: status|set|cache_clear|auth|send_code"
                 )
     except Exception as e:
-        return err(f"{type(e).__name__}: {e}")
+        return safe_error(e)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from ..backends.base import ModeError, TelegramBackend
-from ..utils.formatting import err, ok
+from ..utils.formatting import err, ok, safe_error
 
 _ACTION_TO_MEDIA_TYPE = {
     "send_photo": "photo",
@@ -46,4 +46,4 @@ async def handle_media(
     except ModeError as e:
         return err(str(e))
     except Exception as e:
-        return err(f"{type(e).__name__}: {e}")
+        return safe_error(e)

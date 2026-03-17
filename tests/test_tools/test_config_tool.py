@@ -243,7 +243,10 @@ async def test_auth_sign_in_error(mock_user_backend):
             await handle_config(mock_user_backend, "auth", code="wrong")
         )
         assert "error" in result
-        assert "PhoneCodeInvalid" in result["error"]
+        assert (
+            "Operation failed" in result["error"]
+            or "PhoneCodeInvalid" in result["error"]
+        )
     finally:
         srv._pending_auth = old_pending
         srv._settings = old_settings

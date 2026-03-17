@@ -181,7 +181,8 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
     # Auto-auth flow for user mode
     if _settings.mode == "user" and not await _backend.is_authorized():
         if _settings.phone:
-            logger.info("Session not authorized. Sending OTP to {}...", _settings.phone)
+            masked = _settings.phone[:4] + "***" + _settings.phone[-4:]
+            logger.info("Session not authorized. Sending OTP to {}...", masked)
             try:
                 await _backend.send_code(_settings.phone)
                 _pending_auth = True

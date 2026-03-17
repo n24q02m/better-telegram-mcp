@@ -1,0 +1,137 @@
+"""Tests for security validation module."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from better_telegram_mcp.backends.security import (
+    SecurityError,
+    validate_file_path,
+    validate_output_dir,
+    validate_url,
+)
+
+
+class TestValidateUrl:
+    def test_https_allowed(self):
+        validate_url("https://example.com/photo.jpg")
+
+    def test_http_allowed(self):
+        validate_url("http://example.com/photo.jpg")
+
+    def test_ftp_blocked(self):
+        with pytest.raises(SecurityError, match="Only http/https"):
+            validate_url("ftp://example.com/file")
+
+    def test_file_blocked(self):
+        with pytest.raises(SecurityError, match="Only http/https"):
+            validate_url("file:///etc/passwd")
+
+    def test_localhost_blocked(self):
+        with pytest.raises(SecurityError, match="blocked"):
+            validate_url("http://localhost/admin")
+
+    def test_127_blocked(self):
+        with pytest.raises(SecurityError, match="internal/private"):
+            validate_url("http://127.0.0.1/admin")
+
+    def test_metadata_endpoint_blocked(self):
+        with pytest.raises(SecurityError, match="metadata"):
+            validate_url("http://metadata.google.internal/computeMetadata/v1/")
+
+    def test_private_10_blocked(self):
+        with pytest.raises(SecurityError, match="internal/private"):
+            validate_url("http://10.0.0.1/")
+
+    def test_private_172_blocked(self):
+        with pytest.raises(SecurityError, match="internal/private"):
+            validate_url("http://172.16.0.1/")
+
+    def test_private_192_blocked(self):
+        with pytest.raises(SecurityError, match="internal/private"):
+            validate_url("http://192.168.1.1/")
+
+    def test_link_local_blocked(self):
+        with pytest.raises(SecurityError, match="internal/private"):
+            validate_url("http://169.254.169.254/latest/meta-data/")
+
+    def test_ipv6_loopback_blocked(self):
+        with pytest.raises(SecurityError, match="internal/private"):
+            validate_url("http://[::1]/")
+
+    def test_zero_ip_blocked(self):
+        with pytest.raises(SecurityError, match="blocked"):
+            validate_url("http://0.0.0.0/")  # noqa: S104
+
+    def test_no_hostname(self):
+        with pytest.raises(SecurityError, match="no hostname"):
+            validate_url("http://")
+
+    def test_public_ip_allowed(self):
+        validate_url("https://93.184.216.34/image.jpg")
+
+
+class TestValidateFilePath:
+    def test_normal_path_allowed(self):
+        result = validate_file_path("/tmp/photo.jpg")
+        assert result == Path("/tmp/photo.jpg")
+
+    def test_etc_passwd_blocked(self):
+        with pytest.raises(SecurityError, match="/etc/"):
+            validate_file_path("/etc/passwd")
+
+    def test_proc_blocked(self):
+        with pytest.raises(SecurityError, match="/proc/"):
+            validate_file_path("/proc/self/environ")
+
+    def test_root_blocked(self):
+        with pytest.raises(SecurityError, match="/root/"):
+            validate_file_path("/root/.bashrc")
+
+    def test_dotfiles_blocked(self):
+        with pytest.raises(SecurityError, match="hidden"):
+            validate_file_path("/home/user/.ssh/id_rsa")
+
+    def test_traversal_resolved(self):
+        with pytest.raises(SecurityError, match="/etc/"):
+            validate_file_path("/tmp/../etc/passwd")
+
+    def test_allowed_dir_enforcement(self):
+        with pytest.raises(SecurityError, match="must be within"):
+            validate_file_path("/tmp/photo.jpg", allowed_dir=Path("/home/user/uploads"))
+
+    def test_allowed_dir_ok(self):
+        result = validate_file_path("/tmp/photo.jpg", allowed_dir=Path("/tmp"))
+        assert result == Path("/tmp/photo.jpg")
+
+
+class TestValidateOutputDir:
+    def test_normal_dir_allowed(self):
+        result = validate_output_dir("/tmp/downloads")
+        assert result == Path("/tmp/downloads")
+
+    def test_etc_blocked(self):
+        with pytest.raises(SecurityError, match="/etc/"):
+            validate_output_dir("/etc/cron.d")
+
+    def test_usr_blocked(self):
+        with pytest.raises(SecurityError, match="/usr/"):
+            validate_output_dir("/usr/bin")
+
+    def test_sbin_blocked(self):
+        with pytest.raises(SecurityError):
+            validate_output_dir("/sbin/")
+
+    def test_hidden_dir_blocked(self):
+        with pytest.raises(SecurityError, match="hidden"):
+            validate_output_dir("/home/user/.ssh")
+
+    def test_base_dir_enforcement(self):
+        with pytest.raises(SecurityError, match="must be within"):
+            validate_output_dir("/tmp/data", base_dir=Path("/home/user/downloads"))
+
+    def test_var_spool_blocked(self):
+        with pytest.raises(SecurityError, match="/var/spool/"):
+            validate_output_dir("/var/spool/cron")

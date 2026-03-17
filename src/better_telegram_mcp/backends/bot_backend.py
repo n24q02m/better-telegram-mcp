@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import httpx
 
 from .base import TelegramBackend
+from .security import validate_file_path, validate_url
 
 API_BASE = "https://api.telegram.org/bot{}/"
 
@@ -248,6 +248,7 @@ class BotBackend(TelegramBackend):
         method = method_map.get(media_type, "sendDocument")
 
         if file_path_or_url.startswith(("http://", "https://")):
+            validate_url(file_path_or_url)
             field = media_type if media_type != "document" else "document"
             return await self._call(
                 method,
@@ -256,7 +257,7 @@ class BotBackend(TelegramBackend):
                 caption=caption,
             )
 
-        path = Path(file_path_or_url)
+        path = validate_file_path(file_path_or_url)
         if not path.exists():
             raise FileNotFoundError(f"File not found: {file_path_or_url}")
         field = media_type if media_type != "document" else "document"

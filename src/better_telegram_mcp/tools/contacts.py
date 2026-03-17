@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..backends.base import ModeError, TelegramBackend
-from ..utils.formatting import err, ok
+from ..utils.formatting import err, ok, safe_error
 
 
 @dataclass
@@ -55,4 +55,4 @@ async def handle_contacts(
     except ModeError as e:
         return err(str(e))
     except Exception as e:
-        return err(f"{type(e).__name__}: {e}")
+        return safe_error(e)

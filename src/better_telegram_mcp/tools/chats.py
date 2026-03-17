@@ -5,7 +5,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from ..backends.base import ModeError, TelegramBackend
-from ..utils.formatting import err, ok
+from ..utils.formatting import err, ok, safe_error
 
 
 class ChatOptions(BaseModel):
@@ -116,4 +116,4 @@ async def handle_chats(
     except ModeError as e:
         return err(str(e))
     except Exception as e:
-        return err(f"{type(e).__name__}: {e}")
+        return safe_error(e)
