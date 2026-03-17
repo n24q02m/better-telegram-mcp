@@ -12,6 +12,7 @@ from pathlib import Path
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
+from pydantic import BaseModel, Field
 
 from .backends.base import TelegramBackend
 from .config import Settings
@@ -22,6 +23,22 @@ from .tools.help_tool import handle_help
 from .tools.media import handle_media
 from .tools.messages import handle_messages
 from .utils.formatting import err
+
+
+class MessagesArgs(BaseModel):
+    action: str = Field(description="send|edit|delete|forward|pin|react|search|history")
+    chat_id: str | int | None = None
+    text: str | None = None
+    message_id: int | None = None
+    reply_to: int | None = None
+    parse_mode: str | None = None
+    from_chat: str | int | None = None
+    to_chat: str | int | None = None
+    emoji: str | None = None
+    query: str | None = None
+    limit: int = 20
+    offset_id: int | None = None
+
 
 _backend: TelegramBackend | None = None
 _settings: Settings | None = None
@@ -220,38 +237,11 @@ mcp = FastMCP(
         openWorldHint=True,
     )
 )
-async def messages(
-    action: str,
-    chat_id: str | int | None = None,
-    text: str | None = None,
-    message_id: int | None = None,
-    reply_to: int | None = None,
-    parse_mode: str | None = None,
-    from_chat: str | int | None = None,
-    to_chat: str | int | None = None,
-    emoji: str | None = None,
-    query: str | None = None,
-    limit: int = 20,
-    offset_id: int | None = None,
-) -> str:
+async def messages(args: MessagesArgs) -> str:
     """send|edit|delete|forward|pin|react|search|history"""
     if _pending_auth:
         return _auth_required_response()
-    return await handle_messages(
-        get_backend(),
-        action,
-        chat_id=chat_id,
-        text=text,
-        message_id=message_id,
-        reply_to=reply_to,
-        parse_mode=parse_mode,
-        from_chat=from_chat,
-        to_chat=to_chat,
-        emoji=emoji,
-        query=query,
-        limit=limit,
-        offset_id=offset_id,
-    )
+    return await handle_messages(get_backend(), args)
 
 
 @mcp.tool(
