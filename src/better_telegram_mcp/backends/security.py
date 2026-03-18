@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ipaddress
+import socket
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -39,19 +40,26 @@ def validate_url(url: str) -> None:
     if hostname in ("metadata.google.internal", "metadata.internal"):
         msg = "Access to cloud metadata endpoints is blocked"
         raise SecurityError(msg)
-    # Resolve and check IP
+    # Resolve and check IPs
+    # Not an IP literal -- resolve to prevent SSRF via DNS like 127.0.0.1.nip.io
+    # Block known dangerous hostnames as an early check
+    if hostname in ("localhost", "0.0.0.0"):  # noqa: S104
+        msg = f"Access to {hostname} is blocked"
+        raise SecurityError(msg)
     try:
-        addr = ipaddress.ip_address(hostname)
-        for network in _BLOCKED_NETWORKS:
-            if addr in network:
-                msg = f"Access to internal/private IP {hostname} is blocked"
-                raise SecurityError(msg)
-    except ValueError:
-        # Not an IP literal -- hostname resolution happens at fetch time
-        # Block known dangerous hostnames
-        if hostname in ("localhost", "0.0.0.0"):  # noqa: S104
-            msg = f"Access to {hostname} is blocked"
-            raise SecurityError(msg) from None
+        # Get all IPs for this hostname
+        addr_info = socket.getaddrinfo(hostname, None)
+        for _, _, _, _, sockaddr in addr_info:
+            ip_str = sockaddr[0]
+            addr = ipaddress.ip_address(ip_str)
+            for network in _BLOCKED_NETWORKS:
+                if addr in network:
+                    msg = f"Access to internal/private IP {ip_str} ({hostname}) is blocked"
+                    raise SecurityError(msg)
+    except OSError:
+        # If hostname resolution fails, let it pass security validation
+        # (It will fail later when actually trying to connect)
+        pass
 
 
 def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Path:

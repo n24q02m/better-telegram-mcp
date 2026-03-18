@@ -72,6 +72,22 @@ class TestValidateUrl:
     def test_public_ip_allowed(self):
         validate_url("https://93.184.216.34/image.jpg")
 
+    def test_dns_resolution_blocks_internal(self, monkeypatch):
+        # Mock socket.getaddrinfo to simulate malicious domain resolving to 127.0.0.1
+        monkeypatch.setattr(
+            "socket.getaddrinfo", lambda host, port: [(2, 1, 6, "", ("127.0.0.1", 80))]
+        )
+        with pytest.raises(SecurityError, match="internal/private"):
+            validate_url("http://malicious-domain-resolving-to-local.com/admin")
+
+    def test_dns_resolution_allows_external(self, monkeypatch):
+        # Mock socket.getaddrinfo to simulate benign domain resolving to public IP
+        monkeypatch.setattr(
+            "socket.getaddrinfo",
+            lambda host, port: [(2, 1, 6, "", ("93.184.216.34", 80))],
+        )
+        validate_url("http://example.com/image.jpg")
+
 
 class TestValidateFilePath:
     def test_normal_path_allowed(self):
