@@ -1,6 +1,6 @@
 [project]
 name = "better-telegram-mcp"
-version = "3.0.0"
+version = "3.1.0"
 description = "Production-grade MCP server for Telegram — dual-mode Bot API + MTProto, mega-tool pattern"
 readme = "README.md"
 license = { text = "MIT" }

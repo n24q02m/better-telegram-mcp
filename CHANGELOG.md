@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v3.1.0 (2026-03-18)
+
+### Bug Fixes
+
+- Remove auth secret, use token-based auth for public relay
+  ([`df7d544`](https://github.com/n24q02m/better-telegram-mcp/commit/df7d54425691c9bf65fb0608a5e79bd5d1bbb9c2))
+
+### Features
+
+- Add auth-relay Docker build to CD pipeline
+  ([`bc097f0`](https://github.com/n24q02m/better-telegram-mcp/commit/bc097f0e5d133eb805e8b74c979561f5f95f5d05))
+
+
 ## v3.0.0 (2026-03-18)
 
 ### Features
