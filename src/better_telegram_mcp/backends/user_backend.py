@@ -226,15 +226,21 @@ class UserBackend(TelegramBackend):
         kwargs: dict[str, Any] = {"limit": limit}
         if offset_id is not None:
             kwargs["offset_id"] = offset_id
-        messages = await client.get_messages(chat_id, **kwargs)
-        # Using list comprehension is typically faster than generator
-        return [self._serialize_message(m) for m in messages]
+        # Bolt: using iter_messages in an async comprehension is faster and uses less
+        # memory than get_messages(), which creates an intermediate TotalList.
+        return [
+            self._serialize_message(m)
+            async for m in client.iter_messages(chat_id, **kwargs)
+        ]
 
     # --- Chats ---
     async def list_chats(self, *, limit: int = 50) -> list[dict[str, Any]]:
         client = self._ensure_client()
-        dialogs = await client.get_dialogs(limit=limit)
-        return [self._serialize_dialog(d) for d in dialogs]
+        # Bolt: using iter_dialogs in an async comprehension is faster and uses less
+        # memory than get_dialogs(), which creates an intermediate TotalList.
+        return [
+            self._serialize_dialog(d) async for d in client.iter_dialogs(limit=limit)
+        ]
 
     async def get_chat_info(self, chat_id: str | int) -> dict[str, Any]:
         client = self._ensure_client()
