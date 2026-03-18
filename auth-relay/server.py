@@ -9,7 +9,6 @@ Domain: better-telegram-mcp.n24q02m.com
 
 from __future__ import annotations
 
-import os
 import time
 import uuid
 from collections import defaultdict
@@ -25,9 +24,6 @@ RATE_LIMIT_WINDOW = 60  # seconds
 RATE_LIMIT_MAX = 30  # requests per window per IP
 OTP_ATTEMPT_LIMIT = 5  # max verify attempts per session
 
-# API shared secret (MCP local <-> relay)
-_api_secret = os.environ.get("RELAY_API_SECRET", "")
-
 # In-memory session store
 _sessions: dict[str, dict] = {}
 _last_cleanup: float = 0
@@ -40,19 +36,11 @@ def _check_rate_limit(ip: str) -> bool:
     """Return True if request is allowed, False if rate limited."""
     now = time.time()
     window = _rate_limits[ip]
-    # Remove expired entries
     _rate_limits[ip] = [t for t in window if now - t < RATE_LIMIT_WINDOW]
     if len(_rate_limits[ip]) >= RATE_LIMIT_MAX:
         return False
     _rate_limits[ip].append(now)
     return True
-
-
-def _check_api_auth(request: Request) -> bool:
-    """Verify API shared secret header."""
-    if not _api_secret:
-        return True  # No secret configured = dev mode
-    return request.headers.get("x-relay-secret") == _api_secret
 
 
 def _cleanup() -> None:
@@ -215,8 +203,9 @@ $('otp').addEventListener('keydown',e=>{if(e.key==='Enter')verify()});
 
 async def api_create_session(request: Request) -> JSONResponse:
     """MCP local creates a new auth session."""
-    if not _check_api_auth(request):
-        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    ip = request.client.host if request.client else "unknown"
+    if not _check_rate_limit(ip):
+        return JSONResponse({"error": "Rate limited"}, status_code=429)
     _cleanup()
     try:
         body = await request.json()
@@ -237,8 +226,6 @@ async def api_create_session(request: Request) -> JSONResponse:
 
 async def api_poll_session(request: Request) -> JSONResponse:
     """MCP local polls for pending commands."""
-    if not _check_api_auth(request):
-        return JSONResponse({"error": "Unauthorized"}, status_code=401)
     token = request.path_params["token"]
     session = _sessions.get(token)
     if not session:
@@ -258,8 +245,6 @@ async def api_poll_session(request: Request) -> JSONResponse:
 
 async def api_push_result(request: Request) -> JSONResponse:
     """MCP local pushes command execution result."""
-    if not _check_api_auth(request):
-        return JSONResponse({"error": "Unauthorized"}, status_code=401)
     token = request.path_params["token"]
     session = _sessions.get(token)
     if not session:

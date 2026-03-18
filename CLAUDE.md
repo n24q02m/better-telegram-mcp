@@ -44,7 +44,6 @@ Session persist: `~/.better-telegram-mcp/<name>.session`, permission 600.
 - `TELEGRAM_API_ID` + `TELEGRAM_API_HASH` -- user mode
 - `TELEGRAM_PHONE` -- phone (required for auth web UI)
 - `TELEGRAM_AUTH_URL` -- `local` | remote URL (default: remote)
-- `TELEGRAM_AUTH_SECRET` -- shared secret for remote relay API
 - `TELEGRAM_SESSION_NAME`, `TELEGRAM_DATA_DIR` -- optional
 
 NO `TELEGRAM_PASSWORD` -- 2FA nhap qua web UI, KHONG luu env.

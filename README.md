@@ -67,7 +67,6 @@ All configuration is via environment variables with `TELEGRAM_` prefix:
 | `TELEGRAM_API_HASH` | User mode | - | API hash from [my.telegram.org](https://my.telegram.org) |
 | `TELEGRAM_PHONE` | User mode | - | Phone number with country code (e.g., `+84912345678`). Required for web auth UI. |
 | `TELEGRAM_AUTH_URL` | No | `https://better-telegram-mcp.n24q02m.com` | Auth server URL. Use `local` for localhost mode, or a custom URL for self-hosted relay. |
-| `TELEGRAM_AUTH_SECRET` | No | - | Shared secret for remote auth relay API authentication. |
 | `TELEGRAM_SESSION_NAME` | No | `default` | Session file name (for multiple accounts) |
 | `TELEGRAM_DATA_DIR` | No | `~/.better-telegram-mcp` | Data directory for session files |
 

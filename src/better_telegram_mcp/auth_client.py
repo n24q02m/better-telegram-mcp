@@ -40,10 +40,7 @@ class AuthClient:
 
         validate_url(self._base_url)
 
-        headers = {}
-        if settings.auth_secret:
-            headers["x-relay-secret"] = settings.auth_secret
-        self._client = httpx.AsyncClient(timeout=10.0, headers=headers)
+        self._client = httpx.AsyncClient(timeout=10.0)
         self.url: str = ""  # auth page URL for user
 
     async def create_session(self) -> str:
