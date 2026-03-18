@@ -193,6 +193,42 @@ jobs:
           short-description: ${{ github.event.repository.description }}
           readme-filepath: ./README.md
 
+  # =================== Build Auth Relay ===================
+  build-auth-relay:
+    name: Build Auth Relay
+    needs: release
+    if: needs.release.outputs.released == 'true'
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+      - uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push auth-relay
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+          IS_PRERELEASE: ${{ needs.release.outputs.is_prerelease }}
+          IMAGE: ghcr.io/${{ github.repository }}-auth-relay
+        run: |
+          docker build -t "${IMAGE}:${VERSION}" auth-relay/
+          docker push "${IMAGE}:${VERSION}"
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            docker tag "${IMAGE}:${VERSION}" "${IMAGE}:beta"
+            docker push "${IMAGE}:beta"
+          else
+            docker tag "${IMAGE}:${VERSION}" "${IMAGE}:latest"
+            docker push "${IMAGE}:latest"
+          fi
+
   # =================== Publish to MCP Registry ===================
   publish-mcp-registry:
     name: Publish to MCP Registry
