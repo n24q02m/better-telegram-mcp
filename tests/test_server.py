@@ -220,7 +220,7 @@ async def test_lifespan_user_mode():
 
 @pytest.mark.asyncio
 async def test_lifespan_user_mode_unauthorized_sets_pending():
-    """When user mode session is unauthorized, set _pending_auth without auto-sending OTP."""
+    """When user mode session is unauthorized, set _pending_auth."""
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import _lifespan
 
@@ -229,9 +229,12 @@ async def test_lifespan_user_mode_unauthorized_sets_pending():
     mock_settings.api_id = 12345
     mock_settings.api_hash = "testhash"
     mock_settings.phone = "+84912345678"
+    mock_settings.auth_url = "local"
 
     mock_user_backend = AsyncMock()
     mock_user_backend.is_authorized = AsyncMock(return_value=False)
+
+    mock_handler = AsyncMock()
 
     old_pending = srv._pending_auth
     try:
@@ -247,10 +250,18 @@ async def test_lifespan_user_mode_unauthorized_sets_pending():
                     )()
                 },
             ),
+            patch(
+                "better_telegram_mcp.server._start_auth",
+                new_callable=AsyncMock,
+                return_value=(mock_handler, "http://127.0.0.1:9999"),
+            ),
+            patch(
+                "better_telegram_mcp.server._run_auth_background",
+                new_callable=AsyncMock,
+            ),
         ):
             async with _lifespan(mcp):
                 assert srv._pending_auth is True
-                # Should NOT auto-send OTP
                 mock_user_backend.send_code.assert_not_awaited()
 
             mock_user_backend.disconnect.assert_awaited_once()

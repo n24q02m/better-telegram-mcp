@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     phone: str | None = None
     session_name: str = "default"
 
+    # Auth
+    auth_url: str = "https://better-telegram-mcp.n24q02m.com"
+    auth_secret: str | None = None  # Shared secret for remote relay API
+
     # Data
     data_dir: Path = Path.home() / ".better-telegram-mcp"
 

@@ -1,4 +1,4 @@
-"""Tests for auth flow: lifespan pending_auth + _auth_required_response."""
+"""Tests for auth flow: _auth_required_response + lifespan auth integration."""
 
 from __future__ import annotations
 
@@ -41,10 +41,13 @@ class TestLifespanUnauthorized:
         mock_settings.api_id = 12345
         mock_settings.api_hash = "testhash"
         mock_settings.phone = "+84912345678"
-        # password removed from settings — entered via web UI only
+        mock_settings.auth_url = "local"
 
         mock_user_backend = AsyncMock()
         mock_user_backend.is_authorized = AsyncMock(return_value=False)
+
+        mock_handler = AsyncMock()
+        mock_handler.wait_for_auth = AsyncMock()
 
         old_pending = srv._pending_auth
         try:
@@ -59,6 +62,15 @@ class TestLifespanUnauthorized:
                             {"UserBackend": MagicMock(return_value=mock_user_backend)},
                         )()
                     },
+                ),
+                patch(
+                    "better_telegram_mcp.server._start_auth",
+                    new_callable=AsyncMock,
+                    return_value=(mock_handler, "http://127.0.0.1:9999"),
+                ),
+                patch(
+                    "better_telegram_mcp.server._run_auth_background",
+                    new_callable=AsyncMock,
                 ),
             ):
                 async with _lifespan(mcp):
@@ -77,7 +89,6 @@ class TestLifespanUnauthorized:
         mock_settings.api_id = 12345
         mock_settings.api_hash = "testhash"
         mock_settings.phone = "+84912345678"
-        # password removed from settings — entered via web UI only
 
         mock_user_backend = AsyncMock()
         mock_user_backend.is_authorized = AsyncMock(return_value=True)
@@ -112,10 +123,12 @@ class TestLifespanUnauthorized:
         mock_settings.api_id = 12345
         mock_settings.api_hash = "testhash"
         mock_settings.phone = "+84912345678"
-        # password removed from settings — entered via web UI only
+        mock_settings.auth_url = "local"
 
         mock_user_backend = AsyncMock()
         mock_user_backend.is_authorized = AsyncMock(return_value=False)
+
+        mock_handler = AsyncMock()
 
         old_pending = srv._pending_auth
         try:
@@ -131,9 +144,17 @@ class TestLifespanUnauthorized:
                         )()
                     },
                 ),
+                patch(
+                    "better_telegram_mcp.server._start_auth",
+                    new_callable=AsyncMock,
+                    return_value=(mock_handler, "http://127.0.0.1:9999"),
+                ),
+                patch(
+                    "better_telegram_mcp.server._run_auth_background",
+                    new_callable=AsyncMock,
+                ),
             ):
                 async with _lifespan(mcp):
-                    # send_code should NOT be called automatically
                     mock_user_backend.send_code.assert_not_awaited()
         finally:
             srv._pending_auth = old_pending

@@ -41,58 +41,6 @@ async def _handle_cache_clear(backend: TelegramBackend) -> str:
     return ok({"message": "Cache cleared."})
 
 
-async def _handle_auth(backend: TelegramBackend, **kwargs: Any) -> str:
-    import better_telegram_mcp.server as srv
-
-    if not srv._pending_auth:
-        return ok({"message": "Already authenticated. No action needed."})
-
-    code = kwargs.get("code")
-    if not code:
-        return err(
-            "auth requires 'code' parameter. "
-            "Use: config(action='auth', code='YOUR_CODE')"
-        )
-
-    settings = srv.get_settings()
-    phone = settings.phone
-    if not phone:
-        return err(
-            "TELEGRAM_PHONE env var is required for auth. Set it in your MCP config."
-        )
-
-    password = kwargs.get("password")
-    result = await backend.sign_in(phone, code, password=password)
-
-    srv._pending_auth = False
-    return ok(
-        {
-            "message": "Authentication successful.",
-            **result,
-        }
-    )
-
-
-async def _handle_send_code(backend: TelegramBackend) -> str:
-    import better_telegram_mcp.server as srv
-
-    settings = srv.get_settings()
-    phone = settings.phone
-    if not phone:
-        return err(
-            "TELEGRAM_PHONE env var is required to send OTP. Set it in your MCP config."
-        )
-
-    await backend.send_code(phone)
-    srv._pending_auth = True
-    return ok(
-        {
-            "message": f"OTP code sent to {phone}. "
-            "Use: config(action='auth', code='YOUR_CODE') to complete."
-        }
-    )
-
-
 async def handle_config(
     backend: TelegramBackend,
     action: str,
@@ -106,14 +54,7 @@ async def handle_config(
                 return _handle_set(**kwargs)
             case "cache_clear":
                 return await _handle_cache_clear(backend)
-            case "auth":
-                return await _handle_auth(backend, **kwargs)
-            case "send_code":
-                return await _handle_send_code(backend)
             case _:
-                return err(
-                    f"Unknown action '{action}'. "
-                    "Valid: status|set|cache_clear|auth|send_code"
-                )
+                return err(f"Unknown action '{action}'. Valid: status|set|cache_clear")
     except Exception as e:
         return safe_error(e)

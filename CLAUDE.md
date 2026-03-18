@@ -14,43 +14,44 @@ uv run pytest                # Test (integration excluded)
 uv run ruff check --fix . && uv run ruff format .  # Fix
 ```
 
-## Cau truc thu muc
+## Cau truc
 
 ```
 src/better_telegram_mcp/
   config.py            # Pydantic Settings, env prefix TELEGRAM_
-  server.py            # FastMCP server + lifespan + auth web server integration
-  auth_server.py       # Starlette web UI for OTP auth (localhost, auto-shutdown)
+  server.py            # FastMCP + lifespan + auth mode switching
+  auth_server.py       # Local mode: Starlette web UI on localhost
+  auth_client.py       # Remote mode: httpx client polls relay server
   backends/            # TelegramBackend ABC -> BotBackend (httpx), UserBackend (Telethon)
-  backends/security.py # Input validation: validate_url, validate_file_path, validate_output_dir
-  tools/               # 6 mega-tools: messages, chats, media, contacts, config_tool, help
-  docs/                # Tool documentation markdown
-tests/                 # Mirror source modules
+  backends/security.py # validate_url, validate_file_path, validate_output_dir
+  tools/               # messages, chats, media, contacts, config_tool, help
+auth-relay/            # Remote auth relay server (deploy Docker on OCI VM)
 ```
-
-## Env vars
-
-Prefix `TELEGRAM_`:
-- `TELEGRAM_BOT_TOKEN` -- bot mode
-- `TELEGRAM_API_ID` + `TELEGRAM_API_HASH` -- user mode (uu tien hon bot)
-- `TELEGRAM_PHONE` -- phone voi country code (VD: `+84912345678`)
-- `TELEGRAM_SESSION_NAME` -- ten session file (default: `default`)
-- `TELEGRAM_DATA_DIR` -- thu muc data (default: `~/.better-telegram-mcp`)
-
-NO `TELEGRAM_PASSWORD` -- 2FA password nhap qua web UI hoac curl, KHONG luu trong env/config.
 
 ## Auth flow
 
-- User mode chua auth -> start Starlette web server tren localhost:random_port
-- Browser tu dong mo. Headless: curl POST /send-code + POST /verify
-- Auth xong -> web server tu tat -> MCP tools active ngay (khong can restart)
-- Session persist tai `~/.better-telegram-mcp/<name>.session`, permission 600
+Dual-mode auth (TELEGRAM_AUTH_URL):
+- `local` -> auth_server.py (Starlette on localhost, browser moi tu dong)
+- `https://...` -> auth_client.py (poll remote relay, browser bat ky dau)
+- Default: `https://better-telegram-mcp.n24q02m.com`
+
+Auth xong -> _pending_auth=False -> tools active ngay (khong can restart).
+Session persist: `~/.better-telegram-mcp/<name>.session`, permission 600.
+
+## Env vars
+
+- `TELEGRAM_BOT_TOKEN` -- bot mode
+- `TELEGRAM_API_ID` + `TELEGRAM_API_HASH` -- user mode
+- `TELEGRAM_PHONE` -- phone (required for auth web UI)
+- `TELEGRAM_AUTH_URL` -- `local` | remote URL (default: remote)
+- `TELEGRAM_AUTH_SECRET` -- shared secret for remote relay API
+- `TELEGRAM_SESSION_NAME`, `TELEGRAM_DATA_DIR` -- optional
+
+NO `TELEGRAM_PASSWORD` -- 2FA nhap qua web UI, KHONG luu env.
 
 ## Luu y
 
-- Mode detection: `TELEGRAM_API_ID` + `TELEGRAM_API_HASH` set -> user mode. Khong co -> bot mode.
-- MCP tools tra ve error string, khong raise exception. safe_error() sanitize exceptions.
-- `match action:` pattern cho tool action dispatch.
-- Coverage fail_under: 95%. Pre-commit: ruff lint + format, ty check, pytest.
-- Security: validate_url (SSRF), validate_file_path (traversal), validate_output_dir (write)
+- Config tool: `status|set|cache_clear` (NO auth/send_code -- web UI only)
+- Coverage omit: auth_server.py, auth_client.py (integration test only)
+- Security: SSRF, path traversal, error sanitization, rate limiting on relay
 - Infisical project: `29457d18-fd82-4942-9330-7da7982e6b1d`

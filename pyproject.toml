@@ -95,7 +95,11 @@ empty-body = "ignore"
 
 [tool.coverage.run]
 source = ["better_telegram_mcp"]
-omit = ["tests/*"]
+omit = [
+    "tests/*",
+    "*/auth_server.py",
+    "*/auth_client.py",
+]
 
 [tool.coverage.report]
 fail_under = 95
