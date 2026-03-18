@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v3.0.0 (2026-03-18)
+
+### Features
+
+- Dual-mode auth (local + remote relay) with security hardening
+  ([`5a7cece`](https://github.com/n24q02m/better-telegram-mcp/commit/5a7cecee89ca83f6c2723fba90c6097b7366d015))
+
+### Breaking Changes
+
+- Config tool `auth` and `send_code` actions removed. Authentication is now handled exclusively via
+  web UI (local or remote).
+
+
 ## v2.0.0 (2026-03-17)
 
 ### Bug Fixes
