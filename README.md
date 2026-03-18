@@ -1,4 +1,4 @@
-# better-telegram-mcp
+# Better Telegram MCP
 
 mcp-name: io.github.n24q02m/better-telegram-mcp
 
@@ -27,6 +27,42 @@ Production-grade MCP server for Telegram with dual-mode support: Bot API (via ht
 - **Tool annotations**: Each tool declares `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`
 - **MCP Resources**: Documentation available as `telegram://docs/*` resources
 - **Auto-detect mode**: Set bot token for bot mode, or API credentials for user mode
+- **Web-based OTP auth**: Browser-based authentication with remote relay support for headless environments
+
+## Why Better?
+
+| Feature | better-telegram-mcp | Other Telegram MCP servers |
+|---|:---:|:---:|
+| Dual mode (Bot + User/MTProto) | Y | Bot only |
+| Composite mega-tools (6 vs 30+) | Y | Individual tools |
+| Tool annotations (read-only, destructive hints) | Y | N |
+| MCP Resources (docs as resources) | Y | N |
+| Web-based OTP auth (no CLI needed) | Y | CLI only |
+| Remote auth relay (headless SSH/Docker) | Y | N |
+| Security hardening (SSRF, path traversal) | Y | N |
+| Docker multi-arch (amd64 + arm64) | Y | amd64 only |
+
+## Token Optimization
+
+Instead of registering 30+ individual tools, Better Telegram MCP uses a **3-tier mega-tool pattern**:
+
+| Tier | Description | Example |
+|---|---|---|
+| **6 mega-tools** | Action dispatch via `action` parameter | `messages(action="send", ...)` |
+| **Tool annotations** | Hints for AI model behavior | `readOnlyHint=False, destructiveHint=True` |
+| **MCP Resources** | Documentation as resources | `telegram://docs/messages` |
+
+This reduces token overhead by ~80% compared to registering each action as a separate tool.
+
+## MCP Resources
+
+| URI | Content |
+|---|---|
+| `telegram://docs/messages` | Message operations reference |
+| `telegram://docs/chats` | Chat management reference |
+| `telegram://docs/media` | Media send/download reference |
+| `telegram://docs/contacts` | Contact management reference |
+| `telegram://stats` | All documentation combined |
 
 ## Quick Start
 
@@ -229,6 +265,46 @@ help(topic="all")       # Everything
 | OTP sent but where? | Code goes to Telegram app | Check the **Telegram app on your phone** (not SMS). Look for a message from "Telegram" with a login code. |
 | Headless auth? | No browser available | Use curl: `curl -X POST http://127.0.0.1:PORT/send-code` then `curl -X POST http://127.0.0.1:PORT/verify -d '{"code":"12345"}'` |
 
+## Self-Hosting Auth Relay
+
+By default, OTP authentication uses the hosted relay at `better-telegram-mcp.n24q02m.com`. To self-host:
+
+```bash
+# Build and run the auth relay server
+cd auth-relay
+docker build -t telegram-auth-relay .
+docker run -d -p 8080:8080 --name telegram-auth-relay telegram-auth-relay
+```
+
+Then set the MCP server to use your relay:
+
+```json
+{
+  "env": {
+    "TELEGRAM_AUTH_URL": "https://your-domain.com"
+  }
+}
+```
+
+Or use `TELEGRAM_AUTH_URL=local` for localhost-only mode (no remote relay).
+
+| Mode | `TELEGRAM_AUTH_URL` | Use case |
+|---|---|---|
+| Remote (default) | `https://better-telegram-mcp.n24q02m.com` | Headless, SSH, any browser |
+| Self-hosted | `https://your-domain.com` | Custom deployment |
+| Local | `local` | Desktop, offline, no remote |
+
+## Build from Source
+
+```bash
+git clone https://github.com/n24q02m/better-telegram-mcp.git
+cd better-telegram-mcp
+uv sync --group dev
+uv run ruff check .
+uv run pytest
+uv run better-telegram-mcp
+```
+
 ## Compatible With
 
 [![Claude Desktop](https://img.shields.io/badge/Claude_Desktop-F9DC7C?logo=anthropic&logoColor=black)](#quick-start)
@@ -253,6 +329,14 @@ help(topic="all")       # Everything
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Privacy
+
+See [PRIVACY.md](PRIVACY.md).
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

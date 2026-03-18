@@ -55,8 +55,8 @@ uv run better-telegram-mcp
 # User mode
 export TELEGRAM_API_ID="your-api-id"
 export TELEGRAM_API_HASH="your-api-hash"
-uv run better-telegram-mcp auth  # First time only
 uv run better-telegram-mcp
+# First run: browser opens for OTP auth
 ```
 
 ### Making Changes
@@ -97,6 +97,14 @@ feat: add support for inline keyboards
 fix: handle Telethon session expiry
 docs: update configuration examples
 ```
+
+### Version Bumps
+
+| Commit Type | Version Bump | Example |
+|---|---|---|
+| `fix:` | PATCH (3.1.0 -> 3.1.1) | `fix: handle session expiry` |
+| `feat:` | MINOR (3.1.0 -> 3.2.0) | `feat: add inline keyboard support` |
+| `feat!:` or `BREAKING CHANGE:` | MAJOR (3.1.0 -> 4.0.0) | `feat!: remove CLI auth` |
 
 ## Release Process
 
