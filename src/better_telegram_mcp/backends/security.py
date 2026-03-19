@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ipaddress
+import socket
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -47,11 +48,25 @@ def validate_url(url: str) -> None:
                 msg = f"Access to internal/private IP {hostname} is blocked"
                 raise SecurityError(msg)
     except ValueError:
-        # Not an IP literal -- hostname resolution happens at fetch time
-        # Block known dangerous hostnames
+        # Not an IP literal -- block known dangerous hostnames
         if hostname in ("localhost", "0.0.0.0"):  # noqa: S104
             msg = f"Access to {hostname} is blocked"
             raise SecurityError(msg) from None
+        # Resolve hostname to check underlying IP addresses
+        try:
+            addr_infos = socket.getaddrinfo(hostname, None)
+            for addr_info in addr_infos:
+                ip_str = addr_info[4][0]
+                try:
+                    resolved_addr = ipaddress.ip_address(ip_str)
+                    for network in _BLOCKED_NETWORKS:
+                        if resolved_addr in network:
+                            msg = f"Access to internal/private IP {ip_str} via {hostname} is blocked"
+                            raise SecurityError(msg)
+                except ValueError:
+                    continue  # Should not happen with getaddrinfo results
+        except socket.gaierror:
+            pass  # Hostname could not be resolved; handled by client during fetch
 
 
 def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Path:

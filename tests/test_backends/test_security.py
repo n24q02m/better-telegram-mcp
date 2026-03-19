@@ -72,6 +72,20 @@ class TestValidateUrl:
     def test_public_ip_allowed(self):
         validate_url("https://93.184.216.34/image.jpg")
 
+    def test_dns_ssrf_blocked(self, monkeypatch):
+        import socket
+
+        # Mock getaddrinfo to return a private IP for a public-looking domain
+        def mock_getaddrinfo(host, port, *args, **kwargs):
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 0))]
+
+        monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
+        with pytest.raises(
+            SecurityError,
+            match="internal/private IP 127.0.0.1 via my-malicious-domain.com is blocked",
+        ):
+            validate_url("http://my-malicious-domain.com/admin")
+
 
 class TestValidateFilePath:
     def test_normal_path_allowed(self):
