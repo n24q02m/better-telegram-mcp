@@ -1,7 +1,24 @@
 from __future__ import annotations
 
+from pydantic import BaseModel, Field
+
 from ..backends.base import ModeError, TelegramBackend
 from ..utils.formatting import err, ok, safe_error
+
+
+class MediaOptions(BaseModel):
+    chat_id: str | int | None = Field(default=None, description="ID of the chat")
+    file_path_or_url: str | None = Field(
+        default=None, description="Path or URL of the file to send"
+    )
+    message_id: int | None = Field(
+        default=None, description="Message ID for downloading"
+    )
+    caption: str | None = Field(default=None, description="Caption for the media")
+    output_dir: str | None = Field(
+        default=None, description="Output directory for download"
+    )
+
 
 _ACTION_TO_MEDIA_TYPE = {
     "send_photo": "photo",
@@ -14,28 +31,26 @@ _ACTION_TO_MEDIA_TYPE = {
 async def handle_media(
     backend: TelegramBackend,
     action: str,
-    *,
-    chat_id: str | int | None = None,
-    file_path_or_url: str | None = None,
-    message_id: int | None = None,
-    caption: str | None = None,
-    output_dir: str | None = None,
+    options: MediaOptions,
 ) -> str:
     try:
         if action in _ACTION_TO_MEDIA_TYPE:
-            if not chat_id or not file_path_or_url:
+            if not options.chat_id or not options.file_path_or_url:
                 return err(f"'{action}' requires chat_id and file_path_or_url")
             media_type = _ACTION_TO_MEDIA_TYPE[action]
             result = await backend.send_media(
-                chat_id, media_type, file_path_or_url, caption=caption
+                options.chat_id,
+                media_type,
+                options.file_path_or_url,
+                caption=options.caption,
             )
             return ok(result)
 
         if action == "download":
-            if not chat_id or message_id is None:
+            if not options.chat_id or options.message_id is None:
                 return err("'download' requires chat_id and message_id")
             path = await backend.download_media(
-                chat_id, message_id, output_dir=output_dir
+                options.chat_id, options.message_id, output_dir=options.output_dir
             )
             return ok({"path": path})
 
