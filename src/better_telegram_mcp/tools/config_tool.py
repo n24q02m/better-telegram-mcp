@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from ..backends.base import TelegramBackend
 from ..utils.formatting import err, ok, safe_error
 
 
-async def _handle_status(backend: TelegramBackend) -> str:
+async def _handle_status(backend: TelegramBackend, **kwargs: Any) -> str:
     from ..server import _auth_url, _pending_auth, _runtime_config
 
     connected = await backend.is_connected()
@@ -23,7 +24,7 @@ async def _handle_status(backend: TelegramBackend) -> str:
     return ok(result)
 
 
-def _handle_set(**kwargs: Any) -> str:
+async def _handle_set(backend: TelegramBackend, **kwargs: Any) -> str:
     from ..server import _runtime_config
 
     updated: dict[str, int] = {}
@@ -36,9 +37,16 @@ def _handle_set(**kwargs: Any) -> str:
     return ok({"updated": updated, "current": _runtime_config})
 
 
-async def _handle_cache_clear(backend: TelegramBackend) -> str:
+async def _handle_cache_clear(backend: TelegramBackend, **kwargs: Any) -> str:
     await backend.clear_cache()
     return ok({"message": "Cache cleared."})
+
+
+_HANDLERS: dict[str, Callable[..., Awaitable[str]]] = {
+    "status": _handle_status,
+    "set": _handle_set,
+    "cache_clear": _handle_cache_clear,
+}
 
 
 async def handle_config(
@@ -47,14 +55,9 @@ async def handle_config(
     **kwargs: Any,
 ) -> str:
     try:
-        match action:
-            case "status":
-                return await _handle_status(backend)
-            case "set":
-                return _handle_set(**kwargs)
-            case "cache_clear":
-                return await _handle_cache_clear(backend)
-            case _:
-                return err(f"Unknown action '{action}'. Valid: status|set|cache_clear")
+        handler = _HANDLERS.get(action)
+        if not handler:
+            return err(f"Unknown action '{action}'. Valid: status|set|cache_clear")
+        return await handler(backend=backend, **kwargs)
     except Exception as e:
         return safe_error(e)
