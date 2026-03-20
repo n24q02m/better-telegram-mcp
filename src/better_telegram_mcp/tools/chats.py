@@ -32,7 +32,10 @@ async def _handle_list(backend: TelegramBackend, options: ChatOptions) -> str:
 
 async def _handle_info(backend: TelegramBackend, options: ChatOptions) -> str:
     if not options.chat_id:
-        return err("'info' requires chat_id")
+        return err(
+            "'info' requires chat_id. "
+            "Use positive int (user), negative int (group/supergroup), or @username (public)."
+        )
     result = await backend.get_chat_info(options.chat_id)
     return ok(result)
 
