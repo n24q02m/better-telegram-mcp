@@ -1,0 +1,16 @@
+🧹 [Reduce arguments in contacts tool]
+
+🎯 What:
+Refactored the `contacts` tool function in `server.py` to accept a single `args` parameter of type `ContactsArgs` instead of six individual optional arguments. Updated `ContactsArgs` in `tools/contacts.py` to be a Pydantic `BaseModel` instead of a generic `@dataclass`, adding `Field(description=...)` to each property.
+
+💡 Why:
+Functions with many arguments are harder to use, read, and maintain. By passing a config object, the tool signature is drastically simplified. Using Pydantic `BaseModel` with `Field` descriptions ensures that the FastMCP framework can generate a comprehensive JSON schema that helps LLM clients understand exactly what each field does, improving the tool's usability for LLMs without changing its behavior.
+
+✅ Verification:
+- Ensured Pydantic `BaseModel` behaves correctly with the existing code pattern.
+- Successfully ran the entire test suite using `uv run pytest`.
+- Passed linting and formatting checks with `uv run ruff format .` and `uv run ruff check`.
+- Verified that `uv.lock` changes were not inadvertently included.
+
+✨ Result:
+A cleaner `contacts` function signature that is easier to maintain and better described for LLM clients via FastMCP schema generation.

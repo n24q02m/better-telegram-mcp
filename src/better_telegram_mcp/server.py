@@ -266,24 +266,15 @@ async def media(
 )
 async def contacts(
     action: str,
-    query: str | None = None,
-    phone: str | None = None,
-    first_name: str | None = None,
-    last_name: str | None = None,
-    user_id: int | None = None,
-    unblock: bool = False,
+    args: ContactsArgs | None = None,
 ) -> str:
     """list|search|add|block (user mode only)"""
     if _pending_auth:
         return _auth_required_response()
-    args = ContactsArgs(
-        query=query,
-        phone=phone,
-        first_name=first_name,
-        last_name=last_name,
-        user_id=user_id,
-        unblock=unblock,
-    )
+
+    if args is None:
+        args = ContactsArgs()
+
     return await handle_contacts(
         get_backend(),
         action,

@@ -1,19 +1,24 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from pydantic import BaseModel, Field
 
 from ..backends.base import ModeError, TelegramBackend
 from ..utils.formatting import err, ok, safe_error
 
 
-@dataclass
-class ContactsArgs:
-    query: str | None = None
-    phone: str | None = None
-    first_name: str | None = None
-    last_name: str | None = None
-    user_id: int | None = None
-    unblock: bool = False
+class ContactsArgs(BaseModel):
+    query: str | None = Field(default=None, description="Search query for contacts")
+    phone: str | None = Field(
+        default=None, description="Phone number for adding a contact"
+    )
+    first_name: str | None = Field(
+        default=None, description="First name for adding a contact"
+    )
+    last_name: str | None = Field(
+        default=None, description="Last name for adding a contact"
+    )
+    user_id: int | None = Field(default=None, description="User ID to block/unblock")
+    unblock: bool = Field(default=False, description="Whether to unblock the user")
 
 
 async def handle_contacts(
