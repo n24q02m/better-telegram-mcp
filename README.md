@@ -237,18 +237,69 @@ Docker config for MCP clients:
 | Search contacts | - | Y |
 | Add contacts | - | Y |
 | Block/Unblock users | - | Y |
+| Config (status/set/cache) | Y | Y |
 
 ## Tool Reference
 
-Use the `help` tool for full documentation:
+### `messages` — send|edit|delete|forward|pin|react|search|history
 
-```
-help(topic="messages")  # Message operations
-help(topic="chats")     # Chat management
-help(topic="media")     # Media send/download
-help(topic="contacts")  # Contact management
-help(topic="all")       # Everything
-```
+| Action | Required params | Optional params |
+|---|---|---|
+| `send` | `chat_id`, `text` | `reply_to`, `parse_mode` |
+| `edit` | `chat_id`, `message_id`, `text` | `parse_mode` |
+| `delete` | `chat_id`, `message_id` | |
+| `forward` | `from_chat`, `to_chat`, `message_id` | |
+| `pin` | `chat_id`, `message_id` | |
+| `react` | `chat_id`, `message_id`, `emoji` | |
+| `search` | `query` | `chat_id`, `limit` |
+| `history` | `chat_id` | `limit`, `offset_id` |
+
+### `chats` — list|info|create|join|leave|members|admin|settings|topics
+
+| Action | Required params | Optional params |
+|---|---|---|
+| `list` | | `limit` |
+| `info` | `chat_id` | |
+| `create` | `title` | `is_channel` |
+| `join` | `link_or_hash` | |
+| `leave` | `chat_id` | |
+| `members` | `chat_id` | `limit` |
+| `admin` | `chat_id`, `user_id` | `demote` |
+| `settings` | `chat_id` + at least one of `title`/`description` | |
+| `topics` | `chat_id`, `topic_action` | `topic_id`, `topic_name` |
+
+### `media` — send_photo|send_file|send_voice|send_video|download
+
+| Action | Required params | Optional params |
+|---|---|---|
+| `send_photo` | `chat_id`, `file_path_or_url` | `caption` |
+| `send_file` | `chat_id`, `file_path_or_url` | `caption` |
+| `send_voice` | `chat_id`, `file_path_or_url` | `caption` |
+| `send_video` | `chat_id`, `file_path_or_url` | `caption` |
+| `download` | `chat_id`, `message_id` | `output_dir` |
+
+### `contacts` — list|search|add|block (user mode only)
+
+| Action | Required params | Optional params |
+|---|---|---|
+| `list` | | |
+| `search` | `query` | |
+| `add` | `phone`, `first_name` | `last_name` |
+| `block` | `user_id` | `unblock` |
+
+### `config` — status|set|cache_clear
+
+| Action | Required params | Optional params |
+|---|---|---|
+| `status` | | |
+| `set` | at least one of `message_limit`/`timeout` | |
+| `cache_clear` | | |
+
+### `help` — Documentation lookup
+
+| Param | Values |
+|---|---|
+| `topic` | `messages`, `chats`, `media`, `contacts`, `all` |
 
 ## Troubleshooting
 

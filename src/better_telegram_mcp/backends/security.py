@@ -89,7 +89,7 @@ def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Pa
     # If an allowed_dir is specified, enforce containment
     if allowed_dir is not None:
         allowed = allowed_dir.resolve()
-        if not str(path).startswith(str(allowed)):
+        if not path.is_relative_to(allowed):
             msg = f"Path must be within {allowed_dir}"
             raise SecurityError(msg)
     return path
@@ -125,7 +125,7 @@ def validate_output_dir(output_dir: str, *, base_dir: Path | None = None) -> Pat
             raise SecurityError(msg)
     if base_dir is not None:
         allowed = base_dir.resolve()
-        if not str(path).startswith(str(allowed)):
+        if not path.is_relative_to(allowed):
             msg = f"Output path must be within {base_dir}"
             raise SecurityError(msg)
     return path
