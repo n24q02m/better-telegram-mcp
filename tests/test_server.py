@@ -92,10 +92,14 @@ async def test_media_tool(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
+        from better_telegram_mcp.tools.media import MediaArgs
+
         result = await media(
-            action="send_photo",
-            chat_id=123,
-            file_path_or_url="https://example.com/photo.jpg",
+            MediaArgs(
+                action="send_photo",
+                chat_id=123,
+                file_path_or_url="https://example.com/photo.jpg",
+            )
         )
         assert "message_id" in result
     finally:
@@ -320,11 +324,15 @@ async def test_media_blocked_during_pending_auth(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
+        from better_telegram_mcp.tools.media import MediaArgs
+
         result = json.loads(
             await media(
-                action="send_photo",
-                chat_id=123,
-                file_path_or_url="https://example.com/photo.jpg",
+                MediaArgs(
+                    action="send_photo",
+                    chat_id=123,
+                    file_path_or_url="https://example.com/photo.jpg",
+                )
             )
         )
         assert "error" in result
