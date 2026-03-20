@@ -2,6 +2,48 @@
 
 <!-- version list -->
 
+## v3.1.1 (2026-03-20)
+
+### Bug Fixes
+
+- Add IPv4-mapped IPv6 to SSRF blocklist
+  ([#44](https://github.com/n24q02m/better-telegram-mcp/pull/44),
+  [`59aee2c`](https://github.com/n24q02m/better-telegram-mcp/commit/59aee2ce996925e312d351fa6c5270fedf511c54))
+
+- Use Path.is_relative_to for path containment checks and expand tool reference docs
+  ([`3445da7`](https://github.com/n24q02m/better-telegram-mcp/commit/3445da78345efb13269fda6e7d7a239c01af84ca))
+
+- **ci**: Remove job-level continue-on-error from dependency-review
+  ([`86aeea1`](https://github.com/n24q02m/better-telegram-mcp/commit/86aeea1016de4f84d88e3f99fbe35dc0f29807e8))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#23](https://github.com/n24q02m/better-telegram-mcp/pull/23),
+  [`1def987`](https://github.com/n24q02m/better-telegram-mcp/commit/1def9878cba893747f9fa23470031d332763d609))
+
+- **deps**: Update codecov/codecov-action digest to 1af5884
+  ([#27](https://github.com/n24q02m/better-telegram-mcp/pull/27),
+  [`c094a15`](https://github.com/n24q02m/better-telegram-mcp/commit/c094a15bcb1750aff96090dd5498d792877ca678))
+
+- **deps**: Update dawidd6/action-send-mail action to v16
+  ([#26](https://github.com/n24q02m/better-telegram-mcp/pull/26),
+  [`cc137f4`](https://github.com/n24q02m/better-telegram-mcp/commit/cc137f4cda77b031fb5d9753f4a1b8cc12658986))
+
+### Documentation
+
+- Add PRIVACY.md for data handling transparency
+  ([`43cdd94`](https://github.com/n24q02m/better-telegram-mcp/commit/43cdd945cd649f82179795746760dd4552e5b6e4))
+
+- Standardize README, SECURITY, CONTRIBUTING per cross-repo audit
+  ([`ba851c7`](https://github.com/n24q02m/better-telegram-mcp/commit/ba851c7ae4646dd149f67a50a20f839a4c2db4c9))
+
+### Performance Improvements
+
+- Replace get_messages/get_dialogs with iter_messages/iter_dialogs
+  ([#28](https://github.com/n24q02m/better-telegram-mcp/pull/28),
+  [`bbcd88a`](https://github.com/n24q02m/better-telegram-mcp/commit/bbcd88a7b2531ec68918e7d4b6d776756eeee022))
+
+
 ## v3.1.0 (2026-03-18)
 
 ### Bug Fixes
