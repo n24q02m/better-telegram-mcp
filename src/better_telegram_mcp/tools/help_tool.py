@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 from pathlib import Path
 
 from ..utils.formatting import err
@@ -29,6 +30,9 @@ def handle_help(topic: str | None = None) -> str:
     return err(f"Documentation for '{topic}' not found.")
 
 
+# ⚡ Bolt: Cache documentation in memory to avoid blocking disk I/O
+# on the main event loop during async tool/resource invocations.
+@functools.cache
 def _load_doc(topic: str) -> str | None:
     path = _DOCS_DIR / f"{topic}.md"
     if path.exists():
