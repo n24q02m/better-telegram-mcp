@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v3.1.2 (2026-03-20)
+
+### Bug Fixes
+
+- Improve auth web form UX
+  ([`4f2db45`](https://github.com/n24q02m/better-telegram-mcp/commit/4f2db458f0af3382693d8c342f823dd775a86760))
+
+- Rewrite README for accuracy and completeness
+  ([`d3262e9`](https://github.com/n24q02m/better-telegram-mcp/commit/d3262e9a3880121ba9d9096fc991e6cc2da23af2))
+
+
 ## v3.1.1 (2026-03-20)
 
 ### Bug Fixes
