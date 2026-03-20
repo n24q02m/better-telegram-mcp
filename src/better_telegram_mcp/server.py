@@ -15,7 +15,7 @@ from .tools.chats import ChatOptions, handle_chats
 from .tools.config_tool import handle_config
 from .tools.contacts import ContactsArgs, handle_contacts
 from .tools.help_tool import handle_help
-from .tools.media import handle_media
+from .tools.media import MediaOptions, handle_media
 from .tools.messages import handle_messages
 from .utils.formatting import err
 
@@ -247,11 +247,13 @@ async def media(
     return await handle_media(
         get_backend(),
         action,
-        chat_id=chat_id,
-        file_path_or_url=file_path_or_url,
-        message_id=message_id,
-        caption=caption,
-        output_dir=output_dir,
+        MediaOptions(
+            chat_id=chat_id,
+            file_path_or_url=file_path_or_url,
+            message_id=message_id,
+            caption=caption,
+            output_dir=output_dir,
+        ),
     )
 
 
