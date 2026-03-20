@@ -13,7 +13,7 @@ from .backends.base import TelegramBackend
 from .config import Settings
 from .tools.chats import ChatOptions, handle_chats
 from .tools.config_tool import handle_config
-from .tools.contacts import ContactsArgs, handle_contacts
+from .tools.contacts import ContactsOptions, handle_contacts
 from .tools.help_tool import handle_help
 from .tools.media import MediaOptions, handle_media
 from .tools.messages import handle_messages
@@ -278,7 +278,8 @@ async def contacts(
     """list|search|add|block (user mode only)"""
     if _pending_auth:
         return _auth_required_response()
-    args = ContactsArgs(
+
+    opts = ContactsOptions(
         query=query,
         phone=phone,
         first_name=first_name,
@@ -289,7 +290,7 @@ async def contacts(
     return await handle_contacts(
         get_backend(),
         action,
-        args=args,
+        options=opts,
     )
 
 
