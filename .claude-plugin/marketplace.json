@@ -1,29 +1,18 @@
 {
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "better-telegram-mcp",
-  "display_name": "Better Telegram MCP",
-  "description": "Production-grade MCP server for Telegram — dual-mode Bot API + MTProto, 6 mega-tools for messages, chats, media, contacts, config, and help",
   "version": "3.1.1",
-  "author": {"name": "n24q02m", "url": "https://github.com/n24q02m"},
-  "homepage": "https://github.com/n24q02m/better-telegram-mcp",
-  "repository": "https://github.com/n24q02m/better-telegram-mcp",
-  "license": "MIT",
-  "categories": ["messaging", "social", "automation"],
-  "keywords": ["telegram", "bot", "messaging", "mcp", "claude-code", "mtproto"],
-  "mcpServers": {
-    "better-telegram-mcp": {
-      "command": "uvx",
-      "args": ["--python", "3.13", "better-telegram-mcp"]
-    }
+  "description": "Telegram Bot API integration — messages, chats, media, contacts management",
+  "owner": {
+    "name": "n24q02m",
+    "url": "https://github.com/n24q02m"
   },
-  "skills": "../.agents/skills/",
-  "hooks": "../hooks/hooks.json",
-  "install": {
-    "instructions": "Set TELEGRAM_BOT_TOKEN env var for bot mode, or TELEGRAM_API_ID + TELEGRAM_API_HASH + TELEGRAM_PHONE for user mode.",
-    "env_vars": [
-      {"name": "TELEGRAM_BOT_TOKEN", "required": false, "description": "Bot API token from @BotFather (bot mode)"},
-      {"name": "TELEGRAM_API_ID", "required": false, "description": "Telegram API ID from my.telegram.org (user mode)"},
-      {"name": "TELEGRAM_API_HASH", "required": false, "description": "Telegram API hash from my.telegram.org (user mode)"},
-      {"name": "TELEGRAM_PHONE", "required": false, "description": "Phone number for user mode authentication"}
-    ]
-  }
+  "plugins": [
+    {
+      "name": "better-telegram-mcp",
+      "description": "Telegram Bot API integration — messages, chats, media, contacts management",
+      "source": "./",
+      "category": "communication"
+    }
+  ]
 }

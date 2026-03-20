@@ -12,6 +12,5 @@
       "command": "uvx",
       "args": ["--python", "3.13", "better-telegram-mcp"]
     }
-  },
-  "skills": "../.agents/skills/"
+  }
 }
