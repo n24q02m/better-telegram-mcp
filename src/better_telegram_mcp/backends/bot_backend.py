@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import httpx
@@ -261,13 +262,14 @@ class BotBackend(TelegramBackend):
         if not path.exists():
             raise FileNotFoundError(f"File not found: {file_path_or_url}")
         field = media_type if media_type != "document" else "document"
-        with path.open("rb") as f:
-            return await self._call_form(
-                method,
-                files={field: (path.name, f)},
-                chat_id=chat_id,
-                caption=caption,
-            )
+        # ⚡ Bolt: Read file asynchronously to prevent blocking the event loop
+        file_content = await asyncio.to_thread(path.read_bytes)
+        return await self._call_form(
+            method,
+            files={field: (path.name, file_content)},
+            chat_id=chat_id,
+            caption=caption,
+        )
 
     async def download_media(
         self,
