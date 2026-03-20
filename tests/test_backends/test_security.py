@@ -61,6 +61,24 @@ class TestValidateUrl:
         with pytest.raises(SecurityError, match="internal/private"):
             validate_url("http://[::1]/")
 
+    def test_ipv4_mapped_ipv6_loopback_blocked(self, monkeypatch):
+        """IPv4-mapped IPv6 like ::ffff:127.0.0.1 must be blocked (issue #42)."""
+        monkeypatch.setattr(
+            "socket.getaddrinfo",
+            lambda host, port: [(10, 1, 6, "", ("::ffff:127.0.0.1", 80, 0, 0))],
+        )
+        with pytest.raises(SecurityError, match="internal/private"):
+            validate_url("http://ipv4mapped.attacker.com/")
+
+    def test_ipv4_mapped_ipv6_private_blocked(self, monkeypatch):
+        """IPv4-mapped IPv6 like ::ffff:10.0.0.1 must be blocked (issue #42)."""
+        monkeypatch.setattr(
+            "socket.getaddrinfo",
+            lambda host, port: [(10, 1, 6, "", ("::ffff:10.0.0.1", 80, 0, 0))],
+        )
+        with pytest.raises(SecurityError, match="internal/private"):
+            validate_url("http://ipv4mapped-private.attacker.com/")
+
     def test_zero_ip_blocked(self):
         with pytest.raises(SecurityError, match="blocked"):
             validate_url("http://0.0.0.0/")  # noqa: S104
