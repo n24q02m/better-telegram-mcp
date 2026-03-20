@@ -8,6 +8,7 @@ status page when authenticated.
 from __future__ import annotations
 
 import asyncio
+import re
 import socket
 from typing import TYPE_CHECKING
 
@@ -32,7 +33,7 @@ _PAGE = """<!DOCTYPE html>
 body{font-family:system-ui,-apple-system,sans-serif;background:#0f0f0f;color:#e0e0e0;
   display:flex;justify-content:center;align-items:center;min-height:100vh}
 .card{background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:2.5rem;
-  max-width:400px;width:100%}
+  max-width:420px;width:100%}
 h1{font-size:1.5rem;margin-bottom:.5rem;color:#fff}
 .sub{color:#888;font-size:.875rem;margin-bottom:1.5rem}
 .step{display:none}.step.active{display:block}
@@ -40,6 +41,7 @@ label{display:block;font-size:.875rem;color:#aaa;margin-bottom:.5rem}
 input{width:100%;padding:.75rem 1rem;background:#111;border:1px solid #444;
   border-radius:8px;color:#fff;font-size:1rem;outline:none;margin-bottom:1rem;
   font-family:monospace;letter-spacing:.15em;text-align:center}
+input[type="password"]{letter-spacing:normal;text-align:left}
 input:focus{border-color:#3b82f6}
 button{width:100%;padding:.75rem;background:#3b82f6;color:#fff;border:none;
   border-radius:8px;font-size:1rem;cursor:pointer;font-weight:500}
@@ -50,32 +52,39 @@ button:disabled{background:#333;color:#666;cursor:not-allowed}
 .st.success{display:block;background:#0d2818;border:1px solid #16a34a;color:#4ade80}
 .st.info{display:block;background:#1a1a2e;border:1px solid #3b82f6;color:#93c5fd}
 .phone{font-family:monospace;color:#3b82f6}
-.pwd-toggle{font-size:.8rem;color:#666;cursor:pointer;margin-bottom:1rem;display:inline-block}
-.pwd-toggle:hover{color:#aaa}
-#pwd-section{display:none}
+#pwd-section{display:none;margin-top:.5rem}
+.pwd-hint{font-size:.8rem;color:#888;margin-bottom:.5rem}
+.divider{border:0;border-top:1px solid #333;margin:1.25rem 0}
 </style>
 </head>
 <body>
 <div class="card">
   <h1>Telegram Authentication</h1>
-  <p class="sub">MCP Server — <span class="phone">PHONE</span></p>
+  <p class="sub">MCP Server -- <span class="phone">PHONE</span></p>
 
   <div id="step0" class="step">
-    <p style="margin-bottom:1rem">Send OTP code to your Telegram app</p>
-    <button onclick="sendCode()">Send OTP Code</button>
+    <p style="margin-bottom:1rem;color:#aaa">
+      Step 1: Send a login code to your Telegram app.
+    </p>
+    <button id="btn-send" onclick="sendCode()">Send OTP Code</button>
     <div id="s0" class="st"></div>
-  </div>
 
-  <div id="step1" class="step">
-    <label for="otp">Enter OTP from Telegram app</label>
-    <input id="otp" type="text" maxlength="6" placeholder="12345" autofocus
-           inputmode="numeric" pattern="[0-9]*">
-    <span class="pwd-toggle" onclick="togglePwd()">+ 2FA password</span>
+    <hr class="divider">
+
+    <p style="margin-bottom:.75rem;color:#aaa">
+      Step 2: Enter the code you received.
+    </p>
+    <label for="otp">OTP Code</label>
+    <input id="otp" type="text" placeholder="Enter code" autofocus
+           inputmode="numeric" pattern="[0-9]*"
+           autocomplete="one-time-code">
     <div id="pwd-section">
       <label for="pwd">2FA Password</label>
-      <input id="pwd" type="password" placeholder="Required if 2FA enabled">
+      <input id="pwd" type="password" placeholder="Enter your 2FA password"
+             autocomplete="current-password">
+      <p class="pwd-hint">Your account has two-factor authentication enabled.</p>
     </div>
-    <button onclick="verify()">Verify</button>
+    <button id="btn-verify" onclick="verify()">Verify Code</button>
     <div id="s1" class="st"></div>
   </div>
 
@@ -92,44 +101,92 @@ button:disabled{background:#333;color:#666;cursor:not-allowed}
 </div>
 <script>
 const $=id=>document.getElementById(id);
-function show(id){document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));$(id).classList.add('active')}
+function show(id){
+  document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+  $(id).classList.add('active');
+}
 function st(el,cls,msg){el.className='st '+cls;el.textContent=msg;el.style.display='block'}
-function togglePwd(){const s=$('pwd-section');s.style.display=s.style.display==='none'?'block':'none'}
+function clearSt(el){el.className='st';el.textContent='';el.style.display='none'}
+function btnLoading(btn,text){btn.disabled=true;btn.textContent=text}
+function btnReset(btn,text){btn.disabled=false;btn.textContent=text}
+function showPwd(){$('pwd-section').style.display='block';$('pwd').focus()}
 
 async function checkStatus(){
   try{const r=await fetch('/status');const d=await r.json();
     if(d.authenticated){$('auth-name').textContent=d.name||'User';show('step2')}
-    else{show('step0')}
+    else{show('step0');$('otp').focus()}
   }catch(e){show('step0')}
 }
 
 async function sendCode(){
-  const btn=$('step0').querySelector('button'),s=$('s0');
-  btn.disabled=true;btn.textContent='Sending...';
+  const btn=$('btn-send'),s=$('s0');
+  btnLoading(btn,'Sending...');clearSt($('s1'));
   try{const r=await fetch('/send-code',{method:'POST'});const d=await r.json();
-    if(d.ok){st(s,'info','OTP sent! Check your Telegram app.');setTimeout(()=>{show('step1');$('otp').focus()},800)}
-    else{st(s,'error',d.error||'Failed');btn.disabled=false;btn.textContent='Retry'}
-  }catch(e){st(s,'error','Network error');btn.disabled=false;btn.textContent='Retry'}
+    if(d.ok){st(s,'info','Code sent! Check your Telegram app.');btnReset(btn,'Resend Code');$('otp').focus()}
+    else{st(s,'error',d.error||'Failed to send code');btnReset(btn,'Retry')}
+  }catch(e){st(s,'error','Network error. Check your connection.');btnReset(btn,'Retry')}
 }
 
 async function verify(){
-  const btn=$('step1').querySelector('button'),s=$('s1');
+  const btn=$('btn-verify'),s=$('s1');
   const code=$('otp').value.trim();
-  if(!code){st(s,'error','Enter the OTP code');return}
-  btn.disabled=true;btn.textContent='Verifying...';
+  if(!code){st(s,'error','Please enter the OTP code first.');return}
+  btnLoading(btn,'Verifying...');
   try{const body={code};const pwd=$('pwd').value.trim();if(pwd)body.password=pwd;
     const r=await fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const d=await r.json();
     if(d.ok){$('auth-name').textContent=d.name||'User';show('step2')}
-    else{st(s,'error',d.error||'Failed');btn.disabled=false;btn.textContent='Verify'}
-  }catch(e){st(s,'error','Network error');btn.disabled=false;btn.textContent='Verify'}
+    else{
+      if(d.needs_password){showPwd();st(s,'error','2FA password is required. Please enter it above.')}
+      else{st(s,'error',d.error||'Verification failed')}
+      btnReset(btn,'Verify Code');
+    }
+  }catch(e){st(s,'error','Network error. Check your connection.');btnReset(btn,'Verify Code')}
 }
 
 $('otp').addEventListener('keydown',e=>{if(e.key==='Enter')verify()});
+document.addEventListener('DOMContentLoaded',()=>{
+  const p=$('pwd');if(p)p.addEventListener('keydown',e=>{if(e.key==='Enter')verify()});
+});
 checkStatus();
 </script>
 </body>
 </html>"""
+
+
+_CAUSED_BY_RE = re.compile(r"\s*\(caused by \w+\)\s*$", re.IGNORECASE)
+
+_ERROR_SIMPLIFICATIONS: list[tuple[re.Pattern[str], str]] = [
+    (
+        re.compile(r".*password.*required.*", re.IGNORECASE),
+        "Two-factor authentication password is required.",
+    ),
+    (
+        re.compile(r".*password.*invalid.*|.*invalid.*password.*", re.IGNORECASE),
+        "Incorrect 2FA password. Please try again.",
+    ),
+    (
+        re.compile(r".*phone.*code.*invalid.*|.*invalid.*code.*", re.IGNORECASE),
+        "Invalid OTP code. Please check and try again.",
+    ),
+    (
+        re.compile(r".*phone.*code.*expired.*|.*code.*expired.*", re.IGNORECASE),
+        "OTP code has expired. Please request a new one.",
+    ),
+    (
+        re.compile(r".*flood.*wait.*|.*too many.*", re.IGNORECASE),
+        "Too many attempts. Please wait a moment and try again.",
+    ),
+]
+
+
+def _sanitize_error(msg: str) -> str:
+    """Simplify internal error messages to user-friendly text."""
+    cleaned = _CAUSED_BY_RE.sub("", msg).strip()
+    for pattern, friendly in _ERROR_SIMPLIFICATIONS:
+        if pattern.match(cleaned):
+            return friendly
+    return cleaned
 
 
 def _find_free_port() -> int:
@@ -182,7 +239,7 @@ class AuthServer:
                 await self._backend.send_code(phone)
                 return JSONResponse({"ok": True})
             except Exception as e:
-                return JSONResponse({"ok": False, "error": str(e)})
+                return JSONResponse({"ok": False, "error": _sanitize_error(str(e))})
 
         async def verify(request: Request) -> JSONResponse:
             try:
@@ -204,7 +261,16 @@ class AuthServer:
                 self._auth_complete.set()
                 return JSONResponse({"ok": True, "name": self._auth_name})
             except Exception as e:
-                return JSONResponse({"ok": False, "error": str(e)})
+                error_msg = str(e)
+                needs_password = any(
+                    kw in error_msg.lower()
+                    for kw in ("password", "2fa", "two-factor", "srp")
+                )
+                clean_msg = _sanitize_error(error_msg)
+                resp: dict = {"ok": False, "error": clean_msg}
+                if needs_password:
+                    resp["needs_password"] = True
+                return JSONResponse(resp)
 
         return Starlette(
             routes=[
