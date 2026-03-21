@@ -76,8 +76,13 @@ def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Pa
         "/var/log/",
         "/root/",
     )
+
+    path_str = str(path)
+    if not path_str.endswith("/"):
+        path_str += "/"
+
     for prefix in _blocked_prefixes:
-        if str(path).startswith(prefix):
+        if path_str.startswith(prefix):
             msg = f"Access to {prefix} is blocked for security"
             raise SecurityError(msg)
     # Block dotfiles in home directories (SSH keys, secrets, etc.)
@@ -114,8 +119,13 @@ def validate_output_dir(output_dir: str, *, base_dir: Path | None = None) -> Pat
         "/boot/",
         "/lib/",
     )
+
+    path_str = str(path)
+    if not path_str.endswith("/"):
+        path_str += "/"
+
     for prefix in _blocked_prefixes:
-        if str(path).startswith(prefix):
+        if path_str.startswith(prefix):
             msg = f"Writing to {prefix} is blocked for security"
             raise SecurityError(msg)
     # Block hidden directories
