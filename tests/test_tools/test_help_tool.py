@@ -2,68 +2,87 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from better_telegram_mcp.tools.help_tool import handle_help
 
 
-def test_help_messages():
-    result = handle_help("messages")
+@pytest.mark.asyncio
+async def test_help_messages():
+    result = await handle_help("messages")
     assert "Telegram Messages" in result
     assert "send" in result
 
 
-def test_help_chats():
-    result = handle_help("chats")
+@pytest.mark.asyncio
+async def test_help_chats():
+    result = await handle_help("chats")
     assert "Telegram Chats" in result
     assert "list" in result
 
 
-def test_help_media():
-    result = handle_help("media")
+@pytest.mark.asyncio
+async def test_help_media():
+    result = await handle_help("media")
     assert "Telegram Media" in result
     assert "send_photo" in result
 
 
-def test_help_contacts():
-    result = handle_help("contacts")
+@pytest.mark.asyncio
+async def test_help_contacts():
+    result = await handle_help("contacts")
     assert "Telegram Contacts" in result
     assert "block" in result
 
 
-def test_help_all():
-    result = handle_help("all")
+@pytest.mark.asyncio
+async def test_help_all():
+    result = await handle_help("all")
     assert "Telegram Messages" in result
     assert "Telegram Chats" in result
     assert "Telegram Media" in result
     assert "Telegram Contacts" in result
 
 
-def test_help_none():
-    result = handle_help(None)
+@pytest.mark.asyncio
+async def test_help_none():
+    result = await handle_help(None)
     assert "Telegram Messages" in result
     assert "Telegram Chats" in result
 
 
-def test_help_unknown_topic():
-    result = handle_help("nonexistent")
+@pytest.mark.asyncio
+async def test_help_unknown_topic():
+    result = await handle_help("nonexistent")
     parsed = json.loads(result)
     assert "error" in parsed
     assert "Unknown topic" in parsed["error"]
 
 
-def test_help_missing_doc_file():
-    from unittest.mock import patch
+@pytest.mark.asyncio
+async def test_help_missing_doc_file():
+    from unittest.mock import AsyncMock, patch
 
-    with patch("better_telegram_mcp.tools.help_tool._load_doc", return_value=None):
-        result = handle_help("messages")
+    with patch(
+        "better_telegram_mcp.tools.help_tool._load_doc",
+        new_callable=AsyncMock,
+        return_value=None,
+    ):
+        result = await handle_help("messages")
         parsed = json.loads(result)
         assert "error" in parsed
         assert "not found" in parsed["error"]
 
 
-def test_help_all_no_docs():
-    from unittest.mock import patch
+@pytest.mark.asyncio
+async def test_help_all_no_docs():
+    from unittest.mock import AsyncMock, patch
 
-    with patch("better_telegram_mcp.tools.help_tool._load_doc", return_value=None):
-        result = handle_help("all")
+    with patch(
+        "better_telegram_mcp.tools.help_tool._load_doc",
+        new_callable=AsyncMock,
+        return_value=None,
+    ):
+        result = await handle_help("all")
         parsed = json.loads(result)
         assert "error" in parsed
