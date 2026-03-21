@@ -193,7 +193,15 @@ mcp = FastMCP(
     )
 )
 async def messages(args: MessagesArgs) -> str:
-    """send|edit|delete|forward|pin|react|search|history"""
+    """send|edit|delete|forward|pin|react|search|history
+
+    parse_mode options for send/edit:
+    - "HTML": <b>bold</b> <i>italic</i> <code>code</code> <a href="url">link</a>
+    - "MarkdownV2": *bold* _italic_ `code` [link](url) — escape special chars: \\. \\! \\( \\)
+    - "Markdown": *bold* _italic_ `code` [link](url) — legacy, fewer features
+    - None: plain text (default)
+
+    chat_id formats: positive int (user), negative int (group/supergroup), @username (public chat)."""
     if _pending_auth:
         return _auth_required_response()
     return await handle_messages(get_backend(), args)
@@ -212,7 +220,14 @@ async def chats(
     action: str,
     options: ChatOptions | None = None,
 ) -> str:
-    """list|info|create|join|leave|members|admin|settings|topics"""
+    """list|info|create|join|leave|members|admin|settings|topics
+
+    chat_id formats:
+    - Positive integer: private user chat (e.g. 123456789)
+    - Negative integer: group or supergroup (e.g. -1001234567890)
+    - @username: public group or channel (e.g. @mychannel)
+
+    Use 'list' to discover available chat IDs, then use them in other tools."""
     if _pending_auth:
         return _auth_required_response()
 
@@ -241,7 +256,16 @@ async def media(
     caption: str | None = None,
     output_dir: str | None = None,
 ) -> str:
-    """send_photo|send_file|send_voice|send_video|download"""
+    """send_photo|send_file|send_voice|send_video|download
+
+    Media types and limits (Bot API):
+    - send_photo: JPEG/PNG/WebP, max 10 MB (compressed), 5 MB via URL
+    - send_file: any file type, max 50 MB (2 GB via local file in user mode)
+    - send_voice: OGG/OPUS audio, max 50 MB
+    - send_video: MP4 (H.264+AAC), max 50 MB (2 GB via local file in user mode)
+    - download: saves media from a message to output_dir
+
+    file_path_or_url accepts local file path or HTTP(S) URL."""
     if _pending_auth:
         return _auth_required_response()
     return await handle_media(

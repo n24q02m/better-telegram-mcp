@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[better-telegram-mcp] Telegram API ready. Tools: messages, chats, media, contacts, config, help.'"
+          }
+        ]
+      }
+    ]
+  }
+}

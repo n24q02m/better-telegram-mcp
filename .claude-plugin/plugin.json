@@ -1,0 +1,16 @@
+{
+  "name": "better-telegram-mcp",
+  "description": "Telegram Bot API integration — messages, chats, media, contacts management",
+  "version": "3.1.1",
+  "author": {"name": "n24q02m", "url": "https://github.com/n24q02m"},
+  "homepage": "https://github.com/n24q02m/better-telegram-mcp",
+  "repository": "https://github.com/n24q02m/better-telegram-mcp",
+  "license": "MIT",
+  "keywords": ["telegram", "bot", "messaging", "mcp", "claude-code"],
+  "mcpServers": {
+    "better-telegram-mcp": {
+      "command": "uvx",
+      "args": ["--python", "3.13", "better-telegram-mcp"]
+    }
+  }
+}

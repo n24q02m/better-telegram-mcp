@@ -36,7 +36,11 @@ async def handle_media(
     try:
         if action in _ACTION_TO_MEDIA_TYPE:
             if not options.chat_id or not options.file_path_or_url:
-                return err(f"'{action}' requires chat_id and file_path_or_url")
+                return err(
+                    f"'{action}' requires chat_id and file_path_or_url. "
+                    "file_path_or_url: local path or HTTP(S) URL. "
+                    "Limits: photo 10MB, file/voice/video 50MB (2GB local in user mode)."
+                )
             media_type = _ACTION_TO_MEDIA_TYPE[action]
             result = await backend.send_media(
                 options.chat_id,

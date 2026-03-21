@@ -12,7 +12,11 @@ from ..utils.formatting import err, ok, safe_error
 
 async def _handle_send(backend: TelegramBackend, args: MessagesArgs) -> str:
     if not args.chat_id or not args.text:
-        return err("'send' requires chat_id and text")
+        return err(
+            "'send' requires chat_id and text. "
+            "chat_id: positive int (user), negative int (group), or @username. "
+            "Optional parse_mode: HTML, MarkdownV2, or Markdown."
+        )
     result = await backend.send_message(
         args.chat_id,
         args.text,
@@ -24,7 +28,10 @@ async def _handle_send(backend: TelegramBackend, args: MessagesArgs) -> str:
 
 async def _handle_edit(backend: TelegramBackend, args: MessagesArgs) -> str:
     if not args.chat_id or args.message_id is None or not args.text:
-        return err("'edit' requires chat_id, message_id, and text")
+        return err(
+            "'edit' requires chat_id, message_id, and text. "
+            "Optional parse_mode: HTML, MarkdownV2, or Markdown."
+        )
     result = await backend.edit_message(
         args.chat_id, args.message_id, args.text, parse_mode=args.parse_mode
     )
