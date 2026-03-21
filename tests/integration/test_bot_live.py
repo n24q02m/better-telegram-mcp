@@ -217,47 +217,54 @@ async def test_config_unknown_action(bot: BotBackend):
 # --- Help tool ---
 
 
-def test_help_returns_documentation():
+@pytest.mark.asyncio
+async def test_help_returns_documentation():
     """help tool returns non-empty documentation for 'all'."""
-    result = handle_help("all")
+    result = await handle_help("all")
     assert len(result) > 100
     assert "error" not in result.lower() or "ModeError" in result
 
 
-def test_help_messages_topic():
+@pytest.mark.asyncio
+async def test_help_messages_topic():
     """help tool returns documentation for 'messages' topic."""
-    result = handle_help("messages")
+    result = await handle_help("messages")
     assert len(result) > 50
 
 
-def test_help_chats_topic():
+@pytest.mark.asyncio
+async def test_help_chats_topic():
     """help tool returns documentation for 'chats' topic."""
-    result = handle_help("chats")
+    result = await handle_help("chats")
     assert len(result) > 50
 
 
-def test_help_media_topic():
+@pytest.mark.asyncio
+async def test_help_media_topic():
     """help tool returns documentation for 'media' topic."""
-    result = handle_help("media")
+    result = await handle_help("media")
     assert len(result) > 50
 
 
-def test_help_contacts_topic():
+@pytest.mark.asyncio
+async def test_help_contacts_topic():
     """help tool returns documentation for 'contacts' topic."""
-    result = handle_help("contacts")
+    result = await handle_help("contacts")
     assert len(result) > 50
 
 
-def test_help_invalid_topic():
+@pytest.mark.asyncio
+async def test_help_invalid_topic():
     """help tool returns error for invalid topic."""
-    result = handle_help("nonexistent")
+    result = await handle_help("nonexistent")
     result_data = json.loads(result)
     assert "error" in result_data
 
 
-def test_help_none_returns_all():
+@pytest.mark.asyncio
+async def test_help_none_returns_all():
     """help(None) returns all documentation."""
-    result = handle_help(None)
+    result = await handle_help(None)
     assert len(result) > 100
 
 
