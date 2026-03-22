@@ -9,6 +9,7 @@ Domain: better-telegram-mcp.n24q02m.com
 
 from __future__ import annotations
 
+import html
 import time
 import uuid
 from collections import defaultdict
@@ -285,9 +286,12 @@ async def auth_page(request: Request) -> HTMLResponse:
     if not session:
         return HTMLResponse("<h1>Session expired</h1>", status_code=404)
 
-    html = _PAGE.replace("TOKEN_PLACEHOLDER", token)
-    html = html.replace("PHONE_PLACEHOLDER", session["phone_masked"])
-    return HTMLResponse(html)
+    # 🛡️ Sentinel: Prevent XSS by escaping dynamic data before insertion
+    page_html = _PAGE.replace("TOKEN_PLACEHOLDER", html.escape(token))
+    page_html = page_html.replace(
+        "PHONE_PLACEHOLDER", html.escape(session["phone_masked"])
+    )
+    return HTMLResponse(page_html)
 
 
 async def auth_send_code(request: Request) -> JSONResponse:
