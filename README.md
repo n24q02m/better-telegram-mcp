@@ -40,6 +40,8 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 claude plugin add n24q02m/better-telegram-mcp
 ```
 
+After install, set your bot token: `claude config set mcpServers.better-telegram-mcp.env.TELEGRAM_BOT_TOKEN "your-token"`. Get one from [@BotFather](https://t.me/BotFather). For user mode (MTProto), set `TELEGRAM_API_ID` + `TELEGRAM_API_HASH` instead.
+
 ### MCP Server
 
 > **Python 3.13 required** -- Python 3.14+ is **not** supported.
