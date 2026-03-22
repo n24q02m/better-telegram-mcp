@@ -16,7 +16,8 @@ Guide the user through creating and configuring a Telegram bot.
    - Copy the bot token
 
 2. **Configure better-telegram-mcp**:
-   - `config(action="set", key="TELEGRAM_BOT_TOKEN", value="<token>")`
+   - Set `TELEGRAM_BOT_TOKEN=<token>` as environment variable before starting the MCP server (bot token is NOT configurable at runtime via the config tool)
+   - Restart the MCP server if already running
    - Verify connection: `config(action="status")`
 
 3. **Test messaging**:
