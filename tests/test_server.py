@@ -464,7 +464,11 @@ async def test_media_returns_setup_hint_when_unconfigured():
     try:
         srv._unconfigured = True
         result = json.loads(
-            await media(action="send_photo", chat_id=123, file_path_or_url="https://example.com/photo.jpg")
+            await media(
+                action="send_photo",
+                chat_id=123,
+                file_path_or_url="https://example.com/photo.jpg",
+            )
         )
         assert result["error"] == "Not configured"
         assert "setup" in result

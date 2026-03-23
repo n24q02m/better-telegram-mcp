@@ -113,8 +113,7 @@ async def handle_messages(
             closest = difflib.get_close_matches(args.action, valid, n=1)
             suggestion = f" Did you mean '{closest[0]}'?" if closest else ""
             return err(
-                f"Unknown action '{args.action}'.{suggestion} "
-                f"Valid: {'|'.join(valid)}"
+                f"Unknown action '{args.action}'.{suggestion} Valid: {'|'.join(valid)}"
             )
         return await handler(backend, args)
     except ModeError as e:

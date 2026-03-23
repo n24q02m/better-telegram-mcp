@@ -192,7 +192,11 @@ class TestNoAuth:
                 await session.initialize()
                 result = await session.call_tool(
                     "media",
-                    {"action": "send_photo", "chat_id": "123", "file_path_or_url": "/tmp/x.jpg"},
+                    {
+                        "action": "send_photo",
+                        "chat_id": "123",
+                        "file_path_or_url": "/tmp/x.jpg",
+                    },
                 )
                 data = _parse_result(result)
                 assert isinstance(data, dict)

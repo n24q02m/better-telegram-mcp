@@ -138,10 +138,7 @@ async def handle_chats(
         valid = sorted(_ACTION_HANDLERS)
         closest = difflib.get_close_matches(action, valid, n=1)
         suggestion = f" Did you mean '{closest[0]}'?" if closest else ""
-        return err(
-            f"Unknown action '{action}'.{suggestion} "
-            f"Valid: {'|'.join(valid)}"
-        )
+        return err(f"Unknown action '{action}'.{suggestion} Valid: {'|'.join(valid)}")
     except ModeError as e:
         return err(str(e))
     except Exception as e:

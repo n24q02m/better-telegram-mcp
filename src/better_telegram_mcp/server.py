@@ -62,21 +62,27 @@ def get_settings() -> Settings:
 
 def _not_ready_response() -> str:
     if _unconfigured:
-        return ok({
-            "error": "Not configured",
-            "setup": {
-                "bot_mode": {
-                    "env_var": "TELEGRAM_BOT_TOKEN",
-                    "how": "Get token from @BotFather on Telegram",
-                    "example": "TELEGRAM_BOT_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+        return ok(
+            {
+                "error": "Not configured",
+                "setup": {
+                    "bot_mode": {
+                        "env_var": "TELEGRAM_BOT_TOKEN",
+                        "how": "Get token from @BotFather on Telegram",
+                        "example": "TELEGRAM_BOT_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+                    },
+                    "user_mode": {
+                        "env_vars": [
+                            "TELEGRAM_API_ID",
+                            "TELEGRAM_API_HASH",
+                            "TELEGRAM_PHONE",
+                        ],
+                        "how": "Get API credentials from https://my.telegram.org",
+                        "example": "TELEGRAM_API_ID=12345 TELEGRAM_API_HASH=abcdef... TELEGRAM_PHONE=+84912345678",
+                    },
                 },
-                "user_mode": {
-                    "env_vars": ["TELEGRAM_API_ID", "TELEGRAM_API_HASH", "TELEGRAM_PHONE"],
-                    "how": "Get API credentials from https://my.telegram.org",
-                    "example": "TELEGRAM_API_ID=12345 TELEGRAM_API_HASH=abcdef... TELEGRAM_PHONE=+84912345678",
-                },
-            },
-        })
+            }
+        )
     if _auth_url:
         return err(
             f"Telegram session not authenticated. "
@@ -394,17 +400,19 @@ async def config(
     - cache_clear: Clear internal caches"""
     if _unconfigured:
         if action == "status":
-            return ok({
-                "mode": None,
-                "connected": False,
-                "authorized": False,
-                "configured": False,
-                "config": _runtime_config,
-                "setup": {
-                    "bot_mode": "Set TELEGRAM_BOT_TOKEN (get from @BotFather)",
-                    "user_mode": "Set TELEGRAM_API_ID + TELEGRAM_API_HASH + TELEGRAM_PHONE (from my.telegram.org)",
-                },
-            })
+            return ok(
+                {
+                    "mode": None,
+                    "connected": False,
+                    "authorized": False,
+                    "configured": False,
+                    "config": _runtime_config,
+                    "setup": {
+                        "bot_mode": "Set TELEGRAM_BOT_TOKEN (get from @BotFather)",
+                        "user_mode": "Set TELEGRAM_API_ID + TELEGRAM_API_HASH + TELEGRAM_PHONE (from my.telegram.org)",
+                    },
+                }
+            )
         return _not_ready_response()
     return await handle_config(
         get_backend(),

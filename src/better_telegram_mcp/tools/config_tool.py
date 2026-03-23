@@ -63,8 +63,7 @@ async def handle_config(
             closest = difflib.get_close_matches(action, valid, n=1)
             suggestion = f" Did you mean '{closest[0]}'?" if closest else ""
             return err(
-                f"Unknown action '{action}'.{suggestion} "
-                f"Valid: {'|'.join(valid)}"
+                f"Unknown action '{action}'.{suggestion} Valid: {'|'.join(valid)}"
             )
         return await handler(backend=backend, **kwargs)
     except Exception as e:
