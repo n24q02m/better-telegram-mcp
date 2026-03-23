@@ -68,8 +68,9 @@ timeout = 30
 markers = [
     "integration: integration tests (require Telegram credentials)",
     "live: live MCP protocol tests (spawns server subprocess)",
+    "full: full/real bot mode tests via MCP protocol (requires bot token + chat)",
 ]
-addopts = "-m 'not integration and not live'"
+addopts = "-m 'not integration and not live and not full'"
 
 [tool.ruff]
 target-version = "py313"
