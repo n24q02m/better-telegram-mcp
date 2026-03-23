@@ -28,5 +28,6 @@
         "TELEGRAM_BOT_TOKEN": ""
       }
     }
-  }
+  },
+  "skills": "./skills/"
 }
