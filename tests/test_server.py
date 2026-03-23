@@ -153,6 +153,7 @@ async def test_lifespan_bot_mode(mock_backend):
 
     with patch.object(srv, "Settings") as mock_settings_cls:
         mock_settings = mock_settings_cls.return_value
+        mock_settings.is_configured = True
         mock_settings.mode = "bot"
         mock_settings.bot_token = "fake:token"
 
@@ -190,6 +191,7 @@ async def test_lifespan_user_mode():
     from better_telegram_mcp.server import _lifespan
 
     mock_settings = MagicMock()
+    mock_settings.is_configured = True
     mock_settings.mode = "user"
     mock_settings.api_id = 12345
     mock_settings.api_hash = "testhash"
@@ -225,6 +227,7 @@ async def test_lifespan_user_mode_unauthorized_sets_pending():
     from better_telegram_mcp.server import _lifespan
 
     mock_settings = MagicMock()
+    mock_settings.is_configured = True
     mock_settings.mode = "user"
     mock_settings.api_id = 12345
     mock_settings.api_hash = "testhash"
@@ -384,3 +387,150 @@ def test_main_calls_run():
     with patch.object(mcp, "run") as mock_run:
         main()
         mock_run.assert_called_once_with(transport="stdio")
+
+
+# --- unconfigured state tests (no credentials) ---
+
+
+@pytest.mark.asyncio
+async def test_tools_list_works_without_credentials():
+    """tools/list should work even with no Telegram credentials."""
+    tools = mcp._tool_manager._tools
+    assert len(tools) == 6
+    expected = {"messages", "chats", "media", "contacts", "config", "help"}
+    assert set(tools.keys()) == expected
+
+
+@pytest.mark.asyncio
+async def test_help_works_without_credentials():
+    """help tool works without any credentials."""
+    from better_telegram_mcp.server import help
+
+    result = await help(topic="messages")
+    assert "Telegram Messages" in result
+
+    result_all = await help(topic=None)
+    assert "Telegram" in result_all
+
+
+@pytest.mark.asyncio
+async def test_messages_returns_setup_hint_when_unconfigured():
+    """messages tool returns actionable setup instructions when unconfigured."""
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import messages
+
+    old_unconfigured = srv._unconfigured
+    old_pending = srv._pending_auth
+    try:
+        srv._unconfigured = True
+        srv._pending_auth = False
+        result = json.loads(
+            await messages(srv.MessagesArgs(action="send", chat_id=123, text="hi"))
+        )
+        assert "error" in result
+        assert result["error"] == "Not configured"
+        assert "setup" in result
+        assert "bot_mode" in result["setup"]
+        assert "TELEGRAM_BOT_TOKEN" in result["setup"]["bot_mode"]["env_var"]
+        assert "user_mode" in result["setup"]
+    finally:
+        srv._unconfigured = old_unconfigured
+        srv._pending_auth = old_pending
+
+
+@pytest.mark.asyncio
+async def test_chats_returns_setup_hint_when_unconfigured():
+    """chats tool returns setup instructions when unconfigured."""
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import chats
+
+    old = srv._unconfigured
+    try:
+        srv._unconfigured = True
+        result = json.loads(await chats(action="list"))
+        assert result["error"] == "Not configured"
+        assert "setup" in result
+    finally:
+        srv._unconfigured = old
+
+
+@pytest.mark.asyncio
+async def test_media_returns_setup_hint_when_unconfigured():
+    """media tool returns setup instructions when unconfigured."""
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import media
+
+    old = srv._unconfigured
+    try:
+        srv._unconfigured = True
+        result = json.loads(
+            await media(action="send_photo", chat_id=123, file_path_or_url="https://example.com/photo.jpg")
+        )
+        assert result["error"] == "Not configured"
+        assert "setup" in result
+    finally:
+        srv._unconfigured = old
+
+
+@pytest.mark.asyncio
+async def test_contacts_returns_setup_hint_when_unconfigured():
+    """contacts tool returns setup instructions when unconfigured."""
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import contacts
+
+    old = srv._unconfigured
+    try:
+        srv._unconfigured = True
+        result = json.loads(await contacts(action="list"))
+        assert result["error"] == "Not configured"
+        assert "setup" in result
+    finally:
+        srv._unconfigured = old
+
+
+@pytest.mark.asyncio
+async def test_config_status_works_when_unconfigured():
+    """config status shows setup instructions when unconfigured."""
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import config
+
+    old = srv._unconfigured
+    try:
+        srv._unconfigured = True
+        result = json.loads(await config(action="status"))
+        assert result["configured"] is False
+        assert result["connected"] is False
+        assert "setup" in result
+    finally:
+        srv._unconfigured = old
+
+
+@pytest.mark.asyncio
+async def test_config_set_blocked_when_unconfigured():
+    """config set returns setup instructions when unconfigured."""
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import config
+
+    old = srv._unconfigured
+    try:
+        srv._unconfigured = True
+        result = json.loads(await config(action="set", message_limit=42))
+        assert result["error"] == "Not configured"
+    finally:
+        srv._unconfigured = old
+
+
+@pytest.mark.asyncio
+async def test_lifespan_unconfigured_mode():
+    """Lifespan should start successfully without credentials."""
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import _lifespan
+
+    with patch.object(srv, "Settings") as mock_settings_cls:
+        mock_settings = mock_settings_cls.return_value
+        mock_settings.is_configured = False
+
+        async with _lifespan(mcp):
+            assert srv._unconfigured is True
+
+        assert srv._unconfigured is False

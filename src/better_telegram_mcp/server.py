@@ -17,7 +17,7 @@ from .tools.contacts import ContactsOptions, handle_contacts
 from .tools.help_tool import handle_help
 from .tools.media import MediaOptions, handle_media
 from .tools.messages import handle_messages
-from .utils.formatting import err
+from .utils.formatting import err, ok
 
 
 class MessagesArgs(BaseModel):
@@ -38,6 +38,7 @@ class MessagesArgs(BaseModel):
 _backend: TelegramBackend | None = None
 _settings: Settings | None = None
 _pending_auth: bool = False
+_unconfigured: bool = False
 _auth_url: str | None = None
 _runtime_config: dict[str, int] = {
     "message_limit": 20,
@@ -59,7 +60,23 @@ def get_settings() -> Settings:
     return _settings
 
 
-def _auth_required_response() -> str:
+def _not_ready_response() -> str:
+    if _unconfigured:
+        return ok({
+            "error": "Not configured",
+            "setup": {
+                "bot_mode": {
+                    "env_var": "TELEGRAM_BOT_TOKEN",
+                    "how": "Get token from @BotFather on Telegram",
+                    "example": "TELEGRAM_BOT_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+                },
+                "user_mode": {
+                    "env_vars": ["TELEGRAM_API_ID", "TELEGRAM_API_HASH", "TELEGRAM_PHONE"],
+                    "how": "Get API credentials from https://my.telegram.org",
+                    "example": "TELEGRAM_API_ID=12345 TELEGRAM_API_HASH=abcdef... TELEGRAM_PHONE=+84912345678",
+                },
+            },
+        })
     if _auth_url:
         return err(
             f"Telegram session not authenticated. "
@@ -121,8 +138,22 @@ async def _stop_auth(handler: object) -> None:
 
 @asynccontextmanager
 async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
-    global _backend, _settings, _pending_auth, _auth_url
+    global _backend, _settings, _pending_auth, _unconfigured, _auth_url
     _settings = Settings()
+
+    if not _settings.is_configured:
+        _unconfigured = True
+        logger.warning(
+            "No Telegram credentials configured. "
+            "help and config tools available; other tools will show setup instructions. "
+            "Set TELEGRAM_BOT_TOKEN or TELEGRAM_API_ID + TELEGRAM_API_HASH to enable all tools."
+        )
+        try:
+            yield
+        finally:
+            _unconfigured = False
+        return
+
     logger.info("Mode: {}", _settings.mode)
 
     if _settings.mode == "bot":
@@ -205,8 +236,8 @@ async def messages(args: MessagesArgs) -> str:
     - None: plain text (default)
 
     chat_id formats: positive int (user), negative int (group/supergroup), @username (public chat)."""
-    if _pending_auth:
-        return _auth_required_response()
+    if _unconfigured or _pending_auth:
+        return _not_ready_response()
     return await handle_messages(get_backend(), args)
 
 
@@ -231,8 +262,8 @@ async def chats(
     - @username: public group or channel (e.g. @mychannel)
 
     Use 'list' to discover available chat IDs, then use them in other tools."""
-    if _pending_auth:
-        return _auth_required_response()
+    if _unconfigured or _pending_auth:
+        return _not_ready_response()
 
     opts = options if options is not None else ChatOptions()
     return await handle_chats(
@@ -269,8 +300,8 @@ async def media(
     - download: saves media from a message to output_dir
 
     file_path_or_url accepts local file path or HTTP(S) URL."""
-    if _pending_auth:
-        return _auth_required_response()
+    if _unconfigured or _pending_auth:
+        return _not_ready_response()
     return await handle_media(
         get_backend(),
         action,
@@ -303,8 +334,8 @@ async def contacts(
     unblock: bool = False,
 ) -> str:
     """list|search|add|block (user mode only)"""
-    if _pending_auth:
-        return _auth_required_response()
+    if _unconfigured or _pending_auth:
+        return _not_ready_response()
 
     opts = ContactsOptions(
         query=query,
@@ -336,6 +367,20 @@ async def config(
     timeout: int | None = None,
 ) -> str:
     """status|set|cache_clear"""
+    if _unconfigured:
+        if action == "status":
+            return ok({
+                "mode": None,
+                "connected": False,
+                "authorized": False,
+                "configured": False,
+                "config": _runtime_config,
+                "setup": {
+                    "bot_mode": "Set TELEGRAM_BOT_TOKEN (get from @BotFather)",
+                    "user_mode": "Set TELEGRAM_API_ID + TELEGRAM_API_HASH + TELEGRAM_PHONE (from my.telegram.org)",
+                },
+            })
+        return _not_ready_response()
     return await handle_config(
         get_backend(),
         action,

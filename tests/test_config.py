@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import pytest
-from pydantic import ValidationError
-
 from better_telegram_mcp.config import Settings
 
 
@@ -28,12 +25,26 @@ def test_user_mode_priority_over_bot(monkeypatch):
     assert s.mode == "user"
 
 
-def test_no_credentials_error(monkeypatch):
+def test_no_credentials_starts_unconfigured(monkeypatch):
     monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
     monkeypatch.delenv("TELEGRAM_API_ID", raising=False)
     monkeypatch.delenv("TELEGRAM_API_HASH", raising=False)
-    with pytest.raises(ValidationError):
-        Settings()
+    s = Settings()
+    assert s.is_configured is False
+    assert s.mode == "bot"  # default mode
+
+
+def test_is_configured_bot(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC")
+    s = Settings()
+    assert s.is_configured is True
+
+
+def test_is_configured_user(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_API_ID", "12345")
+    monkeypatch.setenv("TELEGRAM_API_HASH", "abcdef123456")
+    s = Settings()
+    assert s.is_configured is True
 
 
 def test_default_data_dir(monkeypatch):

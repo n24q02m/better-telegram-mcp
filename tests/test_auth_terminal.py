@@ -1,4 +1,4 @@
-"""Tests for auth flow: _auth_required_response + lifespan auth integration."""
+"""Tests for auth flow: _not_ready_response + lifespan auth integration."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ class TestAuthRequiredResponse:
         old = srv._auth_url
         try:
             srv._auth_url = "http://127.0.0.1:12345"
-            result = json.loads(srv._auth_required_response())
+            result = json.loads(srv._not_ready_response())
             assert "127.0.0.1:12345" in result["error"]
             assert "browser" in result["error"].lower()
         finally:
@@ -25,7 +25,7 @@ class TestAuthRequiredResponse:
         old = srv._auth_url
         try:
             srv._auth_url = None
-            result = json.loads(srv._auth_required_response())
+            result = json.loads(srv._not_ready_response())
             assert "TELEGRAM_PHONE" in result["error"]
         finally:
             srv._auth_url = old
@@ -37,6 +37,7 @@ class TestLifespanUnauthorized:
         from better_telegram_mcp.server import _lifespan, mcp
 
         mock_settings = MagicMock()
+        mock_settings.is_configured = True
         mock_settings.mode = "user"
         mock_settings.api_id = 12345
         mock_settings.api_hash = "testhash"
@@ -85,6 +86,7 @@ class TestLifespanUnauthorized:
         from better_telegram_mcp.server import _lifespan, mcp
 
         mock_settings = MagicMock()
+        mock_settings.is_configured = True
         mock_settings.mode = "user"
         mock_settings.api_id = 12345
         mock_settings.api_hash = "testhash"
@@ -119,6 +121,7 @@ class TestLifespanUnauthorized:
         from better_telegram_mcp.server import _lifespan, mcp
 
         mock_settings = MagicMock()
+        mock_settings.is_configured = True
         mock_settings.mode = "user"
         mock_settings.api_id = 12345
         mock_settings.api_hash = "testhash"

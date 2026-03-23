@@ -37,15 +37,15 @@ class Settings(BaseSettings):
             self.mode = "user"
         elif has_bot:
             self.mode = "bot"
-        else:
-            msg = (
-                "No Telegram credentials found.\n"
-                "Bot mode:  Set TELEGRAM_BOT_TOKEN (get from @BotFather)\n"
-                "User mode: Set TELEGRAM_API_ID + TELEGRAM_API_HASH + TELEGRAM_PHONE\n"
-                "           (get API credentials from my.telegram.org)"
-            )
-            raise ValueError(msg)
+        # No credentials: keep default mode="bot", server starts in unconfigured state
         return self
+
+    @property
+    def is_configured(self) -> bool:
+        """Check if any Telegram credentials are provided."""
+        return self.bot_token is not None or (
+            self.api_id is not None and self.api_hash is not None
+        )
 
     @property
     def session_path(self) -> Path:
