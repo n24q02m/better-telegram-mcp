@@ -227,15 +227,21 @@ mcp = FastMCP(
     )
 )
 async def messages(args: MessagesArgs) -> str:
-    """send|edit|delete|forward|pin|react|search|history
+    """Send, search, and manage Telegram messages.
 
-    parse_mode options for send/edit:
-    - "HTML": <b>bold</b> <i>italic</i> <code>code</code> <a href="url">link</a>
-    - "MarkdownV2": *bold* _italic_ `code` [link](url) — escape special chars: \\. \\! \\( \\)
-    - "Markdown": *bold* _italic_ `code` [link](url) — legacy, fewer features
-    - None: plain text (default)
+    Actions (required params -> optional):
+    - send (chat_id, text -> reply_to, parse_mode)
+    - edit (chat_id, message_id, text -> parse_mode)
+    - delete (chat_id, message_id)
+    - forward (from_chat, to_chat, message_id)
+    - pin (chat_id, message_id)
+    - react (chat_id, message_id, emoji)
+    - search (query -> chat_id, limit=20)
+    - history (chat_id -> limit=20, offset_id)
 
-    chat_id formats: positive int (user), negative int (group/supergroup), @username (public chat)."""
+    chat_id: "@username" | 123456789 | -1001234567890
+    parse_mode: "HTML" | "MarkdownV2" | "Markdown" (default: plain text)
+    """
     if _unconfigured or _pending_auth:
         return _not_ready_response()
     return await handle_messages(get_backend(), args)
@@ -254,14 +260,21 @@ async def chats(
     action: str,
     options: ChatOptions | None = None,
 ) -> str:
-    """list|info|create|join|leave|members|admin|settings|topics
+    """List, create, and manage Telegram chats, groups, and channels.
 
-    chat_id formats:
-    - Positive integer: private user chat (e.g. 123456789)
-    - Negative integer: group or supergroup (e.g. -1001234567890)
-    - @username: public group or channel (e.g. @mychannel)
+    Actions (required params -> optional):
+    - list (-> limit=50)
+    - info (chat_id)
+    - create (title -> is_channel)
+    - join (link_or_hash)
+    - leave (chat_id)
+    - members (chat_id -> limit=50)
+    - admin (chat_id, user_id -> demote)
+    - settings (chat_id, title|description)
+    - topics (chat_id, topic_action -> topic_id, topic_name)
 
-    Use 'list' to discover available chat IDs, then use them in other tools."""
+    chat_id: "@username" | 123456789 | -1001234567890
+    Tip: Use 'list' first to discover chat IDs."""
     if _unconfigured or _pending_auth:
         return _not_ready_response()
 
@@ -290,16 +303,17 @@ async def media(
     caption: str | None = None,
     output_dir: str | None = None,
 ) -> str:
-    """send_photo|send_file|send_voice|send_video|download
+    """Send and download media files in Telegram chats.
 
-    Media types and limits (Bot API):
-    - send_photo: JPEG/PNG/WebP, max 10 MB (compressed), 5 MB via URL
-    - send_file: any file type, max 50 MB (2 GB via local file in user mode)
-    - send_voice: OGG/OPUS audio, max 50 MB
-    - send_video: MP4 (H.264+AAC), max 50 MB (2 GB via local file in user mode)
-    - download: saves media from a message to output_dir
+    Actions (required params -> optional):
+    - send_photo (chat_id, file_path_or_url -> caption): JPEG/PNG/WebP, max 10MB
+    - send_file (chat_id, file_path_or_url -> caption): any type, max 50MB
+    - send_voice (chat_id, file_path_or_url -> caption): OGG/OPUS, max 50MB
+    - send_video (chat_id, file_path_or_url -> caption): MP4, max 50MB
+    - download (chat_id, message_id -> output_dir): save media from message
 
-    file_path_or_url accepts local file path or HTTP(S) URL."""
+    file_path_or_url: local path ("/tmp/photo.jpg") or URL ("https://...")
+    chat_id: "@username" | 123456789 | -1001234567890"""
     if _unconfigured or _pending_auth:
         return _not_ready_response()
     return await handle_media(
@@ -333,7 +347,13 @@ async def contacts(
     user_id: int | None = None,
     unblock: bool = False,
 ) -> str:
-    """list|search|add|block (user mode only)"""
+    """Manage Telegram contacts (user mode only, not available in bot mode).
+
+    Actions (required params -> optional):
+    - list: Show all contacts
+    - search (query): Find contacts by name
+    - add (phone, first_name -> last_name): Add new contact
+    - block (user_id -> unblock=true): Block or unblock a user"""
     if _unconfigured or _pending_auth:
         return _not_ready_response()
 
@@ -366,7 +386,12 @@ async def config(
     message_limit: int | None = None,
     timeout: int | None = None,
 ) -> str:
-    """status|set|cache_clear"""
+    """Server configuration and runtime settings.
+
+    Actions (required params):
+    - status: Show connection state, mode, and current config
+    - set (message_limit|timeout): Update runtime limits
+    - cache_clear: Clear internal caches"""
     if _unconfigured:
         if action == "status":
             return ok({
@@ -399,7 +424,9 @@ async def config(
     )
 )
 async def help(topic: str | None = None) -> str:
-    """Full documentation. Topics: messages|chats|media|contacts|all"""
+    """Get full documentation for any tool. Use when compressed descriptions are insufficient.
+
+    Topics: messages | chats | media | contacts | all (default: all)"""
     return await handle_help(topic)
 
 

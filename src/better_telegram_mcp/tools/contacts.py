@@ -54,7 +54,15 @@ async def handle_contacts(
                 return ok({action_word: result})
 
             case _:
-                return err(f"Unknown action '{action}'. Valid: list|search|add|block")
+                import difflib
+
+                valid = ["add", "block", "list", "search"]
+                closest = difflib.get_close_matches(action, valid, n=1)
+                suggestion = f" Did you mean '{closest[0]}'?" if closest else ""
+                return err(
+                    f"Unknown action '{action}'.{suggestion} "
+                    f"Valid: {'|'.join(valid)}"
+                )
     except ModeError as e:
         return err(str(e))
     except Exception as e:

@@ -58,9 +58,14 @@ async def handle_media(
             )
             return ok({"path": path})
 
+        import difflib
+
+        valid = sorted([*_ACTION_TO_MEDIA_TYPE, "download"])
+        closest = difflib.get_close_matches(action, valid, n=1)
+        suggestion = f" Did you mean '{closest[0]}'?" if closest else ""
         return err(
-            f"Unknown action '{action}'. "
-            "Valid: send_photo|send_file|send_voice|send_video|download"
+            f"Unknown action '{action}'.{suggestion} "
+            f"Valid: {'|'.join(valid)}"
         )
     except ModeError as e:
         return err(str(e))

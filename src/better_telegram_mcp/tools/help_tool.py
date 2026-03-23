@@ -22,7 +22,14 @@ async def handle_help(topic: str | None = None) -> str:
         return err("No documentation found.")
 
     if topic not in _VALID_TOPICS:
-        return err(f"Unknown topic '{topic}'. Valid: messages|chats|media|contacts|all")
+        import difflib
+
+        closest = difflib.get_close_matches(topic, [*_VALID_TOPICS, "all"], n=1)
+        suggestion = f" Did you mean '{closest[0]}'?" if closest else ""
+        return err(
+            f"Unknown topic '{topic}'.{suggestion} "
+            "Valid: messages|chats|media|contacts|all"
+        )
 
     doc = await _load_doc(topic)
     if doc:
