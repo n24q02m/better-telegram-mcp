@@ -355,7 +355,7 @@ async def config(
 )
 async def help(topic: str | None = None) -> str:
     """Full documentation. Topics: messages|chats|media|contacts|all"""
-    return handle_help(topic)
+    return await handle_help(topic)
 
 
 # --- Resources ---

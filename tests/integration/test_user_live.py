@@ -215,25 +215,29 @@ async def test_config_unknown_action(user: UserBackend):
 # --- Help tool ---
 
 
-def test_help_returns_documentation():
+@pytest.mark.asyncio
+async def test_help_returns_documentation():
     """help tool returns non-empty documentation."""
-    result = handle_help("all")
+    result = await handle_help("all")
     assert len(result) > 100
 
 
-def test_help_messages_topic():
+@pytest.mark.asyncio
+async def test_help_messages_topic():
     """help tool returns documentation for messages topic."""
-    result = handle_help("messages")
+    result = await handle_help("messages")
     assert len(result) > 50
 
 
-def test_help_contacts_topic():
+@pytest.mark.asyncio
+async def test_help_contacts_topic():
     """help tool returns documentation for contacts topic."""
-    result = handle_help("contacts")
+    result = await handle_help("contacts")
     assert len(result) > 50
 
 
-def test_help_chats_topic():
+@pytest.mark.asyncio
+async def test_help_chats_topic():
     """help tool returns documentation for chats topic."""
-    result = handle_help("chats")
+    result = await handle_help("chats")
     assert len(result) > 50
