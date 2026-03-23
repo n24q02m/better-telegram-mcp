@@ -65,8 +65,11 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 timeout = 30
-markers = ["integration: integration tests (require Telegram credentials)"]
-addopts = "-m 'not integration'"
+markers = [
+    "integration: integration tests (require Telegram credentials)",
+    "live: live MCP protocol tests (spawns server subprocess)",
+]
+addopts = "-m 'not integration and not live'"
 
 [tool.ruff]
 target-version = "py313"
