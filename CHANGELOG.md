@@ -2,6 +2,71 @@
 
 <!-- version list -->
 
+## v3.2.0-beta.1 (2026-03-23)
+
+### Bug Fixes
+
+- Allow help/config tools without credentials, add actionable setup hints
+  ([`125f855`](https://github.com/n24q02m/better-telegram-mcp/commit/125f855de78ea08adf92818e2fe5b24dd737082b))
+
+- Correct plugin packaging paths and marketplace schema
+  ([`d9065e0`](https://github.com/n24q02m/better-telegram-mcp/commit/d9065e03c458787637c0787274f8fd8e52d1cf52))
+
+- Correct setup-bot skill to use env var instead of runtime config for bot token
+  ([`c97797b`](https://github.com/n24q02m/better-telegram-mcp/commit/c97797bbd4a88043f0d6cc462ee8ee263d7ce83a))
+
+- Improve tool descriptions and corrective errors for LLM call pass rate
+  ([`6f79799`](https://github.com/n24q02m/better-telegram-mcp/commit/6f79799f0b47e7b38c9b1b9346a977f3a7912cca))
+
+- Standardize README structure with plugin-first Quick Start
+  ([`722fc45`](https://github.com/n24q02m/better-telegram-mcp/commit/722fc45dc516173dfe20835a8550d90dc6056b6f))
+
+- Sync plugin.json and server.json to v3.1.2
+  ([`9a365b0`](https://github.com/n24q02m/better-telegram-mcp/commit/9a365b0b3b67e5773e58c7a4f694e9f5171d633c))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#46](https://github.com/n24q02m/better-telegram-mcp/pull/46),
+  [`1ae96c6`](https://github.com/n24q02m/better-telegram-mcp/commit/1ae96c6265a268352761acf59ec16d6869032644))
+
+- **deps**: Update non-major dependencies
+  ([#45](https://github.com/n24q02m/better-telegram-mcp/pull/45),
+  [`f44696f`](https://github.com/n24q02m/better-telegram-mcp/commit/f44696fe27bc463fc564accdf1e706756f1acfa5))
+
+- **deps**: Update qodo-ai/pr-agent digest to 42d55d4
+  ([#50](https://github.com/n24q02m/better-telegram-mcp/pull/50),
+  [`23d29a2`](https://github.com/n24q02m/better-telegram-mcp/commit/23d29a2f26f6c0f3f69b2e62dfb8816b9d364700))
+
+### Documentation
+
+- Add TELEGRAM_BOT_TOKEN env to plugin.json and setup guide
+  ([`6090687`](https://github.com/n24q02m/better-telegram-mcp/commit/6090687b946789dc844eb5133d993b31421a4eca))
+
+- Standardize README sections and sync Also by table
+  ([`5ccee24`](https://github.com/n24q02m/better-telegram-mcp/commit/5ccee242737dc2b0c1f0ca90c20432551d8fb2fa))
+
+### Features
+
+- Add plugin packaging with skills, hooks, and marketplace metadata
+  ([`26c7d1e`](https://github.com/n24q02m/better-telegram-mcp/commit/26c7d1e0818fae8712aced32e5717a8d24f58e2b))
+
+- Async help tool I/O ([#52](https://github.com/n24q02m/better-telegram-mcp/pull/52),
+  [`f26cd4b`](https://github.com/n24q02m/better-telegram-mcp/commit/f26cd4bbc7602fea23283bf37b50440da84f6585))
+
+- Improve tool descriptions and error messages for better LLM pass rate
+  ([`9b9909e`](https://github.com/n24q02m/better-telegram-mcp/commit/9b9909e74467cdd25238a72b39f0dd4aa231b3c6))
+
+### Refactoring
+
+- Redesign skills/hooks per approved spec
+  ([`e933160`](https://github.com/n24q02m/better-telegram-mcp/commit/e93316006ff2e9b001f55179f8419b01197190d5))
+
+### Testing
+
+- Add pytest-based live MCP protocol tests
+  ([`2013653`](https://github.com/n24q02m/better-telegram-mcp/commit/201365372f12ec0befb5bb4975d8bcf0e026eead))
+
+
 ## v3.1.2 (2026-03-20)
 
 ### Bug Fixes
