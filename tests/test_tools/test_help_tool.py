@@ -60,6 +60,15 @@ async def test_help_unknown_topic():
 
 
 @pytest.mark.asyncio
+async def test_help_unknown_topic_with_suggestion():
+    result = await handle_help("massage")
+    parsed = json.loads(result)
+    assert "error" in parsed
+    assert "Unknown topic 'massage'." in parsed["error"]
+    assert "Did you mean 'messages'?" in parsed["error"]
+
+
+@pytest.mark.asyncio
 async def test_help_missing_doc_file():
     from unittest.mock import AsyncMock, patch
 
@@ -86,3 +95,22 @@ async def test_help_all_no_docs():
         result = await handle_help("all")
         parsed = json.loads(result)
         assert "error" in parsed
+
+
+@pytest.mark.asyncio
+async def test_help_real_missing_docs(monkeypatch):
+    import pathlib
+
+    # Point _DOCS_DIR to an empty directory to test the `return None` path of `_load_doc`
+    empty_dir = pathlib.Path("/tmp/nonexistent_docs_dir_for_testing")
+    monkeypatch.setattr("better_telegram_mcp.tools.help_tool._DOCS_DIR", empty_dir)
+
+    result_all = await handle_help("all")
+    parsed_all = json.loads(result_all)
+    assert "error" in parsed_all
+    assert "No documentation found." in parsed_all["error"]
+
+    result_single = await handle_help("messages")
+    parsed_single = json.loads(result_single)
+    assert "error" in parsed_single
+    assert "Documentation for 'messages' not found." in parsed_single["error"]
