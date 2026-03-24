@@ -307,15 +307,16 @@ async def media(
 ) -> str:
     """Send and download media files in Telegram chats.
 
-    Actions (required params -> optional):
+    Actions (required options -> optional):
     - send_photo (chat_id, file_path_or_url -> caption): JPEG/PNG/WebP, max 10MB
     - send_file (chat_id, file_path_or_url -> caption): any type, max 50MB
     - send_voice (chat_id, file_path_or_url -> caption): OGG/OPUS, max 50MB
     - send_video (chat_id, file_path_or_url -> caption): MP4, max 50MB
     - download (chat_id, message_id -> output_dir): save media from message
 
-    file_path_or_url: local path ("/tmp/photo.jpg") or URL ("https://...")
-    chat_id: "@username" | 123456789 | -1001234567890"""
+    Options are provided via the 'options' object:
+    options.file_path_or_url: local path ("/tmp/photo.jpg") or URL ("https://...")
+    options.chat_id: "@username" | 123456789 | -1001234567890"""
     if _unconfigured or _pending_auth:
         return _not_ready_response()
 

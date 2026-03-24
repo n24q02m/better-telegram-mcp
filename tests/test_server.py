@@ -11,6 +11,7 @@ from better_telegram_mcp.server import (
     main,
     mcp,
 )
+from better_telegram_mcp.tools.media import MediaOptions
 
 
 def test_mcp_has_6_tools():
@@ -92,7 +93,7 @@ async def test_media_tool(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        from better_telegram_mcp.tools.media import MediaOptions
+
         result = await media(
             action="send_photo",
             options=MediaOptions(
@@ -326,7 +327,7 @@ async def test_media_blocked_during_pending_auth(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        from better_telegram_mcp.tools.media import MediaOptions
+
         result = json.loads(
             await media(
                 action="send_photo",
@@ -469,7 +470,7 @@ async def test_media_returns_setup_hint_when_unconfigured():
     old = srv._unconfigured
     try:
         srv._unconfigured = True
-        from better_telegram_mcp.tools.media import MediaOptions
+
         result = json.loads(
             await media(
                 action="send_photo",
