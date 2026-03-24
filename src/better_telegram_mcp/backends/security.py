@@ -65,7 +65,10 @@ def validate_url(url: str) -> None:
 
 def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Path:
     """Validate local file path is safe (no traversal to sensitive files)."""
-    path = Path(file_path).resolve()
+    try:
+        path = Path(file_path).resolve()
+    except OSError as e:
+        raise SecurityError(f"Invalid path format: {file_path}") from e
     # Block known sensitive paths
     _blocked_prefixes = (
         "/etc/",

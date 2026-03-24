@@ -140,6 +140,14 @@ class TestValidateFilePath:
         result = validate_file_path("/tmp/photo.jpg", allowed_dir=Path("/tmp"))
         assert result == Path("/tmp/photo.jpg")
 
+    def test_oserror_on_resolve(self, monkeypatch):
+        def mock_resolve(*args, **kwargs):
+            raise OSError("Mocked OSError")
+
+        monkeypatch.setattr("pathlib.Path.resolve", mock_resolve)
+        with pytest.raises(SecurityError, match="Invalid path format: /tmp/photo.jpg"):
+            validate_file_path("/tmp/photo.jpg")
+
 
 class TestValidateOutputDir:
     def test_normal_dir_allowed(self):
