@@ -36,11 +36,19 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 
 ### Claude Code Plugin (Recommended)
 
+Via marketplace (includes skills: /setup-bot, /channel-post):
+
+```bash
+/plugins add n24q02m/claude-plugins
+```
+
+Or install this plugin only:
+
 ```bash
 claude plugin add n24q02m/better-telegram-mcp
 ```
 
-After install, set credentials in `~/.claude/settings.local.json` or your shell profile. Get a bot token from [@BotFather](https://t.me/BotFather). For user mode (MTProto), set `TELEGRAM_API_ID` + `TELEGRAM_API_HASH` instead.
+Set credentials in `~/.claude/settings.local.json` or shell profile. See [Environment Variables](#environment-variables).
 
 ### MCP Server
 
