@@ -123,3 +123,61 @@ class AuthClient:
     async def close(self) -> None:
         """Close HTTP client."""
         await self._client.aclose()
+
+
+import typer
+
+app = typer.Typer(help="Better Telegram MCP Auth Client CLI")
+
+
+@app.command()
+def main() -> None:
+    """Run the auth client."""
+    from better_telegram_mcp.config import Settings
+
+    settings = Settings()
+    if settings.mode == "bot":
+        typer.echo("Auth client is only needed for user mode.", err=True)
+        raise typer.Exit(1)
+
+    if not settings.phone:
+        typer.echo("TELEGRAM_PHONE must be set in your configuration.", err=True)
+        raise typer.Exit(1)
+
+    async def _run() -> None:
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        if await backend.is_authorized():
+            typer.echo("Already authorized!")
+            await backend.disconnect()
+            return
+
+        client = AuthClient(backend, settings)
+        url = await client.create_session()
+        typer.echo(f"Auth session created! Please open: {url}")
+        typer.echo("Waiting for authentication commands from relay server...")
+
+        import webbrowser
+
+        try:
+            # Use to_thread to avoid blocking if we were in a running loop,
+            # though here we are the main loop.
+            await asyncio.to_thread(webbrowser.open, url)
+        except Exception:
+            pass
+
+        auth_task = asyncio.create_task(client.poll_and_execute())
+        await client.wait_for_auth()
+        await auth_task
+        await client.close()
+        await backend.disconnect()
+        typer.echo("Authentication successful!")
+
+    asyncio.run(_run())
+
+
+if __name__ == "__main__":
+    app()
