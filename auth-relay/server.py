@@ -44,6 +44,23 @@ def _check_rate_limit(ip: str) -> bool:
     return True
 
 
+def _get_client_ip(request: Request) -> str:
+    """Extract actual client IP from proxy headers or fallback to client host."""
+    # CF-Connecting-IP is specific to Cloudflare
+    if cf_ip := request.headers.get("CF-Connecting-IP"):
+        return cf_ip.strip()
+
+    # X-Forwarded-For can contain multiple IPs, the first one is the original client
+    if xff := request.headers.get("X-Forwarded-For"):
+        return xff.split(",")[0].strip()
+
+    # X-Real-IP is commonly used by Nginx and other proxies
+    if real_ip := request.headers.get("X-Real-IP"):
+        return real_ip.strip()
+
+    return request.client.host if request.client else "unknown"
+
+
 def _cleanup() -> None:
     global _last_cleanup
     now = time.time()
@@ -204,7 +221,7 @@ $('otp').addEventListener('keydown',e=>{if(e.key==='Enter')verify()});
 
 async def api_create_session(request: Request) -> JSONResponse:
     """MCP local creates a new auth session."""
-    ip = request.client.host if request.client else "unknown"
+    ip = _get_client_ip(request)
     if not _check_rate_limit(ip):
         return JSONResponse({"error": "Rate limited"}, status_code=429)
     _cleanup()
@@ -296,7 +313,7 @@ async def auth_page(request: Request) -> HTMLResponse:
 
 async def auth_send_code(request: Request) -> JSONResponse:
     """User requests OTP send."""
-    ip = request.client.host if request.client else "unknown"
+    ip = _get_client_ip(request)
     if not _check_rate_limit(ip):
         return JSONResponse({"ok": False, "error": "Rate limited. Try again later."})
     token = request.path_params["token"]
@@ -311,7 +328,7 @@ async def auth_send_code(request: Request) -> JSONResponse:
 
 async def auth_verify(request: Request) -> JSONResponse:
     """User submits OTP code."""
-    ip = request.client.host if request.client else "unknown"
+    ip = _get_client_ip(request)
     if not _check_rate_limit(ip):
         return JSONResponse({"ok": False, "error": "Rate limited. Try again later."})
     token = request.path_params["token"]
