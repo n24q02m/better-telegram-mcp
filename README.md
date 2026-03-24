@@ -40,7 +40,7 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 claude plugin add n24q02m/better-telegram-mcp
 ```
 
-After install, set your bot token: `claude config set mcpServers.better-telegram-mcp.env.TELEGRAM_BOT_TOKEN "your-token"`. Get one from [@BotFather](https://t.me/BotFather). For user mode (MTProto), set `TELEGRAM_API_ID` + `TELEGRAM_API_HASH` instead.
+After install, set credentials in `~/.claude/settings.local.json` or your shell profile. Get a bot token from [@BotFather](https://t.me/BotFather). For user mode (MTProto), set `TELEGRAM_API_ID` + `TELEGRAM_API_HASH` instead.
 
 ### MCP Server
 
@@ -61,35 +61,12 @@ After install, set your bot token: `claude config set mcpServers.better-telegram
 
 #### Option 1: uvx
 
-Bot mode:
-
 ```jsonc
 {
   "mcpServers": {
     "telegram": {
       "command": "uvx",
-      "args": ["--python", "3.13", "better-telegram-mcp"],
-      "env": {
-        "TELEGRAM_BOT_TOKEN": "123456:ABC-DEF"
-      }
-    }
-  }
-}
-```
-
-User mode:
-
-```jsonc
-{
-  "mcpServers": {
-    "telegram": {
-      "command": "uvx",
-      "args": ["--python", "3.13", "better-telegram-mcp"],
-      "env": {
-        "TELEGRAM_API_ID": "12345678",
-        "TELEGRAM_API_HASH": "your-api-hash-from-my-telegram-org",
-        "TELEGRAM_PHONE": "+1234567890"
-      }
+      "args": ["--python", "3.13", "better-telegram-mcp"]
     }
   }
 }
@@ -107,14 +84,13 @@ User mode:
         "-e", "TELEGRAM_BOT_TOKEN",
         "-v", "telegram-data:/data",
         "n24q02m/better-telegram-mcp"
-      ],
-      "env": {
-        "TELEGRAM_BOT_TOKEN": "123456:ABC-DEF"
-      }
+      ]
     }
   }
 }
 ```
+
+Configure credentials in `~/.claude/settings.local.json` or your shell profile. See [Environment Variables](#environment-variables) below.
 
 > For user mode in Docker, mount the session directory with `-v ~/.better-telegram-mcp:/data` so the session persists across container restarts.
 
