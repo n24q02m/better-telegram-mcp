@@ -26,17 +26,21 @@ class Settings(BaseSettings):
     data_dir: Path = Path.home() / ".better-telegram-mcp"
 
     # Runtime (derived)
-    mode: Literal["bot", "user"] = "bot"
+    mode: Literal["bot", "user", "auto"] = "auto"
 
     @model_validator(mode="after")
     def _detect_mode(self) -> Settings:
         has_user = self.api_id is not None and self.api_hash is not None
         has_bot = self.bot_token is not None
 
-        if has_user:
-            self.mode = "user"
-        elif has_bot:
-            self.mode = "bot"
+        if self.mode == "auto":
+            if has_user:
+                self.mode = "user"
+            elif has_bot:
+                self.mode = "bot"
+            else:
+                self.mode = "bot"
+
         # No credentials: keep default mode="bot", server starts in unconfigured state
         return self
 

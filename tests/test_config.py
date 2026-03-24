@@ -25,6 +25,37 @@ def test_user_mode_priority_over_bot(monkeypatch):
     assert s.mode == "user"
 
 
+def test_explicit_mode_user(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_MODE", "user")
+    s = Settings()
+    assert s.mode == "user"
+
+
+def test_explicit_mode_bot(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_MODE", "bot")
+    s = Settings()
+    assert s.mode == "bot"
+
+
+def test_invalid_mode_raises_error(monkeypatch):
+    import pydantic
+
+    monkeypatch.setenv("TELEGRAM_MODE", "invalid")
+    try:
+        Settings()
+        assert False, "Should have raised ValidationError"
+    except pydantic.ValidationError:
+        pass
+
+
+def test_explicit_mode_overridden_by_credentials(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_MODE", "bot")
+    monkeypatch.setenv("TELEGRAM_API_ID", "12345")
+    monkeypatch.setenv("TELEGRAM_API_HASH", "abcdef123456")
+    s = Settings()
+    assert s.mode == "bot"  # Explicit mode is respected, overriding credentials
+
+
 def test_no_credentials_starts_unconfigured(monkeypatch):
     monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
     monkeypatch.delenv("TELEGRAM_API_ID", raising=False)
