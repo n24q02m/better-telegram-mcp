@@ -346,12 +346,7 @@ async def media(
 )
 async def contacts(
     action: str,
-    query: str | None = None,
-    phone: str | None = None,
-    first_name: str | None = None,
-    last_name: str | None = None,
-    user_id: int | None = None,
-    unblock: bool = False,
+    options: ContactsOptions | None = None,
 ) -> str:
     """Manage Telegram contacts (user mode only, not available in bot mode).
 
@@ -363,14 +358,7 @@ async def contacts(
     if _unconfigured or _pending_auth:
         return _not_ready_response()
 
-    opts = ContactsOptions(
-        query=query,
-        phone=phone,
-        first_name=first_name,
-        last_name=last_name,
-        user_id=user_id,
-        unblock=unblock,
-    )
+    opts = options if options is not None else ContactsOptions()
     return await handle_contacts(
         get_backend(),
         action,
