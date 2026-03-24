@@ -1,0 +1,22 @@
+{
+  "name": "better-telegram-mcp",
+  "version": "3.2.0",
+  "description": "Telegram Bot API integration — messages, chats, media, contacts",
+  "mcpServers": {
+    "better-telegram": {
+      "command": "uvx",
+      "args": [
+        "--python",
+        "3.13",
+        "better-telegram-mcp"
+      ],
+      "env": {
+        "TELEGRAM_BOT_TOKEN": "",
+        "TELEGRAM_API_ID": "",
+        "TELEGRAM_API_HASH": "",
+        "TELEGRAM_PHONE": ""
+      }
+    }
+  },
+  "contextFileName": "GEMINI.md"
+}
