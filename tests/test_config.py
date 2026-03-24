@@ -39,13 +39,11 @@ def test_explicit_mode_bot(monkeypatch):
 
 def test_invalid_mode_raises_error(monkeypatch):
     import pydantic
+    import pytest
 
     monkeypatch.setenv("TELEGRAM_MODE", "invalid")
-    try:
+    with pytest.raises(pydantic.ValidationError):
         Settings()
-        assert False, "Should have raised ValidationError"
-    except pydantic.ValidationError:
-        pass
 
 
 def test_explicit_mode_overridden_by_credentials(monkeypatch):
