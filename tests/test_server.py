@@ -36,6 +36,17 @@ def test_get_backend_not_initialized():
         srv._backend = old
 
 
+def test_get_backend_initialized(mock_backend):
+    import better_telegram_mcp.server as srv
+
+    old = srv._backend
+    try:
+        srv._backend = mock_backend
+        assert get_backend() is mock_backend
+    finally:
+        srv._backend = old
+
+
 def test_get_settings_not_initialized():
     import better_telegram_mcp.server as srv
 
@@ -44,6 +55,18 @@ def test_get_settings_not_initialized():
         srv._settings = None
         with pytest.raises(RuntimeError, match="Settings not initialized"):
             get_settings()
+    finally:
+        srv._settings = old
+
+
+def test_get_settings_initialized():
+    import better_telegram_mcp.server as srv
+
+    old = srv._settings
+    try:
+        mock_settings = MagicMock()
+        srv._settings = mock_settings
+        assert get_settings() is mock_settings
     finally:
         srv._settings = old
 
