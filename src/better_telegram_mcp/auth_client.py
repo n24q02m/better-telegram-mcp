@@ -11,6 +11,7 @@ import asyncio
 from typing import TYPE_CHECKING, Any
 
 import httpx
+import typer
 from loguru import logger
 
 if TYPE_CHECKING:
@@ -124,8 +125,6 @@ class AuthClient:
         """Close HTTP client."""
         await self._client.aclose()
 
-
-import typer
 
 app = typer.Typer(help="Better Telegram MCP Auth Client CLI")
 
