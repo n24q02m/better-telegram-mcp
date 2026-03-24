@@ -20,3 +20,9 @@ def safe_error(e: Exception) -> str:
     if isinstance(e, (ModeError, SecurityError, ValueError, FileNotFoundError)):
         return err(str(e))
     return err(f"{type(e).__name__}: Operation failed. Check server logs for details.")
+
+
+def _mask_phone(phone: str) -> str:
+    if len(phone) < 5:
+        return "*" * len(phone)
+    return f"{phone[:2]}{'*' * (len(phone) - 4)}{phone[-2:]}"
