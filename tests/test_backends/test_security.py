@@ -106,6 +106,30 @@ class TestValidateUrl:
         )
         validate_url("http://example.com/image.jpg")
 
+    def test_dns_resolution_failure_passes_validation(self, monkeypatch):
+        def mock_getaddrinfo(host, port):
+            raise OSError("getaddrinfo failed")
+
+        monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
+        # Should gracefully swallow the OSError and pass validation
+        validate_url("http://example.com/image.jpg")
+
+    def test_ipv6_unique_local_blocked(self):
+        with pytest.raises(SecurityError, match="internal/private"):
+            validate_url("http://[fc00::1]/")
+
+    def test_ipv6_link_local_blocked(self):
+        with pytest.raises(SecurityError, match="internal/private"):
+            validate_url("http://[fe80::1]/")
+
+    def test_url_with_port_blocked(self):
+        with pytest.raises(SecurityError, match="internal/private"):
+            validate_url("http://127.0.0.1:8080/")
+
+    def test_url_with_credentials_blocked(self):
+        with pytest.raises(SecurityError, match="internal/private"):
+            validate_url("http://user:pass@127.0.0.1/")
+
 
 class TestValidateFilePath:
     def test_normal_path_allowed(self):
