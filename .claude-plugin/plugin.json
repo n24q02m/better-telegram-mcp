@@ -1,6 +1,6 @@
 {
   "name": "better-telegram-mcp",
-  "description": "Telegram Bot API integration — messages, chats, media, contacts",
+  "description": "Telegram dual-mode (Bot API + MTProto) — messages, chats, media, contacts",
   "version": "3.2.0",
   "author": {
     "name": "n24q02m",
@@ -10,39 +10,7 @@
   "mcpServers": {
     "better-telegram-mcp": {
       "command": "uvx",
-      "args": ["--python", "3.13", "better-telegram-mcp"],
-      "env": {
-        "TELEGRAM_BOT_TOKEN": "",
-        "TELEGRAM_API_ID": "",
-        "TELEGRAM_API_HASH": "",
-        "TELEGRAM_PHONE": "",
-        "TELEGRAM_AUTH_URL": "",
-        "TELEGRAM_SESSION_NAME": ""
-      }
-    },
-    "better-telegram-mcp-pipx": {
-      "command": "pipx",
-      "args": ["run", "--python", "3.13", "better-telegram-mcp"],
-      "env": {
-        "TELEGRAM_BOT_TOKEN": "",
-        "TELEGRAM_API_ID": "",
-        "TELEGRAM_API_HASH": "",
-        "TELEGRAM_PHONE": "",
-        "TELEGRAM_AUTH_URL": "",
-        "TELEGRAM_SESSION_NAME": ""
-      }
-    },
-    "better-telegram-mcp-docker": {
-      "command": "docker",
-      "args": ["run", "--rm", "-i", "n24q02m/better-telegram-mcp:latest"],
-      "env": {
-        "TELEGRAM_BOT_TOKEN": "",
-        "TELEGRAM_API_ID": "",
-        "TELEGRAM_API_HASH": "",
-        "TELEGRAM_PHONE": "",
-        "TELEGRAM_AUTH_URL": "",
-        "TELEGRAM_SESSION_NAME": ""
-      }
+      "args": ["--python", "3.13", "better-telegram-mcp"]
     }
   },
   "skills": "./skills/"
