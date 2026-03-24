@@ -12,11 +12,10 @@ _VALID_TOPICS = {"messages", "chats", "media", "contacts"}
 
 async def handle_help(topic: str | None = None) -> str:
     if topic is None or topic == "all":
-        parts: list[str] = []
-        for t in sorted(_VALID_TOPICS):
-            doc = await _load_doc(t)
-            if doc:
-                parts.append(doc)
+        # Bolt: Load all documentation files concurrently to reduce I/O wait time
+        tasks = [_load_doc(t) for t in sorted(_VALID_TOPICS)]
+        results = await asyncio.gather(*tasks)
+        parts = [doc for doc in results if doc]
         if parts:
             return "\n\n---\n\n".join(parts)
         return err("No documentation found.")
