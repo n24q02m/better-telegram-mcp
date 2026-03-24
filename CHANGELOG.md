@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v3.2.0 (2026-03-24)
+
+### Bug Fixes
+
+- Add gitleaks secret detection to pre-commit hooks
+  ([`180fbd5`](https://github.com/n24q02m/better-telegram-mcp/commit/180fbd54f219946de45c118b9df8cc372491f27f))
+
+- Apply ruff formatting to pass CI lint check
+  ([`437cf10`](https://github.com/n24q02m/better-telegram-mcp/commit/437cf108568b3d02917db1877a9e62ad30a4a56c))
+
+### Testing
+
+- Add full/real bot mode tests via MCP protocol
+  ([`77277b2`](https://github.com/n24q02m/better-telegram-mcp/commit/77277b28adca75a7f5ce5ba0aa58eef9b3aecf70))
+
+
 ## v3.2.0-beta.1 (2026-03-23)
 
 ### Bug Fixes
