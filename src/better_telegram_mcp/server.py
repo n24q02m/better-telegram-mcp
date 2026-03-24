@@ -303,11 +303,7 @@ async def chats(
 )
 async def media(
     action: str,
-    chat_id: str | int | None = None,
-    file_path_or_url: str | None = None,
-    message_id: int | None = None,
-    caption: str | None = None,
-    output_dir: str | None = None,
+    options: MediaOptions | None = None,
 ) -> str:
     """Send and download media files in Telegram chats.
 
@@ -322,16 +318,12 @@ async def media(
     chat_id: "@username" | 123456789 | -1001234567890"""
     if _unconfigured or _pending_auth:
         return _not_ready_response()
+
+    opts = options if options is not None else MediaOptions()
     return await handle_media(
         get_backend(),
         action,
-        MediaOptions(
-            chat_id=chat_id,
-            file_path_or_url=file_path_or_url,
-            message_id=message_id,
-            caption=caption,
-            output_dir=output_dir,
-        ),
+        opts,
     )
 
 

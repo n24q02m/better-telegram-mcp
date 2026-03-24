@@ -194,8 +194,10 @@ class TestNoAuth:
                     "media",
                     {
                         "action": "send_photo",
-                        "chat_id": "123",
-                        "file_path_or_url": "/tmp/x.jpg",
+                        "options": {
+                            "chat_id": "123",
+                            "file_path_or_url": "/tmp/x.jpg",
+                        },
                     },
                 )
                 data = _parse_result(result)
