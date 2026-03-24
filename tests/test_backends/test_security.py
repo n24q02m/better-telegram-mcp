@@ -106,6 +106,15 @@ class TestValidateUrl:
         )
         validate_url("http://example.com/image.jpg")
 
+    def test_dns_resolution_failure_blocks(self, monkeypatch):
+        # Mock socket.getaddrinfo to raise an OSError
+        def mock_getaddrinfo(host, port, *args, **kwargs):
+            raise OSError("Name or service not known")
+
+        monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
+        with pytest.raises(SecurityError, match="Failed to resolve hostname"):
+            validate_url("http://does-not-exist.example/image.jpg")
+
 
 class TestValidateFilePath:
     def test_normal_path_allowed(self):
