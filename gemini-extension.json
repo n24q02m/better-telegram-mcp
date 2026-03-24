@@ -3,7 +3,7 @@
   "version": "3.2.0",
   "description": "Telegram Bot API integration — messages, chats, media, contacts",
   "mcpServers": {
-    "better-telegram": {
+    "better-telegram-mcp": {
       "command": "uvx",
       "args": [
         "--python",
