@@ -39,13 +39,15 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 Via marketplace (includes skills: /setup-bot, /channel-post):
 
 ```bash
-/plugins add n24q02m/claude-plugins
+/plugin marketplace add n24q02m/claude-plugins
+/plugin install better-telegram-mcp@claude-plugins
 ```
 
 Or install this plugin only:
 
 ```bash
-claude plugin add n24q02m/better-telegram-mcp
+/plugin marketplace add n24q02m/better-telegram-mcp
+/plugin install better-telegram-mcp
 ```
 
 Set credentials in `~/.claude/settings.local.json` or shell profile. See [Environment Variables](#environment-variables).
