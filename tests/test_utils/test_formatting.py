@@ -100,3 +100,23 @@ def test_safe_error_generic_exceptions():
 
         # Ensure internal details are NOT leaked
         assert str(exc) not in result
+
+
+def test_safe_error_edge_cases():
+    # Empty message
+    exc_empty = ValueError()
+    res_empty = json.loads(safe_error(exc_empty))
+    assert res_empty["error"] == ""
+
+    # Multiple arguments
+    exc_multi = ValueError("arg1", "arg2")
+    res_multi = json.loads(safe_error(exc_multi))
+    assert res_multi["error"] == "('arg1', 'arg2')"
+
+    # Custom exception inheriting from allowed Exception
+    class CustomValueError(ValueError):
+        pass
+
+    exc_custom = CustomValueError("custom error message")
+    res_custom = json.loads(safe_error(exc_custom))
+    assert res_custom["error"] == "custom error message"
