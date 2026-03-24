@@ -82,6 +82,18 @@ async def test_chats_tool(mock_backend):
         srv._pending_auth = old_pending
 
 
+def test_auth_required_response():
+    from better_telegram_mcp.server import _auth_required_response
+
+    expected = (
+        "Telegram account is not authorized yet.\n"
+        "An authentication link has been sent to your terminal.\n"
+        "Please open it to sign in.\n"
+        "Or you can just login with sending command `auth` via your client."
+    )
+    assert _auth_required_response() == expected
+
+
 @pytest.mark.asyncio
 async def test_media_tool(mock_backend):
     import better_telegram_mcp.server as srv

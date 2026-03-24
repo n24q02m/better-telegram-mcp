@@ -60,6 +60,15 @@ def get_settings() -> Settings:
     return _settings
 
 
+def _auth_required_response() -> str:
+    return (
+        "Telegram account is not authorized yet.\n"
+        "An authentication link has been sent to your terminal.\n"
+        "Please open it to sign in.\n"
+        "Or you can just login with sending command `auth` via your client."
+    )
+
+
 def _not_ready_response() -> str:
     if _unconfigured:
         return ok(
