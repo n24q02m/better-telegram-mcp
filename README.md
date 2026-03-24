@@ -80,6 +80,30 @@ Set credentials in `~/.claude/settings.local.json` or shell profile. See [Enviro
 }
 ```
 
+<details>
+<summary>Other MCP clients (Cursor, Codex, Gemini CLI)</summary>
+
+```jsonc
+// Cursor (~/.cursor/mcp.json), Windsurf, Cline, Amp, OpenCode
+{
+  "mcpServers": {
+    "telegram": {
+      "command": "uvx",
+      "args": ["--python", "3.13", "better-telegram-mcp"]
+    }
+  }
+}
+```
+
+```toml
+# Codex (~/.codex/config.toml)
+[mcp_servers.telegram]
+command = "uvx"
+args = ["--python", "3.13", "better-telegram-mcp"]
+```
+
+</details>
+
 #### Option 2: Docker
 
 ```jsonc
