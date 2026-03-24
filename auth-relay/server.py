@@ -33,6 +33,16 @@ _last_cleanup: float = 0
 _rate_limits: dict[str, list[float]] = defaultdict(list)
 
 
+def _get_client_ip(request: Request) -> str:
+    """Safely extract client IP, respecting reverse proxies if headers are present."""
+    if "cf-connecting-ip" in request.headers:
+        return request.headers["cf-connecting-ip"]
+    if "x-forwarded-for" in request.headers:
+        # X-Forwarded-For can be a comma-separated list of IPs; the first is the client
+        return request.headers["x-forwarded-for"].split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 def _check_rate_limit(ip: str) -> bool:
     """Return True if request is allowed, False if rate limited."""
     now = time.time()
@@ -204,7 +214,7 @@ $('otp').addEventListener('keydown',e=>{if(e.key==='Enter')verify()});
 
 async def api_create_session(request: Request) -> JSONResponse:
     """MCP local creates a new auth session."""
-    ip = request.client.host if request.client else "unknown"
+    ip = _get_client_ip(request)
     if not _check_rate_limit(ip):
         return JSONResponse({"error": "Rate limited"}, status_code=429)
     _cleanup()
@@ -296,7 +306,7 @@ async def auth_page(request: Request) -> HTMLResponse:
 
 async def auth_send_code(request: Request) -> JSONResponse:
     """User requests OTP send."""
-    ip = request.client.host if request.client else "unknown"
+    ip = _get_client_ip(request)
     if not _check_rate_limit(ip):
         return JSONResponse({"ok": False, "error": "Rate limited. Try again later."})
     token = request.path_params["token"]
@@ -311,7 +321,7 @@ async def auth_send_code(request: Request) -> JSONResponse:
 
 async def auth_verify(request: Request) -> JSONResponse:
     """User submits OTP code."""
-    ip = request.client.host if request.client else "unknown"
+    ip = _get_client_ip(request)
     if not _check_rate_limit(ip):
         return JSONResponse({"ok": False, "error": "Rate limited. Try again later."})
     token = request.path_params["token"]
