@@ -7,6 +7,11 @@ from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
 
+def _empty_to_none(v: str | None) -> str | None:
+    """Treat empty string as None (plugin.json sets env vars to '' by default)."""
+    return v if v else None
+
+
 class Settings(BaseSettings):
     model_config = {"env_prefix": "TELEGRAM_", "extra": "ignore"}
 
@@ -30,6 +35,11 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _detect_mode(self) -> Settings:
+        # Normalize empty strings to None (plugin.json sets env vars to "" by default)
+        self.bot_token = _empty_to_none(self.bot_token)
+        self.api_hash = _empty_to_none(self.api_hash)
+        self.phone = _empty_to_none(self.phone)
+
         has_user = self.api_id is not None and self.api_hash is not None
         has_bot = self.bot_token is not None
 

@@ -9,13 +9,7 @@
         "--python",
         "3.13",
         "better-telegram-mcp"
-      ],
-      "env": {
-        "TELEGRAM_BOT_TOKEN": "",
-        "TELEGRAM_API_ID": "",
-        "TELEGRAM_API_HASH": "",
-        "TELEGRAM_PHONE": ""
-      }
+      ]
     }
   },
   "contextFileName": "GEMINI.md"
