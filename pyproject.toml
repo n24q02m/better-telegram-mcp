@@ -28,7 +28,7 @@ dependencies = [
     "pydantic>=2.12.5",
     "pydantic-settings>=2.13.1",
     "loguru>=0.7.3",
-    "mcp-relay-core @ git+https://github.com/n24q02m/mcp-relay-core.git@main#subdirectory=packages/core-py",
+    "mcp-relay-core>=0.1.0",
     "cryptography>=44.0.0",
 ]
 
@@ -55,9 +55,6 @@ Issues = "https://github.com/n24q02m/better-telegram-mcp/issues"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[tool.hatch.metadata]
-allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/better_telegram_mcp"]
