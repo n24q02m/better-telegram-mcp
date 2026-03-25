@@ -1,7 +1,7 @@
 {
   "name": "better-telegram-mcp",
   "description": "Telegram dual-mode (Bot API + MTProto) — messages, chats, media, contacts",
-  "version": "3.2.0",
+  "version": "3.3.0-beta.1",
   "author": {
     "name": "n24q02m",
     "url": "https://github.com/n24q02m"
