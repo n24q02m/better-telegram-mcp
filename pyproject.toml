@@ -29,6 +29,7 @@ dependencies = [
     "pydantic-settings>=2.13.1",
     "loguru>=0.7.3",
     "mcp-relay-core @ git+https://github.com/n24q02m/mcp-relay-core.git@main#subdirectory=packages/core-py",
+    "cryptography>=44.0.0",
 ]
 
 [dependency-groups]
@@ -107,6 +108,7 @@ omit = [
     "tests/*",
     "*/auth_server.py",
     "*/auth_client.py",
+    "*/transports/http.py",
 ]
 
 [tool.coverage.report]

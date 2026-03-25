@@ -42,7 +42,10 @@ COPY --from=builder /app/src /app/src
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH=/app/src \
     PYTHONUNBUFFERED=1 \
-    TELEGRAM_DATA_DIR=/data
+    TELEGRAM_DATA_DIR=/data \
+    TRANSPORT_MODE=stdio
+
+EXPOSE 8080
 
 # Create non-root user and set permissions
 RUN groupadd -r appuser && useradd -r -g appuser -d /home/appuser -m appuser \

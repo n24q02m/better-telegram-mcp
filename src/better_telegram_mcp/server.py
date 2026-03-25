@@ -453,4 +453,12 @@ register_resources(mcp)
 
 
 def main() -> None:
-    mcp.run(transport="stdio")
+    import os
+
+    transport = os.environ.get("TRANSPORT_MODE", "stdio")
+    if transport == "http":
+        from .transports.http import start_http
+
+        start_http(Settings())
+    else:
+        mcp.run(transport="stdio")
