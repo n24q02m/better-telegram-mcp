@@ -49,6 +49,7 @@ dependencies = [
     { name = "httpx" },
     { name = "loguru" },
     { name = "mcp", extra = ["cli"] },
+    { name = "mcp-relay-core" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "telethon" },
@@ -71,6 +72,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.26.0" },
+    { name = "mcp-relay-core", git = "https://github.com/n24q02m/mcp-relay-core.git?subdirectory=packages%2Fcore-py&rev=main" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.13.1" },
     { name = "telethon", specifier = ">=1.42.0" },
@@ -409,6 +411,16 @@ wheels = [
 cli = [
     { name = "python-dotenv" },
     { name = "typer" },
+]
+
+[[package]]
+name = "mcp-relay-core"
+version = "0.1.0"
+source = { git = "https://github.com/n24q02m/mcp-relay-core.git?subdirectory=packages%2Fcore-py&rev=main#10db0fa5555c6357e3a2711d83ef10320362ebe6" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "httpx" },
+    { name = "platformdirs" },
 ]
 
 [[package]]

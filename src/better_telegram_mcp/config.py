@@ -57,6 +57,27 @@ class Settings(BaseSettings):
             self.api_id is not None and self.api_hash is not None
         )
 
+    @classmethod
+    def from_relay_config(cls, config: dict[str, str]) -> Settings:
+        """Create Settings from relay config dict (from config file or relay setup).
+
+        Args:
+            config: Dict with keys like TELEGRAM_BOT_TOKEN, TELEGRAM_API_ID, etc.
+
+        Returns:
+            A configured Settings instance.
+        """
+        return cls(
+            bot_token=config.get("TELEGRAM_BOT_TOKEN"),
+            api_id=(
+                int(config["TELEGRAM_API_ID"])
+                if config.get("TELEGRAM_API_ID")
+                else None
+            ),
+            api_hash=config.get("TELEGRAM_API_HASH"),
+            phone=config.get("TELEGRAM_PHONE"),
+        )
+
     @property
     def session_path(self) -> Path:
         return self.data_dir / f"{self.session_name}.session"
