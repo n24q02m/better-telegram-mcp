@@ -57,10 +57,11 @@ def validate_url(url: str) -> None:
                 if addr in network:
                     msg = f"Access to internal/private IP {ip_str} ({hostname}) is blocked"
                     raise SecurityError(msg)
-    except OSError:
-        # If hostname resolution fails, let it pass security validation
-        # (It will fail later when actually trying to connect)
-        pass
+    except OSError as e:
+        # If hostname resolution fails, deny access instead of silently passing
+        # to prevent bypassing SSRF checks via transient failures or DNS rebinding
+        msg = f"Failed to resolve hostname {hostname}"
+        raise SecurityError(msg) from e
 
 
 def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Path:
