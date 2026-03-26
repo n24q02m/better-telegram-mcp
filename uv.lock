@@ -43,7 +43,7 @@ wheels = [
 
 [[package]]
 name = "better-telegram-mcp"
-version = "3.2.0"
+version = "3.2.0b1"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },
