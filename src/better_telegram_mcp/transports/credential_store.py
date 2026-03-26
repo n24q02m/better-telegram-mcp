@@ -32,6 +32,8 @@ class CredentialStore:
         self._secret = secret or os.environ.get("CREDENTIAL_SECRET", "")
         if not self._secret:
             self._secret = self._resolve_or_generate_secret(data_dir)
+        # ⚡ Bolt: Cache derived key to avoid repeated 100k iteration PBKDF2 (~60ms) overhead
+        self._cached_key: bytes | None = None
 
     @staticmethod
     def _resolve_or_generate_secret(data_dir: Path) -> str:
@@ -49,13 +51,16 @@ class CredentialStore:
         return secret
 
     def _derive_key(self) -> bytes:
+        if self._cached_key is not None:
+            return self._cached_key
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
             salt=_SALT,
             iterations=_KDF_ITERATIONS,
         )
-        return kdf.derive(self._secret.encode())
+        self._cached_key = kdf.derive(self._secret.encode())
+        return self._cached_key
 
     def store(self, credentials: dict[str, str]) -> None:
         """Encrypt and save credentials."""
