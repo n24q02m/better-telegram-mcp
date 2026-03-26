@@ -196,13 +196,16 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
 
             import webbrowser
 
-            try:
-                # Bolt: webbrowser.open() is a synchronous, blocking call that invokes an external GUI process.
-                # Offloading it to a separate thread prevents blocking the async event loop, ensuring
-                # the MCP server remains responsive to incoming requests during the auth flow.
-                await asyncio.to_thread(webbrowser.open, _auth_url)
-            except Exception:
-                pass
+            def _open_browser() -> None:
+                try:
+                    # Bolt: webbrowser.open() is a synchronous, blocking call that invokes an external GUI process.
+                    # Offloading it to a separate thread as a background task prevents blocking the async event loop
+                    # AND avoids blocking the _lifespan generator, ensuring the MCP server starts instantly.
+                    webbrowser.open(_auth_url)
+                except Exception:
+                    pass
+
+            asyncio.create_task(asyncio.to_thread(_open_browser))
 
             asyncio.create_task(_run_auth_background(auth_handler))
         else:
