@@ -10,8 +10,11 @@
   "mcpServers": {
     "better-telegram-mcp": {
       "command": "uvx",
-      "args": ["--python", "3.13", "better-telegram-mcp"]
+      "args": [
+        "--python",
+        "3.13",
+        "better-telegram-mcp"
+      ]
     }
-  },
-  "skills": "./skills/"
+  }
 }
