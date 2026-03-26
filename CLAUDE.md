@@ -24,6 +24,8 @@ src/better_telegram_mcp/
   auth_client.py       # Remote mode: httpx client polls relay server
   backends/            # TelegramBackend ABC -> BotBackend (httpx), UserBackend (Telethon)
   backends/security.py # validate_url, validate_file_path, validate_output_dir
+  relay_setup.py       # Zero-config relay: create session, poll for config
+  relay_schema.py      # Relay form schema (bot mode + user mode fields)
   tools/               # messages, chats, media, contacts, config_tool, help
 auth-relay/            # Remote auth relay server (deploy Docker on OCI VM)
 ```

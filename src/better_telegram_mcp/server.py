@@ -147,6 +147,14 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
     global _backend, _settings, _pending_auth, _unconfigured, _auth_url
     _settings = Settings()
 
+    # If env vars not set, try relay config (config file -> relay setup)
+    if not _settings.is_configured:
+        from .relay_setup import ensure_config
+
+        relay_config = await ensure_config()
+        if relay_config:
+            _settings = Settings.from_relay_config(relay_config)
+
     if not _settings.is_configured:
         _unconfigured = True
         logger.warning(
@@ -445,4 +453,12 @@ register_resources(mcp)
 
 
 def main() -> None:
-    mcp.run(transport="stdio")
+    import os
+
+    transport = os.environ.get("TRANSPORT_MODE", "stdio")
+    if transport == "http":
+        from .transports.http import start_http
+
+        start_http(Settings())
+    else:
+        mcp.run(transport="stdio")

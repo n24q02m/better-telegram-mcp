@@ -1,0 +1,23 @@
+{
+  "name": "better-telegram-mcp",
+  "version": "3.3.0",
+  "description": "Telegram Bot API integration — messages, chats, media, contacts",
+  "mcpServers": {
+    "better-telegram-mcp": {
+      "command": "uvx",
+      "args": [
+        "--python",
+        "3.13",
+        "better-telegram-mcp"
+      ]
+    }
+  },
+  "settings": [
+    {
+      "name": "Bot Token",
+      "description": "Telegram bot token from @BotFather",
+      "envVar": "TELEGRAM_BOT_TOKEN",
+      "sensitive": true
+    }
+  ]
+}

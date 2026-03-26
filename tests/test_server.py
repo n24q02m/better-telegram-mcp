@@ -530,7 +530,14 @@ async def test_lifespan_unconfigured_mode():
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import _lifespan
 
-    with patch.object(srv, "Settings") as mock_settings_cls:
+    with (
+        patch.object(srv, "Settings") as mock_settings_cls,
+        patch(
+            "better_telegram_mcp.relay_setup.ensure_config",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+    ):
         mock_settings = mock_settings_cls.return_value
         mock_settings.is_configured = False
 

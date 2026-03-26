@@ -36,11 +36,32 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 
 ### Claude Code Plugin (Recommended)
 
+Via marketplace (includes skills: /setup-bot, /channel-post):
+
 ```bash
-claude plugin add n24q02m/better-telegram-mcp
+/plugin marketplace add n24q02m/claude-plugins
+/plugin install better-telegram-mcp@n24q02m-plugins
 ```
 
-After install, set your bot token: `claude config set mcpServers.better-telegram-mcp.env.TELEGRAM_BOT_TOKEN "your-token"`. Get one from [@BotFather](https://t.me/BotFather). For user mode (MTProto), set `TELEGRAM_API_ID` + `TELEGRAM_API_HASH` instead.
+
+
+Set credentials in `~/.claude/settings.local.json` or shell profile. See [Environment Variables](#environment-variables).
+
+### Gemini CLI Extension
+
+```bash
+gemini extensions install https://github.com/n24q02m/better-telegram-mcp
+```
+
+### Codex CLI
+
+Add to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.better-telegram-mcp]
+command = "uvx"
+args = ["--python", "3.13", "better-telegram-mcp"]
+```
 
 ### MCP Server
 
@@ -61,39 +82,40 @@ After install, set your bot token: `claude config set mcpServers.better-telegram
 
 #### Option 1: uvx
 
-Bot mode:
-
 ```jsonc
 {
   "mcpServers": {
     "telegram": {
       "command": "uvx",
-      "args": ["--python", "3.13", "better-telegram-mcp"],
-      "env": {
-        "TELEGRAM_BOT_TOKEN": "123456:ABC-DEF"
-      }
+      "args": ["--python", "3.13", "better-telegram-mcp"]
     }
   }
 }
 ```
 
-User mode:
+<details>
+<summary>Other MCP clients (Cursor, Codex, Gemini CLI)</summary>
 
 ```jsonc
+// Cursor (~/.cursor/mcp.json), Windsurf, Cline, Amp, OpenCode
 {
   "mcpServers": {
     "telegram": {
       "command": "uvx",
-      "args": ["--python", "3.13", "better-telegram-mcp"],
-      "env": {
-        "TELEGRAM_API_ID": "12345678",
-        "TELEGRAM_API_HASH": "your-api-hash-from-my-telegram-org",
-        "TELEGRAM_PHONE": "+1234567890"
-      }
+      "args": ["--python", "3.13", "better-telegram-mcp"]
     }
   }
 }
 ```
+
+```toml
+# Codex (~/.codex/config.toml)
+[mcp_servers.telegram]
+command = "uvx"
+args = ["--python", "3.13", "better-telegram-mcp"]
+```
+
+</details>
 
 #### Option 2: Docker
 
@@ -107,14 +129,13 @@ User mode:
         "-e", "TELEGRAM_BOT_TOKEN",
         "-v", "telegram-data:/data",
         "n24q02m/better-telegram-mcp"
-      ],
-      "env": {
-        "TELEGRAM_BOT_TOKEN": "123456:ABC-DEF"
-      }
+      ]
     }
   }
 }
 ```
+
+Configure credentials in `~/.claude/settings.local.json` or your shell profile. See [Environment Variables](#environment-variables) below.
 
 > For user mode in Docker, mount the session directory with `-v ~/.better-telegram-mcp:/data` so the session persists across container restarts.
 
@@ -129,19 +150,6 @@ User mode:
 | `config` | `status`, `set`, `cache_clear` | Server status, update runtime settings, clear cache |
 | `help` | -- | Full documentation for any tool |
 
-### Mode Capabilities
-
-| Feature | Bot | User |
-|:--------|:---:|:----:|
-| Send/Edit/Delete/Forward messages | Y | Y |
-| Pin messages, React | Y | Y |
-| Search messages, Browse history | -- | Y |
-| List chats, Create groups/channels | -- | Y |
-| Get chat info, Manage members | Y | Y |
-| Send media (photo/file/voice/video) | Y | Y |
-| Download media | -- | Y |
-| Contacts (list/search/add/block) | -- | Y |
-
 ### MCP Resources
 
 | URI | Content |
@@ -151,6 +159,19 @@ User mode:
 | `telegram://docs/media` | Media send/download reference |
 | `telegram://docs/contacts` | Contact management reference |
 | `telegram://stats` | All documentation combined |
+
+## Zero-Config Setup
+
+No environment variables needed. On first start, the server opens a setup page in your browser:
+
+1. Start the server (via plugin, `uvx`, or Docker)
+2. A setup URL appears -- open it in any browser
+3. Fill in your credentials on the guided form
+4. Credentials are encrypted and stored locally
+
+Your credentials never leave your machine. The relay server only sees encrypted data.
+
+For CI/automation, you can still use environment variables (see below).
 
 ## Configuration
 
@@ -165,6 +186,19 @@ User mode:
 | `TELEGRAM_DATA_DIR` | No | `~/.better-telegram-mcp` | Data directory for session files |
 
 **Mode detection**: If `TELEGRAM_API_ID` + `TELEGRAM_API_HASH` are set, user mode is used. Otherwise, `TELEGRAM_BOT_TOKEN` is used. No silent fallback -- if neither is set, the server exits with an error.
+
+### Mode Capabilities
+
+| Feature | Bot | User |
+|:--------|:---:|:----:|
+| Send/Edit/Delete/Forward messages | Y | Y |
+| Pin messages, React | Y | Y |
+| Search messages, Browse history | -- | Y |
+| List chats, Create groups/channels | -- | Y |
+| Get chat info, Manage members | Y | Y |
+| Send media (photo/file/voice/video) | Y | Y |
+| Download media | -- | Y |
+| Contacts (list/search/add/block) | -- | Y |
 
 ### Auth Flow (User Mode Only)
 
@@ -188,7 +222,7 @@ curl -X POST http://127.0.0.1:PORT/verify -d '{"code":"12345"}'
 curl -X POST http://127.0.0.1:PORT/verify -d '{"password":"your-2fa-password"}'  # if 2FA
 ```
 
-### Security
+## Security
 
 - **SSRF Protection** -- All URLs validated against internal/private IP ranges, DNS rebinding blocked
 - **Path Traversal Prevention** -- File paths validated, sensitive directories blocked
@@ -203,32 +237,6 @@ cd better-telegram-mcp
 uv sync
 uv run better-telegram-mcp
 ```
-
-## Compatible With
-
-[![Claude Code](https://img.shields.io/badge/Claude_Code-000000?logo=anthropic&logoColor=white)](#quick-start)
-[![Claude Desktop](https://img.shields.io/badge/Claude_Desktop-F9DC7C?logo=anthropic&logoColor=black)](#quick-start)
-[![Cursor](https://img.shields.io/badge/Cursor-000000?logo=cursor&logoColor=white)](#quick-start)
-[![VS Code Copilot](https://img.shields.io/badge/VS_Code_Copilot-007ACC?logo=visualstudiocode&logoColor=white)](#quick-start)
-[![Antigravity](https://img.shields.io/badge/Antigravity-4285F4?logo=google&logoColor=white)](#quick-start)
-[![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-8E75B2?logo=googlegemini&logoColor=white)](#quick-start)
-[![OpenAI Codex](https://img.shields.io/badge/Codex-412991?logo=openai&logoColor=white)](#quick-start)
-[![OpenCode](https://img.shields.io/badge/OpenCode-F7DF1E?logoColor=black)](#quick-start)
-
-## Also by n24q02m
-
-| Server | Description |
-|--------|-------------|
-| [wet-mcp](https://github.com/n24q02m/wet-mcp) | Web search, content extraction, and documentation indexing |
-| [mnemo-mcp](https://github.com/n24q02m/mnemo-mcp) | Persistent AI memory with hybrid search and cross-machine sync |
-| [better-notion-mcp](https://github.com/n24q02m/better-notion-mcp) | Markdown-first Notion API with 9 composite tools |
-| [better-email-mcp](https://github.com/n24q02m/better-email-mcp) | Email (IMAP/SMTP) with multi-account and auto-discovery |
-| [better-godot-mcp](https://github.com/n24q02m/better-godot-mcp) | Godot Engine 4.x with 18 tools for scenes, scripts, and shaders |
-| [better-code-review-graph](https://github.com/n24q02m/better-code-review-graph) | Knowledge graph for token-efficient code reviews |
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

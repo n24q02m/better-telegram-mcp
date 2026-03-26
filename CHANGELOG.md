@@ -2,6 +2,107 @@
 
 <!-- version list -->
 
+## v3.3.0 (2026-03-26)
+
+### Chores
+
+- Add server.json to PSR version_variables, sync version
+  ([`55f9828`](https://github.com/n24q02m/better-telegram-mcp/commit/55f98281c48df8319a3b3d8b63ac3d47c4a944df))
+
+- Clean up plugin manifest for best practices
+  ([`ec970b4`](https://github.com/n24q02m/better-telegram-mcp/commit/ec970b435bf65b56ea6c607c410c26688f6644f1))
+
+### Documentation
+
+- Fix marketplace references, improve Gemini CLI extension config
+  ([`c3c6b26`](https://github.com/n24q02m/better-telegram-mcp/commit/c3c6b26a0e701765558a2d12be0f7ad5cdf7641e))
+
+- Standardize README structure
+  ([`1c7cdcf`](https://github.com/n24q02m/better-telegram-mcp/commit/1c7cdcf480b0279fb88a470a9048e7ce6972505b))
+
+
+## v3.3.0-beta.1 (2026-03-25)
+
+### Bug Fixes
+
+- Align gemini-extension.json key with plugin.json
+  ([`02c2579`](https://github.com/n24q02m/better-telegram-mcp/commit/02c2579b5c04e26a9bb398839c975828bfe1a414))
+
+- Auto-sync plugin.json version via PSR
+  ([`952b6ca`](https://github.com/n24q02m/better-telegram-mcp/commit/952b6ca67e2f4c9d34c124e7eb866529dfebcc80))
+
+- Correct plugin install commands per official docs
+  ([`322a9e0`](https://github.com/n24q02m/better-telegram-mcp/commit/322a9e01789b24557bf44668045329b120a69448))
+
+- Handle empty string credentials + remove empty env vars from configs
+  ([`fc713ac`](https://github.com/n24q02m/better-telegram-mcp/commit/fc713ace1ccf83be248d5525c0d8b66b3e7cd72a))
+
+- Remove env from README MCP config examples
+  ([`112fe1a`](https://github.com/n24q02m/better-telegram-mcp/commit/112fe1a0fec1b4e48c839f6be2942a528649840f))
+
+- Remove env vars from plugin.json to prevent overwriting user config
+  ([`47997da`](https://github.com/n24q02m/better-telegram-mcp/commit/47997dafea5cf4ece403e90cfbdebc83a5519b68))
+
+- Remove pr-title-check job from CI
+  ([`8c7d0cf`](https://github.com/n24q02m/better-telegram-mcp/commit/8c7d0cff0a6761b19905f1da96172437880ed14a))
+
+- Switch mcp-relay-core from git dep to published PyPI package
+  ([#77](https://github.com/n24q02m/better-telegram-mcp/pull/77),
+  [`76b207f`](https://github.com/n24q02m/better-telegram-mcp/commit/76b207f0d4daa04db199994c907cd282bf2c834f))
+
+- Sync plugin.json version and add skills/hooks references
+  ([`8d54d4f`](https://github.com/n24q02m/better-telegram-mcp/commit/8d54d4fec376db09ff1d4c1cd4d9ba79b6ab3932))
+
+- Unify Plugin install section with marketplace + individual options
+  ([`d47409c`](https://github.com/n24q02m/better-telegram-mcp/commit/d47409c6a124a9d209f0a3169ccce89e7a783d48))
+
+- Update ruff pre-commit hook to v0.15.7
+  ([`e74a65c`](https://github.com/n24q02m/better-telegram-mcp/commit/e74a65c5406e0d7ed0199a7271657f63fc710501))
+
+- Use version_variables for JSON files in PSR config
+  ([`bdfd83e`](https://github.com/n24q02m/better-telegram-mcp/commit/bdfd83e066d5db669f735df53ff08adf19309aa7))
+
+### Chores
+
+- Add docker-compose overlay for HTTP mode deployment
+  ([#77](https://github.com/n24q02m/better-telegram-mcp/pull/77),
+  [`76b207f`](https://github.com/n24q02m/better-telegram-mcp/commit/76b207f0d4daa04db199994c907cd282bf2c834f))
+
+### Documentation
+
+- Add relay files to CLAUDE.md file structure
+  ([`1d557a7`](https://github.com/n24q02m/better-telegram-mcp/commit/1d557a7e8a741d23d7fb325e2eb20aec51f20209))
+
+- Add zero-config relay setup section to README
+  ([`fefe28a`](https://github.com/n24q02m/better-telegram-mcp/commit/fefe28a83bf0953507826374f7e3d464e1d0d086))
+
+### Features
+
+- Add complete env vars and pipx mode to plugin config
+  ([`20f9dd5`](https://github.com/n24q02m/better-telegram-mcp/commit/20f9dd5b07231316ad7d99817aa14841f0feae90))
+
+- Add Gemini CLI extension config with PSR version sync
+  ([`372c34b`](https://github.com/n24q02m/better-telegram-mcp/commit/372c34be9f0da3834807787c29cb390b074e01b0))
+
+- Add HTTP transport mode with encrypted credential store
+  ([#77](https://github.com/n24q02m/better-telegram-mcp/pull/77),
+  [`76b207f`](https://github.com/n24q02m/better-telegram-mcp/commit/76b207f0d4daa04db199994c907cd282bf2c834f))
+
+- Add zero-env-config relay setup via mcp-relay-core
+  ([#77](https://github.com/n24q02m/better-telegram-mcp/pull/77),
+  [`76b207f`](https://github.com/n24q02m/better-telegram-mcp/commit/76b207f0d4daa04db199994c907cd282bf2c834f))
+
+- Multi-mode plugin config (stdio + docker + http)
+  ([`65677c9`](https://github.com/n24q02m/better-telegram-mcp/commit/65677c9c5143ca49c0d693c2bf65976d34679ede))
+
+- Standardize README with MCP Resources, Security, collapsible clients
+  ([`571b230`](https://github.com/n24q02m/better-telegram-mcp/commit/571b23067be1e7a8248260f7cd8829073947828e))
+
+- Zero-env-config relay setup + HTTP transport mode
+  ([#77](https://github.com/n24q02m/better-telegram-mcp/pull/77),
+  [`76b207f`](https://github.com/n24q02m/better-telegram-mcp/commit/76b207f0d4daa04db199994c907cd282bf2c834f))
+
+
 ## v3.2.0 (2026-03-24)
 
 ### Bug Fixes
