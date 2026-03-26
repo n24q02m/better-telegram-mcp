@@ -10,6 +10,7 @@ Domain: better-telegram-mcp.n24q02m.com
 from __future__ import annotations
 
 import html
+import json
 import time
 import uuid
 from collections import defaultdict
@@ -150,7 +151,7 @@ button:disabled{background:#333;color:#666;cursor:not-allowed}
   </div>
 </div>
 <script>
-const TOKEN="TOKEN_PLACEHOLDER";
+const TOKEN=TOKEN_PLACEHOLDER;
 const $=id=>document.getElementById(id);
 function show(id){document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));$(id).classList.add('active')}
 function st(el,cls,msg){el.className='st '+cls;el.textContent=msg;el.style.display='block'}
@@ -297,7 +298,8 @@ async def auth_page(request: Request) -> HTMLResponse:
         return HTMLResponse("<h1>Session expired</h1>", status_code=404)
 
     # 🛡️ Sentinel: Prevent XSS by escaping dynamic data before insertion
-    page_html = _PAGE.replace("TOKEN_PLACEHOLDER", html.escape(token))
+    # Use json.dumps for TOKEN_PLACEHOLDER to safely inject into JavaScript context
+    page_html = _PAGE.replace("TOKEN_PLACEHOLDER", json.dumps(token))
     page_html = page_html.replace(
         "PHONE_PLACEHOLDER", html.escape(session["phone_masked"])
     )
