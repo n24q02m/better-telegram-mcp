@@ -12,5 +12,12 @@
       ]
     }
   },
-  "contextFileName": "GEMINI.md"
+  "settings": [
+    {
+      "name": "Bot Token",
+      "description": "Telegram bot token from @BotFather",
+      "envVar": "TELEGRAM_BOT_TOKEN",
+      "sensitive": true
+    }
+  ]
 }
