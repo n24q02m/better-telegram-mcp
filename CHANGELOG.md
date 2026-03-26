@@ -2,6 +2,25 @@
 
 <!-- version list -->
 
+## v3.3.0 (2026-03-26)
+
+### Chores
+
+- Add server.json to PSR version_variables, sync version
+  ([`55f9828`](https://github.com/n24q02m/better-telegram-mcp/commit/55f98281c48df8319a3b3d8b63ac3d47c4a944df))
+
+- Clean up plugin manifest for best practices
+  ([`ec970b4`](https://github.com/n24q02m/better-telegram-mcp/commit/ec970b435bf65b56ea6c607c410c26688f6644f1))
+
+### Documentation
+
+- Fix marketplace references, improve Gemini CLI extension config
+  ([`c3c6b26`](https://github.com/n24q02m/better-telegram-mcp/commit/c3c6b26a0e701765558a2d12be0f7ad5cdf7641e))
+
+- Standardize README structure
+  ([`1c7cdcf`](https://github.com/n24q02m/better-telegram-mcp/commit/1c7cdcf480b0279fb88a470a9048e7ce6972505b))
+
+
 ## v3.3.0-beta.1 (2026-03-25)
 
 ### Bug Fixes
