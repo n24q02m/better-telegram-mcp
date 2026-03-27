@@ -29,7 +29,7 @@ dependencies = [
     "pydantic-settings>=2.13.1",
     "loguru>=0.7.3",
     "mcp-relay-core>=0.1.0",
-    "cryptography>=44.0.3",
+    "cryptography>=46.0.6",
 ]
 
 [dependency-groups]
@@ -39,7 +39,7 @@ dev = [
     "pytest-timeout>=2.4.0",
     "pytest-cov>=7.1.0",
     "pytest-xdist>=3.8.0",
-    "ruff>=0.15.7",
+    "ruff>=0.15.8",
     "ty>=0.0.26",
     "pre-commit>=4.5.1",
 ]
