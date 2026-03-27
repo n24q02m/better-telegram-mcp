@@ -8,6 +8,7 @@ status page when authenticated.
 from __future__ import annotations
 
 import asyncio
+import html
 import re
 import socket
 from typing import TYPE_CHECKING
@@ -216,8 +217,9 @@ class AuthServer:
     def _make_app(self) -> Starlette:
         async def index(request: Request) -> HTMLResponse:
             phone = self._settings.phone or "unknown"
-            html = _PAGE.replace("PHONE", _mask_phone(phone))
-            return HTMLResponse(html)
+            # 🛡️ Sentinel: Prevent XSS by escaping dynamic data before insertion
+            page_html = _PAGE.replace("PHONE", html.escape(_mask_phone(phone)))
+            return HTMLResponse(page_html)
 
         async def status_endpoint(request: Request) -> JSONResponse:
             try:
