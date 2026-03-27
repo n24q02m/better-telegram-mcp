@@ -1,15 +1,11 @@
-"""Relay-first setup flow for better-telegram-mcp.
+"""Credential resolution for better-telegram-mcp.
 
-Always shows the relay URL at startup so users can configure Telegram
-credentials via browser. If the user skips, the server starts in
-degraded mode (help and config tools only).
-
-Resolution order:
-1. Environment variables (checked by pydantic Settings before calling this)
-2. Encrypted config file (~/.config/mcp/config.enc)
-3. Relay setup (browser-based form via relay server)
-4. Saved Telethon session files (~/.better-telegram-mcp/*.session)
-5. Degraded mode (no Telegram tools)
+Resolution order (relay only when ALL local sources are empty):
+1. ENV VARS          -- TELEGRAM_BOT_TOKEN or API_ID+API_HASH (checked by caller)
+2. RELAY CONFIG      -- Saved from previous relay setup (~/.config/mcp/config.enc)
+3. LOCAL CREDENTIALS -- Saved Telethon session files (~/.better-telegram-mcp/*.session)
+4. RELAY SETUP       -- Interactive, ONLY when steps 1-2-3 are ALL empty
+5. DEGRADED MODE     -- No Telegram tools
 """
 
 from __future__ import annotations
@@ -51,23 +47,22 @@ def check_saved_sessions() -> bool:
 
 
 async def ensure_config() -> dict[str, str] | None:
-    """Resolve config or trigger relay setup (relay-first design).
+    """Resolve config: config file -> saved sessions -> relay setup -> degraded.
 
-    Resolution order:
+    Relay is ONLY triggered when steps 1-2-3 are ALL empty (first-time setup).
+
+    Resolution order (env vars already checked by caller via Settings.is_configured):
     1. Encrypted config file (~/.config/mcp/config.enc)
-    2. Relay setup (browser-based form via relay server)
+    2. Saved Telethon session files (~/.better-telegram-mcp/*.session)
+    3. Relay setup (interactive, only when no local credentials exist)
+    4. Degraded mode (no Telegram tools)
 
     Returns:
         Config dict with credential keys, or None if setup fails/skipped.
-
-    Note:
-        Environment variables are NOT checked here -- pydantic-settings in
-        Settings already handles that. This function is only called when
-        Settings.is_configured is False (no env vars found).
     """
     from mcp_relay_core.storage.resolver import resolve_config
 
-    # Check config file (skip env var check since pydantic-settings already did that)
+    # 1. Check saved relay config file (bot mode)
     result = resolve_config(SERVER_NAME, REQUIRED_FIELDS_BOT)
     if result.config is not None:
         logger.info("Config loaded from {}", result.source)
@@ -79,7 +74,16 @@ async def ensure_config() -> dict[str, str] | None:
         logger.info("Config loaded from {}", result.source)
         return result.config
 
-    # No config found -- always trigger relay setup (relay-first)
+    # 2. Check saved Telethon session files (local credentials)
+    if check_saved_sessions():
+        logger.info(
+            "Found saved Telethon session files. "
+            "Set TELEGRAM_API_ID + TELEGRAM_API_HASH to reuse them "
+            "(no re-authentication needed)."
+        )
+        return None
+
+    # 3. No local credentials found -- trigger relay setup
     logger.info("No credentials found. Starting relay setup...")
 
     relay_url = DEFAULT_RELAY_URL
@@ -93,12 +97,6 @@ async def ensure_config() -> dict[str, str] | None:
             "Set TELEGRAM_BOT_TOKEN or TELEGRAM_API_ID + TELEGRAM_API_HASH manually.",
             relay_url,
         )
-        if check_saved_sessions():
-            logger.info(
-                "Found saved Telethon session files. "
-                "Set TELEGRAM_API_ID + TELEGRAM_API_HASH to reuse them "
-                "(no re-authentication needed)."
-            )
         return None
 
     # Log URL to stderr (visible to user in MCP client)
@@ -128,15 +126,5 @@ async def ensure_config() -> dict[str, str] | None:
         else:
             logger.error("Relay setup failed: {}", e)
 
-        # Check for saved session files before going to degraded mode
-        if check_saved_sessions():
-            logger.info(
-                "Found saved Telethon session files. "
-                "Set TELEGRAM_API_ID + TELEGRAM_API_HASH to reuse them "
-                "(no re-authentication needed)."
-            )
-        else:
-            logger.info(
-                "No saved session files found. Telegram tools will be unavailable."
-            )
+        logger.info("Telegram tools will be unavailable.")
         return None
