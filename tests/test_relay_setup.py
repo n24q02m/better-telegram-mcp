@@ -52,6 +52,49 @@ def test_from_relay_config_missing_keys():
     assert s.is_configured is False
 
 
+# --- check_saved_sessions ---
+
+
+def test_check_saved_sessions_no_dir(tmp_path):
+    """Returns False when data directory does not exist."""
+    from better_telegram_mcp.relay_setup import check_saved_sessions
+
+    with patch(
+        "better_telegram_mcp.relay_setup.Path.home",
+        return_value=tmp_path / "nonexistent",
+    ):
+        assert check_saved_sessions() is False
+
+
+def test_check_saved_sessions_empty_dir(tmp_path):
+    """Returns False when data directory exists but has no session files."""
+    from better_telegram_mcp.relay_setup import check_saved_sessions
+
+    data_dir = tmp_path / ".better-telegram-mcp"
+    data_dir.mkdir()
+
+    with patch(
+        "better_telegram_mcp.relay_setup.Path.home",
+        return_value=tmp_path,
+    ):
+        assert check_saved_sessions() is False
+
+
+def test_check_saved_sessions_with_sessions(tmp_path):
+    """Returns True when session files exist."""
+    from better_telegram_mcp.relay_setup import check_saved_sessions
+
+    data_dir = tmp_path / ".better-telegram-mcp"
+    data_dir.mkdir()
+    (data_dir / "user.session").write_text("session_data")
+
+    with patch(
+        "better_telegram_mcp.relay_setup.Path.home",
+        return_value=tmp_path,
+    ):
+        assert check_saved_sessions() is True
+
+
 # --- ensure_config ---
 
 
@@ -65,7 +108,7 @@ async def test_ensure_config_returns_config_file_data():
     mock_result.source = "file"
 
     with patch(
-        "better_telegram_mcp.relay_setup.resolve_config",
+        "mcp_relay_core.storage.resolver.resolve_config",
         return_value=mock_result,
     ):
         result = await ensure_config()
@@ -92,13 +135,37 @@ async def test_ensure_config_checks_user_mode_fields():
     mock_result_user.source = "file"
 
     with patch(
-        "better_telegram_mcp.relay_setup.resolve_config",
+        "mcp_relay_core.storage.resolver.resolve_config",
         side_effect=[mock_result_none, mock_result_user],
     ):
         result = await ensure_config()
 
     assert result is not None
     assert result["TELEGRAM_API_ID"] == "12345"
+
+
+@pytest.mark.asyncio
+async def test_ensure_config_returns_none_on_saved_sessions():
+    """ensure_config returns None when saved sessions exist (no relay needed)."""
+    from better_telegram_mcp.relay_setup import ensure_config
+
+    mock_result_none = MagicMock()
+    mock_result_none.config = None
+    mock_result_none.source = None
+
+    with (
+        patch(
+            "mcp_relay_core.storage.resolver.resolve_config",
+            return_value=mock_result_none,
+        ),
+        patch(
+            "better_telegram_mcp.relay_setup.check_saved_sessions",
+            return_value=True,
+        ),
+    ):
+        result = await ensure_config()
+
+    assert result is None
 
 
 @pytest.mark.asyncio
@@ -112,26 +179,31 @@ async def test_ensure_config_triggers_relay_when_nothing_found():
 
     mock_session = MagicMock()
     mock_session.relay_url = "https://example.com/setup?s=abc#k=key&p=pass"
+    mock_session.session_id = "abc123"
 
     expected_config = {"TELEGRAM_BOT_TOKEN": "relay:TOKEN"}
 
     with (
         patch(
-            "better_telegram_mcp.relay_setup.resolve_config",
+            "mcp_relay_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
         ),
         patch(
-            "better_telegram_mcp.relay_setup.create_session",
+            "better_telegram_mcp.relay_setup.check_saved_sessions",
+            return_value=False,
+        ),
+        patch(
+            "mcp_relay_core.relay.client.create_session",
             new_callable=AsyncMock,
             return_value=mock_session,
         ),
         patch(
-            "better_telegram_mcp.relay_setup.poll_for_result",
+            "mcp_relay_core.relay.client.poll_for_result",
             new_callable=AsyncMock,
             return_value=expected_config,
         ),
         patch(
-            "better_telegram_mcp.relay_setup.write_config",
+            "mcp_relay_core.storage.config_file.write_config",
         ) as mock_write,
     ):
         result = await ensure_config()
@@ -152,11 +224,15 @@ async def test_ensure_config_returns_none_when_relay_unreachable():
 
     with (
         patch(
-            "better_telegram_mcp.relay_setup.resolve_config",
+            "mcp_relay_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
         ),
         patch(
-            "better_telegram_mcp.relay_setup.create_session",
+            "better_telegram_mcp.relay_setup.check_saved_sessions",
+            return_value=False,
+        ),
+        patch(
+            "mcp_relay_core.relay.client.create_session",
             new_callable=AsyncMock,
             side_effect=ConnectionError("Cannot connect"),
         ),
@@ -180,18 +256,96 @@ async def test_ensure_config_returns_none_on_poll_timeout():
 
     with (
         patch(
-            "better_telegram_mcp.relay_setup.resolve_config",
+            "mcp_relay_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
         ),
         patch(
-            "better_telegram_mcp.relay_setup.create_session",
+            "better_telegram_mcp.relay_setup.check_saved_sessions",
+            return_value=False,
+        ),
+        patch(
+            "mcp_relay_core.relay.client.create_session",
             new_callable=AsyncMock,
             return_value=mock_session,
         ),
         patch(
-            "better_telegram_mcp.relay_setup.poll_for_result",
+            "mcp_relay_core.relay.client.poll_for_result",
             new_callable=AsyncMock,
             side_effect=RuntimeError("Relay setup timed out"),
+        ),
+    ):
+        result = await ensure_config()
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_ensure_config_returns_none_on_relay_skipped():
+    """ensure_config returns None when user skips relay setup."""
+    from better_telegram_mcp.relay_setup import ensure_config
+
+    mock_result_none = MagicMock()
+    mock_result_none.config = None
+    mock_result_none.source = None
+
+    mock_session = MagicMock()
+    mock_session.relay_url = "https://example.com/setup?s=abc#k=key&p=pass"
+
+    with (
+        patch(
+            "mcp_relay_core.storage.resolver.resolve_config",
+            return_value=mock_result_none,
+        ),
+        patch(
+            "better_telegram_mcp.relay_setup.check_saved_sessions",
+            return_value=False,
+        ),
+        patch(
+            "mcp_relay_core.relay.client.create_session",
+            new_callable=AsyncMock,
+            return_value=mock_session,
+        ),
+        patch(
+            "mcp_relay_core.relay.client.poll_for_result",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("RELAY_SKIPPED by user"),
+        ),
+    ):
+        result = await ensure_config()
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_ensure_config_returns_none_on_relay_error():
+    """ensure_config returns None on unexpected relay RuntimeError."""
+    from better_telegram_mcp.relay_setup import ensure_config
+
+    mock_result_none = MagicMock()
+    mock_result_none.config = None
+    mock_result_none.source = None
+
+    mock_session = MagicMock()
+    mock_session.relay_url = "https://example.com/setup?s=abc#k=key&p=pass"
+
+    with (
+        patch(
+            "mcp_relay_core.storage.resolver.resolve_config",
+            return_value=mock_result_none,
+        ),
+        patch(
+            "better_telegram_mcp.relay_setup.check_saved_sessions",
+            return_value=False,
+        ),
+        patch(
+            "mcp_relay_core.relay.client.create_session",
+            new_callable=AsyncMock,
+            return_value=mock_session,
+        ),
+        patch(
+            "mcp_relay_core.relay.client.poll_for_result",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("Some other relay error"),
         ),
     ):
         result = await ensure_config()
