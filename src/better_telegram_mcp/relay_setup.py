@@ -116,6 +116,22 @@ async def ensure_config() -> dict[str, str] | None:
         # Save to config file
         write_config(SERVER_NAME, config)
         logger.info("Config saved successfully")
+
+        # Notify relay page that setup is complete
+        try:
+            import httpx
+
+            async with httpx.AsyncClient() as http:
+                await http.post(
+                    f"{relay_url}/api/sessions/{session.session_id}/messages",
+                    json={
+                        "type": "complete",
+                        "text": "Telegram config saved. Setup complete!",
+                    },
+                )
+        except Exception:
+            pass
+
         return config
 
     except RuntimeError as e:
