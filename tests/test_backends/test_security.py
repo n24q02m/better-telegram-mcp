@@ -179,8 +179,6 @@ class TestValidateOutputDir:
             validate_output_dir("/var/spool/cron")
 
 
-
-
 def test_validate_file_path_expanduser_allowed_dir():
     home_dir = Path.home()
     allowed_dir = Path("~")
