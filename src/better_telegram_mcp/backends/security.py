@@ -66,7 +66,7 @@ def validate_url(url: str) -> None:
 
 def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Path:
     """Validate local file path is safe (no traversal to sensitive files)."""
-    path = Path(file_path).resolve()
+    path = Path(file_path).expanduser().resolve()
     # Block known sensitive paths
     _blocked_prefixes = (
         "/etc/",
@@ -90,7 +90,7 @@ def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Pa
             raise SecurityError(msg)
     # If an allowed_dir is specified, enforce containment
     if allowed_dir is not None:
-        allowed = allowed_dir.resolve()
+        allowed = allowed_dir.expanduser().resolve()
         if not path.is_relative_to(allowed):
             msg = f"Path must be within {allowed_dir}"
             raise SecurityError(msg)
@@ -99,7 +99,7 @@ def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Pa
 
 def validate_output_dir(output_dir: str, *, base_dir: Path | None = None) -> Path:
     """Validate output directory is safe for writing."""
-    path = Path(output_dir).resolve()
+    path = Path(output_dir).expanduser().resolve()
     # Block writing to system directories
     _blocked_prefixes = (
         "/etc/",
@@ -127,7 +127,7 @@ def validate_output_dir(output_dir: str, *, base_dir: Path | None = None) -> Pat
             msg = f"Writing to hidden directories ({part}) is blocked"
             raise SecurityError(msg)
     if base_dir is not None:
-        allowed = base_dir.resolve()
+        allowed = base_dir.expanduser().resolve()
         if not path.is_relative_to(allowed):
             msg = f"Output path must be within {base_dir}"
             raise SecurityError(msg)
