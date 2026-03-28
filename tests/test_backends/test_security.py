@@ -177,3 +177,49 @@ class TestValidateOutputDir:
     def test_var_spool_blocked(self):
         with pytest.raises(SecurityError, match="/var/spool/"):
             validate_output_dir("/var/spool/cron")
+
+
+
+
+def test_validate_file_path_expanduser_allowed_dir():
+    home_dir = Path.home()
+    allowed_dir = Path("~")
+    test_path = "~/test.jpg"
+    res = validate_file_path(test_path, allowed_dir=allowed_dir)
+    assert res == home_dir / "test.jpg"
+
+
+def test_validate_output_dir_expanduser_base_dir():
+    home_dir = Path.home()
+    base_dir = Path("~")
+    test_path = "~/test_output"
+    res = validate_output_dir(test_path, base_dir=base_dir)
+    assert res == home_dir / "test_output"
+
+
+def test_validate_file_path_expanduser_denied():
+    allowed_dir = Path("~/allowed_dir")
+    test_path = "~/test.jpg"
+    with pytest.raises(SecurityError, match="must be within"):
+        validate_file_path(test_path, allowed_dir=allowed_dir)
+
+
+def test_validate_output_dir_expanduser_denied():
+    base_dir = Path("~/allowed_dir")
+    test_path = "~/test.jpg"
+    with pytest.raises(SecurityError, match="must be within"):
+        validate_output_dir(test_path, base_dir=base_dir)
+
+
+def test_validate_file_path_home_dir():
+    home_dir = Path.home()
+    test_path = "~"
+    res = validate_file_path(test_path)
+    assert res == home_dir
+
+
+def test_validate_output_dir_home_dir():
+    home_dir = Path.home()
+    test_path = "~"
+    res = validate_output_dir(test_path)
+    assert res == home_dir
