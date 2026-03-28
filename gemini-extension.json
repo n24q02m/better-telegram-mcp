@@ -1,6 +1,6 @@
 {
   "name": "better-telegram-mcp",
-  "version": "3.3.0",
+  "version": "3.4.0",
   "description": "Telegram Bot API integration — messages, chats, media, contacts",
   "mcpServers": {
     "better-telegram-mcp": {

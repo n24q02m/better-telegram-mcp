@@ -2,6 +2,101 @@
 
 <!-- version list -->
 
+## v3.4.0 (2026-03-28)
+
+### Bug Fixes
+
+- Bump mcp-relay-core to >=1.0.5
+  ([`50c0f66`](https://github.com/n24q02m/better-telegram-mcp/commit/50c0f6663bbfab6c3dbbffb4405a3d696e70c744))
+
+- Check saved session files after relay skip
+  ([`6dc591b`](https://github.com/n24q02m/better-telegram-mcp/commit/6dc591b742189e94b27a6302c3c5430618471b3f))
+
+- Credential resolution order -- relay only when no local credentials
+  ([`bfc90c6`](https://github.com/n24q02m/better-telegram-mcp/commit/bfc90c6f58b42f8075147f21a6b3b06058d61341))
+
+- Pin Docker base images to SHA digests
+  ([`2cbd9ba`](https://github.com/n24q02m/better-telegram-mcp/commit/2cbd9ba4c43039d10022a304fc2a14e6875b861b))
+
+- Pin pre-commit hooks to commit SHA
+  ([`b3e2333`](https://github.com/n24q02m/better-telegram-mcp/commit/b3e23339e7417c1ef3455172fe0baa596fffc4be))
+
+- Send complete message to relay page after config saved
+  ([`bef96aa`](https://github.com/n24q02m/better-telegram-mcp/commit/bef96aa01ed89dbe5770a831c65da3b17bfb552d))
+
+- Skip auth_client when relay already handled user-mode setup
+  ([`d68f2a1`](https://github.com/n24q02m/better-telegram-mcp/commit/d68f2a19c931f2c3ce570dd3bd4c800543a54427))
+
+- **cd**: Remove empty env blocks from OIDC migration
+  ([`faaf477`](https://github.com/n24q02m/better-telegram-mcp/commit/faaf477fef0e0c26f42e3bf579a745bea78a97b5))
+
+- **cd**: Replace GH_PAT with GitHub App installation token
+  ([`835b7bb`](https://github.com/n24q02m/better-telegram-mcp/commit/835b7bbf7468c301d1ce19a91df3a6acc95ca225))
+
+- **cd**: Use PyPI OIDC trusted publishing instead of PYPI_TOKEN
+  ([`8b2af0c`](https://github.com/n24q02m/better-telegram-mcp/commit/8b2af0c19b8765481806135439a0b23be600a821))
+
+- **ci**: Consolidate SMTP_USERNAME and NOTIFY_EMAIL into one secret
+  ([`7148b24`](https://github.com/n24q02m/better-telegram-mcp/commit/7148b2442c6d2330d3c8cbcdc9a433abd4b0e0ab))
+
+- **ci**: Consolidate SMTP_USERNAME+PASSWORD into SMTP_CREDENTIAL
+  ([`39558b4`](https://github.com/n24q02m/better-telegram-mcp/commit/39558b4dad966a228265099f8ab6cdc76c828332))
+
+- **ci**: Remove CODECOV_TOKEN, use tokenless upload
+  ([`3ee4fbc`](https://github.com/n24q02m/better-telegram-mcp/commit/3ee4fbc96bb2dceee8d0ffa1ea2d25da6c72dd2f))
+
+- **ci**: Use Vertex AI WIF instead of GEMINI_API_KEY for code review
+  ([`6ad4732`](https://github.com/n24q02m/better-telegram-mcp/commit/6ad473266a2f39cb452f0a00c08a3f5f8d64882a))
+
+- **deps**: Update non-major dependencies
+  ([#85](https://github.com/n24q02m/better-telegram-mcp/pull/85),
+  [`918bd38`](https://github.com/n24q02m/better-telegram-mcp/commit/918bd385559a91005ea9e8628b78dbc06c6b86e4))
+
+- **deps**: Update non-major dependencies
+  ([#82](https://github.com/n24q02m/better-telegram-mcp/pull/82),
+  [`ddafab8`](https://github.com/n24q02m/better-telegram-mcp/commit/ddafab81e723519346e34004f532102e5594d833))
+
+### Chores
+
+- **deps**: Lock file maintenance
+  ([`931551d`](https://github.com/n24q02m/better-telegram-mcp/commit/931551dddd89b725a0d347723edfc8ebf0f78519))
+
+- **deps**: Update actions/create-github-app-token action to v3
+  ([#88](https://github.com/n24q02m/better-telegram-mcp/pull/88),
+  [`4a075bd`](https://github.com/n24q02m/better-telegram-mcp/commit/4a075bdf0b0f7bd8afa0857f530304a26337350c))
+
+- **deps**: Update codecov/codecov-action action to v6
+  ([#83](https://github.com/n24q02m/better-telegram-mcp/pull/83),
+  [`f124484`](https://github.com/n24q02m/better-telegram-mcp/commit/f124484ab811a8d3339a7a9f0e50023a506ab5ca))
+
+- **deps**: Update google-github-actions/auth action to v3
+  ([#89](https://github.com/n24q02m/better-telegram-mcp/pull/89),
+  [`c8b6191`](https://github.com/n24q02m/better-telegram-mcp/commit/c8b6191c02d1c1e6e97ec0bcad2ebe2e70e863e0))
+
+### Features
+
+- Integrate Telegram OTP/2FA auth into relay messaging
+  ([`b75ba48`](https://github.com/n24q02m/better-telegram-mcp/commit/b75ba48f18dcb7cb71dc7dcc48752a2c4dae0cd5))
+
+- Relay-first startup — always show relay URL
+  ([`83b56ab`](https://github.com/n24q02m/better-telegram-mcp/commit/83b56abeeb7412cb32435d8a00d310747c19d4dc))
+
+- Unblock async init flow by running webbrowser.open as background task
+  ([#66](https://github.com/n24q02m/better-telegram-mcp/pull/66),
+  [`6ed2ba7`](https://github.com/n24q02m/better-telegram-mcp/commit/6ed2ba7471a557dcbaba5c73ee75c47cdf2df685))
+
+### Performance Improvements
+
+- Run webbrowser.open in background task to avoid blocking initialization
+  ([#66](https://github.com/n24q02m/better-telegram-mcp/pull/66),
+  [`6ed2ba7`](https://github.com/n24q02m/better-telegram-mcp/commit/6ed2ba7471a557dcbaba5c73ee75c47cdf2df685))
+
+### Testing
+
+- Fix relay_setup tests and improve coverage
+  ([`664d6de`](https://github.com/n24q02m/better-telegram-mcp/commit/664d6de371f28e19b3e581cd631a62e564098b5e))
+
+
 ## v3.3.0 (2026-03-26)
 
 ### Chores
