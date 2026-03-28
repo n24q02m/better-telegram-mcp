@@ -10,12 +10,18 @@ Resolution order (relay only when ALL local sources are empty):
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from loguru import logger
 
 from .relay_schema import RELAY_SCHEMA
+
+if TYPE_CHECKING:
+    from .backends.user_backend import UserBackend
+    from .config import Settings
 
 DEFAULT_RELAY_URL = "https://better-telegram-mcp.n24q02m.com"
 SERVER_NAME = "better-telegram-mcp"
@@ -27,6 +33,47 @@ ALL_POSSIBLE_FIELDS = [
     "TELEGRAM_API_HASH",
     "TELEGRAM_PHONE",
 ]
+
+# Error sanitization patterns (same as auth_server.py for consistency)
+_CAUSED_BY_RE = re.compile(r"\s*\(caused by \w+\)\s*$", re.IGNORECASE)
+_ERROR_SIMPLIFICATIONS: list[tuple[re.Pattern[str], str]] = [
+    (
+        re.compile(r".*password.*required.*", re.IGNORECASE),
+        "Two-factor authentication password is required.",
+    ),
+    (
+        re.compile(r".*password.*invalid.*|.*invalid.*password.*", re.IGNORECASE),
+        "Incorrect 2FA password. Please try again.",
+    ),
+    (
+        re.compile(r".*phone.*code.*invalid.*|.*invalid.*code.*", re.IGNORECASE),
+        "Invalid OTP code. Please check and try again.",
+    ),
+    (
+        re.compile(r".*phone.*code.*expired.*|.*code.*expired.*", re.IGNORECASE),
+        "OTP code has expired. Please request a new one.",
+    ),
+    (
+        re.compile(r".*flood.*wait.*|.*too many.*", re.IGNORECASE),
+        "Too many attempts. Please wait a moment and try again.",
+    ),
+]
+
+
+def _sanitize_error(msg: str) -> str:
+    """Simplify internal error messages to user-friendly text."""
+    cleaned = _CAUSED_BY_RE.sub("", msg).strip()
+    for pattern, friendly in _ERROR_SIMPLIFICATIONS:
+        if pattern.match(cleaned):
+            return friendly
+    return cleaned
+
+
+def _needs_2fa_password(error_msg: str) -> bool:
+    """Check if the error indicates 2FA password is required."""
+    return any(
+        kw in error_msg.lower() for kw in ("password", "2fa", "two-factor", "srp")
+    )
 
 
 def check_saved_sessions() -> bool:
@@ -46,10 +93,190 @@ def check_saved_sessions() -> bool:
     return len(sessions) > 0
 
 
+def _is_user_mode_config(config: dict[str, str]) -> bool:
+    """Check if config has user-mode credentials (API ID + API Hash + Phone)."""
+    return bool(
+        config.get("TELEGRAM_API_ID")
+        and config.get("TELEGRAM_API_HASH")
+        and config.get("TELEGRAM_PHONE")
+    )
+
+
+async def _relay_telethon_auth(
+    relay_url: str,
+    session_id: str,
+    backend: UserBackend,
+    settings: Settings,
+) -> bool:
+    """Run Telethon OTP/2FA auth flow via relay bidirectional messaging.
+
+    Uses send_message(type='input_required') for user input and
+    poll_for_responses() to receive OTP code and optional 2FA password.
+
+    Args:
+        relay_url: Base URL of the relay server.
+        session_id: Active relay session ID.
+        backend: Connected UserBackend instance.
+        settings: Settings with phone number.
+
+    Returns:
+        True if authentication succeeded, False otherwise.
+    """
+    from mcp_relay_core.relay.client import poll_for_responses, send_message
+
+    phone = settings.phone
+    if not phone:
+        await send_message(
+            relay_url,
+            session_id,
+            {
+                "type": "error",
+                "text": "Phone number is required for user mode authentication.",
+            },
+        )
+        return False
+
+    # Step 1: Send OTP code to Telegram
+    try:
+        await send_message(
+            relay_url,
+            session_id,
+            {
+                "type": "info",
+                "text": "Sending OTP code to your Telegram app...",
+            },
+        )
+        await backend.send_code(phone)
+    except Exception as e:
+        await send_message(
+            relay_url,
+            session_id,
+            {
+                "type": "error",
+                "text": f"Failed to send OTP code: {_sanitize_error(str(e))}",
+            },
+        )
+        return False
+
+    # Step 2: Ask user for OTP code via relay
+    otp_message_id = await send_message(
+        relay_url,
+        session_id,
+        {
+            "type": "input_required",
+            "text": "Enter the OTP code sent to your Telegram app",
+            "data": {"field": "otp_code", "input_type": "text", "placeholder": "12345"},
+        },
+    )
+
+    try:
+        otp_code = await poll_for_responses(
+            relay_url,
+            session_id,
+            otp_message_id,
+            timeout_s=300.0,
+        )
+    except RuntimeError:
+        await send_message(
+            relay_url,
+            session_id,
+            {
+                "type": "error",
+                "text": "Timed out waiting for OTP code.",
+            },
+        )
+        return False
+
+    # Step 3: Try sign in with OTP code
+    try:
+        result = await backend.sign_in(phone, otp_code.strip())
+        name = result.get("authenticated_as", "User")
+        await send_message(
+            relay_url,
+            session_id,
+            {
+                "type": "complete",
+                "text": f"Authenticated as {name}. Session saved. You can close this tab.",
+            },
+        )
+        return True
+    except Exception as e:
+        error_msg = str(e)
+        if not _needs_2fa_password(error_msg):
+            # Not a 2FA error -- sign-in failed for another reason
+            await send_message(
+                relay_url,
+                session_id,
+                {
+                    "type": "error",
+                    "text": f"Authentication failed: {_sanitize_error(error_msg)}",
+                },
+            )
+            return False
+
+    # Step 4: 2FA password required -- ask user
+    password_message_id = await send_message(
+        relay_url,
+        session_id,
+        {
+            "type": "input_required",
+            "text": "Your account has two-factor authentication. Enter your 2FA password.",
+            "data": {
+                "field": "2fa_password",
+                "input_type": "password",
+                "placeholder": "",
+            },
+        },
+    )
+
+    try:
+        password = await poll_for_responses(
+            relay_url,
+            session_id,
+            password_message_id,
+            timeout_s=300.0,
+        )
+    except RuntimeError:
+        await send_message(
+            relay_url,
+            session_id,
+            {
+                "type": "error",
+                "text": "Timed out waiting for 2FA password.",
+            },
+        )
+        return False
+
+    # Step 5: Sign in with 2FA password
+    try:
+        result = await backend.sign_in(phone, otp_code.strip(), password=password)
+        name = result.get("authenticated_as", "User")
+        await send_message(
+            relay_url,
+            session_id,
+            {
+                "type": "complete",
+                "text": f"Authenticated as {name}. Session saved. You can close this tab.",
+            },
+        )
+        return True
+    except Exception as e:
+        await send_message(
+            relay_url,
+            session_id,
+            {
+                "type": "error",
+                "text": f"Authentication failed: {_sanitize_error(str(e))}",
+            },
+        )
+        return False
+
+
 async def ensure_config() -> dict[str, str] | None:
     """Resolve config: config file -> saved sessions -> relay setup -> degraded.
 
     Relay is ONLY triggered when steps 1-2-3 are ALL empty (first-time setup).
+    For user mode, also handles Telethon OTP/2FA auth via relay messaging.
 
     Resolution order (env vars already checked by caller via Settings.is_configured):
     1. Encrypted config file (~/.config/mcp/config.enc)
@@ -117,20 +344,69 @@ async def ensure_config() -> dict[str, str] | None:
         write_config(SERVER_NAME, config)
         logger.info("Config saved successfully")
 
-        # Notify relay page that setup is complete
-        try:
-            import httpx
+        # For user mode: run Telethon OTP/2FA auth via relay messaging
+        if _is_user_mode_config(config):
+            from .config import Settings
 
-            async with httpx.AsyncClient() as http:
-                await http.post(
-                    f"{relay_url}/api/sessions/{session.session_id}/messages",
-                    json={
+            settings = Settings.from_relay_config(config)
+
+            from .backends.user_backend import UserBackend
+
+            backend = UserBackend(settings)
+            await backend.connect()
+
+            try:
+                if not await backend.is_authorized():
+                    from mcp_relay_core.relay.client import send_message
+
+                    await send_message(
+                        relay_url,
+                        session.session_id,
+                        {
+                            "type": "info",
+                            "text": "Credentials saved. Starting Telegram authentication...",
+                        },
+                    )
+
+                    auth_ok = await _relay_telethon_auth(
+                        relay_url,
+                        session.session_id,
+                        backend,
+                        settings,
+                    )
+                    if not auth_ok:
+                        logger.warning(
+                            "Relay Telethon auth failed. User can retry later."
+                        )
+                else:
+                    # Already authorized (existing session file)
+                    from mcp_relay_core.relay.client import send_message
+
+                    await send_message(
+                        relay_url,
+                        session.session_id,
+                        {
+                            "type": "complete",
+                            "text": "Telegram config saved. Session already authorized!",
+                        },
+                    )
+            finally:
+                await backend.disconnect()
+        else:
+            # Bot mode: just notify completion
+            try:
+                from mcp_relay_core.relay.client import send_message
+
+                await send_message(
+                    relay_url,
+                    session.session_id,
+                    {
                         "type": "complete",
                         "text": "Telegram config saved. Setup complete!",
                     },
                 )
-        except Exception:
-            pass
+            except Exception:
+                pass
 
         return config
 
