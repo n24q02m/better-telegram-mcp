@@ -148,6 +148,7 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
     _settings = Settings()
 
     # If env vars not set, try relay config (config file -> relay setup)
+    relay_config = None
     if not _settings.is_configured:
         from .relay_setup import ensure_config
 
@@ -187,7 +188,9 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
 
     auth_handler = None
     if _settings.mode == "user" and not await _backend.is_authorized():
-        if _settings.phone:
+        if _settings.phone and relay_config is None:
+            # Only start separate auth flow if NOT coming from relay setup
+            # (relay_setup.py handles OTP/2FA via bidirectional messaging)
             _pending_auth = True
             auth_handler, _auth_url = await _start_auth(_backend, _settings)
             logger.warning(
