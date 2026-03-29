@@ -486,7 +486,7 @@ async def test_not_ready_response_auth_url():
         response = server._not_ready_response()
         data = json.loads(response)
         assert "error" in data
-        assert "test.com" in data["error"]
+        assert "http://test.com/auth" in data["error"]
     finally:
         server._auth_url = None
 
