@@ -148,6 +148,17 @@ class TestValidateFilePath:
         result = validate_file_path("/tmp/photo.jpg", allowed_dir=Path("/tmp"))
         assert result == Path("/tmp/photo.jpg")
 
+    def test_tilde_expansion_blocked(self):
+        """Test that paths starting with ~ are expanded and properly blocked."""
+        # This resolves to /home/<user>/.ssh/id_rsa, which contains a hidden directory
+        with pytest.raises(SecurityError, match="hidden"):
+            validate_file_path("~/.ssh/id_rsa")
+
+    def test_tilde_expansion_traversal_blocked(self):
+        """Test that paths like ~/../../etc/passwd are expanded and blocked."""
+        with pytest.raises(SecurityError, match="/etc/"):
+            validate_file_path("~/../../etc/passwd")
+
 
 class TestValidateOutputDir:
     def test_normal_dir_allowed(self):
@@ -177,3 +188,13 @@ class TestValidateOutputDir:
     def test_var_spool_blocked(self):
         with pytest.raises(SecurityError, match="/var/spool/"):
             validate_output_dir("/var/spool/cron")
+
+    def test_tilde_expansion_blocked(self):
+        """Test that paths starting with ~ are expanded and properly blocked."""
+        with pytest.raises(SecurityError, match="hidden"):
+            validate_output_dir("~/.ssh")
+
+    def test_tilde_expansion_traversal_blocked(self):
+        """Test that paths like ~/../../etc/cron.d are expanded and blocked."""
+        with pytest.raises(SecurityError, match="/etc/"):
+            validate_output_dir("~/../../etc/cron.d")

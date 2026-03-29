@@ -66,7 +66,10 @@ def validate_url(url: str) -> None:
 
 def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Path:
     """Validate local file path is safe (no traversal to sensitive files)."""
-    path = Path(file_path).resolve()
+    # Sentinel: Expand user (`~`) before resolving to prevent TOCTOU bypasses where
+    # `~` is treated as a literal local directory `~/...` during validation but expanded
+    # by downstream APIs to the actual home directory `/home/user/...`.
+    path = Path(file_path).expanduser().resolve()
     # Block known sensitive paths
     _blocked_prefixes = (
         "/etc/",
@@ -99,7 +102,10 @@ def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Pa
 
 def validate_output_dir(output_dir: str, *, base_dir: Path | None = None) -> Path:
     """Validate output directory is safe for writing."""
-    path = Path(output_dir).resolve()
+    # Sentinel: Expand user (`~`) before resolving to prevent TOCTOU bypasses where
+    # `~` is treated as a literal local directory `~/...` during validation but expanded
+    # by downstream APIs to the actual home directory `/home/user/...`.
+    path = Path(output_dir).expanduser().resolve()
     # Block writing to system directories
     _blocked_prefixes = (
         "/etc/",
