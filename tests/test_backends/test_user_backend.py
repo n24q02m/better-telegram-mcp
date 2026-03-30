@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -1282,6 +1283,10 @@ class TestSignIn:
         with pytest.raises(Exception, match="SessionPasswordNeeded"):
             await backend.sign_in("+84912345678", "12345")
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Windows does not support Unix file permissions (chmod 0o600)",
+    )
     async def test_sign_in_sets_session_permissions(
         self, tmp_path, mock_client, mock_client_class
     ):

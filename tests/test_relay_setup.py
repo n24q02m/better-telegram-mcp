@@ -7,6 +7,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from better_telegram_mcp.config import Settings
+from better_telegram_mcp.relay_setup import (
+    _is_user_mode_config,
+    _needs_2fa_password,
+    _relay_telethon_auth,
+    _sanitize_error,
+)
 
 # --- Settings.from_relay_config ---
 
@@ -444,3 +450,555 @@ def test_relay_schema_structure():
     assert len(user_mode["fields"]) == 3
     keys = [f["key"] for f in user_mode["fields"]]
     assert keys == ["TELEGRAM_API_ID", "TELEGRAM_API_HASH", "TELEGRAM_PHONE"]
+
+
+# --- _sanitize_error ---
+
+
+class TestSanitizeError:
+    def test_password_required(self):
+        assert _sanitize_error("Password is required for this account") == (
+            "Two-factor authentication password is required."
+        )
+
+    def test_password_invalid(self):
+        assert _sanitize_error("The password is invalid") == (
+            "Incorrect 2FA password. Please try again."
+        )
+
+    def test_invalid_password(self):
+        assert _sanitize_error("Invalid password provided") == (
+            "Incorrect 2FA password. Please try again."
+        )
+
+    def test_phone_code_invalid(self):
+        assert _sanitize_error("Phone code is invalid") == (
+            "Invalid OTP code. Please check and try again."
+        )
+
+    def test_code_expired(self):
+        assert _sanitize_error("Phone code has expired") == (
+            "OTP code has expired. Please request a new one."
+        )
+
+    def test_flood_wait(self):
+        assert _sanitize_error("Flood wait of 300 seconds") == (
+            "Too many attempts. Please wait a moment and try again."
+        )
+
+    def test_too_many(self):
+        assert _sanitize_error("Too many requests") == (
+            "Too many attempts. Please wait a moment and try again."
+        )
+
+    def test_strips_caused_by_suffix(self):
+        result = _sanitize_error("Something happened (caused by SomeError)")
+        assert result == "Something happened"
+
+    def test_passthrough_unknown_error(self):
+        assert _sanitize_error("Some unknown error") == "Some unknown error"
+
+
+# --- _needs_2fa_password ---
+
+
+class TestNeeds2faPassword:
+    def test_password_keyword(self):
+        assert _needs_2fa_password("SessionPasswordNeeded") is True
+
+    def test_2fa_keyword(self):
+        assert _needs_2fa_password("2fa authentication required") is True
+
+    def test_two_factor_keyword(self):
+        assert _needs_2fa_password("Two-factor auth needed") is True
+
+    def test_srp_keyword(self):
+        assert _needs_2fa_password("SRP protocol required") is True
+
+    def test_no_match(self):
+        assert _needs_2fa_password("Invalid phone number") is False
+
+
+# --- _is_user_mode_config ---
+
+
+class TestIsUserModeConfig:
+    def test_full_user_config(self):
+        config = {
+            "TELEGRAM_API_ID": "123",
+            "TELEGRAM_API_HASH": "abc",
+            "TELEGRAM_PHONE": "+84912345678",
+        }
+        assert _is_user_mode_config(config) is True
+
+    def test_missing_phone(self):
+        config = {"TELEGRAM_API_ID": "123", "TELEGRAM_API_HASH": "abc"}
+        assert _is_user_mode_config(config) is False
+
+    def test_bot_config(self):
+        config = {"TELEGRAM_BOT_TOKEN": "123:ABC"}
+        assert _is_user_mode_config(config) is False
+
+    def test_empty_values(self):
+        config = {
+            "TELEGRAM_API_ID": "",
+            "TELEGRAM_API_HASH": "abc",
+            "TELEGRAM_PHONE": "+84912345678",
+        }
+        assert _is_user_mode_config(config) is False
+
+
+# --- _relay_telethon_auth ---
+
+
+@pytest.mark.asyncio
+async def test_relay_auth_no_phone():
+    """Returns False and sends error when phone is missing."""
+    mock_backend = AsyncMock()
+    settings = MagicMock()
+    settings.phone = None
+
+    with patch(
+        "mcp_relay_core.relay.client.send_message",
+        new_callable=AsyncMock,
+    ) as mock_send:
+        result = await _relay_telethon_auth(
+            "http://relay", "session-1", mock_backend, settings
+        )
+
+    assert result is False
+    mock_send.assert_awaited_once()
+    call_args = mock_send.call_args[0]
+    assert call_args[2]["type"] == "error"
+    assert "Phone number" in call_args[2]["text"]
+
+
+@pytest.mark.asyncio
+async def test_relay_auth_send_code_fails():
+    """Returns False when send_code raises an exception."""
+    mock_backend = AsyncMock()
+    mock_backend.send_code.side_effect = Exception("Network error")
+    settings = MagicMock()
+    settings.phone = "+84912345678"
+
+    with patch(
+        "mcp_relay_core.relay.client.send_message",
+        new_callable=AsyncMock,
+    ) as mock_send:
+        result = await _relay_telethon_auth(
+            "http://relay", "session-1", mock_backend, settings
+        )
+
+    assert result is False
+    # Should send info + error messages
+    assert mock_send.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_relay_auth_otp_timeout():
+    """Returns False when OTP polling times out."""
+    mock_backend = AsyncMock()
+    settings = MagicMock()
+    settings.phone = "+84912345678"
+
+    with (
+        patch(
+            "mcp_relay_core.relay.client.send_message",
+            new_callable=AsyncMock,
+            return_value="msg-1",
+        ),
+        patch(
+            "mcp_relay_core.relay.client.poll_for_responses",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("Timed out"),
+        ),
+    ):
+        result = await _relay_telethon_auth(
+            "http://relay", "session-1", mock_backend, settings
+        )
+
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_relay_auth_sign_in_success():
+    """Returns True when OTP sign-in succeeds on first try."""
+    mock_backend = AsyncMock()
+    mock_backend.sign_in.return_value = {"authenticated_as": "TestUser"}
+    settings = MagicMock()
+    settings.phone = "+84912345678"
+
+    with (
+        patch(
+            "mcp_relay_core.relay.client.send_message",
+            new_callable=AsyncMock,
+            return_value="msg-1",
+        ),
+        patch(
+            "mcp_relay_core.relay.client.poll_for_responses",
+            new_callable=AsyncMock,
+            return_value="12345",
+        ),
+    ):
+        result = await _relay_telethon_auth(
+            "http://relay", "session-1", mock_backend, settings
+        )
+
+    assert result is True
+    mock_backend.sign_in.assert_awaited_once_with("+84912345678", "12345")
+
+
+@pytest.mark.asyncio
+async def test_relay_auth_sign_in_non_2fa_error():
+    """Returns False when sign-in fails with a non-2FA error."""
+    mock_backend = AsyncMock()
+    mock_backend.sign_in.side_effect = Exception("Invalid phone number")
+    settings = MagicMock()
+    settings.phone = "+84912345678"
+
+    with (
+        patch(
+            "mcp_relay_core.relay.client.send_message",
+            new_callable=AsyncMock,
+            return_value="msg-1",
+        ),
+        patch(
+            "mcp_relay_core.relay.client.poll_for_responses",
+            new_callable=AsyncMock,
+            return_value="12345",
+        ),
+    ):
+        result = await _relay_telethon_auth(
+            "http://relay", "session-1", mock_backend, settings
+        )
+
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_relay_auth_2fa_success():
+    """Returns True when 2FA password sign-in succeeds."""
+    mock_backend = AsyncMock()
+    # First call raises 2FA error, second succeeds
+    mock_backend.sign_in.side_effect = [
+        Exception("SessionPasswordNeeded"),
+        {"authenticated_as": "TestUser"},
+    ]
+    settings = MagicMock()
+    settings.phone = "+84912345678"
+
+    with (
+        patch(
+            "mcp_relay_core.relay.client.send_message",
+            new_callable=AsyncMock,
+            return_value="msg-1",
+        ),
+        patch(
+            "mcp_relay_core.relay.client.poll_for_responses",
+            new_callable=AsyncMock,
+            side_effect=["12345", "my2fapassword"],
+        ),
+    ):
+        result = await _relay_telethon_auth(
+            "http://relay", "session-1", mock_backend, settings
+        )
+
+    assert result is True
+    assert mock_backend.sign_in.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_relay_auth_2fa_timeout():
+    """Returns False when 2FA password polling times out."""
+    mock_backend = AsyncMock()
+    mock_backend.sign_in.side_effect = Exception("SessionPasswordNeeded")
+    settings = MagicMock()
+    settings.phone = "+84912345678"
+
+    with (
+        patch(
+            "mcp_relay_core.relay.client.send_message",
+            new_callable=AsyncMock,
+            return_value="msg-1",
+        ),
+        patch(
+            "mcp_relay_core.relay.client.poll_for_responses",
+            new_callable=AsyncMock,
+            side_effect=["12345", RuntimeError("Timed out")],
+        ),
+    ):
+        result = await _relay_telethon_auth(
+            "http://relay", "session-1", mock_backend, settings
+        )
+
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_relay_auth_2fa_sign_in_fails():
+    """Returns False when 2FA sign-in fails."""
+    mock_backend = AsyncMock()
+    mock_backend.sign_in.side_effect = [
+        Exception("SessionPasswordNeeded"),
+        Exception("Incorrect 2FA password"),
+    ]
+    settings = MagicMock()
+    settings.phone = "+84912345678"
+
+    with (
+        patch(
+            "mcp_relay_core.relay.client.send_message",
+            new_callable=AsyncMock,
+            return_value="msg-1",
+        ),
+        patch(
+            "mcp_relay_core.relay.client.poll_for_responses",
+            new_callable=AsyncMock,
+            side_effect=["12345", "wrongpassword"],
+        ),
+    ):
+        result = await _relay_telethon_auth(
+            "http://relay", "session-1", mock_backend, settings
+        )
+
+    assert result is False
+
+
+# --- ensure_config user mode + bot mode completion paths ---
+
+
+@pytest.mark.asyncio
+async def test_ensure_config_user_mode_triggers_telethon_auth():
+    """ensure_config triggers Telethon auth for user mode config."""
+    from better_telegram_mcp.relay_setup import ensure_config
+
+    mock_result_none = MagicMock()
+    mock_result_none.config = None
+    mock_result_none.source = None
+
+    mock_session = MagicMock()
+    mock_session.relay_url = "https://example.com/setup?s=abc#k=key&p=pass"
+    mock_session.session_id = "abc123"
+
+    user_config = {
+        "TELEGRAM_API_ID": "12345",
+        "TELEGRAM_API_HASH": "abcdef",
+        "TELEGRAM_PHONE": "+84912345678",
+    }
+
+    mock_backend = AsyncMock()
+    mock_backend.is_authorized.return_value = False
+
+    with (
+        patch(
+            "mcp_relay_core.storage.resolver.resolve_config",
+            return_value=mock_result_none,
+        ),
+        patch(
+            "better_telegram_mcp.relay_setup.check_saved_sessions",
+            return_value=False,
+        ),
+        patch(
+            "mcp_relay_core.relay.client.create_session",
+            new_callable=AsyncMock,
+            return_value=mock_session,
+        ),
+        patch(
+            "mcp_relay_core.relay.client.poll_for_result",
+            new_callable=AsyncMock,
+            return_value=user_config,
+        ),
+        patch("mcp_relay_core.storage.config_file.write_config"),
+        patch(
+            "mcp_relay_core.relay.client.send_message",
+            new_callable=AsyncMock,
+            return_value="msg-1",
+        ),
+        patch(
+            "better_telegram_mcp.relay_setup._relay_telethon_auth",
+            new_callable=AsyncMock,
+            return_value=True,
+        ) as mock_auth,
+        patch(
+            "better_telegram_mcp.backends.user_backend.UserBackend",
+            return_value=mock_backend,
+        ),
+    ):
+        result = await ensure_config()
+
+    assert result == user_config
+    mock_auth.assert_awaited_once()
+    mock_backend.disconnect.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_ensure_config_user_mode_already_authorized():
+    """ensure_config sends complete message when user is already authorized."""
+    from better_telegram_mcp.relay_setup import ensure_config
+
+    mock_result_none = MagicMock()
+    mock_result_none.config = None
+    mock_result_none.source = None
+
+    mock_session = MagicMock()
+    mock_session.relay_url = "https://example.com/setup?s=abc#k=key&p=pass"
+    mock_session.session_id = "abc123"
+
+    user_config = {
+        "TELEGRAM_API_ID": "12345",
+        "TELEGRAM_API_HASH": "abcdef",
+        "TELEGRAM_PHONE": "+84912345678",
+    }
+
+    mock_backend = AsyncMock()
+    mock_backend.is_authorized.return_value = True
+
+    with (
+        patch(
+            "mcp_relay_core.storage.resolver.resolve_config",
+            return_value=mock_result_none,
+        ),
+        patch(
+            "better_telegram_mcp.relay_setup.check_saved_sessions",
+            return_value=False,
+        ),
+        patch(
+            "mcp_relay_core.relay.client.create_session",
+            new_callable=AsyncMock,
+            return_value=mock_session,
+        ),
+        patch(
+            "mcp_relay_core.relay.client.poll_for_result",
+            new_callable=AsyncMock,
+            return_value=user_config,
+        ),
+        patch("mcp_relay_core.storage.config_file.write_config"),
+        patch(
+            "mcp_relay_core.relay.client.send_message",
+            new_callable=AsyncMock,
+        ) as mock_send,
+        patch(
+            "better_telegram_mcp.backends.user_backend.UserBackend",
+            return_value=mock_backend,
+        ),
+    ):
+        result = await ensure_config()
+
+    assert result == user_config
+    # Verify "complete" message was sent
+    complete_call = mock_send.call_args_list[-1]
+    assert complete_call[0][2]["type"] == "complete"
+    assert "already authorized" in complete_call[0][2]["text"]
+    mock_backend.disconnect.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_ensure_config_bot_mode_sends_complete():
+    """ensure_config sends complete message for bot mode config."""
+    from better_telegram_mcp.relay_setup import ensure_config
+
+    mock_result_none = MagicMock()
+    mock_result_none.config = None
+    mock_result_none.source = None
+
+    mock_session = MagicMock()
+    mock_session.relay_url = "https://example.com/setup?s=abc#k=key&p=pass"
+    mock_session.session_id = "abc123"
+
+    bot_config = {"TELEGRAM_BOT_TOKEN": "relay:TOKEN"}
+
+    with (
+        patch(
+            "mcp_relay_core.storage.resolver.resolve_config",
+            return_value=mock_result_none,
+        ),
+        patch(
+            "better_telegram_mcp.relay_setup.check_saved_sessions",
+            return_value=False,
+        ),
+        patch(
+            "mcp_relay_core.relay.client.create_session",
+            new_callable=AsyncMock,
+            return_value=mock_session,
+        ),
+        patch(
+            "mcp_relay_core.relay.client.poll_for_result",
+            new_callable=AsyncMock,
+            return_value=bot_config,
+        ),
+        patch("mcp_relay_core.storage.config_file.write_config"),
+        patch(
+            "mcp_relay_core.relay.client.send_message",
+            new_callable=AsyncMock,
+        ) as mock_send,
+    ):
+        result = await ensure_config()
+
+    assert result == bot_config
+    # Verify "complete" message was sent for bot mode
+    complete_call = mock_send.call_args_list[-1]
+    assert complete_call[0][2]["type"] == "complete"
+    assert "Setup complete" in complete_call[0][2]["text"]
+
+
+@pytest.mark.asyncio
+async def test_ensure_config_user_mode_auth_fails():
+    """ensure_config still returns config when Telethon auth fails."""
+    from better_telegram_mcp.relay_setup import ensure_config
+
+    mock_result_none = MagicMock()
+    mock_result_none.config = None
+    mock_result_none.source = None
+
+    mock_session = MagicMock()
+    mock_session.relay_url = "https://example.com/setup?s=abc#k=key&p=pass"
+    mock_session.session_id = "abc123"
+
+    user_config = {
+        "TELEGRAM_API_ID": "12345",
+        "TELEGRAM_API_HASH": "abcdef",
+        "TELEGRAM_PHONE": "+84912345678",
+    }
+
+    mock_backend = AsyncMock()
+    mock_backend.is_authorized.return_value = False
+
+    with (
+        patch(
+            "mcp_relay_core.storage.resolver.resolve_config",
+            return_value=mock_result_none,
+        ),
+        patch(
+            "better_telegram_mcp.relay_setup.check_saved_sessions",
+            return_value=False,
+        ),
+        patch(
+            "mcp_relay_core.relay.client.create_session",
+            new_callable=AsyncMock,
+            return_value=mock_session,
+        ),
+        patch(
+            "mcp_relay_core.relay.client.poll_for_result",
+            new_callable=AsyncMock,
+            return_value=user_config,
+        ),
+        patch("mcp_relay_core.storage.config_file.write_config"),
+        patch(
+            "mcp_relay_core.relay.client.send_message",
+            new_callable=AsyncMock,
+            return_value="msg-1",
+        ),
+        patch(
+            "better_telegram_mcp.relay_setup._relay_telethon_auth",
+            new_callable=AsyncMock,
+            return_value=False,
+        ),
+        patch(
+            "better_telegram_mcp.backends.user_backend.UserBackend",
+            return_value=mock_backend,
+        ),
+    ):
+        result = await ensure_config()
+
+    # Config is still returned even if auth fails (creds are saved)
+    assert result == user_config

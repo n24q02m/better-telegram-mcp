@@ -545,3 +545,227 @@ async def test_lifespan_unconfigured_mode():
             assert srv._unconfigured is True
 
         assert srv._unconfigured is False
+
+
+# --- _not_ready_response auth_url branch ---
+
+
+def test_not_ready_response_with_auth_url():
+    """When _auth_url is set, _not_ready_response mentions the URL."""
+    import better_telegram_mcp.server as srv
+
+    old_unconfigured = srv._unconfigured
+    old_pending = srv._pending_auth
+    old_auth_url = srv._auth_url
+    try:
+        srv._unconfigured = False
+        srv._pending_auth = True
+        srv._auth_url = "http://127.0.0.1:9999"
+        result = json.loads(srv._not_ready_response())
+        assert "error" in result
+        assert "http://127.0.0.1:9999" in result["error"]
+    finally:
+        srv._unconfigured = old_unconfigured
+        srv._pending_auth = old_pending
+        srv._auth_url = old_auth_url
+
+
+def test_not_ready_response_no_auth_url():
+    """When _auth_url is None, _not_ready_response suggests TELEGRAM_PHONE."""
+    import better_telegram_mcp.server as srv
+
+    old_unconfigured = srv._unconfigured
+    old_pending = srv._pending_auth
+    old_auth_url = srv._auth_url
+    try:
+        srv._unconfigured = False
+        srv._pending_auth = True
+        srv._auth_url = None
+        result = json.loads(srv._not_ready_response())
+        assert "error" in result
+        assert "TELEGRAM_PHONE" in result["error"]
+    finally:
+        srv._unconfigured = old_unconfigured
+        srv._pending_auth = old_pending
+        srv._auth_url = old_auth_url
+
+
+# --- _start_auth ---
+
+
+@pytest.mark.asyncio
+async def test_start_auth_local_mode():
+    """_start_auth creates AuthServer when auth_url is 'local'."""
+    from better_telegram_mcp.server import _start_auth
+
+    mock_backend = AsyncMock()
+    mock_settings = MagicMock()
+    mock_settings.auth_url = "local"
+
+    mock_auth_server = MagicMock()
+    mock_auth_server.start = AsyncMock(return_value="http://127.0.0.1:9999")
+
+    with patch(
+        "better_telegram_mcp.auth_server.AuthServer",
+        return_value=mock_auth_server,
+    ):
+        handler, url = await _start_auth(mock_backend, mock_settings)
+
+    assert url == "http://127.0.0.1:9999"
+    assert handler is mock_auth_server
+
+
+@pytest.mark.asyncio
+async def test_start_auth_remote_mode():
+    """_start_auth creates AuthClient when auth_url is a remote URL."""
+    from better_telegram_mcp.server import _start_auth
+
+    mock_backend = AsyncMock()
+    mock_settings = MagicMock()
+    mock_settings.auth_url = "https://relay.example.com"
+
+    mock_auth_client = MagicMock()
+    mock_auth_client.create_session = AsyncMock(
+        return_value="https://relay.example.com/session/abc"
+    )
+
+    with patch(
+        "better_telegram_mcp.auth_client.AuthClient",
+        return_value=mock_auth_client,
+    ):
+        handler, url = await _start_auth(mock_backend, mock_settings)
+
+    assert url == "https://relay.example.com/session/abc"
+    assert handler is mock_auth_client
+
+
+# --- _run_auth_background ---
+
+
+@pytest.mark.asyncio
+async def test_run_auth_background_client():
+    """_run_auth_background polls and waits for AuthClient."""
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.auth_client import AuthClient
+    from better_telegram_mcp.server import _run_auth_background
+
+    mock_client = MagicMock(spec=AuthClient)
+    mock_client.poll_and_execute = AsyncMock()
+    mock_client.wait_for_auth = AsyncMock()
+
+    old_pending = srv._pending_auth
+    srv._pending_auth = True
+    try:
+        await _run_auth_background(mock_client)
+        mock_client.poll_and_execute.assert_awaited_once()
+        mock_client.wait_for_auth.assert_awaited_once()
+        assert srv._pending_auth is False
+    finally:
+        srv._pending_auth = old_pending
+
+
+@pytest.mark.asyncio
+async def test_run_auth_background_server():
+    """_run_auth_background waits for AuthServer."""
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.auth_server import AuthServer
+    from better_telegram_mcp.server import _run_auth_background
+
+    mock_server = MagicMock(spec=AuthServer)
+    mock_server.wait_for_auth = AsyncMock()
+
+    old_pending = srv._pending_auth
+    srv._pending_auth = True
+    try:
+        await _run_auth_background(mock_server)
+        mock_server.wait_for_auth.assert_awaited_once()
+        assert srv._pending_auth is False
+    finally:
+        srv._pending_auth = old_pending
+
+
+# --- _stop_auth ---
+
+
+@pytest.mark.asyncio
+async def test_stop_auth_client():
+    """_stop_auth closes AuthClient."""
+    from better_telegram_mcp.auth_client import AuthClient
+    from better_telegram_mcp.server import _stop_auth
+
+    mock_client = MagicMock(spec=AuthClient)
+    mock_client.close = AsyncMock()
+
+    await _stop_auth(mock_client)
+    mock_client.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_stop_auth_server():
+    """_stop_auth stops AuthServer."""
+    from better_telegram_mcp.auth_server import AuthServer
+    from better_telegram_mcp.server import _stop_auth
+
+    mock_server = MagicMock(spec=AuthServer)
+    mock_server.stop = AsyncMock()
+
+    await _stop_auth(mock_server)
+    mock_server.stop.assert_awaited_once()
+
+
+# --- main() HTTP transport ---
+
+
+def test_main_http_transport():
+    """main() starts HTTP transport when TRANSPORT_MODE=http."""
+    import os
+
+    with (
+        patch.dict(os.environ, {"TRANSPORT_MODE": "http"}),
+        patch("better_telegram_mcp.transports.http.start_http") as mock_start_http,
+    ):
+        main()
+        mock_start_http.assert_called_once()
+
+
+# --- lifespan: user mode unauthorized, no phone, no relay ---
+
+
+@pytest.mark.asyncio
+async def test_lifespan_user_mode_unauthorized_no_phone():
+    """Lifespan sets pending_auth when session unauthorized and phone is not set."""
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import _lifespan
+
+    mock_settings = MagicMock()
+    mock_settings.is_configured = True
+    mock_settings.mode = "user"
+    mock_settings.api_id = 12345
+    mock_settings.api_hash = "testhash"
+    mock_settings.phone = None  # No phone set
+
+    mock_user_backend = AsyncMock()
+    mock_user_backend.is_authorized = AsyncMock(return_value=False)
+
+    old_pending = srv._pending_auth
+    try:
+        with (
+            patch.object(srv, "Settings", return_value=mock_settings),
+            patch.dict(
+                "sys.modules",
+                {
+                    "better_telegram_mcp.backends.user_backend": type(
+                        "module",
+                        (),
+                        {"UserBackend": MagicMock(return_value=mock_user_backend)},
+                    )()
+                },
+            ),
+        ):
+            async with _lifespan(mcp):
+                assert srv._pending_auth is True
+                # No _start_auth should have been called
+
+            mock_user_backend.disconnect.assert_awaited_once()
+    finally:
+        srv._pending_auth = old_pending

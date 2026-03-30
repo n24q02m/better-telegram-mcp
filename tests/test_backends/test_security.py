@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+import sys
 
 import pytest
 
@@ -12,6 +12,8 @@ from better_telegram_mcp.backends.security import (
     validate_output_dir,
     validate_url,
 )
+
+_IS_WINDOWS = sys.platform == "win32"
 
 
 class TestValidateUrl:
@@ -116,18 +118,22 @@ class TestValidateUrl:
 
 
 class TestValidateFilePath:
-    def test_normal_path_allowed(self):
-        result = validate_file_path("/tmp/photo.jpg")
-        assert result == Path("/tmp/photo.jpg")
+    def test_normal_path_allowed(self, tmp_path):
+        photo = tmp_path / "photo.jpg"
+        result = validate_file_path(str(photo))
+        assert result == photo.resolve()
 
+    @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_etc_passwd_blocked(self):
         with pytest.raises(SecurityError, match="/etc/"):
             validate_file_path("/etc/passwd")
 
+    @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_proc_blocked(self):
         with pytest.raises(SecurityError, match="/proc/"):
             validate_file_path("/proc/self/environ")
 
+    @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_root_blocked(self):
         with pytest.raises(SecurityError, match="/root/"):
             validate_file_path("/root/.bashrc")
@@ -136,32 +142,40 @@ class TestValidateFilePath:
         with pytest.raises(SecurityError, match="hidden"):
             validate_file_path("/home/user/.ssh/id_rsa")
 
+    @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only path traversal")
     def test_traversal_resolved(self):
         with pytest.raises(SecurityError, match="/etc/"):
             validate_file_path("/tmp/../etc/passwd")
 
-    def test_allowed_dir_enforcement(self):
+    def test_allowed_dir_enforcement(self, tmp_path):
+        photo = tmp_path / "photo.jpg"
+        allowed = tmp_path / "uploads"
         with pytest.raises(SecurityError, match="must be within"):
-            validate_file_path("/tmp/photo.jpg", allowed_dir=Path("/home/user/uploads"))
+            validate_file_path(str(photo), allowed_dir=allowed)
 
-    def test_allowed_dir_ok(self):
-        result = validate_file_path("/tmp/photo.jpg", allowed_dir=Path("/tmp"))
-        assert result == Path("/tmp/photo.jpg")
+    def test_allowed_dir_ok(self, tmp_path):
+        photo = tmp_path / "photo.jpg"
+        result = validate_file_path(str(photo), allowed_dir=tmp_path)
+        assert result == photo.resolve()
 
 
 class TestValidateOutputDir:
-    def test_normal_dir_allowed(self):
-        result = validate_output_dir("/tmp/downloads")
-        assert result == Path("/tmp/downloads")
+    def test_normal_dir_allowed(self, tmp_path):
+        downloads = tmp_path / "downloads"
+        result = validate_output_dir(str(downloads))
+        assert result == downloads.resolve()
 
+    @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_etc_blocked(self):
         with pytest.raises(SecurityError, match="/etc/"):
             validate_output_dir("/etc/cron.d")
 
+    @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_usr_blocked(self):
         with pytest.raises(SecurityError, match="/usr/"):
             validate_output_dir("/usr/bin")
 
+    @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_sbin_blocked(self):
         with pytest.raises(SecurityError):
             validate_output_dir("/sbin/")
@@ -170,10 +184,13 @@ class TestValidateOutputDir:
         with pytest.raises(SecurityError, match="hidden"):
             validate_output_dir("/home/user/.ssh")
 
-    def test_base_dir_enforcement(self):
+    def test_base_dir_enforcement(self, tmp_path):
+        data = tmp_path / "data"
+        base = tmp_path / "downloads"
         with pytest.raises(SecurityError, match="must be within"):
-            validate_output_dir("/tmp/data", base_dir=Path("/home/user/downloads"))
+            validate_output_dir(str(data), base_dir=base)
 
+    @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_var_spool_blocked(self):
         with pytest.raises(SecurityError, match="/var/spool/"):
             validate_output_dir("/var/spool/cron")
