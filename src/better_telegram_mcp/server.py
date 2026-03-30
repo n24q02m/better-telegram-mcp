@@ -45,8 +45,23 @@ _runtime_config: dict[str, int] = {
     "timeout": 30,
 }
 
+# Track whether we're in multi-user HTTP mode
+_multi_user_mode: bool = False
+
 
 def get_backend() -> TelegramBackend:
+    """Get the active backend.
+
+    In multi-user HTTP mode: returns the per-user backend from ContextVar.
+    In stdio/single-user mode: returns the global _backend.
+    """
+    if _multi_user_mode:
+        from .transports.http import get_current_backend
+
+        backend = get_current_backend()
+        if backend is not None:
+            return backend
+
     if _backend is None:
         msg = "Backend not initialized. Server lifespan not started."
         raise RuntimeError(msg)
@@ -456,6 +471,17 @@ async def help(topic: str | None = None) -> str:
 from .resources import register_resources  # noqa: E402
 
 register_resources(mcp)
+
+
+def create_http_mcp_server() -> FastMCP:
+    """Create a FastMCP server instance for multi-user HTTP mode.
+
+    Returns the existing mcp instance (tools are shared across sessions).
+    Per-user backend is injected via ContextVar per request.
+    """
+    global _multi_user_mode
+    _multi_user_mode = True
+    return mcp
 
 
 def main() -> None:
