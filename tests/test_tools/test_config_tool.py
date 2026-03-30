@@ -31,12 +31,16 @@ async def test_status_shows_pending_auth(mock_backend):
     import better_telegram_mcp.server as srv
 
     old = srv._pending_auth
+    old_url = srv._auth_url
     try:
         srv._pending_auth = True
+        srv._auth_url = "http://localhost:8000/auth"
         result = json.loads(await handle_config(mock_backend, "status"))
         assert result["pending_auth"] is True
+        assert result["auth_url"] == "http://localhost:8000/auth"
     finally:
         srv._pending_auth = old
+        srv._auth_url = old_url
 
 
 @pytest.mark.asyncio

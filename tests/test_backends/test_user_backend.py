@@ -552,6 +552,19 @@ class TestJoinChat:
 
         assert result is True
 
+    async def test_join_public_link(self, tmp_path, mock_client, mock_client_class):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_client.return_value = MagicMock()
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        result = await backend.join_chat("https://t.me/somepublicchannel")
+
+        assert result is True
+
     async def test_join_public_username(self, tmp_path, mock_client, mock_client_class):
         from better_telegram_mcp.backends.user_backend import UserBackend
 

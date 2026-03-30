@@ -60,29 +60,35 @@ async def test_help_unknown_topic():
 
 
 @pytest.mark.asyncio
-async def test_help_missing_doc_file():
-    from unittest.mock import AsyncMock, patch
+async def test_help_missing_doc_file(monkeypatch):
+    from pathlib import Path
 
-    with patch(
-        "better_telegram_mcp.tools.help_tool._load_doc",
-        new_callable=AsyncMock,
-        return_value=None,
-    ):
-        result = await handle_help("messages")
-        parsed = json.loads(result)
-        assert "error" in parsed
-        assert "not found" in parsed["error"]
+    import better_telegram_mcp.tools.help_tool
+
+    monkeypatch.setattr(
+        better_telegram_mcp.tools.help_tool,
+        "_DOCS_DIR",
+        Path("/tmp/nonexistent_docs_dir_123"),
+    )
+
+    result = await handle_help("messages")
+    parsed = json.loads(result)
+    assert "error" in parsed
+    assert "not found" in parsed["error"]
 
 
 @pytest.mark.asyncio
-async def test_help_all_no_docs():
-    from unittest.mock import AsyncMock, patch
+async def test_help_all_no_docs(monkeypatch):
+    from pathlib import Path
 
-    with patch(
-        "better_telegram_mcp.tools.help_tool._load_doc",
-        new_callable=AsyncMock,
-        return_value=None,
-    ):
-        result = await handle_help("all")
-        parsed = json.loads(result)
-        assert "error" in parsed
+    import better_telegram_mcp.tools.help_tool
+
+    monkeypatch.setattr(
+        better_telegram_mcp.tools.help_tool,
+        "_DOCS_DIR",
+        Path("/tmp/nonexistent_docs_dir_123"),
+    )
+
+    result = await handle_help("all")
+    parsed = json.loads(result)
+    assert "error" in parsed

@@ -455,6 +455,61 @@ async def test_chats_returns_setup_hint_when_unconfigured():
 
 
 @pytest.mark.asyncio
+async def test_not_ready_response_unconfigured():
+    import json
+
+    import better_telegram_mcp.server as server
+
+    server._unconfigured = True
+    server._auth_url = None
+
+    try:
+        response = server._not_ready_response()
+        data = json.loads(response)
+        assert data["error"] == "Not configured"
+        assert "bot_mode" in data["setup"]
+        assert "user_mode" in data["setup"]
+    finally:
+        server._unconfigured = False
+
+
+@pytest.mark.asyncio
+async def test_not_ready_response_auth_url():
+    import json
+
+    import better_telegram_mcp.server as server
+
+    server._unconfigured = False
+    server._auth_url = "http://test.com/auth"
+
+    try:
+        response = server._not_ready_response()
+        data = json.loads(response)
+        assert "error" in data
+        assert "http://test.com/auth" in data["error"]
+    finally:
+        server._auth_url = None
+
+
+@pytest.mark.asyncio
+async def test_not_ready_response_no_phone():
+    import json
+
+    import better_telegram_mcp.server as server
+
+    server._unconfigured = False
+    server._auth_url = None
+
+    try:
+        response = server._not_ready_response()
+        data = json.loads(response)
+        assert "error" in data
+        assert "TELEGRAM_PHONE" in data["error"]
+    finally:
+        pass
+
+
+@pytest.mark.asyncio
 async def test_media_returns_setup_hint_when_unconfigured():
     """media tool returns setup instructions when unconfigured."""
     import better_telegram_mcp.server as srv

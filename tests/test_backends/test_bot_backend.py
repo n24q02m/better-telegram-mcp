@@ -133,6 +133,16 @@ async def test_clear_cache():
     await bot.clear_cache()
 
 
+async def test_auth_methods():
+    bot = _make_bot()
+    assert await bot.is_authorized() is False
+    bot._connected = True
+    assert await bot.is_authorized() is True
+    await bot.send_code("123456")
+    res = await bot.sign_in("123456", "123")
+    assert "Bot mode does not require" in res["message"]
+
+
 # --- User-only methods raise ModeError ---
 
 
