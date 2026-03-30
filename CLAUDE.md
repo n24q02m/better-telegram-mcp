@@ -50,6 +50,19 @@ Session persist: `~/.better-telegram-mcp/<name>.session`, permission 600.
 
 NO `TELEGRAM_PASSWORD` -- 2FA nhap qua web UI, KHONG luu env.
 
+## Release & Deploy
+
+- Conventional Commits. Tag format: `v{version}`
+- CD: PSR v10 -> PyPI (uv publish) -> Docker multi-arch (amd64 + arm64) -> MCP Registry
+- Docker images: `n24q02m/better-telegram-mcp`
+
+## Pre-commit hooks
+
+1. Ruff lint (`--fix`) + format
+2. ty type check
+3. pytest (`--tb=short -q`)
+4. Commit message: enforce Conventional Commits
+
 ## Luu y
 
 - Config tool: `status|set|cache_clear` (NO auth/send_code -- web UI only)
