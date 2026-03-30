@@ -1,7 +1,7 @@
 # CLAUDE.md - better-telegram-mcp
 
 MCP Server cho Telegram. Python 3.13, uv, hatchling, src layout.
-Dual-mode: Bot API (httpx) + MTProto (Telethon). 6 mega-tools voi action dispatch.
+Dual-mode: Bot API (httpx) + MTProto (Telethon). 3 tools: telegram (action dispatch), config, help.
 
 ## Commands
 

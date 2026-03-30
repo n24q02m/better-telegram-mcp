@@ -54,16 +54,16 @@ class TestNoAuth:
     """Tests that work without any Telegram credentials configured."""
 
     # ------------------------------------------------------------------
-    # 1. Tool listing -- all 6 tools exposed
+    # 1. Tool listing -- all 3 tools exposed
     # ------------------------------------------------------------------
     async def test_list_tools(self):
-        """Server exposes exactly 6 tools."""
+        """Server exposes exactly 3 tools."""
         async with stdio_client(_server_params()) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 tools = await session.list_tools()
                 names = {t.name for t in tools.tools}
-                expected = {"messages", "chats", "media", "contacts", "config", "help"}
+                expected = {"telegram", "config", "help"}
                 assert expected == names, f"Expected {expected}, got {names}"
 
     # ------------------------------------------------------------------
@@ -160,38 +160,38 @@ class TestNoAuth:
                 assert "setup" in data or "error" in data
 
     # ------------------------------------------------------------------
-    # 4. Unconfigured tools return setup hints (NOT crash)
+    # 4. Unconfigured telegram tool returns setup hints (NOT crash)
     # ------------------------------------------------------------------
-    async def test_messages_unconfigured(self):
-        """messages tool without auth returns structured setup hints."""
+    async def test_telegram_send_unconfigured(self):
+        """telegram send without auth returns structured setup hints."""
         async with stdio_client(_server_params()) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 result = await session.call_tool(
-                    "messages",
-                    {"args": {"action": "history", "chat_id": "123", "limit": 5}},
+                    "telegram",
+                    {"action": "history", "chat_id": "123", "limit": 5},
                 )
                 data = _parse_result(result)
                 assert isinstance(data, dict)
                 assert "setup" in data or "error" in data
 
-    async def test_chats_unconfigured(self):
-        """chats tool without auth returns structured setup hints."""
+    async def test_telegram_list_chats_unconfigured(self):
+        """telegram list_chats without auth returns structured setup hints."""
         async with stdio_client(_server_params()) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
-                result = await session.call_tool("chats", {"action": "list"})
+                result = await session.call_tool("telegram", {"action": "list_chats"})
                 data = _parse_result(result)
                 assert isinstance(data, dict)
                 assert "setup" in data or "error" in data
 
-    async def test_media_unconfigured(self):
-        """media tool without auth returns structured setup hints."""
+    async def test_telegram_send_photo_unconfigured(self):
+        """telegram send_photo without auth returns structured setup hints."""
         async with stdio_client(_server_params()) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 result = await session.call_tool(
-                    "media",
+                    "telegram",
                     {
                         "action": "send_photo",
                         "chat_id": "123",
@@ -202,12 +202,14 @@ class TestNoAuth:
                 assert isinstance(data, dict)
                 assert "setup" in data or "error" in data
 
-    async def test_contacts_unconfigured(self):
-        """contacts tool without auth returns structured setup hints."""
+    async def test_telegram_list_contacts_unconfigured(self):
+        """telegram list_contacts without auth returns structured setup hints."""
         async with stdio_client(_server_params()) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
-                result = await session.call_tool("contacts", {"action": "list"})
+                result = await session.call_tool(
+                    "telegram", {"action": "list_contacts"}
+                )
                 data = _parse_result(result)
                 assert isinstance(data, dict)
                 assert "setup" in data or "error" in data
@@ -220,7 +222,7 @@ class TestNoAuth:
         async with stdio_client(_server_params()) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
-                result = await session.call_tool("chats", {"action": "list"})
+                result = await session.call_tool("telegram", {"action": "list_chats"})
                 data = _parse_result(result)
                 assert isinstance(data, dict)
                 setup = data.get("setup", {})
@@ -239,13 +241,13 @@ class TestWithAuth:
     """Tests that require a valid TELEGRAM_BOT_TOKEN."""
 
     async def test_list_tools_with_auth(self):
-        """Server exposes 6 tools when authenticated."""
+        """Server exposes 3 tools when authenticated."""
         async with stdio_client(_server_params(with_token=True)) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 tools = await session.list_tools()
                 names = {t.name for t in tools.tools}
-                assert len(names) == 6
+                assert len(names) == 3
 
     async def test_config_status_connected(self):
         """config status shows connected=True with valid token."""
@@ -300,38 +302,40 @@ class TestWithAuth:
                 if isinstance(data, str):
                     assert len(data) > 100
 
-    async def test_messages_history_bot_self(self):
-        """messages history on bot's own chat returns result (may be empty)."""
+    async def test_telegram_history_bot_self(self):
+        """telegram history on bot's own chat returns result (may be empty)."""
         async with stdio_client(_server_params(with_token=True)) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 # Bot history returns empty list (Bot API limitation)
                 result = await session.call_tool(
-                    "messages",
-                    {"args": {"action": "history", "chat_id": "123", "limit": 5}},
+                    "telegram",
+                    {"action": "history", "chat_id": "123", "limit": 5},
                 )
                 data = _parse_result(result)
                 assert isinstance(data, dict)
                 # Either returns data or a structured error (NOT a crash)
                 assert "error" in data or "messages" in data or isinstance(data, dict)
 
-    async def test_chats_list_bot_mode_error(self):
-        """chats list in bot mode returns mode error."""
+    async def test_telegram_list_chats_bot_mode_error(self):
+        """telegram list_chats in bot mode returns mode error."""
         async with stdio_client(_server_params(with_token=True)) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
-                result = await session.call_tool("chats", {"action": "list"})
+                result = await session.call_tool("telegram", {"action": "list_chats"})
                 data = _parse_result(result)
                 assert isinstance(data, dict)
                 # Bot mode cannot list chats - should return error
                 assert "error" in data
 
-    async def test_contacts_list_bot_mode_error(self):
-        """contacts list in bot mode returns mode error."""
+    async def test_telegram_list_contacts_bot_mode_error(self):
+        """telegram list_contacts in bot mode returns mode error."""
         async with stdio_client(_server_params(with_token=True)) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
-                result = await session.call_tool("contacts", {"action": "list"})
+                result = await session.call_tool(
+                    "telegram", {"action": "list_contacts"}
+                )
                 data = _parse_result(result)
                 assert isinstance(data, dict)
                 assert "error" in data

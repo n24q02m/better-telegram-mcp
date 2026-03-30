@@ -52,6 +52,16 @@ async def test_help_none():
 
 
 @pytest.mark.asyncio
+async def test_help_telegram_topic():
+    """Topic 'telegram' returns all docs (same as 'all')."""
+    result = await handle_help("telegram")
+    assert "Telegram Messages" in result
+    assert "Telegram Chats" in result
+    assert "Telegram Media" in result
+    assert "Telegram Contacts" in result
+
+
+@pytest.mark.asyncio
 async def test_help_unknown_topic():
     result = await handle_help("nonexistent")
     parsed = json.loads(result)
