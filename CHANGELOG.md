@@ -2,6 +2,23 @@
 
 <!-- version list -->
 
+## v3.5.0-beta.1 (2026-03-30)
+
+### Bug Fixes
+
+- Pin Docker base image SHA in auth-relay Dockerfile
+  ([`1b74b88`](https://github.com/n24q02m/better-telegram-mcp/commit/1b74b88bd39d503239e349bbfb4d4254f3a0de6d))
+
+- Resolve coverage regression and Windows test compatibility
+  ([`0894b37`](https://github.com/n24q02m/better-telegram-mcp/commit/0894b37451ec68d4b080ad55e3a6d664057c4051))
+
+### Features
+
+- Add multi-user HTTP mode with per-user credential isolation
+  ([#96](https://github.com/n24q02m/better-telegram-mcp/pull/96),
+  [`075b5b0`](https://github.com/n24q02m/better-telegram-mcp/commit/075b5b08ade1e833ac514fe20e915b5204289b01))
+
+
 ## v3.4.0 (2026-03-28)
 
 ### Bug Fixes
