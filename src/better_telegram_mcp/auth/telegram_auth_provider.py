@@ -65,36 +65,48 @@ class TelegramAuthProvider:
 
         Returns the number of successfully restored sessions.
         """
-        sessions = self._store.load_all()
-        restored = 0
+        import asyncio
 
-        for bearer, info in sessions.items():
+        sessions = self._store.load_all()
+        now = time.time()
+
+        # ⚡ Bolt: Initialize Telegram backends concurrently instead of sequentially
+        # This drastically reduces server startup time when many active users exist
+        # by executing the network-bound connect() operations in parallel.
+        async def _restore_single(bearer: str, info: SessionInfo) -> bool:
             # Check TTL
-            if time.time() - info.created_at > _SESSION_TTL:
+            if now - info.created_at > _SESSION_TTL:
                 logger.info(
                     "Session {} expired, removing",
                     info.session_name[:8],
                 )
                 self._store.delete(bearer)
-                continue
+                return False
 
             try:
                 backend = await self._create_backend(info)
                 self.active_clients[bearer] = backend
-                restored += 1
                 logger.info(
                     "Restored {} session: {}",
                     info.mode,
                     info.session_name[:8],
                 )
+                return True
             except Exception:
                 logger.warning(
                     "Failed to restore session {}, removing",
                     info.session_name[:8],
                 )
                 self._store.delete(bearer)
+                return False
 
-        return restored
+        if not sessions:
+            return 0
+
+        results = await asyncio.gather(
+            *(_restore_single(bearer, info) for bearer, info in sessions.items())
+        )
+        return sum(results)
 
     async def _create_backend(self, info: SessionInfo) -> TelegramBackend:
         """Create and connect a backend from session info."""
