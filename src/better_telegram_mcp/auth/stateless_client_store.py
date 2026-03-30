@@ -1,0 +1,119 @@
+"""Stateless HMAC-based Dynamic Client Registration (DCR) store.
+
+Instead of persisting registered clients in a database, this derives
+deterministic client_id and client_secret from the registration input
+using HMAC-SHA256. This means:
+
+- Same input always produces the same credentials (idempotent)
+- Survives cold starts / server restarts without any storage
+- Rotating the HMAC secret invalidates all existing registrations
+
+A warm cache (dict) stores registered client metadata (redirect_uris etc.)
+so that get_client can return the full client info for authorize validation.
+On cold start, clients re-register (instant, same credentials) to repopulate.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import hmac
+import json
+import time
+from dataclasses import dataclass, field
+
+
+@dataclass
+class ClientInfo:
+    """Registered OAuth client information."""
+
+    client_id: str
+    client_secret: str
+    redirect_uris: list[str]
+    client_name: str | None = None
+    client_id_issued_at: float = 0.0
+    grant_types: list[str] = field(
+        default_factory=lambda: ["authorization_code", "refresh_token"]
+    )
+    response_types: list[str] = field(default_factory=lambda: ["code"])
+    token_endpoint_auth_method: str = "client_secret_post"
+
+
+class StatelessClientStore:
+    """Stateless HMAC-based Dynamic Client Registration store.
+
+    Derives deterministic client_id and client_secret from registration
+    input using HMAC-SHA256. Warm cache stores full metadata for lookups.
+    """
+
+    def __init__(self, secret: str) -> None:
+        self._secret = secret.encode()
+        self._cache: dict[str, ClientInfo] = {}
+
+    def _derive_client_id(
+        self, redirect_uris: list[str], client_name: str | None = None
+    ) -> str:
+        payload = json.dumps(
+            {"redirectUris": redirect_uris, "clientName": client_name},
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        digest = hmac.new(
+            self._secret,
+            f"client_id:{payload}".encode(),
+            hashlib.sha256,
+        ).hexdigest()
+        return digest[:32]
+
+    def _derive_client_secret(self, client_id: str) -> str:
+        return hmac.new(
+            self._secret,
+            f"client_secret:{client_id}".encode(),
+            hashlib.sha256,
+        ).hexdigest()
+
+    def register(
+        self,
+        redirect_uris: list[str],
+        client_name: str | None = None,
+    ) -> tuple[str, str]:
+        """Register a new client and return (client_id, client_secret).
+
+        Idempotent: same input always produces the same credentials.
+        """
+        client_id = self._derive_client_id(redirect_uris, client_name)
+        client_secret = self._derive_client_secret(client_id)
+
+        info = ClientInfo(
+            client_id=client_id,
+            client_secret=client_secret,
+            redirect_uris=redirect_uris,
+            client_name=client_name,
+            client_id_issued_at=time.time(),
+        )
+        self._cache[client_id] = info
+
+        return client_id, client_secret
+
+    def get(self, client_id: str) -> ClientInfo | None:
+        """Get client info by client_id.
+
+        Returns cached info if available, or a minimal fallback
+        with only the derived secret (client must re-register for
+        full metadata like redirect_uris).
+        """
+        cached = self._cache.get(client_id)
+        if cached is not None:
+            return cached
+
+        # Fallback: derive secret only (redirect_uris unknown)
+        client_secret = self._derive_client_secret(client_id)
+        return ClientInfo(
+            client_id=client_id,
+            client_secret=client_secret,
+            redirect_uris=[],
+        )
+
+    def validate_secret(self, client_id: str, client_secret: str) -> bool:
+        """Validate that client_secret matches the derived secret for client_id."""
+        expected = self._derive_client_secret(client_id)
+        return hmac.compare_digest(expected, client_secret)
