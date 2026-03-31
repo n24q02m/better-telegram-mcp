@@ -2,6 +2,40 @@
 
 <!-- version list -->
 
+## v3.5.0 (2026-03-31)
+
+### Bug Fixes
+
+- **cd**: Remove orphan build-auth-relay from sync-marketplace needs
+  ([`1b588c4`](https://github.com/n24q02m/better-telegram-mcp/commit/1b588c415f5cf3936ea52a1f931c96e07f9a1f77))
+
+- **deps**: Update non-major dependencies
+  ([#92](https://github.com/n24q02m/better-telegram-mcp/pull/92),
+  [`2996bb6`](https://github.com/n24q02m/better-telegram-mcp/commit/2996bb6fdb0883dcbf1a31bf1de7a48e57f4370d))
+
+- **test**: Skip Unix-only path traversal tests on Windows
+  ([#99](https://github.com/n24q02m/better-telegram-mcp/pull/99),
+  [`e5a4c74`](https://github.com/n24q02m/better-telegram-mcp/commit/e5a4c7443001a686f6af1c472e49406f6d5a80b9))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#93](https://github.com/n24q02m/better-telegram-mcp/pull/93),
+  [`0a429c1`](https://github.com/n24q02m/better-telegram-mcp/commit/0a429c13ecb183c60fef681ba7c31abf90dbc63d))
+
+### Continuous Integration
+
+- Fix Qodo vertex_ai config, VERTEXAI_LOCATION, and Renovate PSR rule
+  ([`72c7447`](https://github.com/n24q02m/better-telegram-mcp/commit/72c7447801634d8246eb84301d9d4b2c0971eaef))
+
+- **cd**: Add plugin marketplace sync on stable release
+  ([`4196543`](https://github.com/n24q02m/better-telegram-mcp/commit/4196543f52eb16586cd8ca551acef132a0ede390))
+
+### Refactoring
+
+- Remove orphan auth-relay, hardcode Telegram app credentials
+  ([`83dde3b`](https://github.com/n24q02m/better-telegram-mcp/commit/83dde3b0e563e1342a2416b4f48d1cf0c7d9c34a))
+
+
 ## v3.5.0-beta.1 (2026-03-30)
 
 ### Bug Fixes
