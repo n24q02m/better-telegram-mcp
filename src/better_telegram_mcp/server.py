@@ -87,13 +87,10 @@ def _not_ready_response() -> str:
                         "example": "TELEGRAM_BOT_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
                     },
                     "user_mode": {
-                        "env_vars": [
-                            "TELEGRAM_API_ID",
-                            "TELEGRAM_API_HASH",
-                            "TELEGRAM_PHONE",
-                        ],
-                        "how": "Get API credentials from https://my.telegram.org",
-                        "example": "TELEGRAM_API_ID=12345 TELEGRAM_API_HASH=abcdef... TELEGRAM_PHONE=+84912345678",
+                        "env_vars": ["TELEGRAM_PHONE"],
+                        "how": "Set your phone number (API credentials have built-in defaults)",
+                        "example": "TELEGRAM_PHONE=+84912345678",
+                        "optional_overrides": ["TELEGRAM_API_ID", "TELEGRAM_API_HASH"],
                     },
                 },
             }
@@ -499,8 +496,8 @@ async def config(
                     "setup": {
                         "bot_mode": "Set TELEGRAM_BOT_TOKEN (get from @BotFather)",
                         "user_mode": (
-                            "Set TELEGRAM_API_ID + TELEGRAM_API_HASH"
-                            " + TELEGRAM_PHONE (from my.telegram.org)"
+                            "Set TELEGRAM_PHONE"
+                            " (API credentials have built-in defaults)"
                         ),
                     },
                 }

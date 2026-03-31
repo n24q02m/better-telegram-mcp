@@ -131,12 +131,13 @@ def test_from_relay_config_empty_values():
 
 
 def test_from_relay_config_missing_keys():
-    """Missing keys should result in None values."""
+    """Missing keys should use built-in defaults for api_id/api_hash."""
     config = {}
     s = Settings.from_relay_config(config)
     assert s.bot_token is None
-    assert s.api_id is None
-    assert s.is_configured is False
+    assert s.api_id == 37984984  # built-in default
+    assert s.api_hash == "2f5f4c76c4de7c07302380c788390100"  # built-in default
+    assert s.is_configured is False  # no phone, no bot_token
 
 
 # --- check_saved_sessions ---
@@ -528,9 +529,11 @@ def test_relay_schema_structure():
 
     user_mode = RELAY_SCHEMA["modes"][1]
     assert user_mode["id"] == "user"
-    assert len(user_mode["fields"]) == 3
+    assert (
+        len(user_mode["fields"]) == 1
+    )  # Only phone (API_ID/HASH have built-in defaults)
     keys = [f["key"] for f in user_mode["fields"]]
-    assert keys == ["TELEGRAM_API_ID", "TELEGRAM_API_HASH", "TELEGRAM_PHONE"]
+    assert keys == ["TELEGRAM_PHONE"]
 
 
 # --- _sanitize_error ---
@@ -604,7 +607,11 @@ class TestNeeds2faPassword:
 
 
 class TestIsUserModeConfig:
-    def test_full_user_config(self):
+    def test_phone_present(self):
+        config = {"TELEGRAM_PHONE": "+84912345678"}
+        assert _is_user_mode_config(config) is True
+
+    def test_full_user_config_with_phone(self):
         config = {
             "TELEGRAM_API_ID": "123",
             "TELEGRAM_API_HASH": "abc",
@@ -620,12 +627,8 @@ class TestIsUserModeConfig:
         config = {"TELEGRAM_BOT_TOKEN": "123:ABC"}
         assert _is_user_mode_config(config) is False
 
-    def test_empty_values(self):
-        config = {
-            "TELEGRAM_API_ID": "",
-            "TELEGRAM_API_HASH": "abc",
-            "TELEGRAM_PHONE": "+84912345678",
-        }
+    def test_empty_phone(self):
+        config = {"TELEGRAM_PHONE": ""}
         assert _is_user_mode_config(config) is False
 
 

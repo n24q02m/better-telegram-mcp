@@ -18,9 +18,9 @@ class Settings(BaseSettings):
     # Bot mode
     bot_token: str | None = None
 
-    # User mode
-    api_id: int | None = None
-    api_hash: str | None = None
+    # User mode (app-level credentials with built-in defaults, like Google Drive client_id/secret)
+    api_id: int | None = 37984984
+    api_hash: str | None = "2f5f4c76c4de7c07302380c788390100"
     phone: str | None = None
     session_name: str = "default"
 
@@ -40,13 +40,18 @@ class Settings(BaseSettings):
         self.api_hash = _empty_to_none(self.api_hash)
         self.phone = _empty_to_none(self.phone)
 
-        has_user = self.api_id is not None and self.api_hash is not None
         has_bot = self.bot_token is not None
+        # User mode requires phone (api_id/api_hash have built-in defaults)
+        has_user = (
+            self.api_id is not None
+            and self.api_hash is not None
+            and self.phone is not None
+        )
 
-        if has_user:
-            self.mode = "user"
-        elif has_bot:
+        if has_bot:
             self.mode = "bot"
+        elif has_user:
+            self.mode = "user"
         # No credentials: keep default mode="bot", server starts in unconfigured state
         return self
 
@@ -54,7 +59,9 @@ class Settings(BaseSettings):
     def is_configured(self) -> bool:
         """Check if any Telegram credentials are provided."""
         return self.bot_token is not None or (
-            self.api_id is not None and self.api_hash is not None
+            self.api_id is not None
+            and self.api_hash is not None
+            and self.phone is not None
         )
 
     @classmethod
@@ -63,20 +70,21 @@ class Settings(BaseSettings):
 
         Args:
             config: Dict with keys like TELEGRAM_BOT_TOKEN, TELEGRAM_API_ID, etc.
+            API_ID and API_HASH use built-in defaults if not provided.
 
         Returns:
             A configured Settings instance.
         """
-        return cls(
-            bot_token=config.get("TELEGRAM_BOT_TOKEN"),
-            api_id=(
-                int(config["TELEGRAM_API_ID"])
-                if config.get("TELEGRAM_API_ID")
-                else None
-            ),
-            api_hash=config.get("TELEGRAM_API_HASH"),
-            phone=config.get("TELEGRAM_PHONE"),
-        )
+        kwargs: dict[str, object] = {
+            "bot_token": config.get("TELEGRAM_BOT_TOKEN"),
+            "phone": config.get("TELEGRAM_PHONE"),
+        }
+        # Only override defaults if relay explicitly provides values
+        if config.get("TELEGRAM_API_ID"):
+            kwargs["api_id"] = int(config["TELEGRAM_API_ID"])
+        if config.get("TELEGRAM_API_HASH"):
+            kwargs["api_hash"] = config["TELEGRAM_API_HASH"]
+        return cls(**kwargs)
 
     @property
     def session_path(self) -> Path:

@@ -27,7 +27,6 @@ src/better_telegram_mcp/
   relay_setup.py       # Zero-config relay: create session, poll for config
   relay_schema.py      # Relay form schema (bot mode + user mode fields)
   tools/               # messages, chats, media, contacts, config_tool, help
-auth-relay/            # Remote auth relay server (deploy Docker on OCI VM)
 ```
 
 ## Auth flow
@@ -43,7 +42,7 @@ Session persist: `~/.better-telegram-mcp/<name>.session`, permission 600.
 ## Env vars
 
 - `TELEGRAM_BOT_TOKEN` -- bot mode
-- `TELEGRAM_API_ID` + `TELEGRAM_API_HASH` -- user mode
+- `TELEGRAM_API_ID` + `TELEGRAM_API_HASH` -- user mode (built-in defaults, override optional)
 - `TELEGRAM_PHONE` -- phone (required for auth web UI)
 - `TELEGRAM_AUTH_URL` -- `local` | remote URL (default: remote)
 - `TELEGRAM_SESSION_NAME`, `TELEGRAM_DATA_DIR` -- optional

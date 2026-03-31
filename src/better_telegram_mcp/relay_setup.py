@@ -26,11 +26,9 @@ if TYPE_CHECKING:
 DEFAULT_RELAY_URL = "https://better-telegram-mcp.n24q02m.com"
 SERVER_NAME = "better-telegram-mcp"
 REQUIRED_FIELDS_BOT = ["TELEGRAM_BOT_TOKEN"]
-REQUIRED_FIELDS_USER = ["TELEGRAM_API_ID", "TELEGRAM_API_HASH"]
+REQUIRED_FIELDS_USER = ["TELEGRAM_PHONE"]
 ALL_POSSIBLE_FIELDS = [
     "TELEGRAM_BOT_TOKEN",
-    "TELEGRAM_API_ID",
-    "TELEGRAM_API_HASH",
     "TELEGRAM_PHONE",
 ]
 
@@ -94,12 +92,12 @@ def check_saved_sessions() -> bool:
 
 
 def _is_user_mode_config(config: dict[str, str]) -> bool:
-    """Check if config has user-mode credentials (API ID + API Hash + Phone)."""
-    return bool(
-        config.get("TELEGRAM_API_ID")
-        and config.get("TELEGRAM_API_HASH")
-        and config.get("TELEGRAM_PHONE")
-    )
+    """Check if config has user-mode credentials (phone number).
+
+    API ID and API Hash have built-in defaults in config.py, so only phone
+    is needed from relay to identify user mode.
+    """
+    return bool(config.get("TELEGRAM_PHONE"))
 
 
 async def _relay_telethon_auth(
@@ -305,8 +303,8 @@ async def ensure_config() -> dict[str, str] | None:
     if check_saved_sessions():
         logger.info(
             "Found saved Telethon session files. "
-            "Set TELEGRAM_API_ID + TELEGRAM_API_HASH to reuse them "
-            "(no re-authentication needed)."
+            "Set TELEGRAM_PHONE to reuse them "
+            "(API credentials have built-in defaults, no re-authentication needed)."
         )
         return None
 
@@ -321,7 +319,7 @@ async def ensure_config() -> dict[str, str] | None:
     except Exception:
         logger.warning(
             "Cannot reach relay server at {}. "
-            "Set TELEGRAM_BOT_TOKEN or TELEGRAM_API_ID + TELEGRAM_API_HASH manually.",
+            "Set TELEGRAM_BOT_TOKEN or TELEGRAM_PHONE manually.",
             relay_url,
         )
         return None

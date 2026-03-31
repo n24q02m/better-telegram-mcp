@@ -13,16 +13,19 @@ def test_bot_mode_detection(monkeypatch):
 def test_user_mode_detection(monkeypatch):
     monkeypatch.setenv("TELEGRAM_API_ID", "12345")
     monkeypatch.setenv("TELEGRAM_API_HASH", "abcdef123456")
+    monkeypatch.setenv("TELEGRAM_PHONE", "+84912345678")
     s = Settings()
     assert s.mode == "user"
 
 
 def test_user_mode_priority_over_bot(monkeypatch):
+    """When both bot_token and user credentials are set, bot_token takes priority."""
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC")
     monkeypatch.setenv("TELEGRAM_API_ID", "12345")
     monkeypatch.setenv("TELEGRAM_API_HASH", "abcdef123456")
+    monkeypatch.setenv("TELEGRAM_PHONE", "+84912345678")
     s = Settings()
-    assert s.mode == "user"
+    assert s.mode == "bot"
 
 
 def test_no_credentials_starts_unconfigured(monkeypatch):
@@ -43,8 +46,25 @@ def test_is_configured_bot(monkeypatch):
 def test_is_configured_user(monkeypatch):
     monkeypatch.setenv("TELEGRAM_API_ID", "12345")
     monkeypatch.setenv("TELEGRAM_API_HASH", "abcdef123456")
+    monkeypatch.setenv("TELEGRAM_PHONE", "+84912345678")
     s = Settings()
     assert s.is_configured is True
+
+
+def test_api_id_api_hash_without_phone_not_configured(monkeypatch):
+    """api_id + api_hash without phone should NOT be configured (defaults exist)."""
+    monkeypatch.setenv("TELEGRAM_API_ID", "12345")
+    monkeypatch.setenv("TELEGRAM_API_HASH", "abcdef123456")
+    s = Settings()
+    assert s.is_configured is False
+    assert s.mode == "bot"
+
+
+def test_default_api_credentials():
+    """api_id and api_hash have built-in defaults."""
+    s = Settings()
+    assert s.api_id == 37984984
+    assert s.api_hash == "2f5f4c76c4de7c07302380c788390100"
 
 
 def test_default_data_dir(monkeypatch):
