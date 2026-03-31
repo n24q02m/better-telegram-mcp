@@ -66,8 +66,8 @@
         "github-actions"
       ],
       "allowedVersions": ">=10.0.0",
-      "matchPackageNames": [
-        "/^python-semantic-release//"
+      "matchPackagePatterns": [
+        "^python-semantic-release/"
       ]
     },
     {
