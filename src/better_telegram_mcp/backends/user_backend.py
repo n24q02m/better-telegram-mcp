@@ -69,6 +69,13 @@ class UserBackend(TelegramBackend):
         session_path = s.data_dir / s.session_name
         s.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
 
+        # Pre-create the actual SQLite file securely to prevent TOCTOU permission issues
+        # Telethon will use this file instead of creating it with default permissions
+        full_session_path = session_path.with_suffix(".session")
+        if not full_session_path.exists():
+            fd = os.open(full_session_path, os.O_CREAT | os.O_RDWR, 0o600)
+            os.close(fd)
+
         self._client = TelegramClient(
             str(session_path),
             s.api_id,
@@ -124,11 +131,6 @@ class UserBackend(TelegramBackend):
                 raise
 
         me = await client.get_me()
-        # Set session file permissions to 600
-        s = self._settings
-        session_file = (s.data_dir / s.session_name).with_suffix(".session")
-        if session_file.exists():
-            os.chmod(session_file, 0o600)
 
         return {
             "authenticated_as": getattr(me, "first_name", ""),
