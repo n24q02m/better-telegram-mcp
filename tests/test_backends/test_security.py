@@ -164,6 +164,7 @@ class TestValidateFilePath:
         with pytest.raises(SecurityError, match="hidden"):
             validate_file_path("~/.ssh/id_rsa")
 
+    @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_tilde_expansion_traversal_blocked(self):
         """Test that paths like ~/../../etc/passwd are expanded and blocked."""
         with pytest.raises(SecurityError, match="/etc/"):
@@ -211,6 +212,7 @@ class TestValidateOutputDir:
         with pytest.raises(SecurityError, match="hidden"):
             validate_output_dir("~/.ssh")
 
+    @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_tilde_expansion_traversal_blocked(self):
         """Test that paths like ~/../../etc/cron.d are expanded and blocked."""
         with pytest.raises(SecurityError, match="/etc/"):
