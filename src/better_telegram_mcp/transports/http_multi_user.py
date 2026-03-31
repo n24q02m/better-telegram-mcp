@@ -52,14 +52,13 @@ def _check_rate_limit(ip: str, limit: int) -> bool:
 
 
 def _get_client_ip(request: Request) -> str:
-    """Extract client IP, respecting X-Forwarded-For behind reverse proxies."""
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        # Take the first (client) IP
-        return forwarded.split(",")[0].strip()
-    if request.client:
-        return request.client.host
-    return "unknown"
+    """Safely extract client IP, respecting reverse proxies if headers are present."""
+    if "cf-connecting-ip" in request.headers:
+        return request.headers["cf-connecting-ip"]
+    if "x-forwarded-for" in request.headers:
+        # X-Forwarded-For can be a comma-separated list of IPs; the first is the client
+        return request.headers["x-forwarded-for"].split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
 
 
 def _extract_bearer(request: Request) -> str | None:
