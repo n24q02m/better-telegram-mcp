@@ -28,10 +28,10 @@ dependencies = [
     "pydantic>=2.12.5",
     "pydantic-settings>=2.13.1",
     "loguru>=0.7.3",
-    "mcp-relay-core>=1.0.5",
+    "mcp-relay-core>=1.1.0",
     "cryptography>=46.0.6",
-    "starlette>=0.46.0",
-    "uvicorn>=0.34.0",
+    "starlette>=0.52.1",
+    "uvicorn>=0.42.0",
 ]
 
 [dependency-groups]
