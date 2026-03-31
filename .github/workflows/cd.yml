@@ -277,7 +277,7 @@ jobs:
   # ============================================================================
   sync-marketplace:
     name: Sync to Marketplace
-    needs: [release, publish-mcp-registry, build-auth-relay]
+    needs: [release, publish-mcp-registry]
     if: needs.release.outputs.released == 'true' && needs.release.outputs.is_prerelease != 'true'
     runs-on: ubuntu-latest
     steps:
