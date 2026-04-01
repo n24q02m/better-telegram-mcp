@@ -25,7 +25,7 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 ## Features
 
 - **Dual mode** -- Bot API (httpx) for bots, MTProto (Telethon) for user accounts
-- **6 mega-tools** with action dispatch: `messages`, `chats`, `media`, `contacts`, `config`, `help`
+- **6 tools** with action dispatch: `message`, `chat`, `media`, `contact`, `config`, `help`
 - **Auto-detect mode** -- Set bot token for bot mode, or API credentials for user mode
 - **Web-based OTP auth** -- Browser-based authentication with remote relay support for headless environments
 - **Tool annotations** -- Each tool declares `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`
@@ -143,12 +143,12 @@ Configure credentials in `~/.claude/settings.local.json` or your shell profile. 
 
 | Tool | Actions | Description |
 |:-----|:--------|:------------|
-| `messages` | `send`, `edit`, `delete`, `forward`, `pin`, `react`, `search`, `history` | Send, edit, delete, forward messages. Pin, react, search, browse history |
-| `chats` | `list`, `info`, `create`, `join`, `leave`, `members`, `admin`, `settings`, `topics` | List and manage chats, groups, channels. Members, admin, forum topics |
+| `message` | `send`, `edit`, `delete`, `forward`, `pin`, `react`, `search`, `history` | Send, edit, delete, forward messages. Pin, react, search, browse history |
+| `chat` | `list`, `info`, `create`, `join`, `leave`, `members`, `admin`, `settings`, `topics` | List and manage chats, groups, channels. Members, admin, forum topics |
 | `media` | `send_photo`, `send_file`, `send_voice`, `send_video`, `download` | Send photos, files, voice notes, videos. Download media from messages |
-| `contacts` | `list`, `search`, `add`, `block` | List, search, add contacts. Block/unblock users (user mode only) |
+| `contact` | `list`, `search`, `add`, `block` | List, search, add contacts. Block/unblock users (user mode only) |
 | `config` | `status`, `set`, `cache_clear` | Server status, update runtime settings, clear cache |
-| `help` | -- | Full documentation for any tool |
+| `help` | -- | Full documentation for any topic |
 
 ### MCP Resources
 
