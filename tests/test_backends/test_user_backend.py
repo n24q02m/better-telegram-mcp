@@ -1300,12 +1300,38 @@ class TestSignIn:
         sys.platform == "win32",
         reason="Windows does not support Unix file permissions (chmod 0o600)",
     )
-    async def test_sign_in_sets_session_permissions(
+    async def test_connect_sets_session_permissions(
         self, tmp_path, mock_client, mock_client_class
     ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
-        # Create a fake session file
+        # Remove the session file if it exists so we can test its creation
+        session_file = tmp_path / "test_session.session"
+        if session_file.exists():
+            session_file.unlink()
+
+        mock_me = MagicMock()
+        mock_me.first_name = "Test"
+        mock_me.username = "testuser"
+        mock_client.sign_in = AsyncMock()
+        mock_client.get_me = AsyncMock(return_value=mock_me)
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        assert session_file.stat().st_mode & 0o777 == 0o600
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Windows does not support Unix file permissions (chmod 0o600)",
+    )
+    async def test_sign_in_updates_existing_session_permissions(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        # Create a fake session file with insecure permissions
         session_file = tmp_path / "test_session.session"
         session_file.write_text("fake")
         session_file.chmod(0o644)
@@ -1319,7 +1345,6 @@ class TestSignIn:
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)
         await backend.connect()
-
         await backend.sign_in("+84912345678", "12345")
 
         assert session_file.stat().st_mode & 0o777 == 0o600
