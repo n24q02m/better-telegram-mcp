@@ -103,7 +103,7 @@ def start_http(settings: Settings) -> None:
 
 
 def _start_single_user_http(settings: Settings) -> None:
-    """Single-user HTTP mode: relay-based credential setup.
+    """Single-user HTTP mode: env vars > stored creds > relay setup.
 
     Backward compatible with the original HTTP transport.
     """
@@ -111,16 +111,18 @@ def _start_single_user_http(settings: Settings) -> None:
 
     from ..server import mcp
 
-    store = CredentialStore(settings.data_dir)
-    creds = store.load()
+    # If env vars already have credentials, skip CredentialStore/relay
+    if not settings.is_configured:
+        store = CredentialStore(settings.data_dir)
+        creds = store.load()
 
-    if creds is None:
-        creds = asyncio.run(setup_credentials(settings))
+        if creds is None:
+            creds = asyncio.run(setup_credentials(settings))
 
-    # Apply credentials to environment so lifespan picks them up
-    for key, value in creds.items():
-        if key.startswith("TELEGRAM_") and key not in os.environ:
-            os.environ[key] = value
+        # Apply credentials to environment so lifespan picks them up
+        for key, value in creds.items():
+            if key.startswith("TELEGRAM_") and key not in os.environ:
+                os.environ[key] = value
 
     mcp.run(transport="streamable-http")
 
