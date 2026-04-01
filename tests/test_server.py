@@ -13,10 +13,10 @@ from better_telegram_mcp.server import (
 )
 
 
-def test_mcp_has_3_tools():
+def test_mcp_has_6_tools():
     tools = mcp._tool_manager._tools
-    assert len(tools) == 3
-    expected = {"telegram", "config", "help"}
+    assert len(tools) == 6
+    expected = {"message", "chat", "media", "contact", "config", "help"}
     assert set(tools.keys()) == expected
 
 
@@ -49,16 +49,16 @@ def test_get_settings_not_initialized():
 
 
 @pytest.mark.asyncio
-async def test_telegram_send_message(mock_backend):
+async def test_message_send(mock_backend):
     import better_telegram_mcp.server as srv
-    from better_telegram_mcp.server import telegram
+    from better_telegram_mcp.server import message
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = await telegram(action="send", chat_id=123, text="hi")
+        result = await message(action="send", chat_id=123, text="hi")
         assert "message_id" in result
     finally:
         srv._backend = old_backend
@@ -66,16 +66,16 @@ async def test_telegram_send_message(mock_backend):
 
 
 @pytest.mark.asyncio
-async def test_telegram_list_chats(mock_backend):
+async def test_chat_list(mock_backend):
     import better_telegram_mcp.server as srv
-    from better_telegram_mcp.server import telegram
+    from better_telegram_mcp.server import chat
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = await telegram(action="list_chats")
+        result = await chat(action="list")
         assert "chats" in result
     finally:
         srv._backend = old_backend
@@ -83,16 +83,16 @@ async def test_telegram_list_chats(mock_backend):
 
 
 @pytest.mark.asyncio
-async def test_telegram_send_photo(mock_backend):
+async def test_media_send_photo(mock_backend):
     import better_telegram_mcp.server as srv
-    from better_telegram_mcp.server import telegram
+    from better_telegram_mcp.server import media
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = await telegram(
+        result = await media(
             action="send_photo",
             chat_id=123,
             file_path_or_url="https://example.com/photo.jpg",
@@ -104,16 +104,16 @@ async def test_telegram_send_photo(mock_backend):
 
 
 @pytest.mark.asyncio
-async def test_telegram_list_contacts(mock_backend):
+async def test_contact_list(mock_backend):
     import better_telegram_mcp.server as srv
-    from better_telegram_mcp.server import telegram
+    from better_telegram_mcp.server import contact
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = await telegram(action="list_contacts")
+        result = await contact(action="list")
         assert "contacts" in result
     finally:
         srv._backend = old_backend
@@ -121,16 +121,16 @@ async def test_telegram_list_contacts(mock_backend):
 
 
 @pytest.mark.asyncio
-async def test_telegram_unknown_action(mock_backend):
+async def test_message_unknown_action(mock_backend):
     import better_telegram_mcp.server as srv
-    from better_telegram_mcp.server import telegram
+    from better_telegram_mcp.server import message
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = json.loads(await telegram(action="nonexistent"))
+        result = json.loads(await message(action="nonexistent"))
         assert "error" in result
         assert "Unknown action" in result["error"]
     finally:
@@ -294,16 +294,16 @@ async def test_lifespan_user_mode_unauthorized_sets_pending():
 
 
 @pytest.mark.asyncio
-async def test_telegram_blocked_during_pending_auth(mock_backend):
+async def test_message_blocked_during_pending_auth(mock_backend):
     import better_telegram_mcp.server as srv
-    from better_telegram_mcp.server import telegram
+    from better_telegram_mcp.server import message
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        result = json.loads(await telegram(action="send", chat_id=123, text="hi"))
+        result = json.loads(await message(action="send", chat_id=123, text="hi"))
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
     finally:
@@ -312,16 +312,16 @@ async def test_telegram_blocked_during_pending_auth(mock_backend):
 
 
 @pytest.mark.asyncio
-async def test_telegram_chats_blocked_during_pending_auth(mock_backend):
+async def test_chat_blocked_during_pending_auth(mock_backend):
     import better_telegram_mcp.server as srv
-    from better_telegram_mcp.server import telegram
+    from better_telegram_mcp.server import chat
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        result = json.loads(await telegram(action="list_chats"))
+        result = json.loads(await chat(action="list"))
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
     finally:
@@ -330,9 +330,9 @@ async def test_telegram_chats_blocked_during_pending_auth(mock_backend):
 
 
 @pytest.mark.asyncio
-async def test_telegram_media_blocked_during_pending_auth(mock_backend):
+async def test_media_blocked_during_pending_auth(mock_backend):
     import better_telegram_mcp.server as srv
-    from better_telegram_mcp.server import telegram
+    from better_telegram_mcp.server import media
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
@@ -340,7 +340,7 @@ async def test_telegram_media_blocked_during_pending_auth(mock_backend):
         srv._backend = mock_backend
         srv._pending_auth = True
         result = json.loads(
-            await telegram(
+            await media(
                 action="send_photo",
                 chat_id=123,
                 file_path_or_url="https://example.com/photo.jpg",
@@ -354,16 +354,16 @@ async def test_telegram_media_blocked_during_pending_auth(mock_backend):
 
 
 @pytest.mark.asyncio
-async def test_telegram_contacts_blocked_during_pending_auth(mock_backend):
+async def test_contact_blocked_during_pending_auth(mock_backend):
     import better_telegram_mcp.server as srv
-    from better_telegram_mcp.server import telegram
+    from better_telegram_mcp.server import contact
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        result = json.loads(await telegram(action="list_contacts"))
+        result = json.loads(await contact(action="list"))
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
     finally:
@@ -412,8 +412,8 @@ def test_main_calls_run():
 async def test_tools_list_works_without_credentials():
     """tools/list should work even with no Telegram credentials."""
     tools = mcp._tool_manager._tools
-    assert len(tools) == 3
-    expected = {"telegram", "config", "help"}
+    assert len(tools) == 6
+    expected = {"message", "chat", "media", "contact", "config", "help"}
     assert set(tools.keys()) == expected
 
 
@@ -430,17 +430,17 @@ async def test_help_works_without_credentials():
 
 
 @pytest.mark.asyncio
-async def test_telegram_returns_setup_hint_when_unconfigured():
-    """telegram tool returns actionable setup instructions when unconfigured."""
+async def test_message_returns_setup_hint_when_unconfigured():
+    """message tool returns actionable setup instructions when unconfigured."""
     import better_telegram_mcp.server as srv
-    from better_telegram_mcp.server import telegram
+    from better_telegram_mcp.server import message
 
     old_unconfigured = srv._unconfigured
     old_pending = srv._pending_auth
     try:
         srv._unconfigured = True
         srv._pending_auth = False
-        result = json.loads(await telegram(action="send", chat_id=123, text="hi"))
+        result = json.loads(await message(action="send", chat_id=123, text="hi"))
         assert "error" in result
         assert result["error"] == "Not configured"
         assert "setup" in result
@@ -453,15 +453,15 @@ async def test_telegram_returns_setup_hint_when_unconfigured():
 
 
 @pytest.mark.asyncio
-async def test_telegram_chats_returns_setup_hint_when_unconfigured():
-    """telegram list_chats returns setup instructions when unconfigured."""
+async def test_chat_returns_setup_hint_when_unconfigured():
+    """chat tool returns setup instructions when unconfigured."""
     import better_telegram_mcp.server as srv
-    from better_telegram_mcp.server import telegram
+    from better_telegram_mcp.server import chat
 
     old = srv._unconfigured
     try:
         srv._unconfigured = True
-        result = json.loads(await telegram(action="list_chats"))
+        result = json.loads(await chat(action="list"))
         assert result["error"] == "Not configured"
         assert "setup" in result
     finally:
@@ -518,16 +518,16 @@ async def test_not_ready_response_no_phone():
 
 
 @pytest.mark.asyncio
-async def test_telegram_media_returns_setup_hint_when_unconfigured():
-    """telegram send_photo returns setup instructions when unconfigured."""
+async def test_media_returns_setup_hint_when_unconfigured():
+    """media tool returns setup instructions when unconfigured."""
     import better_telegram_mcp.server as srv
-    from better_telegram_mcp.server import telegram
+    from better_telegram_mcp.server import media
 
     old = srv._unconfigured
     try:
         srv._unconfigured = True
         result = json.loads(
-            await telegram(
+            await media(
                 action="send_photo",
                 chat_id=123,
                 file_path_or_url="https://example.com/photo.jpg",
@@ -540,15 +540,15 @@ async def test_telegram_media_returns_setup_hint_when_unconfigured():
 
 
 @pytest.mark.asyncio
-async def test_telegram_contacts_returns_setup_hint_when_unconfigured():
-    """telegram list_contacts returns setup instructions when unconfigured."""
+async def test_contact_returns_setup_hint_when_unconfigured():
+    """contact tool returns setup instructions when unconfigured."""
     import better_telegram_mcp.server as srv
-    from better_telegram_mcp.server import telegram
+    from better_telegram_mcp.server import contact
 
     old = srv._unconfigured
     try:
         srv._unconfigured = True
-        result = json.loads(await telegram(action="list_contacts"))
+        result = json.loads(await contact(action="list"))
         assert result["error"] == "Not configured"
         assert "setup" in result
     finally:

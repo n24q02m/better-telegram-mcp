@@ -7,7 +7,6 @@ from contextlib import asynccontextmanager
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
-from pydantic import BaseModel, Field
 
 from .backends.base import TelegramBackend
 from .config import Settings
@@ -16,24 +15,8 @@ from .tools.config_tool import handle_config
 from .tools.contacts import ContactsOptions, handle_contacts
 from .tools.help_tool import handle_help
 from .tools.media import MediaOptions, handle_media
-from .tools.messages import handle_messages
+from .tools.messages import MessagesArgs, handle_messages
 from .utils.formatting import err, ok
-
-
-class MessagesArgs(BaseModel):
-    action: str = Field(description="send|edit|delete|forward|pin|react|search|history")
-    chat_id: str | int | None = None
-    text: str | None = None
-    message_id: int | None = None
-    reply_to: int | None = None
-    parse_mode: str | None = None
-    from_chat: str | int | None = None
-    to_chat: str | int | None = None
-    emoji: str | None = None
-    query: str | None = None
-    limit: int = 20
-    offset_id: int | None = None
-
 
 _backend: TelegramBackend | None = None
 _settings: Settings | None = None
@@ -250,76 +233,20 @@ mcp = FastMCP(
 )
 
 
-# --- Action-to-domain mapping for the unified telegram tool ---
-
-# Messages domain: actions handled by tools/messages.py
-_MESSAGES_ACTIONS = {
-    "send",
-    "edit",
-    "delete",
-    "forward",
-    "pin",
-    "react",
-    "search",
-    "history",
-}
-
-# Chats domain: action name -> chats handler action name
-_CHATS_ACTION_MAP = {
-    "list_chats": "list",
-    "chat_info": "info",
-    "create_chat": "create",
-    "join_chat": "join",
-    "leave_chat": "leave",
-    "chat_members": "members",
-    "chat_admin": "admin",
-    "chat_settings": "settings",
-    "chat_topics": "topics",
-}
-
-# Media domain: actions handled by tools/media.py
-_MEDIA_ACTIONS = {
-    "send_photo",
-    "send_file",
-    "send_voice",
-    "send_video",
-    "download_media",
-}
-
-# Media action name -> media handler action name
-_MEDIA_ACTION_MAP = {
-    "download_media": "download",
-}
-
-# Contacts domain: action name -> contacts handler action name
-_CONTACTS_ACTION_MAP = {
-    "list_contacts": "list",
-    "search_contacts": "search",
-    "add_contact": "add",
-    "block_user": "block",
-}
-
-# All valid actions for error messages
-_ALL_ACTIONS = sorted(
-    [*_MESSAGES_ACTIONS, *_CHATS_ACTION_MAP, *_MEDIA_ACTIONS, *_CONTACTS_ACTION_MAP]
-)
-
-
 # --- Tools ---
 
 
 @mcp.tool(
     annotations=ToolAnnotations(
-        title="Telegram",
+        title="Telegram Messages",
         readOnlyHint=False,
         destructiveHint=True,
         idempotentHint=False,
         openWorldHint=True,
     )
 )
-async def telegram(
+async def message(
     action: str,
-    # Messages params
     chat_id: str | int | None = None,
     text: str | None = None,
     message_id: int | None = None,
@@ -329,31 +256,12 @@ async def telegram(
     to_chat: str | int | None = None,
     emoji: str | None = None,
     query: str | None = None,
-    limit: int | None = None,
+    limit: int = 20,
     offset_id: int | None = None,
-    # Chats params
-    title: str | None = None,
-    description: str | None = None,
-    is_channel: bool = False,
-    link_or_hash: str | None = None,
-    user_id: int | None = None,
-    demote: bool = False,
-    topic_action: str | None = None,
-    topic_id: int | None = None,
-    topic_name: str | None = None,
-    # Media params
-    file_path_or_url: str | None = None,
-    caption: str | None = None,
-    output_dir: str | None = None,
-    # Contacts params
-    phone: str | None = None,
-    first_name: str | None = None,
-    last_name: str | None = None,
-    unblock: bool = False,
 ) -> str:
-    """Send messages, manage chats, transfer media, and handle contacts.
+    """Send, edit, delete, forward, pin, react, search, and get message history.
 
-    MESSAGE actions (chat_id: "@username" | int):
+    Actions (chat_id: "@username" | int):
     - send (chat_id, text -> reply_to, parse_mode)
     - edit (chat_id, message_id, text -> parse_mode)
     - delete (chat_id, message_id)
@@ -362,105 +270,159 @@ async def telegram(
     - react (chat_id, message_id, emoji)
     - search (query -> chat_id, limit=20)
     - history (chat_id -> limit=20, offset_id)
-
-    CHAT actions:
-    - list_chats (-> limit=50)
-    - chat_info (chat_id)
-    - create_chat (title -> is_channel)
-    - join_chat (link_or_hash)
-    - leave_chat (chat_id)
-    - chat_members (chat_id -> limit=50)
-    - chat_admin (chat_id, user_id -> demote)
-    - chat_settings (chat_id, title|description)
-    - chat_topics (chat_id, topic_action -> topic_id, topic_name)
-
-    MEDIA actions (file_path_or_url: local path or URL):
-    - send_photo (chat_id, file_path_or_url -> caption)
-    - send_file (chat_id, file_path_or_url -> caption)
-    - send_voice (chat_id, file_path_or_url -> caption)
-    - send_video (chat_id, file_path_or_url -> caption)
-    - download_media (chat_id, message_id -> output_dir)
-
-    CONTACT actions (user mode only):
-    - list_contacts: Show all contacts
-    - search_contacts (query): Find contacts by name
-    - add_contact (phone, first_name -> last_name)
-    - block_user (user_id -> unblock=true)
     """
     if _unconfigured or _pending_auth:
         return _not_ready_response()
 
-    backend = get_backend()
-
-    # --- Messages domain ---
-    if action in _MESSAGES_ACTIONS:
-        args = MessagesArgs(
-            action=action,
-            chat_id=chat_id,
-            text=text,
-            message_id=message_id,
-            reply_to=reply_to,
-            parse_mode=parse_mode,
-            from_chat=from_chat,
-            to_chat=to_chat,
-            emoji=emoji,
-            query=query,
-            limit=limit if limit is not None else 20,
-            offset_id=offset_id,
-        )
-        return await handle_messages(backend, args)
-
-    # --- Chats domain ---
-    if action in _CHATS_ACTION_MAP:
-        chats_action = _CHATS_ACTION_MAP[action]
-        opts = ChatOptions(
-            chat_id=chat_id,
-            title=title,
-            description=description,
-            is_channel=is_channel,
-            link_or_hash=link_or_hash,
-            user_id=user_id,
-            demote=demote,
-            limit=limit if limit is not None else 50,
-            topic_action=topic_action,
-            topic_id=topic_id,
-            topic_name=topic_name,
-        )
-        return await handle_chats(backend, chats_action, opts)
-
-    # --- Media domain ---
-    if action in _MEDIA_ACTIONS:
-        media_action = _MEDIA_ACTION_MAP.get(action, action)
-        opts = MediaOptions(
-            chat_id=chat_id,
-            file_path_or_url=file_path_or_url,
-            message_id=message_id,
-            caption=caption,
-            output_dir=output_dir,
-        )
-        return await handle_media(backend, media_action, opts)
-
-    # --- Contacts domain ---
-    if action in _CONTACTS_ACTION_MAP:
-        contacts_action = _CONTACTS_ACTION_MAP[action]
-        opts = ContactsOptions(
-            query=query,
-            phone=phone,
-            first_name=first_name,
-            last_name=last_name,
-            user_id=user_id,
-            unblock=unblock,
-        )
-        return await handle_contacts(backend, contacts_action, options=opts)
-
-    # --- Unknown action ---
-    import difflib
-
-    closest = difflib.get_close_matches(action, _ALL_ACTIONS, n=1)
-    suggestion = f" Did you mean '{closest[0]}'?" if closest else ""
-    return err(
-        f"Unknown action '{action}'.{suggestion} Valid: {'|'.join(_ALL_ACTIONS)}"
+    args = MessagesArgs(
+        action=action,
+        chat_id=chat_id,
+        text=text,
+        message_id=message_id,
+        reply_to=reply_to,
+        parse_mode=parse_mode,
+        from_chat=from_chat,
+        to_chat=to_chat,
+        emoji=emoji,
+        query=query,
+        limit=limit,
+        offset_id=offset_id,
     )
+    return await handle_messages(get_backend(), args)
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Telegram Chats",
+        readOnlyHint=False,
+        destructiveHint=True,
+        idempotentHint=False,
+        openWorldHint=True,
+    )
+)
+async def chat(
+    action: str,
+    chat_id: str | int | None = None,
+    title: str | None = None,
+    description: str | None = None,
+    is_channel: bool = False,
+    link_or_hash: str | None = None,
+    user_id: int | None = None,
+    demote: bool = False,
+    limit: int = 50,
+    topic_action: str | None = None,
+    topic_id: int | None = None,
+    topic_name: str | None = None,
+) -> str:
+    """List, create, join, leave, manage members, settings, and topics.
+
+    Actions:
+    - list (-> limit=50)
+    - info (chat_id)
+    - create (title -> is_channel)
+    - join (link_or_hash)
+    - leave (chat_id)
+    - members (chat_id -> limit=50)
+    - admin (chat_id, user_id -> demote)
+    - settings (chat_id, title|description)
+    - topics (chat_id, topic_action -> topic_id, topic_name)
+    """
+    if _unconfigured or _pending_auth:
+        return _not_ready_response()
+
+    opts = ChatOptions(
+        chat_id=chat_id,
+        title=title,
+        description=description,
+        is_channel=is_channel,
+        link_or_hash=link_or_hash,
+        user_id=user_id,
+        demote=demote,
+        limit=limit,
+        topic_action=topic_action,
+        topic_id=topic_id,
+        topic_name=topic_name,
+    )
+    return await handle_chats(get_backend(), action, opts)
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Telegram Media",
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=True,
+    )
+)
+async def media(
+    action: str,
+    chat_id: str | int | None = None,
+    file_path_or_url: str | None = None,
+    message_id: int | None = None,
+    caption: str | None = None,
+    output_dir: str | None = None,
+) -> str:
+    """Send photos, files, voice, video, and download media from messages.
+
+    Actions (file_path_or_url: local path or URL):
+    - send_photo (chat_id, file_path_or_url -> caption)
+    - send_file (chat_id, file_path_or_url -> caption)
+    - send_voice (chat_id, file_path_or_url -> caption)
+    - send_video (chat_id, file_path_or_url -> caption)
+    - download (chat_id, message_id -> output_dir)
+    """
+    if _unconfigured or _pending_auth:
+        return _not_ready_response()
+
+    opts = MediaOptions(
+        chat_id=chat_id,
+        file_path_or_url=file_path_or_url,
+        message_id=message_id,
+        caption=caption,
+        output_dir=output_dir,
+    )
+    return await handle_media(get_backend(), action, opts)
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Telegram Contacts",
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=True,
+    )
+)
+async def contact(
+    action: str,
+    query: str | None = None,
+    phone: str | None = None,
+    first_name: str | None = None,
+    last_name: str | None = None,
+    user_id: int | None = None,
+    unblock: bool = False,
+) -> str:
+    """Manage contacts: list, search, add, and block/unblock users (user mode only).
+
+    Actions:
+    - list: Show all contacts
+    - search (query): Find contacts by name
+    - add (phone, first_name -> last_name)
+    - block (user_id -> unblock=true)
+    """
+    if _unconfigured or _pending_auth:
+        return _not_ready_response()
+
+    opts = ContactsOptions(
+        query=query,
+        phone=phone,
+        first_name=first_name,
+        last_name=last_name,
+        user_id=user_id,
+        unblock=unblock,
+    )
+    return await handle_contacts(get_backend(), action, options=opts)
 
 
 @mcp.tool(

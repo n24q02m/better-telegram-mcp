@@ -1,13 +1,27 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Coroutine
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    from ..server import MessagesArgs
+from pydantic import BaseModel
 
 from ..backends.base import ModeError, TelegramBackend
 from ..utils.formatting import err, ok, safe_error
+
+
+class MessagesArgs(BaseModel):
+    action: str
+    chat_id: str | int | None = None
+    text: str | None = None
+    message_id: int | None = None
+    reply_to: int | None = None
+    parse_mode: str | None = None
+    from_chat: str | int | None = None
+    to_chat: str | int | None = None
+    emoji: str | None = None
+    query: str | None = None
+    limit: int = 20
+    offset_id: int | None = None
 
 
 async def _handle_send(backend: TelegramBackend, args: MessagesArgs) -> str:

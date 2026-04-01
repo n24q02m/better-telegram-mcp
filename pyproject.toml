@@ -1,7 +1,7 @@
 [project]
 name = "better-telegram-mcp"
 version = "3.5.0"
-description = "Production-grade MCP server for Telegram — dual-mode Bot API + MTProto, mega-tool pattern"
+description = "Production-grade MCP server for Telegram — dual-mode Bot API + MTProto, domain-separated tools"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = "==3.13.*"
@@ -68,13 +68,15 @@ packages = ["src/better_telegram_mcp"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
+pythonpath = ["tests"]
 timeout = 30
 markers = [
     "integration: integration tests (require Telegram credentials)",
     "live: live MCP protocol tests (spawns server subprocess)",
     "full: full/real bot mode tests via MCP protocol (requires bot token + chat)",
+    "e2e: end-to-end tests via MCP protocol (requires credentials + setup mode)",
 ]
-addopts = "-m 'not integration and not live and not full'"
+addopts = "-m 'not integration and not live and not full and not e2e'"
 
 [tool.ruff]
 target-version = "py313"

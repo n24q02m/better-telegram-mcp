@@ -137,7 +137,7 @@ class TestFullBotMessages:
                 msg_id = None
                 try:
                     result = await session.call_tool(
-                        "telegram",
+                        "message",
                         {
                             "action": "send",
                             "chat_id": chat_id,
@@ -152,7 +152,7 @@ class TestFullBotMessages:
                 finally:
                     if msg_id:
                         await session.call_tool(
-                            "telegram",
+                            "message",
                             {
                                 "action": "delete",
                                 "chat_id": chat_id,
@@ -170,7 +170,7 @@ class TestFullBotMessages:
                 msg_id = None
                 try:
                     result = await session.call_tool(
-                        "telegram",
+                        "message",
                         {
                             "action": "send",
                             "chat_id": chat_id,
@@ -182,7 +182,7 @@ class TestFullBotMessages:
                     msg_id = data["message_id"]
 
                     result = await session.call_tool(
-                        "telegram",
+                        "message",
                         {
                             "action": "edit",
                             "chat_id": chat_id,
@@ -197,7 +197,7 @@ class TestFullBotMessages:
                 finally:
                     if msg_id:
                         await session.call_tool(
-                            "telegram",
+                            "message",
                             {
                                 "action": "delete",
                                 "chat_id": chat_id,
@@ -216,7 +216,7 @@ class TestFullBotMessages:
                 fwd_id = None
                 try:
                     result = await session.call_tool(
-                        "telegram",
+                        "message",
                         {
                             "action": "send",
                             "chat_id": chat_id,
@@ -228,7 +228,7 @@ class TestFullBotMessages:
                     msg_id = data["message_id"]
 
                     result = await session.call_tool(
-                        "telegram",
+                        "message",
                         {
                             "action": "forward",
                             "from_chat": chat_id,
@@ -244,7 +244,7 @@ class TestFullBotMessages:
                     for mid in (msg_id, fwd_id):
                         if mid:
                             await session.call_tool(
-                                "telegram",
+                                "message",
                                 {
                                     "action": "delete",
                                     "chat_id": chat_id,
@@ -262,7 +262,7 @@ class TestFullBotMessages:
                 msg_id = None
                 try:
                     result = await session.call_tool(
-                        "telegram",
+                        "message",
                         {
                             "action": "send",
                             "chat_id": chat_id,
@@ -275,7 +275,7 @@ class TestFullBotMessages:
 
                     # Pin -- may fail in private chats, acceptable
                     result = await session.call_tool(
-                        "telegram",
+                        "message",
                         {
                             "action": "pin",
                             "chat_id": chat_id,
@@ -287,7 +287,7 @@ class TestFullBotMessages:
                 finally:
                     if msg_id:
                         await session.call_tool(
-                            "telegram",
+                            "message",
                             {
                                 "action": "delete",
                                 "chat_id": chat_id,
@@ -303,7 +303,7 @@ class TestFullBotMessages:
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 result = await session.call_tool(
-                    "telegram",
+                    "message",
                     {"action": "history", "chat_id": chat_id, "limit": 5},
                 )
                 data = _parse(result)
@@ -319,7 +319,7 @@ class TestFullBotMessages:
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 result = await session.call_tool(
-                    "telegram",
+                    "message",
                     {
                         "action": "search",
                         "query": "test",
@@ -349,8 +349,8 @@ class TestFullBotChats:
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 result = await session.call_tool(
-                    "telegram",
-                    {"action": "chat_info", "chat_id": bot_id},
+                    "chat",
+                    {"action": "info", "chat_id": bot_id},
                 )
                 data = _parse(result)
                 assert isinstance(data, dict)
@@ -366,8 +366,8 @@ class TestFullBotChats:
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 result = await session.call_tool(
-                    "telegram",
-                    {"action": "chat_members", "chat_id": bot_id},
+                    "chat",
+                    {"action": "members", "chat_id": bot_id},
                 )
                 data = _parse(result)
                 assert isinstance(data, dict)
@@ -384,8 +384,8 @@ class TestFullBotChats:
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 result = await session.call_tool(
-                    "telegram",
-                    {"action": "list_chats"},
+                    "chat",
+                    {"action": "list"},
                 )
                 data = _parse(result)
                 assert isinstance(data, dict)
@@ -419,7 +419,7 @@ class TestFullBotMedia:
                     msg_id = None
                     try:
                         result = await session.call_tool(
-                            "telegram",
+                            "media",
                             {
                                 "action": "send_photo",
                                 "chat_id": chat_id,
@@ -435,7 +435,7 @@ class TestFullBotMedia:
                     finally:
                         if msg_id:
                             await session.call_tool(
-                                "telegram",
+                                "message",
                                 {
                                     "action": "delete",
                                     "chat_id": chat_id,
@@ -454,9 +454,9 @@ class TestFullBotMedia:
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 result = await session.call_tool(
-                    "telegram",
+                    "media",
                     {
-                        "action": "download_media",
+                        "action": "download",
                         "chat_id": chat_id,
                         "message_id": 1,
                     },
@@ -483,8 +483,8 @@ class TestFullBotContacts:
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 result = await session.call_tool(
-                    "telegram",
-                    {"action": "list_contacts"},
+                    "contact",
+                    {"action": "list"},
                 )
                 data = _parse(result)
                 assert isinstance(data, dict)
@@ -497,8 +497,8 @@ class TestFullBotContacts:
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 result = await session.call_tool(
-                    "telegram",
-                    {"action": "search_contacts", "query": "test"},
+                    "contact",
+                    {"action": "search", "query": "test"},
                 )
                 data = _parse(result)
                 assert isinstance(data, dict)
@@ -670,13 +670,13 @@ class TestFullNoAuth:
     """Tools return setup hints without credentials (no bot token)."""
 
     @pytest.mark.timeout(30)
-    async def test_telegram_send_unconfigured(self):
-        """telegram send without auth returns setup hints."""
+    async def test_message_send_unconfigured(self):
+        """message send without auth returns setup hints."""
         async with stdio_client(_server_params(with_token=False)) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 result = await session.call_tool(
-                    "telegram",
+                    "message",
                     {"action": "send", "chat_id": "123", "text": "test"},
                 )
                 data = _parse(result)
@@ -684,24 +684,24 @@ class TestFullNoAuth:
                 assert "setup" in data or "error" in data
 
     @pytest.mark.timeout(30)
-    async def test_telegram_list_chats_unconfigured(self):
-        """telegram list_chats without auth returns setup hints."""
+    async def test_chat_list_unconfigured(self):
+        """chat list without auth returns setup hints."""
         async with stdio_client(_server_params(with_token=False)) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
-                result = await session.call_tool("telegram", {"action": "list_chats"})
+                result = await session.call_tool("chat", {"action": "list"})
                 data = _parse(result)
                 assert isinstance(data, dict)
                 assert "setup" in data or "error" in data
 
     @pytest.mark.timeout(30)
-    async def test_telegram_send_photo_unconfigured(self):
-        """telegram send_photo without auth returns setup hints."""
+    async def test_media_send_photo_unconfigured(self):
+        """media send_photo without auth returns setup hints."""
         async with stdio_client(_server_params(with_token=False)) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 result = await session.call_tool(
-                    "telegram",
+                    "media",
                     {
                         "action": "send_photo",
                         "chat_id": "123",
@@ -713,14 +713,12 @@ class TestFullNoAuth:
                 assert "setup" in data or "error" in data
 
     @pytest.mark.timeout(30)
-    async def test_telegram_list_contacts_unconfigured(self):
-        """telegram list_contacts without auth returns setup hints."""
+    async def test_contact_list_unconfigured(self):
+        """contact list without auth returns setup hints."""
         async with stdio_client(_server_params(with_token=False)) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
-                result = await session.call_tool(
-                    "telegram", {"action": "list_contacts"}
-                )
+                result = await session.call_tool("contact", {"action": "list"})
                 data = _parse(result)
                 assert isinstance(data, dict)
                 assert "setup" in data or "error" in data
