@@ -23,6 +23,7 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from ..auth.stateless_client_store import StatelessClientStore
 from ..auth.telegram_auth_provider import TelegramAuthProvider
@@ -100,15 +101,22 @@ def create_app(
     client_store = StatelessClientStore(dcr_secret)
     auth_provider = TelegramAuthProvider(data_dir, api_id, api_hash)
 
-    # Session -> bearer mapping for ownership check
-    session_bearers: dict[str, str] = {}
+    # Create MCP server and session manager for streamable-http
+    from ..server import create_http_mcp_server
+
+    mcp_server = create_http_mcp_server()
+
+    from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
+
+    session_manager = StreamableHTTPSessionManager(app=mcp_server._mcp_server)
 
     @asynccontextmanager
     async def lifespan(app: Starlette):
-        """Restore sessions on startup, cleanup on shutdown."""
+        """Restore sessions on startup, start MCP session manager, cleanup on shutdown."""
         restored = await auth_provider.restore_sessions()
         logger.info("Restored {} active sessions", restored)
-        yield
+        async with session_manager.run():
+            yield
         await auth_provider.shutdown()
 
     # --- Auth endpoints ---
@@ -246,61 +254,54 @@ def create_app(
             }
         )
 
-    # --- MCP endpoint ---
+    # --- MCP endpoint (bearer auth + per-user backend injection) ---
 
-    async def mcp_post(request: Request) -> JSONResponse:
-        """MCP POST endpoint - new session or existing session messages."""
-        ip = _get_client_ip(request)
-        if not _check_rate_limit(f"mcp:{ip}", _RATE_LIMIT_MCP):
-            return _jsonrpc_error(-32000, "Rate limit exceeded")
+    from mcp.server.fastmcp.server import StreamableHTTPASGIApp
 
-        bearer = _extract_bearer(request)
-        if not bearer:
-            return _jsonrpc_error(-32000, "Bearer authentication required")
+    mcp_asgi_handler = StreamableHTTPASGIApp(session_manager)
 
-        backend = auth_provider.resolve_backend(bearer)
-        if backend is None:
-            return _jsonrpc_error(
-                -32000,
-                "Invalid or expired bearer token. Authenticate via /auth/bot or /auth/user/send-code first.",
-            )
+    class BearerAuthMCPApp:
+        """ASGI middleware: authenticate bearer -> inject per-user backend -> forward to MCP."""
 
-        # Set per-user backend in context
-        token = _current_backend.set(backend)
-        try:
-            # Ensure multi-user mode is activated
-            from ..server import create_http_mcp_server
+        def __init__(self, inner: ASGIApp) -> None:
+            self.inner = inner
 
-            create_http_mcp_server()
+        async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+            if scope["type"] != "http":
+                await self.inner(scope, receive, send)
+                return
 
-            # For now, return a JSON-RPC response indicating the tool call should use
-            # the streamable HTTP transport. The actual MCP message handling
-            # is delegated to FastMCP.
+            # Extract bearer from headers
+            bearer = None
+            for key, value in scope.get("headers", []):
+                if key == b"authorization":
+                    auth_str = value.decode("utf-8", errors="ignore")
+                    if auth_str.startswith("Bearer "):
+                        bearer = auth_str[7:].strip()
+                    break
+
+            if not bearer:
+                resp = _jsonrpc_error(-32000, "Bearer authentication required")
+                await resp(scope, receive, send)
+                return
+
+            backend = auth_provider.resolve_backend(bearer)
+            if backend is None:
+                resp = _jsonrpc_error(
+                    -32000,
+                    "Invalid or expired bearer token. "
+                    "Authenticate via /auth/bot or /auth/user/send-code first.",
+                )
+                await resp(scope, receive, send)
+                return
+
+            token = _current_backend.set(backend)
             try:
-                body = await request.json()
-            except Exception:
-                return _jsonrpc_error(-32700, "Parse error")
+                await self.inner(scope, receive, send)
+            finally:
+                _current_backend.reset(token)
 
-            # Check session ownership
-            session_id = request.headers.get("mcp-session-id")
-            if session_id:
-                owner = session_bearers.get(session_id)
-                if owner and owner != bearer:
-                    return _jsonrpc_error(-32000, "Session belongs to a different user")
-
-            return JSONResponse(
-                {
-                    "jsonrpc": "2.0",
-                    "error": {
-                        "code": -32601,
-                        "message": "Use streamable-http transport at /mcp/sse for MCP protocol",
-                    },
-                    "id": body.get("id"),
-                },
-                status_code=200,
-            )
-        finally:
-            _current_backend.reset(token)
+    mcp_app = BearerAuthMCPApp(mcp_asgi_handler)
 
     async def health(request: Request) -> JSONResponse:
         """Health check endpoint."""
@@ -319,7 +320,7 @@ def create_app(
         Route("/auth/bot", auth_bot, methods=["POST"]),
         Route("/auth/user/send-code", auth_user_send_code, methods=["POST"]),
         Route("/auth/user/verify", auth_user_verify, methods=["POST"]),
-        Route("/mcp", mcp_post, methods=["POST"]),
+        Route("/mcp", endpoint=mcp_app),
         Route("/health", health, methods=["GET"]),
     ]
 

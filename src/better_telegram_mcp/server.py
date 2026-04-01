@@ -98,6 +98,16 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
             _settings = Settings.from_relay_config(relay_config)
 
     if not _settings.is_configured:
+        if _multi_user_mode:
+            # Multi-user HTTP mode: per-user backends injected via ContextVar.
+            # No global backend needed — skip unconfigured state.
+            logger.info("Multi-user HTTP mode: per-user backends via bearer auth.")
+            try:
+                yield
+            finally:
+                pass
+            return
+
         _unconfigured = True
         logger.warning(
             "No Telegram credentials configured. "
