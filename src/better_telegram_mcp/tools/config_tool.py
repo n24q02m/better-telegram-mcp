@@ -8,7 +8,7 @@ from ..utils.formatting import err, ok, safe_error
 
 
 async def _handle_status(backend: TelegramBackend, **kwargs: Any) -> str:
-    from ..server import _auth_url, _pending_auth, _runtime_config
+    from ..server import _pending_auth, _runtime_config
 
     connected = await backend.is_connected()
     authorized = await backend.is_authorized()
@@ -19,8 +19,6 @@ async def _handle_status(backend: TelegramBackend, **kwargs: Any) -> str:
         "pending_auth": _pending_auth,
         "config": _runtime_config,
     }
-    if _auth_url:
-        result["auth_url"] = _auth_url
     return ok(result)
 
 

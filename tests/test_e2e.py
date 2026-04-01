@@ -25,12 +25,7 @@ import warnings
 
 import pytest
 import pytest_asyncio
-from conftest_e2e import (
-    StderrCapture,
-    open_browser,
-    parse_result,
-    parse_result_allow_error,
-)
+from conftest_e2e import parse_result, parse_result_allow_error
 from mcp import StdioServerParameters
 from mcp.client.session import ClientSession
 from mcp.client.stdio import stdio_client
@@ -63,13 +58,11 @@ def browser_name(request):
 
 
 def _build_server_params(setup_mode: str, backend_mode: str):
-    capture = None
     # Strip credential vars so relay mode starts without them
     strip_vars = BOT_CREDENTIAL_VARS if backend_mode == "bot" else USER_CREDENTIAL_VARS
 
     if setup_mode == "relay":
         env = {k: v for k, v in os.environ.items() if k not in strip_vars}
-        capture = StderrCapture()
         params = StdioServerParameters(
             command="uv", args=["run", "better-telegram-mcp"], env=env
         )
@@ -87,40 +80,24 @@ def _build_server_params(setup_mode: str, backend_mode: str):
         msg = f"Unknown setup mode: {setup_mode}"
         raise ValueError(msg)
 
-    return params, capture
+    return params
 
 
 @pytest_asyncio.fixture(scope="module", loop_scope="module")
 async def session(setup_mode, backend_mode, browser_name):
-    params, capture = _build_server_params(setup_mode, backend_mode)
-    errlog_kwargs = {"errlog": capture} if capture else {}
+    params = _build_server_params(setup_mode, backend_mode)
 
     try:
-        async with stdio_client(params, **errlog_kwargs) as (read_stream, write_stream):
+        async with stdio_client(params) as (read_stream, write_stream):
             async with ClientSession(read_stream, write_stream) as s:
-                if setup_mode == "relay":
-                    # Capture relay URL and open browser BEFORE initialize.
-                    # Server's relay_setup.ensure_config() blocks lifespan until
-                    # user submits credentials. The URL appears in stderr immediately,
-                    # so we capture it, open the browser, then initialize() will
-                    # complete once the user submits credentials in the relay form.
-                    relay_url = await asyncio.to_thread(capture.get_relay_url, 30)
-                    if relay_url:
-                        print(f"\n>>> Open relay: {relay_url}", flush=True)
-                        open_browser(relay_url, browser_name)
-                    else:
-                        # URL not captured — print stderr buffer for debugging
-                        print(
-                            f"\n>>> Relay URL not found in stderr. Buffer:\n"
-                            f"{capture.get_output()[:500]}",
-                            flush=True,
-                        )
-
+                # In relay mode, server's relay_setup.ensure_config() blocks
+                # lifespan until user submits credentials. The server opens the
+                # browser automatically. s.initialize() completes after config
+                # is received.
                 await s.initialize()
 
                 if setup_mode == "relay":
-                    # After initialize completes, server is configured.
-                    # Verify it's authenticated.
+                    # After initialize, server is configured. Verify auth.
                     timeout = 300 if backend_mode == "user" else 120
                     deadline = asyncio.get_event_loop().time() + timeout
                     while asyncio.get_event_loop().time() < deadline:

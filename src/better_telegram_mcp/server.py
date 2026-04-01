@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -22,7 +21,6 @@ _backend: TelegramBackend | None = None
 _settings: Settings | None = None
 _pending_auth: bool = False
 _unconfigured: bool = False
-_auth_url: str | None = None
 _runtime_config: dict[str, int] = {
     "message_limit": 20,
     "timeout": 30,
@@ -78,69 +76,16 @@ def _not_ready_response() -> str:
                 },
             }
         )
-    if _auth_url:
-        return err(
-            f"Telegram session not authenticated. "
-            f"Open {_auth_url} in your browser to authenticate."
-        )
     return err(
-        "Telegram session not authenticated and TELEGRAM_PHONE not configured. "
-        "Set TELEGRAM_PHONE in your MCP server env config, then restart."
+        "Telegram session not authenticated. "
+        "Remove credential env vars and restart to trigger relay setup, "
+        "or set TELEGRAM_PHONE in your MCP server env config."
     )
-
-
-async def _start_auth(
-    backend: TelegramBackend,
-    settings: Settings,
-) -> tuple[object, str]:
-    """Start auth flow (local or remote). Returns (handler, auth_url)."""
-    if settings.auth_url == "local":
-        from .auth_server import AuthServer
-
-        srv = AuthServer(backend, settings)
-        url = await srv.start()
-        return srv, url
-    else:
-        from .auth_client import AuthClient
-
-        client = AuthClient(backend, settings)
-        url = await client.create_session()
-        return client, url
-
-
-async def _run_auth_background(handler: object) -> None:
-    """Run auth polling/waiting in background."""
-    global _pending_auth
-
-    from .auth_client import AuthClient
-    from .auth_server import AuthServer
-
-    if isinstance(handler, AuthClient):
-        # Remote mode: poll relay server and execute commands locally
-        await handler.poll_and_execute()
-        await handler.wait_for_auth()
-    elif isinstance(handler, AuthServer):
-        # Local mode: wait for auth completion via localhost web server
-        await handler.wait_for_auth()
-
-    _pending_auth = False
-    logger.info("Authentication completed!")
-
-
-async def _stop_auth(handler: object) -> None:
-    """Clean up auth handler."""
-    from .auth_client import AuthClient
-    from .auth_server import AuthServer
-
-    if isinstance(handler, AuthClient):
-        await handler.close()
-    elif isinstance(handler, AuthServer):
-        await handler.stop()
 
 
 @asynccontextmanager
 async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
-    global _backend, _settings, _pending_auth, _unconfigured, _auth_url
+    global _backend, _settings, _pending_auth, _unconfigured
     _settings = Settings()
 
     # If env vars not set, try relay config (config file -> relay setup)
@@ -182,47 +127,17 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
     await _backend.connect()
     logger.info("Connected to Telegram ({})", _settings.mode)
 
-    auth_handler = None
     if _settings.mode == "user" and not await _backend.is_authorized():
-        if _settings.phone and relay_config is None:
-            # Only start separate auth flow if NOT coming from relay setup
-            # (relay_setup.py handles OTP/2FA via bidirectional messaging)
-            _pending_auth = True
-            auth_handler, _auth_url = await _start_auth(_backend, _settings)
-            logger.warning(
-                "Session not authorized. Open {} to authenticate.", _auth_url
-            )
-
-            import webbrowser
-
-            def _open_browser() -> None:
-                try:
-                    # Bolt: webbrowser.open() is a synchronous, blocking call
-                    # that invokes an external GUI process.
-                    # Offloading it to a separate thread as a background task
-                    # prevents blocking the async event loop AND avoids blocking
-                    # the _lifespan generator, ensuring the MCP server starts
-                    # instantly.
-                    webbrowser.open(_auth_url)
-                except Exception:
-                    pass
-
-            asyncio.create_task(asyncio.to_thread(_open_browser))
-
-            asyncio.create_task(_run_auth_background(auth_handler))
-        else:
-            _pending_auth = True
-            logger.warning(
-                "Session not authorized and TELEGRAM_PHONE not set. "
-                "Set TELEGRAM_PHONE in your MCP server config, then restart."
-            )
+        _pending_auth = True
+        logger.warning(
+            "Session not authorized. "
+            "Remove credential env vars and restart to trigger relay setup "
+            "(relay handles OTP/2FA via bidirectional messaging)."
+        )
 
     try:
         yield
     finally:
-        if auth_handler is not None:
-            await _stop_auth(auth_handler)
-        _auth_url = None
         await _backend.disconnect()
         logger.info("Disconnected from Telegram")
 

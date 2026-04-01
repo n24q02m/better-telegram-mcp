@@ -331,6 +331,14 @@ async def ensure_config() -> dict[str, str] | None:
         flush=True,
     )
 
+    # Open browser automatically (non-blocking, best-effort)
+    import asyncio
+    import webbrowser
+
+    asyncio.get_event_loop().run_in_executor(
+        None, lambda: webbrowser.open(session.relay_url)
+    )
+
     # Poll for result
     try:
         from mcp_relay_core.relay.client import poll_for_result
