@@ -5,7 +5,24 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+# Import E2E pytest_addoption hooks so --setup/--browser/--backend are registered
+from conftest_e2e import pytest_addoption as _e2e_addoption  # noqa: F401
+
 from better_telegram_mcp.backends.base import TelegramBackend
+
+
+def pytest_addoption(parser):
+    """Register E2E CLI options + backend option."""
+    _e2e_addoption(parser)
+    try:
+        parser.addoption(
+            "--backend",
+            choices=["bot", "user"],
+            default="bot",
+            help="Telegram backend mode: bot (Bot API) or user (MTProto)",
+        )
+    except ValueError:
+        pass  # Already added
 
 
 class MockBackend(TelegramBackend):
