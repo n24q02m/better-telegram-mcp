@@ -109,12 +109,20 @@ class TestValidateUrl:
         validate_url("http://example.com/image.jpg")
 
     def test_dns_resolution_failure_blocked(self, monkeypatch):
+        """Test that DNS resolution failure (OSError) is caught and re-raised as SecurityError."""
+
         def mock_getaddrinfo(*args, **kwargs):
             raise OSError("Temporary failure in name resolution")
 
         monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
-        with pytest.raises(SecurityError, match="Failed to resolve hostname"):
+        with pytest.raises(
+            SecurityError, match="Failed to resolve hostname"
+        ) as exc_info:
             validate_url("http://nonexistent.domain.internal/admin")
+
+        # Verify the original OSError is chained
+        assert isinstance(exc_info.value.__cause__, OSError)
+        assert str(exc_info.value.__cause__) == "Temporary failure in name resolution"
 
 
 class TestValidateFilePath:
@@ -201,6 +209,13 @@ class TestValidateOutputDir:
         base = tmp_path / "downloads"
         with pytest.raises(SecurityError, match="must be within"):
             validate_output_dir(str(data), base_dir=base)
+
+    def test_base_dir_ok(self, tmp_path):
+        """Test that output path is allowed if it is within base_dir."""
+        data = tmp_path / "downloads" / "data.txt"
+        base = tmp_path / "downloads"
+        result = validate_output_dir(str(data), base_dir=base)
+        assert result == data.resolve()
 
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_var_spool_blocked(self):
