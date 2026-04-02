@@ -84,3 +84,27 @@ def test_session_path(monkeypatch):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC")
     s = Settings()
     assert str(s.session_path).endswith("default.session")
+
+
+def test_empty_to_none():
+    from better_telegram_mcp.config import _empty_to_none
+
+    assert _empty_to_none(None) is None
+    assert _empty_to_none("") is None
+    assert _empty_to_none("  ") is None
+    assert _empty_to_none("valid") == "valid"
+
+
+def test_from_relay_config():
+    config = {
+        "TELEGRAM_BOT_TOKEN": "123:ABC",
+        "TELEGRAM_PHONE": "+123456789",
+        "TELEGRAM_API_ID": "999",
+        "TELEGRAM_API_HASH": "hash123",
+    }
+    s = Settings.from_relay_config(config)
+    assert s.bot_token == "123:ABC"
+    assert s.phone == "+123456789"
+    assert s.api_id == 999
+    assert s.api_hash == "hash123"
+    assert s.mode == "bot"  # bot_token takes priority
