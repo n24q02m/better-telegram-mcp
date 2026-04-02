@@ -128,6 +128,26 @@ class TestDisconnect:
         mock_client.disconnect.assert_awaited()
         assert backend._client is None
 
+    async def test_disconnect_exception_is_ignored(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from unittest.mock import AsyncMock
+
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        # Mock disconnect to raise an exception
+        mock_client.disconnect = AsyncMock(side_effect=Exception("Disconnect failed"))
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        # Should not raise exception
+        await backend.disconnect()
+
+        mock_client.disconnect.assert_awaited()
+        assert backend._client is None
+
     async def test_disconnect_when_not_connected(self, tmp_path):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
