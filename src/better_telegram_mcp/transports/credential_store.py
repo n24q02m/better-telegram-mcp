@@ -15,7 +15,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-_SALT = b"mcp-telegram-creds"
+_LEGACY_SALT = b"mcp-telegram-creds"
 _KDF_ITERATIONS = 100_000
 _NONCE_SIZE = 12
 
@@ -29,11 +29,35 @@ class CredentialStore:
 
     def __init__(self, data_dir: Path, secret: str | None = None) -> None:
         self._path = data_dir / "credentials.enc"
+        self._salt_path = data_dir / ".salt"
         self._secret = secret or os.environ.get("CREDENTIAL_SECRET", "")
         if not self._secret:
             self._secret = self._resolve_or_generate_secret(data_dir)
+
+        self._salt = self._resolve_salt()
+
         # ⚡ Bolt: Cache derived key to avoid repeated 100k iteration PBKDF2 (~60ms) overhead
         self._cached_key: bytes | None = None
+
+    def _resolve_salt(self) -> bytes:
+        """Load persisted salt, fallback to legacy, or generate new one."""
+        if self._salt_path.exists():
+            return self._salt_path.read_bytes()
+
+        # Backward compatibility: if we have credentials but no salt file,
+        # we must be using the legacy salt.
+        if self._path.exists():
+            return _LEGACY_SALT
+
+        # New installation: generate random salt
+        salt = os.urandom(16)
+        self._salt_path.parent.mkdir(parents=True, exist_ok=True)
+        self._salt_path.write_bytes(salt)
+        try:
+            self._salt_path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
+        except OSError:
+            pass
+        return salt
 
     @staticmethod
     def _resolve_or_generate_secret(data_dir: Path) -> str:
@@ -56,7 +80,7 @@ class CredentialStore:
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
-            salt=_SALT,
+            salt=self._salt,
             iterations=_KDF_ITERATIONS,
         )
         self._cached_key = kdf.derive(self._secret.encode())
@@ -65,6 +89,18 @@ class CredentialStore:
     def store(self, credentials: dict[str, str]) -> None:
         """Encrypt and save credentials."""
         self._path.parent.mkdir(parents=True, exist_ok=True)
+
+        # If we are still using the legacy salt, migrate to a new random one now
+        if self._salt == _LEGACY_SALT:
+            new_salt = os.urandom(16)
+            self._salt_path.write_bytes(new_salt)
+            try:
+                self._salt_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
+            except OSError:
+                pass
+            self._salt = new_salt
+            self._cached_key = None  # Force re-derivation
+
         key = self._derive_key()
         aesgcm = AESGCM(key)
         nonce = os.urandom(_NONCE_SIZE)

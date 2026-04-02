@@ -146,3 +146,65 @@ class TestCredentialStore:
         store = CredentialStore(tmp_path)
         # Store writing triggers credential chmod
         store.store({"api_id": "123"})
+
+    def test_random_salt_generation(self, data_dir: Path) -> None:
+        """New installation should generate a random salt file."""
+        store = CredentialStore(data_dir, secret="test-secret")
+        salt_path = data_dir / ".salt"
+        assert salt_path.exists()
+        salt = salt_path.read_bytes()
+        assert len(salt) == 16
+        assert store._salt == salt
+
+    def test_auto_generated_salt_persists(self, data_dir: Path) -> None:
+        """Salt should be saved and reused across instances."""
+        CredentialStore(data_dir)
+        salt = (data_dir / ".salt").read_bytes()
+
+        store2 = CredentialStore(data_dir)
+        assert store2._salt == salt
+
+    def test_legacy_salt_migration(self, data_dir: Path) -> None:
+        """Should load legacy data and migrate to new salt on store."""
+        import json
+        import os
+
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+        from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+        secret = "legacy-secret"
+        legacy_salt = b"mcp-telegram-creds"
+        creds = {"token": "legacy-token"}
+
+        # 1. Manually create legacy encrypted file
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=legacy_salt,
+            iterations=100_000,
+        )
+        key = kdf.derive(secret.encode())
+        aesgcm = AESGCM(key)
+        nonce = os.urandom(12)
+        ciphertext = aesgcm.encrypt(nonce, json.dumps(creds).encode(), None)
+        (data_dir / "credentials.enc").write_bytes(nonce + ciphertext)
+
+        # 2. Load with CredentialStore (should fallback to legacy salt)
+        store = CredentialStore(data_dir, secret=secret)
+        assert store._salt == legacy_salt
+        assert store.load() == creds
+        assert not (data_dir / ".salt").exists()
+
+        # 3. Store new data (should trigger migration)
+        new_creds = {"token": "new-token"}
+        store.store(new_creds)
+
+        assert (data_dir / ".salt").exists()
+        assert store._salt != legacy_salt
+        assert store.load() == new_creds
+
+        # 4. Verify new instances use the new salt
+        store2 = CredentialStore(data_dir, secret=secret)
+        assert store2._salt == store._salt
+        assert store2.load() == new_creds
