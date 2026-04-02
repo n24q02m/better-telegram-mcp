@@ -332,7 +332,7 @@ async def test_api_error_has_error_code():
 
 
 async def test_connect_non_unauthorized_error():
-    """Non-Unauthorized errors during connect should be re-raised as-is."""
+    """Non-Unauthorized errors during connect should be wrapped in ConnectionError."""
     body = {"ok": False, "description": "Too Many Requests", "error_code": 429}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -343,7 +343,9 @@ async def test_connect_non_unauthorized_error():
         transport=httpx.MockTransport(handler),
         base_url=bot._base_url,
     )
-    with pytest.raises(TelegramAPIError, match="Too Many Requests"):
+    with pytest.raises(
+        ConnectionError, match="Failed to connect to Bot API: Too Many Requests"
+    ):
         await bot.connect()
 
 
