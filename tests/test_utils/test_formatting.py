@@ -3,7 +3,23 @@ from datetime import datetime
 
 from better_telegram_mcp.backends.base import ModeError
 from better_telegram_mcp.backends.security import SecurityError
-from better_telegram_mcp.utils.formatting import err, ok, safe_error
+from better_telegram_mcp.utils.formatting import _mask_phone, err, ok, safe_error
+
+
+def test_mask_phone_edge_cases():
+    # Empty string
+    assert _mask_phone("") == "***"
+    # Length < 5
+    assert _mask_phone("1") == "*"
+    assert _mask_phone("12") == "**"
+    assert _mask_phone("123") == "***"
+    assert _mask_phone("1234") == "****"
+    # Length == 5
+    assert _mask_phone("12345") == "12*45"
+    # Typical phone lengths
+    assert _mask_phone("1234567890") == "12******90"
+    assert _mask_phone("+1234567890") == "+1*******90"
+    assert _mask_phone("+441234567890") == "+4*********90"
 
 
 def test_ok_basic_serialization():
