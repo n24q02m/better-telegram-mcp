@@ -13,8 +13,8 @@ async def test_send_photo(mock_backend):
     result = json.loads(
         await handle_media(
             mock_backend,
-            "send_photo",
             MediaOptions(
+                action="send_photo",
                 chat_id=123,
                 file_path_or_url="https://example.com/photo.jpg",
                 caption="Nice photo",
@@ -32,8 +32,8 @@ async def test_send_file(mock_backend):
     result = json.loads(
         await handle_media(
             mock_backend,
-            "send_file",
             MediaOptions(
+                action="send_file",
                 chat_id=123,
                 file_path_or_url="/tmp/doc.pdf",
             ),
@@ -50,8 +50,8 @@ async def test_send_voice(mock_backend):
     result = json.loads(
         await handle_media(
             mock_backend,
-            "send_voice",
             MediaOptions(
+                action="send_voice",
                 chat_id=123,
                 file_path_or_url="/tmp/voice.ogg",
             ),
@@ -68,8 +68,8 @@ async def test_send_video(mock_backend):
     result = json.loads(
         await handle_media(
             mock_backend,
-            "send_video",
             MediaOptions(
+                action="send_video",
                 chat_id=123,
                 file_path_or_url="/tmp/video.mp4",
             ),
@@ -84,15 +84,15 @@ async def test_send_video(mock_backend):
 @pytest.mark.asyncio
 async def test_send_photo_missing_params(mock_backend):
     result = json.loads(
-        await handle_media(mock_backend, "send_photo", MediaOptions(chat_id=123))
+        await handle_media(mock_backend, MediaOptions(action="send_photo", chat_id=123))
     )
     assert "error" in result
 
     result = json.loads(
         await handle_media(
             mock_backend,
-            "send_photo",
             MediaOptions(
+                action="send_photo",
                 file_path_or_url="https://example.com/photo.jpg",
             ),
         )
@@ -105,8 +105,8 @@ async def test_download(mock_backend):
     result = json.loads(
         await handle_media(
             mock_backend,
-            "download",
             MediaOptions(
+                action="download",
                 chat_id=123,
                 message_id=10,
                 output_dir="/tmp",
@@ -119,19 +119,26 @@ async def test_download(mock_backend):
 @pytest.mark.asyncio
 async def test_download_missing_params(mock_backend):
     result = json.loads(
-        await handle_media(mock_backend, "download", MediaOptions(chat_id=123))
+        await handle_media(mock_backend, MediaOptions(action="download", chat_id=123))
     )
     assert "error" in result
 
     result = json.loads(
-        await handle_media(mock_backend, "download", MediaOptions(message_id=10))
+        await handle_media(mock_backend, MediaOptions(action="download", message_id=10))
     )
     assert "error" in result
 
 
 @pytest.mark.asyncio
 async def test_unknown_action(mock_backend):
-    result = json.loads(await handle_media(mock_backend, "unknown", MediaOptions()))
+    result = json.loads(
+        await handle_media(
+            mock_backend,
+            MediaOptions(
+                action="unknown",
+            ),
+        )
+    )
     assert "error" in result
     assert "Unknown action" in result["error"]
 
@@ -142,8 +149,8 @@ async def test_mode_error(mock_backend):
     result = json.loads(
         await handle_media(
             mock_backend,
-            "send_photo",
             MediaOptions(
+                action="send_photo",
                 chat_id=123,
                 file_path_or_url="https://example.com/photo.jpg",
             ),
@@ -158,7 +165,7 @@ async def test_general_exception(mock_backend):
     mock_backend.download_media.side_effect = RuntimeError("disk full")
     result = json.loads(
         await handle_media(
-            mock_backend, "download", MediaOptions(chat_id=123, message_id=10)
+            mock_backend, MediaOptions(action="download", chat_id=123, message_id=10)
         )
     )
     assert "error" in result

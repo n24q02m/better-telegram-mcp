@@ -10,6 +10,7 @@ from ..utils.formatting import err, ok, safe_error
 
 
 class ChatOptions(BaseModel):
+    action: str = Field(description="Action to perform")
     chat_id: str | int | None = Field(default=None, description="ID of the chat")
     title: str | None = Field(default=None, description="Title for new/updated chat")
     description: str | None = Field(default=None, description="Description for chat")
@@ -125,20 +126,21 @@ _ACTION_HANDLERS: dict[
 
 async def handle_chats(
     backend: TelegramBackend,
-    action: str,
     options: ChatOptions,
 ) -> str:
     try:
-        handler = _ACTION_HANDLERS.get(action)
+        handler = _ACTION_HANDLERS.get(options.action)
         if handler:
             return await handler(backend, options)
 
         import difflib
 
         valid = sorted(_ACTION_HANDLERS)
-        closest = difflib.get_close_matches(action, valid, n=1)
+        closest = difflib.get_close_matches(options.action, valid, n=1)
         suggestion = f" Did you mean '{closest[0]}'?" if closest else ""
-        return err(f"Unknown action '{action}'.{suggestion} Valid: {'|'.join(valid)}")
+        return err(
+            f"Unknown action '{options.action}'.{suggestion} Valid: {'|'.join(valid)}"
+        )
     except ModeError as e:
         return err(str(e))
     except Exception as e:
