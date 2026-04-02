@@ -551,6 +551,9 @@ class TestJoinChat:
         result = await backend.join_chat("https://t.me/+abc123")
 
         assert result is True
+        # Test invite link with +/
+        result2 = await backend.join_chat("https://t.me/joinchat/+abc123")
+        assert result2 is True
 
     async def test_join_public_link(self, tmp_path, mock_client, mock_client_class):
         from better_telegram_mcp.backends.user_backend import UserBackend
@@ -734,11 +737,22 @@ class TestUpdateChatSettings:
 
 
 class TestClearCache:
-    async def test_clear_cache(self, tmp_path, mock_client, mock_client_class):
+    async def test_clear_cache(
+        self, tmp_path, mock_client, mock_client_class, monkeypatch
+    ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         mock_session = MagicMock()
         mock_client.session = mock_session
+
+        # Mock shutil.rmtree
+        rmtree_called = False
+
+        def mock_rmtree(path):
+            nonlocal rmtree_called
+            rmtree_called = True
+
+        monkeypatch.setattr("shutil.rmtree", mock_rmtree)
 
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)
@@ -746,7 +760,7 @@ class TestClearCache:
 
         await backend.clear_cache()
 
-        mock_session.save.assert_called_once()
+        assert rmtree_called is True
 
     async def test_clear_cache_not_connected(self, tmp_path):
         from better_telegram_mcp.backends.user_backend import UserBackend
@@ -758,13 +772,17 @@ class TestClearCache:
         await backend.clear_cache()
 
     async def test_clear_cache_exception_swallowed(
-        self, tmp_path, mock_client, mock_client_class
+        self, tmp_path, mock_client, mock_client_class, monkeypatch
     ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         mock_session = MagicMock()
-        mock_session.save.side_effect = Exception("Storage error")
         mock_client.session = mock_session
+
+        def mock_rmtree_fail(path):
+            raise Exception("Storage error")
+
+        monkeypatch.setattr("shutil.rmtree", mock_rmtree_fail)
 
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)
@@ -772,8 +790,6 @@ class TestClearCache:
 
         # Should not raise an exception
         await backend.clear_cache()
-
-        mock_session.save.assert_called_once()
 
 
 class TestManageTopics:

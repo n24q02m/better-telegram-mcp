@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -96,10 +97,11 @@ class UserBackend(TelegramBackend):
     async def clear_cache(self) -> None:
         if self._client is not None and self._client.session:
             # Clear Telethon's entity cache by deleting cached entities
+            cache_dir = self._settings.data_dir / "cache"
             try:
-                self._client.session.save()
+                shutil.rmtree(cache_dir)
             except Exception:
-                pass
+                pass  # Ignore cache cleanup errors
 
     # --- Auth ---
     async def is_authorized(self) -> bool:
