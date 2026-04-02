@@ -127,8 +127,8 @@ class UserBackend(TelegramBackend):
         # Set session file permissions to 600
         s = self._settings
         session_file = (s.data_dir / s.session_name).with_suffix(".session")
-        if session_file.exists():
-            os.chmod(session_file, 0o600)
+        if await asyncio.to_thread(session_file.exists):
+            await asyncio.to_thread(os.chmod, session_file, 0o600)
 
         return {
             "authenticated_as": getattr(me, "first_name", ""),
