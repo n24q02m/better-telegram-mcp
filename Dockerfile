@@ -43,7 +43,8 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH=/app/src \
     PYTHONUNBUFFERED=1 \
     TELEGRAM_DATA_DIR=/data \
-    TRANSPORT_MODE=stdio
+    TRANSPORT_MODE=stdio \
+    HOST=0.0.0.0
 
 EXPOSE 8080
 
