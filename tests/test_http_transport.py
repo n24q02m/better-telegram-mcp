@@ -31,7 +31,7 @@ class TestSetupCredentials:
         """Should return stored credentials without hitting relay."""
         store = CredentialStore(data_dir, secret="test")
         expected = {"TELEGRAM_BOT_TOKEN": "stored-token"}
-        store.store(expected)
+        await store.store(expected)
 
         # Patch env so CredentialStore inside setup_credentials uses same secret
         with patch.dict("os.environ", {"CREDENTIAL_SECRET": "test"}):
@@ -118,7 +118,7 @@ class TestSetupCredentials:
 
         # Verify credentials were persisted
         store = CredentialStore(data_dir)
-        assert store.load() == expected_creds
+        assert await store.load() == expected_creds
 
 
 class TestStartHttp:
@@ -126,8 +126,10 @@ class TestStartHttp:
         self, settings: Settings, data_dir: Path
     ) -> None:
         """start_http should load stored creds and run mcp with streamable-http."""
+        import asyncio
+
         store = CredentialStore(data_dir, secret="test")
-        store.store({"TELEGRAM_BOT_TOKEN": "stored-token"})
+        asyncio.run(store.store({"TELEGRAM_BOT_TOKEN": "stored-token"}))
 
         with (
             patch.dict("os.environ", {"CREDENTIAL_SECRET": "test"}),
@@ -141,6 +143,7 @@ class TestStartHttp:
 
     def test_start_http_sets_env_vars(self, settings: Settings, data_dir: Path) -> None:
         """start_http should set TELEGRAM_ env vars from stored credentials."""
+        import asyncio
         import os
 
         store = CredentialStore(data_dir, secret="test")
@@ -148,7 +151,7 @@ class TestStartHttp:
             "TELEGRAM_BOT_TOKEN": "env-token-123",
             "TELEGRAM_API_ID": "99999",
         }
-        store.store(creds)
+        asyncio.run(store.store(creds))
 
         with (
             patch.dict(

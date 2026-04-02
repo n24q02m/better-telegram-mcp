@@ -44,7 +44,7 @@ async def setup_credentials(settings: Settings) -> dict[str, str]:
         RuntimeError: If relay setup fails or times out.
     """
     store = CredentialStore(settings.data_dir)
-    creds = store.load()
+    creds = await store.load()
 
     if creds is not None:
         logger.info("Loaded stored credentials from {}", settings.data_dir)
@@ -75,7 +75,7 @@ async def setup_credentials(settings: Settings) -> dict[str, str]:
         msg = "Relay setup timed out or session expired"
         raise RuntimeError(msg) from exc
 
-    store.store(creds)
+    await store.store(creds)
     logger.info("Credentials stored successfully")
     return creds
 
@@ -114,7 +114,7 @@ def _start_single_user_http(settings: Settings) -> None:
     # If env vars already have credentials, skip CredentialStore/relay
     if not settings.is_configured:
         store = CredentialStore(settings.data_dir)
-        creds = store.load()
+        creds = asyncio.run(store.load())
 
         if creds is None:
             creds = asyncio.run(setup_credentials(settings))
