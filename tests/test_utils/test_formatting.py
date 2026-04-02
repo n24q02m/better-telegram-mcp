@@ -100,3 +100,53 @@ def test_safe_error_generic_exceptions():
 
         # Ensure internal details are NOT leaked
         assert str(exc) not in result
+
+
+def test_safe_error_subclasses():
+    # Test that subclasses of allowed exceptions are also allowed
+    class CustomValueError(ValueError):
+        pass
+
+    exc = CustomValueError("Custom message")
+    result = safe_error(exc)
+    parsed = json.loads(result)
+    assert parsed["error"] == "Custom message"
+
+
+def test_safe_error_special_characters():
+    # Test that special characters in messages are handled correctly
+    msg = 'Error with "quotes", \nnew lines, and emoji 🚀'
+    exc = ValueError(msg)
+    result = safe_error(exc)
+    parsed = json.loads(result)
+    assert parsed["error"] == msg
+
+
+def test_safe_error_empty_message():
+    # Test that exceptions with empty messages are handled gracefully
+    exc = ValueError("")
+    result = safe_error(exc)
+    parsed = json.loads(result)
+    assert parsed["error"] == ""
+
+
+def test_safe_error_edge_cases():
+    # Test with AttributeError (not in allowed list)
+    exc = AttributeError("private_attr")
+    result = safe_error(exc)
+    parsed = json.loads(result)
+    assert (
+        parsed["error"]
+        == "AttributeError: Operation failed. Check server logs for details."
+    )
+    assert "private_attr" not in result
+
+    # Test with SystemExit (BaseException subclass)
+    # Even though safe_error(e: Exception) hints Exception, Python allows BaseException.
+    exc = SystemExit(1)
+    result = safe_error(exc)
+    parsed = json.loads(result)
+    assert (
+        parsed["error"]
+        == "SystemExit: Operation failed. Check server logs for details."
+    )
