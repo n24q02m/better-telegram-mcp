@@ -178,6 +178,10 @@ _ERROR_SIMPLIFICATIONS: list[tuple[re.Pattern[str], str]] = [
         re.compile(r".*flood.*wait.*|.*too many.*", re.IGNORECASE),
         "Too many attempts. Please wait a moment and try again.",
     ),
+    (
+        re.compile(r".*phone.*invalid.*", re.IGNORECASE),
+        "Invalid phone number format",
+    ),
 ]
 
 
