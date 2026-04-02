@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -31,7 +32,7 @@ class TestSetupCredentials:
         """Should return stored credentials without hitting relay."""
         store = CredentialStore(data_dir, secret="test")
         expected = {"TELEGRAM_BOT_TOKEN": "stored-token"}
-        store.store(expected)
+        await store.store(expected)
 
         # Patch env so CredentialStore inside setup_credentials uses same secret
         with patch.dict("os.environ", {"CREDENTIAL_SECRET": "test"}):
@@ -118,7 +119,7 @@ class TestSetupCredentials:
 
         # Verify credentials were persisted
         store = CredentialStore(data_dir)
-        assert store.load() == expected_creds
+        assert await store.load() == expected_creds
 
 
 class TestStartHttp:
@@ -127,7 +128,7 @@ class TestStartHttp:
     ) -> None:
         """start_http should load stored creds and run mcp with streamable-http."""
         store = CredentialStore(data_dir, secret="test")
-        store.store({"TELEGRAM_BOT_TOKEN": "stored-token"})
+        asyncio.run(store.store({"TELEGRAM_BOT_TOKEN": "stored-token"}))
 
         with (
             patch.dict("os.environ", {"CREDENTIAL_SECRET": "test"}),
@@ -148,7 +149,7 @@ class TestStartHttp:
             "TELEGRAM_BOT_TOKEN": "env-token-123",
             "TELEGRAM_API_ID": "99999",
         }
-        store.store(creds)
+        asyncio.run(store.store(creds))
 
         with (
             patch.dict(

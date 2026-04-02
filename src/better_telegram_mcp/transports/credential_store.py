@@ -6,6 +6,7 @@ Key derived from server secret (CREDENTIAL_SECRET env var or auto-generated).
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import stat
@@ -50,7 +51,7 @@ class CredentialStore:
             pass  # Windows may not support chmod
         return secret
 
-    def _derive_key(self) -> bytes:
+    async def _derive_key(self) -> bytes:
         if self._cached_key is not None:
             return self._cached_key
         kdf = PBKDF2HMAC(
@@ -59,35 +60,37 @@ class CredentialStore:
             salt=_SALT,
             iterations=_KDF_ITERATIONS,
         )
-        self._cached_key = kdf.derive(self._secret.encode())
+        self._cached_key = await asyncio.to_thread(kdf.derive, self._secret.encode())
         return self._cached_key
 
-    def store(self, credentials: dict[str, str]) -> None:
+    async def store(self, credentials: dict[str, str]) -> None:
         """Encrypt and save credentials."""
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        key = self._derive_key()
+        await asyncio.to_thread(self._path.parent.mkdir, parents=True, exist_ok=True)
+        key = await self._derive_key()
         aesgcm = AESGCM(key)
         nonce = os.urandom(_NONCE_SIZE)
         plaintext = json.dumps(credentials).encode()
-        ciphertext = aesgcm.encrypt(nonce, plaintext, None)
-        self._path.write_bytes(nonce + ciphertext)
+        ciphertext = await asyncio.to_thread(aesgcm.encrypt, nonce, plaintext, None)
+        await asyncio.to_thread(self._path.write_bytes, nonce + ciphertext)
         try:
-            self._path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
+            await asyncio.to_thread(
+                self._path.chmod, stat.S_IRUSR | stat.S_IWUSR
+            )  # 0o600
         except OSError:
             pass  # Windows may not support chmod
 
-    def load(self) -> dict[str, str] | None:
+    async def load(self) -> dict[str, str] | None:
         """Load and decrypt credentials. Returns None if not found."""
-        if not self._path.exists():
+        if not await asyncio.to_thread(self._path.exists):
             return None
-        key = self._derive_key()
-        data = self._path.read_bytes()
+        key = await self._derive_key()
+        data = await asyncio.to_thread(self._path.read_bytes)
         nonce, ciphertext = data[:_NONCE_SIZE], data[_NONCE_SIZE:]
         aesgcm = AESGCM(key)
-        plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+        plaintext = await asyncio.to_thread(aesgcm.decrypt, nonce, ciphertext, None)
         return json.loads(plaintext)
 
-    def delete(self) -> None:
+    async def delete(self) -> None:
         """Delete stored credentials."""
-        if self._path.exists():
-            self._path.unlink()
+        if await asyncio.to_thread(self._path.exists):
+            await asyncio.to_thread(self._path.unlink)

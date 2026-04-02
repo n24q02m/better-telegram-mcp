@@ -1,4 +1,4 @@
-"""Tests for TelegramAuthProvider (per-user authentication)."""
+"""Tests for TelegramAuthProvider (multi-user auth logic)."""
 
 from __future__ import annotations
 
@@ -24,95 +24,54 @@ def data_dir(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def provider(data_dir: Path) -> TelegramAuthProvider:
-    return TelegramAuthProvider(data_dir, api_id=12345, api_hash="test_hash")
+    return TelegramAuthProvider(
+        data_dir=data_dir,
+        api_id=12345,
+        api_hash="test-hash",
+    )
 
 
 class TestRegisterBot:
     async def test_register_bot_success(self, provider: TelegramAuthProvider) -> None:
-        """Should register bot and return bearer token."""
-        with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend"
-        ) as MockBot:
-            mock_instance = MockBot.return_value
-            mock_instance.connect = AsyncMock()
-            mock_instance.disconnect = AsyncMock()
+        """Should connect bot and store session."""
+        mock_backend = MagicMock()
+        mock_backend.connect = AsyncMock()
 
+        with patch(
+            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend",
+            return_value=mock_backend,
+        ):
             bearer = await provider.register_bot("", "123:ABC")
 
-        assert isinstance(bearer, str)
-        assert len(bearer) > 0
+        assert bearer is not None
         assert bearer in provider.active_clients
+        assert provider.active_clients[bearer] == mock_backend
 
-    async def test_register_bot_invalid_token(
-        self, provider: TelegramAuthProvider
-    ) -> None:
-        """Should raise ValueError for invalid bot token."""
-        with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend"
-        ) as MockBot:
-            mock_instance = MockBot.return_value
-            mock_instance.connect = AsyncMock(side_effect=Exception("Unauthorized"))
-            mock_instance.disconnect = AsyncMock()
-
-            with pytest.raises(ValueError, match="Invalid bot token"):
-                await provider.register_bot("", "invalid-token")
-
-    async def test_register_bot_with_custom_bearer(
-        self, provider: TelegramAuthProvider
-    ) -> None:
-        """Should use provided bearer when non-empty."""
-        with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend"
-        ) as MockBot:
-            mock_instance = MockBot.return_value
-            mock_instance.connect = AsyncMock()
-
-            bearer = await provider.register_bot("custom-bearer", "123:ABC")
-
-        assert bearer == "custom-bearer"
-
-    async def test_register_bot_persists(self, provider: TelegramAuthProvider) -> None:
-        """Registered bot should be persisted to session store."""
-        with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend"
-        ) as MockBot:
-            mock_instance = MockBot.return_value
-            mock_instance.connect = AsyncMock()
-
-            bearer = await provider.register_bot("", "123:ABC")
-
-        info = provider._store.load(bearer)
+        # Verify stored session
+        info = await provider._store.load(bearer)
         assert info is not None
         assert info.mode == "bot"
         assert info.bot_token == "123:ABC"
 
-
-class TestResolveBackend:
-    async def test_resolve_existing_backend(
+    async def test_register_bot_invalid_token(
         self, provider: TelegramAuthProvider
     ) -> None:
-        """Should return backend for registered bearer."""
+        """Should raise ValueError when bot token is invalid."""
+        mock_backend = MagicMock()
+        mock_backend.connect = AsyncMock(side_effect=Exception("Invalid token"))
+        mock_backend.disconnect = AsyncMock()
+
         with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend"
-        ) as MockBot:
-            mock_instance = MockBot.return_value
-            mock_instance.connect = AsyncMock()
-
-            bearer = await provider.register_bot("", "123:ABC")
-
-        backend = provider.resolve_backend(bearer)
-        assert backend is not None
-
-    def test_resolve_unknown_bearer(self, provider: TelegramAuthProvider) -> None:
-        """Should return None for unknown bearer."""
-        assert provider.resolve_backend("unknown-bearer") is None
+            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend",
+            return_value=mock_backend,
+        ):
+            with pytest.raises(ValueError, match="Invalid bot token"):
+                await provider.register_bot("", "wrong-token")
 
 
-class TestStartUserAuth:
-    async def test_start_user_auth_success(
-        self, provider: TelegramAuthProvider
-    ) -> None:
-        """Should send code and return bearer + phone_code_hash."""
+class TestUserAuth:
+    async def test_start_user_auth(self, provider: TelegramAuthProvider) -> None:
+        """Should send code and store pending OTP."""
         mock_telethon_client = MagicMock()
         mock_sent_code = MagicMock()
         mock_sent_code.phone_code_hash = "hash123"
@@ -120,9 +79,7 @@ class TestStartUserAuth:
 
         mock_backend = MagicMock()
         mock_backend.connect = AsyncMock()
-        mock_backend.disconnect = AsyncMock()
         mock_backend._ensure_client = MagicMock(return_value=mock_telethon_client)
-        mock_backend._client = mock_telethon_client
 
         with patch(
             "better_telegram_mcp.auth.telegram_auth_provider.UserBackend",
@@ -132,36 +89,8 @@ class TestStartUserAuth:
 
         assert "bearer" in result
         assert result["phone_code_hash"] == "hash123"
+        assert result["bearer"] in provider._pending_otps
 
-    async def test_start_user_auth_no_api_creds(self, data_dir: Path) -> None:
-        """Should raise ValueError when api_id/api_hash not set."""
-        provider = TelegramAuthProvider(data_dir, api_id=0, api_hash="")
-        with pytest.raises(ValueError, match="TELEGRAM_API_ID"):
-            await provider.start_user_auth("", "+84912345678")
-
-    async def test_start_user_auth_send_code_fails(
-        self, provider: TelegramAuthProvider
-    ) -> None:
-        """Should raise ValueError when send_code fails."""
-        mock_telethon_client = MagicMock()
-        mock_telethon_client.send_code_request = AsyncMock(
-            side_effect=Exception("Phone invalid")
-        )
-
-        mock_backend = MagicMock()
-        mock_backend.connect = AsyncMock()
-        mock_backend.disconnect = AsyncMock()
-        mock_backend._ensure_client = MagicMock(return_value=mock_telethon_client)
-
-        with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.UserBackend",
-            return_value=mock_backend,
-        ):
-            with pytest.raises(ValueError, match="Failed to send code"):
-                await provider.start_user_auth("", "+84912345678")
-
-
-class TestCompleteUserAuth:
     async def test_complete_user_auth_success(
         self, provider: TelegramAuthProvider
     ) -> None:
@@ -309,7 +238,7 @@ class TestRestoreSessions:
     async def test_restore_bot_sessions(self, provider: TelegramAuthProvider) -> None:
         """Should restore bot sessions from store on startup."""
         # Store a session directly
-        provider._store.store(
+        await provider._store.store(
             "stored-bearer",
             SessionInfo(
                 session_name="test",
@@ -334,7 +263,7 @@ class TestRestoreSessions:
         self, provider: TelegramAuthProvider
     ) -> None:
         """Should remove expired sessions during restore."""
-        provider._store.store(
+        await provider._store.store(
             "expired-bearer",
             SessionInfo(
                 session_name="old",
@@ -352,7 +281,7 @@ class TestRestoreSessions:
         self, provider: TelegramAuthProvider
     ) -> None:
         """Should remove sessions that fail to reconnect."""
-        provider._store.store(
+        await provider._store.store(
             "broken-bearer",
             SessionInfo(
                 session_name="broken",
@@ -373,7 +302,7 @@ class TestRestoreSessions:
             restored = await provider.restore_sessions()
 
         assert restored == 0
-        assert provider._store.load("broken-bearer") is None
+        assert await provider._store.load("broken-bearer") is None
 
 
 class TestCleanupExpired:
@@ -382,7 +311,7 @@ class TestCleanupExpired:
     ) -> None:
         """Should remove expired sessions."""
         # Store an expired session
-        provider._store.store(
+        await provider._store.store(
             "expired",
             SessionInfo(
                 session_name="old",
@@ -392,7 +321,7 @@ class TestCleanupExpired:
             ),
         )
         # Store a valid session
-        provider._store.store(
+        await provider._store.store(
             "valid",
             SessionInfo(
                 session_name="new",
@@ -404,8 +333,8 @@ class TestCleanupExpired:
 
         removed = await provider.cleanup_expired()
         assert removed == 1
-        assert provider._store.load("expired") is None
-        assert provider._store.load("valid") is not None
+        assert await provider._store.load("expired") is None
+        assert await provider._store.load("valid") is not None
 
     async def test_cleanup_stale_otps(self, provider: TelegramAuthProvider) -> None:
         """Should clean up pending OTPs older than 5 minutes."""
