@@ -96,6 +96,13 @@ def start_http(settings: Settings) -> None:
     Detects multi-user mode (DCR_SERVER_SECRET + PUBLIC_URL set)
     or falls back to single-user relay mode.
     """
+    import asyncio
+
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
     if _is_multi_user_mode():
         _start_multi_user_http(settings)
     else:
