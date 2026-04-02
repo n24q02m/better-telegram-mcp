@@ -81,7 +81,7 @@ class AuthClient:
             except httpx.HTTPError as e:
                 logger.debug("Poll error: {}", e)
             except Exception as e:
-                logger.debug("Poll error: {}", e)
+                logger.exception(f"Unexpected error in auth request: {e}")
 
     async def _handle_command(self, cmd: dict[str, Any]) -> None:
         """Execute a command from the relay server via local Telethon."""
