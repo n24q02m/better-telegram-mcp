@@ -287,19 +287,23 @@ class AuthServer:
         """Start the auth server. Returns the URL."""
         import uvicorn
 
-        self.port = _find_free_port()
-        self.url = f"http://127.0.0.1:{self.port}"
+        port = _find_free_port()
+        self.port = port
+        self.url = f"http://127.0.0.1:{port}"
 
-        app = self._make_app()
-        config = uvicorn.Config(
-            app, host="127.0.0.1", port=self.port, log_level="warning"
-        )
-        server = uvicorn.Server(config)
-        asyncio.create_task(server.serve())
-        self._uvicorn_server = server
-        await asyncio.sleep(0.3)
-        logger.info("Auth server started at {}", self.url)
-        return self.url
+        try:
+            app = self._make_app()
+            config = uvicorn.Config(
+                app, host="127.0.0.1", port=port, log_level="warning"
+            )
+            server = uvicorn.Server(config)
+            asyncio.create_task(server.serve())
+            self._uvicorn_server = server
+            await asyncio.sleep(0.3)
+            logger.info("Auth server started at {}", self.url)
+            return self.url
+        except OSError as e:
+            raise RuntimeError(f"Could not start server on port {port}: {e}") from e
 
     async def wait_for_auth(self) -> None:
         """Block until authentication is complete."""
