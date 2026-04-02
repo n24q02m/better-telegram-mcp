@@ -11,6 +11,7 @@ import asyncio
 import html
 import re
 import socket
+import time
 from typing import TYPE_CHECKING
 
 from loguru import logger
@@ -205,6 +206,10 @@ def _mask_phone(phone: str) -> str:
 class AuthServer:
     """Local web server for OTP authentication (TELEGRAM_AUTH_URL=local)."""
 
+    # Rate limiting constants
+    MAX_VERIFY_ATTEMPTS = 5
+    VERIFY_COOLDOWN_SECONDS = 60
+
     def __init__(self, backend: TelegramBackend, settings: Settings):
         self._backend = backend
         self._settings = settings
@@ -213,6 +218,8 @@ class AuthServer:
         self._uvicorn_server: object | None = None
         self.port: int = 0
         self.url: str = ""
+        self._verify_attempts: int = 0
+        self._last_verify_time: float = 0.0
 
     def _make_app(self) -> Starlette:
         async def index(request: Request) -> HTMLResponse:
@@ -244,6 +251,27 @@ class AuthServer:
                 return JSONResponse({"ok": False, "error": _sanitize_error(str(e))})
 
         async def verify(request: Request) -> JSONResponse:
+            # Check rate limit
+            now = time.time()
+            if (
+                self._verify_attempts >= self.MAX_VERIFY_ATTEMPTS
+                and (now - self._last_verify_time) < self.VERIFY_COOLDOWN_SECONDS
+            ):
+                wait_time = int(
+                    self.VERIFY_COOLDOWN_SECONDS - (now - self._last_verify_time)
+                )
+                return JSONResponse(
+                    {
+                        "ok": False,
+                        "error": f"Too many attempts. Please wait {wait_time} seconds.",
+                    },
+                    status_code=429,
+                )
+
+            # Reset attempts if cooldown has passed
+            if (now - self._last_verify_time) >= self.VERIFY_COOLDOWN_SECONDS:
+                self._verify_attempts = 0
+
             try:
                 body = await request.json()
             except Exception:
@@ -261,8 +289,12 @@ class AuthServer:
                 result = await self._backend.sign_in(phone, code, password=password)
                 self._auth_name = result.get("authenticated_as", "User")
                 self._auth_complete.set()
+                self._verify_attempts = 0  # Reset on success
                 return JSONResponse({"ok": True, "name": self._auth_name})
             except Exception as e:
+                self._verify_attempts += 1
+                self._last_verify_time = time.time()
+
                 error_msg = str(e)
                 needs_password = any(
                     kw in error_msg.lower()
