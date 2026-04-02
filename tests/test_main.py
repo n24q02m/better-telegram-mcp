@@ -8,12 +8,10 @@ from unittest.mock import MagicMock, patch
 
 def test_cli_runs_server():
     with patch.object(sys, "argv", ["better-telegram-mcp"]):
-        mock_server = MagicMock()
-        with patch.dict(
-            sys.modules,
-            {"better_telegram_mcp.server": mock_server},
-        ):
+        MagicMock()
+        # Mocking the app directly to avoid Typer's SystemExit
+        with patch("better_telegram_mcp.cli.app") as mock_app:
             from better_telegram_mcp.__main__ import _cli
 
             _cli()
-            mock_server.main.assert_called_once()
+            mock_app.assert_called_once()
