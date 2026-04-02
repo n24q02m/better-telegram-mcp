@@ -23,3 +23,17 @@ def test_mode_error_message():
 def test_mode_error_non_user():
     err = ModeError("bot")
     assert "requires bot mode" in str(err)
+
+
+def test_ensure_mode_user_backend_passes(mock_user_backend):
+    mock_user_backend.ensure_mode("user")
+
+
+def test_ensure_mode_user_backend_fails(mock_user_backend):
+    with pytest.raises(ModeError, match="requires bot mode"):
+        mock_user_backend.ensure_mode("bot")
+
+
+def test_mode_error_attributes():
+    err = ModeError("any_mode")
+    assert err.required_mode == "any_mode"
