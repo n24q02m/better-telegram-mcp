@@ -100,3 +100,30 @@ def test_safe_error_generic_exceptions():
 
         # Ensure internal details are NOT leaked
         assert str(exc) not in result
+
+
+def test_err_empty_message():
+    message = ""
+    result = err(message)
+    assert result == '{"error": ""}'
+
+    parsed = json.loads(result)
+    assert parsed["error"] == message
+
+
+def test_err_special_characters():
+    message = r"Quote: \", Backslash: \\, Newline: \n, Tab: \t"
+    result = err(message)
+
+    # json.dumps escapes quotes and backslashes
+    parsed = json.loads(result)
+    assert parsed["error"] == message
+
+
+def test_err_long_message():
+    message = "A" * 10000
+    result = err(message)
+
+    parsed = json.loads(result)
+    assert parsed["error"] == message
+    assert len(parsed["error"]) == 10000
