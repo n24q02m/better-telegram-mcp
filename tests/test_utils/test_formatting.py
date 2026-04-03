@@ -100,3 +100,21 @@ def test_safe_error_generic_exceptions():
 
         # Ensure internal details are NOT leaked
         assert str(exc) not in result
+
+
+def test_ok_various_types():
+    # Test with None
+    assert ok(None) == "null"
+
+    # Test with integer
+    assert ok(42) == "42"
+
+    # Test with string
+    assert ok("hello") == '"hello"'
+
+    # Test with list
+    assert ok([1, "2", None]) == '[1, "2", null]'
+
+    # Test with nested structure
+    data = {"a": [1, 2], "b": {"c": 3}}
+    assert ok(data) == '{"a": [1, 2], "b": {"c": 3}}'
