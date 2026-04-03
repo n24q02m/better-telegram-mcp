@@ -133,6 +133,62 @@ class TestCredentialStore:
         store.store({"key": "value"})
         assert store.load() == {"key": "value"}
 
+    def test_legacy_salt_migration(self, data_dir: Path) -> None:
+        """Credentials stored with legacy hardcoded salt should be loadable,
+        and re-storing should migrate to a random salt."""
+        from better_telegram_mcp.transports.credential_store import _LEGACY_SALT
+
+        store = CredentialStore(data_dir, secret="test-secret")
+        # Simulate legacy: write credentials with legacy salt
+        # (new install creates random salt, so we need to force legacy)
+        store._salt = _LEGACY_SALT
+        store._cached_key = None
+        # Write a credentials file (using legacy salt)
+        creds = {"TELEGRAM_BOT_TOKEN": "legacy-token"}
+        # Manually encrypt and write without triggering migration
+        import json
+        import os
+
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+        key = store._derive_key()
+        aesgcm = AESGCM(key)
+        nonce = os.urandom(12)
+        plaintext = json.dumps(creds).encode()
+        ciphertext = aesgcm.encrypt(nonce, plaintext, None)
+        store._path.write_bytes(nonce + ciphertext)
+
+        # Remove salt file to simulate legacy state
+        salt_path = data_dir / ".salt"
+        if salt_path.exists():
+            salt_path.unlink()
+
+        # Create new store -- should detect legacy salt (creds exist, no .salt)
+        store2 = CredentialStore(data_dir, secret="test-secret")
+        assert store2._salt == _LEGACY_SALT
+        loaded = store2.load()
+        assert loaded == creds
+
+        # Re-store should trigger salt migration
+        store2.store(creds)
+        assert store2._salt != _LEGACY_SALT
+        assert salt_path.exists()
+
+        # New store should use the migrated salt
+        store3 = CredentialStore(data_dir, secret="test-secret")
+        assert store3._salt != _LEGACY_SALT
+        assert store3.load() == creds
+
+    def test_random_salt_for_new_install(self, data_dir: Path) -> None:
+        """New installation should generate random salt, not use legacy."""
+        from better_telegram_mcp.transports.credential_store import _LEGACY_SALT
+
+        store = CredentialStore(data_dir, secret="test-secret")
+        assert store._salt != _LEGACY_SALT
+        salt_path = data_dir / ".salt"
+        assert salt_path.exists()
+        assert len(store._salt) == 16
+
     def test_chmod_failure_swallowed(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:

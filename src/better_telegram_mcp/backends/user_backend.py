@@ -69,6 +69,15 @@ class UserBackend(TelegramBackend):
         session_path = s.data_dir / s.session_name
         s.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
 
+        # Pre-create session file with secure permissions to avoid TOCTOU
+        # where Telethon creates it with default (insecure) permissions
+        actual_session_path = session_path.with_suffix(".session")
+        try:
+            fd = os.open(str(actual_session_path), os.O_CREAT | os.O_WRONLY, 0o600)
+            os.close(fd)
+        except OSError:
+            pass  # Windows may not support this or file already exists
+
         self._client = TelegramClient(
             str(session_path),
             s.api_id,
@@ -81,7 +90,10 @@ class UserBackend(TelegramBackend):
 
     async def disconnect(self) -> None:
         if self._client is not None:
-            await self._client.disconnect()
+            try:
+                await self._client.disconnect()
+            except Exception:
+                pass  # Ignore errors during disconnect cleanup
             self._client = None
 
     async def is_connected(self) -> bool:
@@ -124,11 +136,14 @@ class UserBackend(TelegramBackend):
                 raise
 
         me = await client.get_me()
-        # Set session file permissions to 600
+        # Ensure existing session files (from older versions) are also secured
         s = self._settings
         session_file = (s.data_dir / s.session_name).with_suffix(".session")
         if session_file.exists():
-            os.chmod(session_file, 0o600)
+            try:
+                os.chmod(session_file, 0o600)
+            except OSError:
+                pass
 
         return {
             "authenticated_as": getattr(me, "first_name", ""),
