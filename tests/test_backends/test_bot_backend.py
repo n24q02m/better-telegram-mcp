@@ -419,3 +419,38 @@ async def test_send_message_request_body():
     assert captured["body"]["parse_mode"] == "HTML"
     # None values should be filtered out
     assert "reply_to_message_id" not in captured["body"]
+
+
+async def test_connect_error_chaining():
+    """Verify that ConnectionError correctly chains the underlying TelegramAPIError."""
+    body = {"ok": False, "description": "Too Many Requests", "error_code": 429}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(429, json=body)
+
+    bot = BotBackend("123456:ABC-DEF")
+    bot._client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url=bot._base_url,
+    )
+    with pytest.raises(ConnectionError) as exc_info:
+        await bot.connect()
+
+    assert isinstance(exc_info.value.__cause__, TelegramAPIError)
+    assert exc_info.value.__cause__.error_code == 429
+
+
+async def test_connect_unknown_error():
+    """Verify fallback to 'Unknown error' during connect when description is missing."""
+    body = {"ok": False}  # Missing description
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(400, json=body)
+
+    bot = BotBackend("123456:ABC-DEF")
+    bot._client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url=bot._base_url,
+    )
+    with pytest.raises(ConnectionError, match="Unknown error"):
+        await bot.connect()
