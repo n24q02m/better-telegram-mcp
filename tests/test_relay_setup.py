@@ -619,8 +619,16 @@ class TestIsUserModeConfig:
         }
         assert _is_user_mode_config(config) is True
 
-    def test_missing_phone(self):
+    def test_api_credentials_present_no_phone(self):
         config = {"TELEGRAM_API_ID": "123", "TELEGRAM_API_HASH": "abc"}
+        assert _is_user_mode_config(config) is True
+
+    def test_only_api_id_missing_hash(self):
+        config = {"TELEGRAM_API_ID": "123"}
+        assert _is_user_mode_config(config) is False
+
+    def test_only_api_hash_missing_id(self):
+        config = {"TELEGRAM_API_HASH": "abc"}
         assert _is_user_mode_config(config) is False
 
     def test_bot_config(self):
