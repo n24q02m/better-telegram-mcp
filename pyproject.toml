@@ -32,6 +32,7 @@ dependencies = [
     "cryptography>=46.0.6",
     "starlette>=0.52.1",
     "uvicorn>=0.42.0",
+    "typer>=0.24.1",
 ]
 
 [dependency-groups]
