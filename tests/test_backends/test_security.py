@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import socket
 import sys
 
 import pytest
@@ -109,12 +110,40 @@ class TestValidateUrl:
         validate_url("http://example.com/image.jpg")
 
     def test_dns_resolution_failure_blocked(self, monkeypatch):
+        """Test that DNS resolution failures are caught and wrapped with cause."""
+        original_err = OSError("Temporary failure in name resolution")
+
         def mock_getaddrinfo(*args, **kwargs):
-            raise OSError("Temporary failure in name resolution")
+            raise original_err
 
         monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
-        with pytest.raises(SecurityError, match="Failed to resolve hostname"):
+        with pytest.raises(
+            SecurityError, match="Failed to resolve hostname"
+        ) as excinfo:
             validate_url("http://nonexistent.domain.internal/admin")
+
+        # Verify exception chaining (__cause__)
+        assert excinfo.value.__cause__ is original_err
+
+    def test_dns_resolution_gaierror_blocked(self, monkeypatch):
+        """Test that socket.gaierror is specifically caught and wrapped."""
+        original_err = socket.gaierror(-2, "Name or service not known")
+
+        def mock_getaddrinfo(*args, **kwargs):
+            raise original_err
+
+        monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
+        with pytest.raises(
+            SecurityError, match="Failed to resolve hostname"
+        ) as excinfo:
+            validate_url("http://gaierror.attacker.com/")
+
+        assert excinfo.value.__cause__ is original_err
+
+    def test_dns_resolution_empty_allowed(self, monkeypatch):
+        """Test that if hostname resolves to nothing, it is allowed (safe)."""
+        monkeypatch.setattr("socket.getaddrinfo", lambda host, port: [])
+        validate_url("http://resolves-to-nothing.com/")
 
 
 class TestValidateFilePath:
