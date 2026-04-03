@@ -2,6 +2,18 @@
 
 <!-- version list -->
 
+## v4.0.1 (2026-04-03)
+
+### Bug Fixes
+
+- Consolidated security fixes, dependency updates, and test improvements
+  ([#135](https://github.com/n24q02m/better-telegram-mcp/pull/135),
+  [`07ad289`](https://github.com/n24q02m/better-telegram-mcp/commit/07ad289ea120d3965139040e34564a108f04685a))
+
+- Scope marketplace sync token to claude-plugins repo
+  ([`4e83bdb`](https://github.com/n24q02m/better-telegram-mcp/commit/4e83bdb6dc3a5a30caad2e6a1a5ba75c9f3432d0))
+
+
 ## v4.0.0 (2026-04-03)
 
 ### Bug Fixes
