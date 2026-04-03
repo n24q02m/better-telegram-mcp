@@ -9,6 +9,7 @@ Single-user fallback: stored credentials via relay page (backward compat).
 
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 from contextvars import ContextVar
@@ -44,7 +45,7 @@ async def setup_credentials(settings: Settings) -> dict[str, str]:
         RuntimeError: If relay setup fails or times out.
     """
     store = CredentialStore(settings.data_dir)
-    creds = store.load()
+    creds = await store.load()
 
     if creds is not None:
         logger.info("Loaded stored credentials from {}", settings.data_dir)
@@ -75,7 +76,7 @@ async def setup_credentials(settings: Settings) -> dict[str, str]:
         msg = "Relay setup timed out or session expired"
         raise RuntimeError(msg) from exc
 
-    store.store(creds)
+    await store.store(creds)
     logger.info("Credentials stored successfully")
     return creds
 
@@ -107,17 +108,22 @@ def _start_single_user_http(settings: Settings) -> None:
 
     Backward compatible with the original HTTP transport.
     """
-    import asyncio
-
     from ..server import mcp
 
     # If env vars already have credentials, skip CredentialStore/relay
     if not settings.is_configured:
         store = CredentialStore(settings.data_dir)
-        creds = store.load()
 
-        if creds is None:
-            creds = asyncio.run(setup_credentials(settings))
+        # Sync entry point calling async logic. Use ThreadPoolExecutor to avoid
+        # "asyncio.run() cannot be called from a running event loop" in tests.
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            creds = executor.submit(asyncio.run, store.load()).result()
+            if creds is None:
+                creds = executor.submit(
+                    asyncio.run, setup_credentials(settings)
+                ).result()
 
         # Apply credentials to environment so lifespan picks them up
         for key, value in creds.items():
