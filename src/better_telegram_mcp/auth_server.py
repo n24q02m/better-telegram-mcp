@@ -21,6 +21,8 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse
 from starlette.routing import Route
 
+from .utils.formatting import _mask_phone
+
 if TYPE_CHECKING:
     from .backends.base import TelegramBackend
     from .config import Settings
@@ -196,12 +198,6 @@ def _find_free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
-
-
-def _mask_phone(phone: str) -> str:
-    if len(phone) > 7:
-        return phone[:4] + "***" + phone[-4:]
-    return phone[:2] + "***"
 
 
 class AuthServer:

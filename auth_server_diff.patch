@@ -1,0 +1,22 @@
+--- src/better_telegram_mcp/auth_server.py
++++ src/better_telegram_mcp/auth_server.py
+@@ -20,6 +20,7 @@
+ from starlette.requests import Request
+ from starlette.responses import HTMLResponse, JSONResponse
+ from starlette.routing import Route
++from .utils.formatting import _mask_phone
+
+ if TYPE_CHECKING:
+     from .backends.base import TelegramBackend
+@@ -198,12 +199,6 @@
+         return s.getsockname()[1]
+
+
+-def _mask_phone(phone: str) -> str:
+-    if len(phone) > 7:
+-        return phone[:4] + "***" + phone[-4:]
+-    return phone[:2] + "***"
+-
+-
+ class AuthServer:
+     """Local web server for OTP authentication (TELEGRAM_AUTH_URL=local)."""
