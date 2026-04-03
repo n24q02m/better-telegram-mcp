@@ -21,6 +21,8 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse
 from starlette.routing import Route
 
+from .utils.formatting import _mask_phone
+
 if TYPE_CHECKING:
     from .backends.base import TelegramBackend
     from .config import Settings
@@ -48,60 +50,48 @@ input[type="password"]{letter-spacing:normal;text-align:left}
 input:focus{border-color:#3b82f6}
 button{width:100%;padding:.75rem;background:#3b82f6;color:#fff;border:none;
   border-radius:8px;font-size:1rem;cursor:pointer;font-weight:500}
-button:hover{background:#2563eb}
-button:disabled{background:#333;color:#666;cursor:not-allowed}
 .st{margin-top:1rem;padding:.75rem;border-radius:8px;font-size:.875rem;display:none}
-.st.error{display:block;background:#2d1111;border:1px solid #dc2626;color:#f87171}
-.st.success{display:block;background:#0d2818;border:1px solid #16a34a;color:#4ade80}
-.st.info{display:block;background:#1a1a2e;border:1px solid #3b82f6;color:#93c5fd}
-.phone{font-family:monospace;color:#3b82f6}
-#pwd-section{display:none;margin-top:.5rem}
-.pwd-hint{font-size:.8rem;color:#888;margin-bottom:.5rem}
-.divider{border:0;border-top:1px solid #333;margin:1.25rem 0}
+.st.error{background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2)}
+.st.info{background:rgba(59,130,246,0.1);color:#3b82f6;border:1px solid rgba(59,130,246,0.2)}
+#pwd-section{display:none}
 </style>
 </head>
 <body>
 <div class="card">
-  <h1>Telegram Authentication</h1>
-  <p class="sub">MCP Server -- <span class="phone">PHONE</span></p>
+  <h1>Telegram Auth</h1>
+  <p class="sub">Authenticating for <strong>PHONE</strong></p>
 
-  <div id="step0" class="step">
-    <p style="margin-bottom:1rem;color:#aaa">
-      Step 1: Send a login code to your Telegram app.
-    </p>
-    <button id="btn-send" onclick="sendCode()">Send OTP Code</button>
+  <div id="step0" class="step active">
+    <p style="margin-bottom:1rem">We need to send a verification code to your Telegram app.</p>
+    <button id="btn-send" onclick="sendCode()">Send Verification Code</button>
     <div id="s0" class="st"></div>
+  </div>
 
-    <hr class="divider">
+  <div id="step1" class="step">
+    <label for="otp">Verification Code</label>
+    <input type="text" id="otp" placeholder="12345" autocomplete="one-time-code">
 
-    <p style="margin-bottom:.75rem;color:#aaa">
-      Step 2: Enter the code you received.
-    </p>
-    <label for="otp">OTP Code</label>
-    <input id="otp" type="text" placeholder="Enter code" autofocus
-           inputmode="numeric" pattern="[0-9]*"
-           autocomplete="one-time-code">
     <div id="pwd-section">
       <label for="pwd">2FA Password</label>
-      <input id="pwd" type="password" placeholder="Enter your 2FA password"
-             autocomplete="current-password">
-      <p class="pwd-hint">Your account has two-factor authentication enabled.</p>
+      <input type="password" id="pwd" placeholder="Your cloud password">
     </div>
+
     <button id="btn-verify" onclick="verify()">Verify Code</button>
     <div id="s1" class="st"></div>
+    <p style="margin-top:1rem;font-size:.75rem;color:#666;text-align:center">
+      Didn't get a code? <a href="#" onclick="sendCode();return false" style="color:#3b82f6;text-decoration:none">Resend</a>
+    </p>
   </div>
 
   <div id="step2" class="step">
-    <div class="st success" style="display:block">
-      Authenticated as <strong id="auth-name"></strong>.<br>
-      MCP server is now active. You can close this tab.
+    <div style="text-align:center;padding:1rem 0">
+      <div style="font-size:3rem;margin-bottom:1rem">✅</div>
+      <p style="font-weight:500;color:#fff;margin-bottom:.5rem">Authenticated as <span id="auth-name">User</span></p>
+      <p class="sub">You can close this tab now and return to your IDE.</p>
     </div>
   </div>
-
-  <div id="loading" class="step active">
-    <p style="color:#666">Checking session...</p>
-  </div>
 </div>
+
 <script>
 const $=id=>document.getElementById(id);
 function show(id){
@@ -196,12 +186,6 @@ def _find_free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
-
-
-def _mask_phone(phone: str) -> str:
-    if len(phone) > 7:
-        return phone[:4] + "***" + phone[-4:]
-    return phone[:2] + "***"
 
 
 class AuthServer:
