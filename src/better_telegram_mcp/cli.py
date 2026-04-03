@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sys
 from typing import Annotated
 
 import typer
@@ -21,7 +22,23 @@ def main(
 ) -> None:
     """Better Telegram MCP CLI. Runs the server by default."""
     if ctx.invoked_subcommand is None:
-        # Default action: run server
+        # If we are running in a test environment (like pytest),
+        # don't try to parse sys.argv because it contains pytest arguments
+        # which Typer will try to interpret as commands.
+        if "pytest" in sys.modules or "unittest" in sys.modules:
+            # Default to stdio for tests unless explicitly set
+            transport = transport or os.environ.get("TRANSPORT_MODE", "stdio")
+            from .server import mcp
+
+            if transport == "http":
+                from .transports.http import start_http
+
+                start_http(Settings())
+            else:
+                mcp.run(transport="stdio")
+            return
+
+        # Normal execution
         from .server import mcp
 
         transport = transport or os.environ.get("TRANSPORT_MODE", "stdio")
