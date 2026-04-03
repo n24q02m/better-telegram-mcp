@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -165,3 +166,83 @@ class TestStartHttp:
             # Assert inside the context manager before patch.dict restores env
             assert os.environ.get("TELEGRAM_BOT_TOKEN") == "env-token-123"
             assert os.environ.get("TELEGRAM_API_ID") == "99999"
+
+    def test_start_http_creates_new_loop_on_runtime_error(
+        self, settings: Settings, data_dir: Path
+    ) -> None:
+        """Should create and set a new event loop if get_event_loop raises RuntimeError."""
+        # Force settings to think it's NOT configured
+        settings.bot_token = None
+
+        from better_telegram_mcp.transports.http import start_http
+
+        mock_loop = MagicMock()
+        expected_creds = {"TELEGRAM_BOT_TOKEN": "test-token"}
+
+        # Use a real coroutine wrapper to avoid RuntimeWarning about never being awaited
+        async def mock_setup_coro(*args, **kwargs):
+            return expected_creds
+
+        mock_loop.run_until_complete.side_effect = lambda coro: asyncio.run(coro)
+
+        with (
+            patch("asyncio.get_event_loop", side_effect=RuntimeError("no loop")),
+            patch("asyncio.new_event_loop", return_value=mock_loop) as mock_new,
+            patch("asyncio.set_event_loop") as mock_set,
+            patch(
+                "better_telegram_mcp.transports.http.setup_credentials",
+                side_effect=mock_setup_coro,
+            ) as mock_setup,
+            patch(
+                "better_telegram_mcp.transports.http.CredentialStore"
+            ) as mock_store_cls,
+            patch("better_telegram_mcp.server.mcp"),
+        ):
+            mock_store = mock_store_cls.return_value
+            mock_store.load.return_value = None  # Force setup_credentials
+
+            start_http(settings)
+
+            mock_new.assert_called_once()
+            mock_set.assert_called_once_with(mock_loop)
+            mock_loop.run_until_complete.assert_called_once()
+            mock_setup.assert_called_once_with(settings)
+
+    def test_start_http_uses_existing_loop(
+        self, settings: Settings, data_dir: Path
+    ) -> None:
+        """Should use existing event loop if get_event_loop succeeds."""
+        # Force settings to think it's NOT configured so it enters CredentialStore logic
+        settings.bot_token = None
+
+        from better_telegram_mcp.transports.http import start_http
+
+        mock_loop = MagicMock()
+        expected_creds = {"TELEGRAM_BOT_TOKEN": "test-token"}
+
+        async def mock_setup_coro(*args, **kwargs):
+            return expected_creds
+
+        mock_loop.run_until_complete.side_effect = lambda coro: asyncio.run(coro)
+
+        with (
+            patch("asyncio.get_event_loop", return_value=mock_loop) as mock_get,
+            patch("asyncio.new_event_loop") as mock_new,
+            patch(
+                "better_telegram_mcp.transports.http.setup_credentials",
+                side_effect=mock_setup_coro,
+            ) as mock_setup,
+            patch(
+                "better_telegram_mcp.transports.http.CredentialStore"
+            ) as mock_store_cls,
+            patch("better_telegram_mcp.server.mcp"),
+        ):
+            mock_store = mock_store_cls.return_value
+            mock_store.load.return_value = None
+
+            start_http(settings)
+
+            mock_get.assert_called_once()
+            mock_new.assert_not_called()
+            mock_loop.run_until_complete.assert_called_once()
+            mock_setup.assert_called_once_with(settings)

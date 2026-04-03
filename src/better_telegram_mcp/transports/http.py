@@ -117,7 +117,12 @@ def _start_single_user_http(settings: Settings) -> None:
         creds = store.load()
 
         if creds is None:
-            creds = asyncio.run(setup_credentials(settings))
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            creds = loop.run_until_complete(setup_credentials(settings))
 
         # Apply credentials to environment so lifespan picks them up
         for key, value in creds.items():
