@@ -300,14 +300,15 @@ class TelegramAuthProvider:
 
     async def cleanup_expired(self) -> int:
         """Remove expired sessions. Returns count of removed sessions."""
+        import asyncio
+
         sessions = self._store.load_all()
-        removed = 0
         now = time.time()
 
+        tasks = []
         for bearer, info in sessions.items():
             if now - info.created_at > _SESSION_TTL:
-                await self.revoke_session(bearer)
-                removed += 1
+                tasks.append(self.revoke_session(bearer))
 
         # Also clean up stale pending OTPs (5 min TTL)
         stale_otps = [
@@ -315,25 +316,31 @@ class TelegramAuthProvider:
         ]
         for bearer in stale_otps:
             pending = self._pending_otps.pop(bearer)
-            await pending["backend"].disconnect()
-            removed += 1
+            tasks.append(pending["backend"].disconnect())
 
-        return removed
+        if tasks:
+            # ⚡ Bolt: Execute revocations concurrently to prevent O(N) wait times during cleanup
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+        return len(tasks)
 
     async def shutdown(self) -> None:
         """Disconnect all active backends. Call on server shutdown."""
-        for bearer, backend in list(self.active_clients.items()):
-            try:
-                await backend.disconnect()
-            except Exception:
-                logger.warning("Error disconnecting backend {}", bearer[:8])
+        import asyncio
+
+        tasks = []
+        for _bearer, backend in list(self.active_clients.items()):
+            tasks.append(backend.disconnect())
+
+        for _bearer, pending in list(self._pending_otps.items()):
+            tasks.append(pending["backend"].disconnect())
+
+        if tasks:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for result in results:
+                if isinstance(result, Exception):
+                    logger.warning("Error disconnecting backend: {}", result)
+
         self.active_clients.clear()
         self.session_owners.clear()
-
-        # Disconnect pending OTP backends
-        for _bearer, pending in list(self._pending_otps.items()):
-            try:
-                await pending["backend"].disconnect()
-            except Exception:
-                pass
         self._pending_otps.clear()
