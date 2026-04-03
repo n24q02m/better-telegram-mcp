@@ -67,14 +67,18 @@ class UserBackend(TelegramBackend):
         s = self._settings
         # Telethon auto-appends .session, so pass path without extension
         session_path = s.data_dir / s.session_name
-        s.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        await asyncio.to_thread(
+            s.data_dir.mkdir, parents=True, exist_ok=True, mode=0o700
+        )
 
         # Pre-create session file with secure permissions to avoid TOCTOU
         # where Telethon creates it with default (insecure) permissions
         actual_session_path = session_path.with_suffix(".session")
         try:
-            fd = os.open(str(actual_session_path), os.O_CREAT | os.O_WRONLY, 0o600)
-            os.close(fd)
+            fd = await asyncio.to_thread(
+                os.open, str(actual_session_path), os.O_CREAT | os.O_WRONLY, 0o600
+            )
+            await asyncio.to_thread(os.close, fd)
         except OSError:
             pass  # Windows may not support this or file already exists
 
@@ -141,7 +145,7 @@ class UserBackend(TelegramBackend):
         session_file = (s.data_dir / s.session_name).with_suffix(".session")
         if session_file.exists():
             try:
-                os.chmod(session_file, 0o600)
+                await asyncio.to_thread(os.chmod, session_file, 0o600)
             except OSError:
                 pass
 
