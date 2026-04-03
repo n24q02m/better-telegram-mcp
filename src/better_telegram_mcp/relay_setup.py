@@ -60,6 +60,10 @@ _ERROR_SIMPLIFICATIONS: list[tuple[re.Pattern[str], str]] = [
 
 def _sanitize_error(msg: str) -> str:
     """Simplify internal error messages to user-friendly text."""
+    if "PHONE_NUMBER_INVALID" in msg:
+        return "Invalid phone number format"
+    if "PHONE_CODE_INVALID" in msg:
+        return "Invalid verification code"
     cleaned = _CAUSED_BY_RE.sub("", msg).strip()
     for pattern, friendly in _ERROR_SIMPLIFICATIONS:
         if pattern.match(cleaned):

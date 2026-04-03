@@ -575,6 +575,12 @@ class TestSanitizeError:
             "Too many attempts. Please wait a moment and try again."
         )
 
+    def test_phone_number_invalid(self):
+        assert _sanitize_error("PHONE_NUMBER_INVALID") == "Invalid phone number format"
+
+    def test_phone_code_invalid_exact(self):
+        assert _sanitize_error("PHONE_CODE_INVALID") == "Invalid verification code"
+
     def test_strips_caused_by_suffix(self):
         result = _sanitize_error("Something happened (caused by SomeError)")
         assert result == "Something happened"
