@@ -586,21 +586,35 @@ class TestSanitizeError:
 # --- _needs_2fa_password ---
 
 
-class TestNeeds2faPassword:
-    def test_password_keyword(self):
-        assert _needs_2fa_password("SessionPasswordNeeded") is True
-
-    def test_2fa_keyword(self):
-        assert _needs_2fa_password("2fa authentication required") is True
-
-    def test_two_factor_keyword(self):
-        assert _needs_2fa_password("Two-factor auth needed") is True
-
-    def test_srp_keyword(self):
-        assert _needs_2fa_password("SRP protocol required") is True
-
-    def test_no_match(self):
-        assert _needs_2fa_password("Invalid phone number") is False
+@pytest.mark.parametrize(
+    "error_msg,expected",
+    [
+        # Standard Telethon exceptions
+        ("SessionPasswordNeeded", True),
+        # Mixed casing
+        ("sessionpasswordneeded", True),
+        ("SESSIONPASSWORDNEEDED", True),
+        ("pAsSwOrD rEqUiReD", True),
+        # Keywords
+        ("2fa authentication required", True),
+        ("Two-factor auth needed", True),
+        ("SRP protocol required", True),
+        # Edge cases: keywords as substrings or with whitespace
+        ("  password  ", True),
+        ("2fa", True),
+        ("srp", True),
+        ("two-factor", True),
+        # Negative cases
+        ("", False),
+        ("   ", False),
+        ("Invalid phone number", False),
+        ("AUTH_KEY_UNREGISTERED", False),
+        ("passwordless login", True),  # Contains 'password'
+    ],
+)
+def test_needs_2fa_password_edge_cases(error_msg, expected):
+    """Verify _needs_2fa_password handles various string patterns correctly."""
+    assert _needs_2fa_password(error_msg) is expected
 
 
 # --- _is_user_mode_config ---
