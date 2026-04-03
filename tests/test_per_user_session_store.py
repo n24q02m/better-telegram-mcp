@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import json
+import os
 from pathlib import Path
 
 import pytest
 from cryptography.exceptions import InvalidTag
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from better_telegram_mcp.auth.per_user_session_store import (
     PerUserSessionStore,
@@ -216,3 +219,35 @@ class TestPerUserSessionStore:
         store3 = PerUserSessionStore(data_dir)
         with pytest.raises(InvalidTag):
             store3.load_all()
+
+    def test_legacy_format_migration(self, data_dir: Path) -> None:
+        """Sessions stored in legacy format should be loadable and migrated on write."""
+        from better_telegram_mcp.auth.per_user_session_store import (
+            _LEGACY_SALT,
+            _SALT_PREFIX,
+        )
+
+        store = PerUserSessionStore(data_dir, secret="test-secret")
+        info = SessionInfo(session_name="legacy", mode="bot", bot_token="tok")
+        sessions = {"bearer-legacy": info.to_dict()}
+
+        # Manually create legacy formatted data
+        key = store._derive_key(_LEGACY_SALT)
+        aesgcm = AESGCM(key)
+        nonce = os.urandom(12)
+        plaintext = json.dumps(sessions).encode()
+        ciphertext = aesgcm.encrypt(nonce, plaintext, None)
+        store._path.write_bytes(nonce + ciphertext)
+
+        # Verify it loads correctly
+        loaded = store.load("bearer-legacy")
+        assert loaded is not None
+        assert loaded.session_name == "legacy"
+        assert not store._path.read_bytes().startswith(_SALT_PREFIX)
+
+        # Trigger migration on write
+        store.store("bearer-new", SessionInfo(session_name="new", mode="bot"))
+        data = store._path.read_bytes()
+        assert data.startswith(_SALT_PREFIX)
+        assert store.load("bearer-legacy") is not None
+        assert store.load("bearer-new") is not None
