@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -112,6 +113,14 @@ class UserBackend(TelegramBackend):
                 self._client.session.save()
             except Exception:
                 pass
+
+        # Clear local file cache
+        cache_dir = self._settings.data_dir / "cache"
+        if cache_dir.exists():
+            try:
+                shutil.rmtree(cache_dir)
+            except Exception:
+                pass  # Ignore cache cleanup errors
 
     # --- Auth ---
     async def is_authorized(self) -> bool:

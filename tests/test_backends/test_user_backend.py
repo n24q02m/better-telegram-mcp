@@ -792,6 +792,29 @@ class TestClearCache:
 
         mock_session.save.assert_called_once()
 
+    async def test_clear_cache_rmtree_exception_swallowed(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_session = MagicMock()
+        # Mock session.save() to be synchronous as observed in UserBackend.clear_cache
+        mock_session.save = MagicMock()
+        mock_client.session = mock_session
+
+        settings = _make_settings(tmp_path)
+        cache_dir = settings.data_dir / "cache"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        with patch("shutil.rmtree", side_effect=Exception("Disk error")) as mock_rmtree:
+            # Should not raise an exception
+            await backend.clear_cache()
+            mock_rmtree.assert_called_once_with(cache_dir)
+            mock_session.save.assert_called_once()
+
 
 class TestManageTopics:
     async def test_topics_list(self, tmp_path, mock_client, mock_client_class):
