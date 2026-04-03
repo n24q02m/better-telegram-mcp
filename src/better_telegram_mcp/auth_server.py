@@ -217,6 +217,8 @@ class AuthServer:
         self._auth_name: str = ""
         self._uvicorn_server: object | None = None
         self._rate_limits: dict[str, list[float]] = defaultdict(list)
+        self._verify_attempts: int = 0
+        self._last_verify_time: float = 0
         self.port: int = 0
         self.url: str = ""
 
@@ -278,15 +280,20 @@ class AuthServer:
                 return JSONResponse({"ok": False, "error": _sanitize_error(str(e))})
 
         async def verify(request: Request) -> JSONResponse:
-            ip = self._get_client_ip(request)
-            if not self._check_rate_limit(f"verify:{ip}"):
-                return JSONResponse(
-                    {
-                        "ok": False,
-                        "error": "Too many attempts. Please try again later.",
-                    },
-                    status_code=429,
-                )
+            # Enforce cooldown if too many attempts
+            if self._verify_attempts >= self._RATE_LIMIT_MAX:
+                elapsed = time.time() - self._last_verify_time
+                if elapsed < self._RATE_LIMIT_WINDOW:
+                    return JSONResponse(
+                        {
+                            "ok": False,
+                            "error": "Too many attempts. Please try again later.",
+                        },
+                        status_code=429,
+                    )
+                # Cooldown expired, reset
+                self._verify_attempts = 0
+
             try:
                 body = await request.json()
             except Exception:
@@ -302,10 +309,16 @@ class AuthServer:
             password = body.get("password") or None
             try:
                 result = await self._backend.sign_in(phone, code, password=password)
+                # Reset attempts on success
+                self._verify_attempts = 0
+                self._last_verify_time = 0
                 self._auth_name = result.get("authenticated_as", "User")
                 self._auth_complete.set()
                 return JSONResponse({"ok": True, "name": self._auth_name})
             except Exception as e:
+                # Increment attempts on failure
+                self._verify_attempts += 1
+                self._last_verify_time = time.time()
                 error_msg = str(e)
                 needs_password = any(
                     kw in error_msg.lower()
