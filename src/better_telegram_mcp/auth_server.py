@@ -161,6 +161,10 @@ _CAUSED_BY_RE = re.compile(r"\s*\(caused by \w+\)\s*$", re.IGNORECASE)
 
 _ERROR_SIMPLIFICATIONS: list[tuple[re.Pattern[str], str]] = [
     (
+        re.compile(r".*phone.*number.*invalid.*", re.IGNORECASE),
+        "Invalid phone number format",
+    ),
+    (
         re.compile(r".*password.*required.*", re.IGNORECASE),
         "Two-factor authentication password is required.",
     ),
