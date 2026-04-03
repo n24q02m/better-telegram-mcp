@@ -20,3 +20,10 @@ def safe_error(e: Exception) -> str:
     if isinstance(e, (ModeError, SecurityError, ValueError, FileNotFoundError)):
         return err(str(e))
     return err(f"{type(e).__name__}: Operation failed. Check server logs for details.")
+
+
+def _mask_phone(phone: str) -> str:
+    """Mask phone number for display (e.g., +***6789)."""
+    if len(phone) < 4:
+        return "***"
+    return f"+***{phone[-4:]}"
