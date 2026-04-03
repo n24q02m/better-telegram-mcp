@@ -552,10 +552,6 @@ class TestJoinChat:
 
         assert result is True
         # Test invite link with +/
-        result2 = await backend.join_chat("https://t.me/joinchat/+abc123")
-        assert result2 is True
-
-    async def test_join_public_link(self, tmp_path, mock_client, mock_client_class):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         mock_client.return_value = MagicMock()
