@@ -2,6 +2,45 @@
 
 <!-- version list -->
 
+## v4.0.0 (2026-04-03)
+
+### Bug Fixes
+
+- HTTP single-user mode respects env vars before CredentialStore
+  ([`4a88149`](https://github.com/n24q02m/better-telegram-mcp/commit/4a881490a186825ceb84d28901d9ab308aad93a5))
+
+### Documentation
+
+- Fix tool names in README to match server.py (singular form)
+  ([`f13241a`](https://github.com/n24q02m/better-telegram-mcp/commit/f13241a3eab3648d0e955f428fc0fae7ecc808d8))
+
+### Features
+
+- Implement multi-user HTTP MCP endpoint with per-user backend isolation
+  ([`eb76960`](https://github.com/n24q02m/better-telegram-mcp/commit/eb76960c2d372f516bf286aa723122faae9ccf4c))
+
+- Remove deprecated Gemini CLI extension support
+  ([`0175c8a`](https://github.com/n24q02m/better-telegram-mcp/commit/0175c8a1526331d686598d8703b5010203dd9c20))
+
+- Split telegram tool into message/chat/media/contact domains
+  ([`4dc5022`](https://github.com/n24q02m/better-telegram-mcp/commit/4dc50227fcc89d8a810d8d5d6e0bf324ecfa0d3a))
+
+### Refactoring
+
+- Remove legacy auth flow, auto-open browser in relay setup
+  ([`a2e27d1`](https://github.com/n24q02m/better-telegram-mcp/commit/a2e27d13c7ee588455aa9c91c7bfd78ae8d3b57b))
+
+### Testing
+
+- Add consolidated E2E test with relay/env/plugin and bot/user modes
+  ([`6fcf715`](https://github.com/n24q02m/better-telegram-mcp/commit/6fcf715a6c99eb2d0dbebcbb41c1cf1dd67d7c4b))
+
+### Breaking Changes
+
+- Auth_server.py and auth_client.py are no longer used for user mode OTP authentication. All auth
+  flows go through relay bidirectional messaging (mcp-relay-core).
+
+
 ## v3.5.0 (2026-03-31)
 
 ### Bug Fixes
