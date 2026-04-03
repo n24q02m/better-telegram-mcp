@@ -60,6 +60,34 @@ def test_err_unicode_handling():
     assert parsed["error"] == message
 
 
+def test_err_empty_message():
+    message = ""
+    result = err(message)
+    assert result == '{"error": ""}'
+    assert json.loads(result) == {"error": message}
+
+
+def test_err_special_characters():
+    message = r'Error with "quotes", \backslashes\, \nnewlines, and \ttabs'
+    result = err(message)
+    # json.dumps handles escaping
+    parsed = json.loads(result)
+    assert parsed["error"] == message
+
+
+def test_err_very_long_message():
+    message = "A" * 10000
+    result = err(message)
+    parsed = json.loads(result)
+    assert parsed["error"] == message
+
+
+def test_err_robustness():
+    # Test with non-string inputs at runtime
+    assert json.loads(err(None)) == {"error": None}  # type: ignore
+    assert json.loads(err(404)) == {"error": 404}  # type: ignore
+
+
 def test_safe_error_allowed_exceptions():
     # Exceptions that should expose their actual message
     allowed_exceptions = [
