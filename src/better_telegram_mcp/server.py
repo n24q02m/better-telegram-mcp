@@ -170,20 +170,7 @@ mcp = FastMCP(
         openWorldHint=True,
     )
 )
-async def message(
-    action: str,
-    chat_id: str | int | None = None,
-    text: str | None = None,
-    message_id: int | None = None,
-    reply_to: int | None = None,
-    parse_mode: str | None = None,
-    from_chat: str | int | None = None,
-    to_chat: str | int | None = None,
-    emoji: str | None = None,
-    query: str | None = None,
-    limit: int = 20,
-    offset_id: int | None = None,
-) -> str:
+async def message(args: MessagesArgs) -> str:
     """Send, edit, delete, forward, pin, react, search, and get message history.
 
     Actions (chat_id: "@username" | int):
@@ -199,20 +186,6 @@ async def message(
     if _unconfigured or _pending_auth:
         return _not_ready_response()
 
-    args = MessagesArgs(
-        action=action,
-        chat_id=chat_id,
-        text=text,
-        message_id=message_id,
-        reply_to=reply_to,
-        parse_mode=parse_mode,
-        from_chat=from_chat,
-        to_chat=to_chat,
-        emoji=emoji,
-        query=query,
-        limit=limit,
-        offset_id=offset_id,
-    )
     return await handle_messages(get_backend(), args)
 
 
@@ -225,20 +198,7 @@ async def message(
         openWorldHint=True,
     )
 )
-async def chat(
-    action: str,
-    chat_id: str | int | None = None,
-    title: str | None = None,
-    description: str | None = None,
-    is_channel: bool = False,
-    link_or_hash: str | None = None,
-    user_id: int | None = None,
-    demote: bool = False,
-    limit: int = 50,
-    topic_action: str | None = None,
-    topic_id: int | None = None,
-    topic_name: str | None = None,
-) -> str:
+async def chat(args: ChatOptions) -> str:
     """List, create, join, leave, manage members, settings, and topics.
 
     Actions:
@@ -255,20 +215,7 @@ async def chat(
     if _unconfigured or _pending_auth:
         return _not_ready_response()
 
-    opts = ChatOptions(
-        chat_id=chat_id,
-        title=title,
-        description=description,
-        is_channel=is_channel,
-        link_or_hash=link_or_hash,
-        user_id=user_id,
-        demote=demote,
-        limit=limit,
-        topic_action=topic_action,
-        topic_id=topic_id,
-        topic_name=topic_name,
-    )
-    return await handle_chats(get_backend(), action, opts)
+    return await handle_chats(get_backend(), args)
 
 
 @mcp.tool(
@@ -280,14 +227,7 @@ async def chat(
         openWorldHint=True,
     )
 )
-async def media(
-    action: str,
-    chat_id: str | int | None = None,
-    file_path_or_url: str | None = None,
-    message_id: int | None = None,
-    caption: str | None = None,
-    output_dir: str | None = None,
-) -> str:
+async def media(args: MediaOptions) -> str:
     """Send photos, files, voice, video, and download media from messages.
 
     Actions (file_path_or_url: local path or URL):
@@ -300,14 +240,7 @@ async def media(
     if _unconfigured or _pending_auth:
         return _not_ready_response()
 
-    opts = MediaOptions(
-        chat_id=chat_id,
-        file_path_or_url=file_path_or_url,
-        message_id=message_id,
-        caption=caption,
-        output_dir=output_dir,
-    )
-    return await handle_media(get_backend(), action, opts)
+    return await handle_media(get_backend(), args)
 
 
 @mcp.tool(
@@ -319,15 +252,7 @@ async def media(
         openWorldHint=True,
     )
 )
-async def contact(
-    action: str,
-    query: str | None = None,
-    phone: str | None = None,
-    first_name: str | None = None,
-    last_name: str | None = None,
-    user_id: int | None = None,
-    unblock: bool = False,
-) -> str:
+async def contact(args: ContactsOptions) -> str:
     """Manage contacts: list, search, add, and block/unblock users (user mode only).
 
     Actions:
@@ -339,15 +264,7 @@ async def contact(
     if _unconfigured or _pending_auth:
         return _not_ready_response()
 
-    opts = ContactsOptions(
-        query=query,
-        phone=phone,
-        first_name=first_name,
-        last_name=last_name,
-        user_id=user_id,
-        unblock=unblock,
-    )
-    return await handle_contacts(get_backend(), action, options=opts)
+    return await handle_contacts(get_backend(), args)
 
 
 @mcp.tool(

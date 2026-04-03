@@ -7,6 +7,7 @@ from ..utils.formatting import err, ok, safe_error
 
 
 class MediaOptions(BaseModel):
+    action: str = Field(description="Action to perform")
     chat_id: str | int | None = Field(default=None, description="ID of the chat")
     file_path_or_url: str | None = Field(
         default=None, description="Path or URL of the file to send"
@@ -30,18 +31,17 @@ _ACTION_TO_MEDIA_TYPE = {
 
 async def handle_media(
     backend: TelegramBackend,
-    action: str,
     options: MediaOptions,
 ) -> str:
     try:
-        if action in _ACTION_TO_MEDIA_TYPE:
+        if options.action in _ACTION_TO_MEDIA_TYPE:
             if not options.chat_id or not options.file_path_or_url:
                 return err(
-                    f"'{action}' requires chat_id and file_path_or_url. "
+                    f"'{options.action}' requires chat_id and file_path_or_url. "
                     "file_path_or_url: local path or HTTP(S) URL. "
                     "Limits: photo 10MB, file/voice/video 50MB (2GB local in user mode)."
                 )
-            media_type = _ACTION_TO_MEDIA_TYPE[action]
+            media_type = _ACTION_TO_MEDIA_TYPE[options.action]
             result = await backend.send_media(
                 options.chat_id,
                 media_type,
@@ -50,7 +50,7 @@ async def handle_media(
             )
             return ok(result)
 
-        if action == "download":
+        if options.action == "download":
             if not options.chat_id or options.message_id is None:
                 return err("'download' requires chat_id and message_id")
             path = await backend.download_media(
@@ -61,9 +61,11 @@ async def handle_media(
         import difflib
 
         valid = sorted([*_ACTION_TO_MEDIA_TYPE, "download"])
-        closest = difflib.get_close_matches(action, valid, n=1)
+        closest = difflib.get_close_matches(options.action, valid, n=1)
         suggestion = f" Did you mean '{closest[0]}'?" if closest else ""
-        return err(f"Unknown action '{action}'.{suggestion} Valid: {'|'.join(valid)}")
+        return err(
+            f"Unknown action '{options.action}'.{suggestion} Valid: {'|'.join(valid)}"
+        )
     except ModeError as e:
         return err(str(e))
     except Exception as e:

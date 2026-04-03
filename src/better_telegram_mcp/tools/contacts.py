@@ -7,6 +7,7 @@ from ..utils.formatting import err, ok, safe_error
 
 
 class ContactsOptions(BaseModel):
+    action: str = Field(description="Action to perform")
     query: str | None = Field(default=None, description="Query to search for")
     phone: str | None = Field(default=None, description="Phone number to add")
     first_name: str | None = Field(
@@ -19,13 +20,11 @@ class ContactsOptions(BaseModel):
 
 async def handle_contacts(
     backend: TelegramBackend,
-    action: str,
-    options: ContactsOptions | None = None,
+    options: ContactsOptions,
 ) -> str:
-    if options is None:
-        options = ContactsOptions()
+
     try:
-        match action:
+        match options.action:
             case "list":
                 results = await backend.list_contacts()
                 return ok({"contacts": results, "count": len(results)})
@@ -57,10 +56,10 @@ async def handle_contacts(
                 import difflib
 
                 valid = ["add", "block", "list", "search"]
-                closest = difflib.get_close_matches(action, valid, n=1)
+                closest = difflib.get_close_matches(options.action, valid, n=1)
                 suggestion = f" Did you mean '{closest[0]}'?" if closest else ""
                 return err(
-                    f"Unknown action '{action}'.{suggestion} Valid: {'|'.join(valid)}"
+                    f"Unknown action '{options.action}'.{suggestion} Valid: {'|'.join(valid)}"
                 )
     except ModeError as e:
         return err(str(e))
