@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -31,7 +32,7 @@ class TestSetupCredentials:
         """Should return stored credentials without hitting relay."""
         store = CredentialStore(data_dir, secret="test")
         expected = {"TELEGRAM_BOT_TOKEN": "stored-token"}
-        store.store(expected)
+        await store.store(expected)
 
         # Patch env so CredentialStore inside setup_credentials uses same secret
         with patch.dict("os.environ", {"CREDENTIAL_SECRET": "test"}):
@@ -51,34 +52,52 @@ class TestSetupCredentials:
                 "better_telegram_mcp.transports.http.create_session",
                 new_callable=AsyncMock,
                 return_value=mock_session,
-            ) as mock_create,
+            ),
             patch(
                 "better_telegram_mcp.transports.http.poll_for_result",
                 new_callable=AsyncMock,
                 return_value=expected_creds,
-            ) as mock_poll,
+            ),
+            patch("better_telegram_mcp.transports.http.CredentialStore") as MockStore,
         ):
+            mock_store = MockStore.return_value
+            mock_store.load = AsyncMock(return_value=None)
+            mock_store.store = AsyncMock()
+
             result = await setup_credentials(settings)
 
-        assert result == expected_creds
-        mock_create.assert_called_once()
-        mock_poll.assert_called_once()
+            assert result == expected_creds
+            mock_store.store.assert_called_once_with(expected_creds)
 
-    async def test_relay_failure_raises(self, settings: Settings) -> None:
-        """Should raise RuntimeError when relay server is unreachable."""
-        with patch(
-            "better_telegram_mcp.transports.http.create_session",
-            new_callable=AsyncMock,
-            side_effect=ConnectionError("unreachable"),
-        ):
-            with pytest.raises(RuntimeError, match="Cannot reach relay server"):
-                await setup_credentials(settings)
-
-    async def test_relay_timeout_raises(self, settings: Settings) -> None:
-        """Should raise RuntimeError when relay setup times out."""
+    async def test_credentials_stored_after_relay(
+        self, settings: Settings, data_dir: Path
+    ) -> None:
+        """Credentials from relay should be persisted to store."""
+        expected_creds = {"TELEGRAM_BOT_TOKEN": "relay-token"}
         mock_session = MagicMock()
-        mock_session.relay_url = "https://relay.example.com/setup/abc"
 
+        with (
+            patch(
+                "better_telegram_mcp.transports.http.create_session",
+                new_callable=AsyncMock,
+                return_value=mock_session,
+            ),
+            patch(
+                "better_telegram_mcp.transports.http.poll_for_result",
+                new_callable=AsyncMock,
+                return_value=expected_creds,
+            ),
+            patch.dict("os.environ", {"CREDENTIAL_SECRET": "test"}),
+        ):
+            await setup_credentials(settings)
+
+        # Verify it was written to disk
+        store = CredentialStore(data_dir, secret="test")
+        assert await store.load() == expected_creds
+
+    async def test_setup_credentials_timeout_error(self, settings: Settings) -> None:
+        """Should raise RuntimeError if polling fails."""
+        mock_session = MagicMock()
         with (
             patch(
                 "better_telegram_mcp.transports.http.create_session",
@@ -90,35 +109,29 @@ class TestSetupCredentials:
                 new_callable=AsyncMock,
                 side_effect=RuntimeError("timeout"),
             ),
+            patch("better_telegram_mcp.transports.http.CredentialStore") as MockStore,
         ):
+            mock_store = MockStore.return_value
+            mock_store.load = AsyncMock(return_value=None)
+
             with pytest.raises(RuntimeError, match="timed out"):
                 await setup_credentials(settings)
 
-    async def test_credentials_stored_after_relay(
-        self, settings: Settings, data_dir: Path
-    ) -> None:
-        """Credentials from relay should be persisted to disk."""
-        mock_session = MagicMock()
-        mock_session.relay_url = "https://relay.example.com/setup/abc"
-        expected_creds = {"TELEGRAM_BOT_TOKEN": "new-token"}
-
+    async def test_setup_credentials_relay_error(self, settings: Settings) -> None:
+        """Should raise RuntimeError if relay is unreachable."""
         with (
             patch(
                 "better_telegram_mcp.transports.http.create_session",
                 new_callable=AsyncMock,
-                return_value=mock_session,
+                side_effect=Exception("network error"),
             ),
-            patch(
-                "better_telegram_mcp.transports.http.poll_for_result",
-                new_callable=AsyncMock,
-                return_value=expected_creds,
-            ),
+            patch("better_telegram_mcp.transports.http.CredentialStore") as MockStore,
         ):
-            await setup_credentials(settings)
+            mock_store = MockStore.return_value
+            mock_store.load = AsyncMock(return_value=None)
 
-        # Verify credentials were persisted
-        store = CredentialStore(data_dir)
-        assert store.load() == expected_creds
+            with pytest.raises(RuntimeError, match="Cannot reach relay"):
+                await setup_credentials(settings)
 
 
 class TestStartHttp:
@@ -127,7 +140,7 @@ class TestStartHttp:
     ) -> None:
         """start_http should load stored creds and run mcp with streamable-http."""
         store = CredentialStore(data_dir, secret="test")
-        store.store({"TELEGRAM_BOT_TOKEN": "stored-token"})
+        asyncio.run(store.store({"TELEGRAM_BOT_TOKEN": "stored-token"}))
 
         with (
             patch.dict("os.environ", {"CREDENTIAL_SECRET": "test"}),
@@ -137,7 +150,11 @@ class TestStartHttp:
 
             start_http(settings)
 
-        mock_mcp.run.assert_called_once_with(transport="streamable-http")
+            mock_mcp.run.assert_called_once_with(transport="streamable-http")
+            # Verify env was updated
+            import os
+
+            assert os.environ["TELEGRAM_BOT_TOKEN"] == "stored-token"
 
     def test_start_http_sets_env_vars(self, settings: Settings, data_dir: Path) -> None:
         """start_http should set TELEGRAM_ env vars from stored credentials."""
@@ -148,7 +165,7 @@ class TestStartHttp:
             "TELEGRAM_BOT_TOKEN": "env-token-123",
             "TELEGRAM_API_ID": "99999",
         }
-        store.store(creds)
+        asyncio.run(store.store(creds))
 
         with (
             patch.dict(
@@ -162,6 +179,5 @@ class TestStartHttp:
 
             start_http(settings)
 
-            # Assert inside the context manager before patch.dict restores env
-            assert os.environ.get("TELEGRAM_BOT_TOKEN") == "env-token-123"
-            assert os.environ.get("TELEGRAM_API_ID") == "99999"
+            assert os.environ["TELEGRAM_BOT_TOKEN"] == "env-token-123"
+            assert os.environ["TELEGRAM_API_ID"] == "99999"

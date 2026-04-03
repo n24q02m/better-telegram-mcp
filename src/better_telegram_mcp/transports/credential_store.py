@@ -6,6 +6,7 @@ Key derived from server secret (CREDENTIAL_SECRET env var or auto-generated).
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import stat
@@ -83,8 +84,12 @@ class CredentialStore:
         self._cached_key = kdf.derive(self._secret.encode())
         return self._cached_key
 
-    def store(self, credentials: dict[str, str]) -> None:
+    async def store(self, credentials: dict[str, str]) -> None:
         """Encrypt and save credentials."""
+        await asyncio.to_thread(self._store_sync, credentials)
+
+    def _store_sync(self, credentials: dict[str, str]) -> None:
+        """Synchronous implementation of store."""
         self._path.parent.mkdir(parents=True, exist_ok=True)
 
         # Migrate from legacy hardcoded salt to random salt on re-encryption
@@ -109,8 +114,12 @@ class CredentialStore:
         except OSError:
             pass  # Windows may not support chmod
 
-    def load(self) -> dict[str, str] | None:
+    async def load(self) -> dict[str, str] | None:
         """Load and decrypt credentials. Returns None if not found."""
+        return await asyncio.to_thread(self._load_sync)
+
+    def _load_sync(self) -> dict[str, str] | None:
+        """Synchronous implementation of load."""
         if not self._path.exists():
             return None
         key = self._derive_key()
@@ -120,7 +129,11 @@ class CredentialStore:
         plaintext = aesgcm.decrypt(nonce, ciphertext, None)
         return json.loads(plaintext)
 
-    def delete(self) -> None:
+    async def delete(self) -> None:
         """Delete stored credentials."""
+        await asyncio.to_thread(self._delete_sync)
+
+    def _delete_sync(self) -> None:
+        """Synchronous implementation of delete."""
         if self._path.exists():
             self._path.unlink()

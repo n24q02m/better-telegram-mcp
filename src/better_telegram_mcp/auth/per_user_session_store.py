@@ -7,6 +7,7 @@ Reuses the key derivation pattern from transports/credential_store.py.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import stat
@@ -98,7 +99,53 @@ class PerUserSessionStore:
         aesgcm = AESGCM(key)
         return aesgcm.decrypt(nonce, ciphertext, None)
 
-    def _read_all(self) -> dict[str, dict]:
+    async def store(self, bearer: str, info: SessionInfo) -> None:
+        """Store a session for the given bearer token."""
+        await asyncio.to_thread(self._store_sync, bearer, info)
+
+    def _store_sync(self, bearer: str, info: SessionInfo) -> None:
+        """Synchronous implementation of store."""
+        sessions = self._read_all_sync()
+        sessions[bearer] = info.to_dict()
+        self._write_all_sync(sessions)
+
+    async def load(self, bearer: str) -> SessionInfo | None:
+        """Load session info for a bearer token. Returns None if not found."""
+        return await asyncio.to_thread(self._load_sync, bearer)
+
+    def _load_sync(self, bearer: str) -> SessionInfo | None:
+        """Synchronous implementation of load."""
+        sessions = self._read_all_sync()
+        data = sessions.get(bearer)
+        if data is None:
+            return None
+        return SessionInfo.from_dict(data)
+
+    async def load_all(self) -> dict[str, SessionInfo]:
+        """Load all stored sessions."""
+        return await asyncio.to_thread(self._load_all_sync)
+
+    def _load_all_sync(self) -> dict[str, SessionInfo]:
+        """Synchronous implementation of load_all."""
+        sessions = self._read_all_sync()
+        return {
+            bearer: SessionInfo.from_dict(data) for bearer, data in sessions.items()
+        }
+
+    async def delete(self, bearer: str) -> bool:
+        """Delete a session. Returns True if it existed."""
+        return await asyncio.to_thread(self._delete_sync, bearer)
+
+    def _delete_sync(self, bearer: str) -> bool:
+        """Synchronous implementation of delete."""
+        sessions = self._read_all_sync()
+        if bearer not in sessions:
+            return False
+        del sessions[bearer]
+        self._write_all_sync(sessions)
+        return True
+
+    def _read_all_sync(self) -> dict[str, dict]:
         """Read and decrypt all sessions from disk."""
         if not self._path.exists():
             return {}
@@ -106,7 +153,7 @@ class PerUserSessionStore:
         plaintext = self._decrypt(raw)
         return json.loads(plaintext)
 
-    def _write_all(self, sessions: dict[str, dict]) -> None:
+    def _write_all_sync(self, sessions: dict[str, dict]) -> None:
         """Encrypt and write all sessions to disk."""
         self._path.parent.mkdir(parents=True, exist_ok=True)
         plaintext = json.dumps(sessions).encode()
@@ -116,33 +163,3 @@ class PerUserSessionStore:
             self._path.chmod(stat.S_IRUSR | stat.S_IWUSR)
         except OSError:
             pass
-
-    def store(self, bearer: str, info: SessionInfo) -> None:
-        """Store a session for the given bearer token."""
-        sessions = self._read_all()
-        sessions[bearer] = info.to_dict()
-        self._write_all(sessions)
-
-    def load(self, bearer: str) -> SessionInfo | None:
-        """Load session info for a bearer token. Returns None if not found."""
-        sessions = self._read_all()
-        data = sessions.get(bearer)
-        if data is None:
-            return None
-        return SessionInfo.from_dict(data)
-
-    def load_all(self) -> dict[str, SessionInfo]:
-        """Load all stored sessions."""
-        sessions = self._read_all()
-        return {
-            bearer: SessionInfo.from_dict(data) for bearer, data in sessions.items()
-        }
-
-    def delete(self, bearer: str) -> bool:
-        """Delete a session. Returns True if it existed."""
-        sessions = self._read_all()
-        if bearer not in sessions:
-            return False
-        del sessions[bearer]
-        self._write_all(sessions)
-        return True
