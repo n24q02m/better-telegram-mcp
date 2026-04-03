@@ -338,9 +338,18 @@ class AuthServer:
             app, host="127.0.0.1", port=self.port, log_level="warning"
         )
         server = uvicorn.Server(config)
-        asyncio.create_task(server.serve())
+        task = asyncio.create_task(server.serve())
         self._uvicorn_server = server
+
+        # Wait briefly to see if it fails (e.g. port already bound)
         await asyncio.sleep(0.3)
+        if task.done():
+            try:
+                task.result()  # Raise exception if task failed
+            except OSError as e:
+                raise RuntimeError(
+                    f"Could not start server on port {self.port}: {e}"
+                ) from e
         logger.info("Auth server started at {}", self.url)
         return self.url
 
