@@ -151,4 +151,6 @@ def _start_multi_user_http(settings: Settings) -> None:
     logger.info("Starting multi-user HTTP server on port {}", port)
     logger.info("Public URL: {}", public_url)
 
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+    # Default to 127.0.0.1 for safety; override via HOST env var (e.g. Docker sets HOST=0.0.0.0)
+    host = os.environ.get("HOST", "127.0.0.1")
+    uvicorn.run(app, host=host, port=port, log_level="info")

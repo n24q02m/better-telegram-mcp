@@ -43,7 +43,7 @@ wheels = [
 
 [[package]]
 name = "better-telegram-mcp"
-version = "3.5.0b1"
+version = "4.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "cryptography" },
@@ -76,7 +76,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.26.0" },
-    { name = "mcp-relay-core", specifier = ">=1.1.0" },
+    { name = "mcp-relay-core", specifier = ">=1.2.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.13.1" },
     { name = "starlette", specifier = ">=0.52.1" },
@@ -421,16 +421,16 @@ cli = [
 
 [[package]]
 name = "mcp-relay-core"
-version = "1.1.0"
+version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
     { name = "httpx" },
     { name = "platformdirs" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0b/ce/3560665d55accbc6c02c70156bf8cf140da2ce402acdb0d23d79650bf84e/mcp_relay_core-1.1.0.tar.gz", hash = "sha256:e1f9e7c22ccf1e1bbb631c3d685341899a7269f2c8cab1115815e024761b9982", size = 61250, upload-time = "2026-03-28T12:18:38.025Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8b/8b/809647e6b3d9ae65ced9dedccf9ffb70c6d0be379b9996143e740e31cf8d/mcp_relay_core-1.3.0.tar.gz", hash = "sha256:90a10119711ee878023a8e64f87b22348619a76963630cb05341af2bd1508014", size = 61721, upload-time = "2026-04-03T08:31:05.909Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f2/d4/1cb487b43940467cc1028f645329dc440f01539ed069bce740a9d09f44a5/mcp_relay_core-1.1.0-py3-none-any.whl", hash = "sha256:4030111cabb04ce65463bc1a16acd73cc04263b6196fae1e97b7d057944e4744", size = 41300, upload-time = "2026-03-28T12:18:39.037Z" },
+    { url = "https://files.pythonhosted.org/packages/b4/91/61525f30ef3fdc5db1e15754182997eb33d51674b187fb56d7bd5c70afe8/mcp_relay_core-1.3.0-py3-none-any.whl", hash = "sha256:6c8ea16152b1021a02457445cb9f2910ca0b4837f923d9c50df07070cbc199d1", size = 41302, upload-time = "2026-04-03T08:31:04.611Z" },
 ]
 
 [[package]]

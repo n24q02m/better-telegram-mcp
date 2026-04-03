@@ -11,6 +11,8 @@ import asyncio
 import html
 import re
 import socket
+import time
+from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from loguru import logger
@@ -205,14 +207,37 @@ def _mask_phone(phone: str) -> str:
 class AuthServer:
     """Local web server for OTP authentication (TELEGRAM_AUTH_URL=local)."""
 
+    _RATE_LIMIT_WINDOW = 60  # seconds
+    _RATE_LIMIT_MAX = 5  # requests per window per IP per endpoint
+
     def __init__(self, backend: TelegramBackend, settings: Settings):
         self._backend = backend
         self._settings = settings
         self._auth_complete = asyncio.Event()
         self._auth_name: str = ""
         self._uvicorn_server: object | None = None
+        self._rate_limits: dict[str, list[float]] = defaultdict(list)
         self.port: int = 0
         self.url: str = ""
+
+    def _get_client_ip(self, request: Request) -> str:
+        """Extract client IP, respecting reverse proxy headers."""
+        if "cf-connecting-ip" in request.headers:
+            return request.headers["cf-connecting-ip"]
+        if "x-forwarded-for" in request.headers:
+            return request.headers["x-forwarded-for"].split(",")[0].strip()
+        return request.client.host if request.client else "unknown"
+
+    def _check_rate_limit(self, key: str) -> bool:
+        """Check if key is within rate limit. Returns True if allowed."""
+        now = time.time()
+        window_start = now - self._RATE_LIMIT_WINDOW
+        timestamps = self._rate_limits[key]
+        self._rate_limits[key] = [t for t in timestamps if t > window_start]
+        if len(self._rate_limits[key]) >= self._RATE_LIMIT_MAX:
+            return False
+        self._rate_limits[key].append(now)
+        return True
 
     def _make_app(self) -> Starlette:
         async def index(request: Request) -> HTMLResponse:
@@ -232,6 +257,15 @@ class AuthServer:
             return JSONResponse(data)
 
         async def send_code(request: Request) -> JSONResponse:
+            ip = self._get_client_ip(request)
+            if not self._check_rate_limit(f"send_code:{ip}"):
+                return JSONResponse(
+                    {
+                        "ok": False,
+                        "error": "Too many attempts. Please try again later.",
+                    },
+                    status_code=429,
+                )
             phone = self._settings.phone
             if not phone:
                 return JSONResponse(
@@ -244,6 +278,15 @@ class AuthServer:
                 return JSONResponse({"ok": False, "error": _sanitize_error(str(e))})
 
         async def verify(request: Request) -> JSONResponse:
+            ip = self._get_client_ip(request)
+            if not self._check_rate_limit(f"verify:{ip}"):
+                return JSONResponse(
+                    {
+                        "ok": False,
+                        "error": "Too many attempts. Please try again later.",
+                    },
+                    status_code=429,
+                )
             try:
                 body = await request.json()
             except Exception:

@@ -55,7 +55,7 @@ class BotBackend(TelegramBackend):
                     "https://t.me/BotFather"
                 )
                 raise TelegramAPIError(msg) from e
-            raise
+            raise ConnectionError(f"Failed to connect to Bot API: {e}") from e
 
     async def disconnect(self) -> None:
         await self._client.aclose()
