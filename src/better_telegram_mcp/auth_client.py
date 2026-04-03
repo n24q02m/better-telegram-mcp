@@ -79,7 +79,7 @@ class AuthClient:
                     await self._handle_command(data)
 
             except httpx.HTTPError as e:
-                logger.debug("Poll error: {}", e)
+                logger.error(f"HTTP error in auth request: {e}")
             except Exception as e:
                 logger.debug("Poll error: {}", e)
 
