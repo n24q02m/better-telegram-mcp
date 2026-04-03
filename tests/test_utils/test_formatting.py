@@ -100,3 +100,47 @@ def test_safe_error_generic_exceptions():
 
         # Ensure internal details are NOT leaked
         assert str(exc) not in result
+
+
+def test_safe_error_subclasses_of_allowed():
+    # Subclasses of allowed exceptions should also be allowed (isinstance check)
+    class CustomValueError(ValueError):
+        pass
+
+    msg = "Custom value error"
+    exc = CustomValueError(msg)
+    result = safe_error(exc)
+    parsed = json.loads(result)
+    assert parsed["error"] == msg
+
+
+def test_safe_error_generic_with_special_characters():
+    # Generic exceptions with special characters should still be sanitized correctly
+    msg = "Sensitive data: 1234-5678\nNewline\tTab 😊"
+    exc = RuntimeError(msg)
+    result = safe_error(exc)
+    parsed = json.loads(result)
+
+    expected_msg = "RuntimeError: Operation failed. Check server logs for details."
+    assert parsed["error"] == expected_msg
+    assert "Sensitive data" not in result
+    assert "😊" not in result
+
+
+def test_safe_error_empty_message():
+    # Generic exception with no message
+    exc = Exception()
+    result = safe_error(exc)
+    parsed = json.loads(result)
+    assert (
+        parsed["error"] == "Exception: Operation failed. Check server logs for details."
+    )
+
+
+def test_safe_error_allowed_multiline_message():
+    # Multiline messages in allowed exceptions should be preserved
+    msg = "First line\nSecond line"
+    exc = ValueError(msg)
+    result = safe_error(exc)
+    parsed = json.loads(result)
+    assert parsed["error"] == msg
