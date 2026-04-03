@@ -5,16 +5,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from better_telegram_mcp.tools.chats import ChatOptions
-from better_telegram_mcp.tools.contacts import ContactsOptions
-from better_telegram_mcp.tools.media import MediaOptions
-from better_telegram_mcp.tools.messages import MessagesArgs
 from better_telegram_mcp.server import (
     get_backend,
     get_settings,
     main,
     mcp,
 )
+from better_telegram_mcp.tools.chats import ChatOptions
+from better_telegram_mcp.tools.contacts import ContactsOptions
+from better_telegram_mcp.tools.media import MediaOptions
+from better_telegram_mcp.tools.messages import MessagesArgs
 
 
 def test_mcp_has_6_tools():
@@ -96,7 +96,13 @@ async def test_media_send_photo(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = await media(MediaOptions(action="send_photo", chat_id=123, file_path_or_url="https://example.com/photo.jpg",))
+        result = await media(
+            MediaOptions(
+                action="send_photo",
+                chat_id=123,
+                file_path_or_url="https://example.com/photo.jpg",
+            )
+        )
         assert "message_id" in result
     finally:
         srv._backend = old_backend
@@ -251,7 +257,9 @@ async def test_message_blocked_during_pending_auth(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        result = json.loads(await message(MessagesArgs(action="send", chat_id=123, text="hi")))
+        result = json.loads(
+            await message(MessagesArgs(action="send", chat_id=123, text="hi"))
+        )
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
     finally:
@@ -288,7 +296,13 @@ async def test_media_blocked_during_pending_auth(mock_backend):
         srv._backend = mock_backend
         srv._pending_auth = True
         result = json.loads(
-            await media(MediaOptions(action="send_photo", chat_id=123, file_path_or_url="https://example.com/photo.jpg",))
+            await media(
+                MediaOptions(
+                    action="send_photo",
+                    chat_id=123,
+                    file_path_or_url="https://example.com/photo.jpg",
+                )
+            )
         )
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
@@ -384,7 +398,9 @@ async def test_message_returns_setup_hint_when_unconfigured():
     try:
         srv._unconfigured = True
         srv._pending_auth = False
-        result = json.loads(await message(MessagesArgs(action="send", chat_id=123, text="hi")))
+        result = json.loads(
+            await message(MessagesArgs(action="send", chat_id=123, text="hi"))
+        )
         assert "error" in result
         assert result["error"] == "Not configured"
         assert "setup" in result
@@ -456,7 +472,13 @@ async def test_media_returns_setup_hint_when_unconfigured():
     try:
         srv._unconfigured = True
         result = json.loads(
-            await media(MediaOptions(action="send_photo", chat_id=123, file_path_or_url="https://example.com/photo.jpg",))
+            await media(
+                MediaOptions(
+                    action="send_photo",
+                    chat_id=123,
+                    file_path_or_url="https://example.com/photo.jpg",
+                )
+            )
         )
         assert result["error"] == "Not configured"
         assert "setup" in result
