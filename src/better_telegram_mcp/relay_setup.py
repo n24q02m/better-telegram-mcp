@@ -100,41 +100,15 @@ def _is_user_mode_config(config: dict[str, str]) -> bool:
     return bool(config.get("TELEGRAM_PHONE"))
 
 
-async def _relay_telethon_auth(
+async def _send_otp_step(
     relay_url: str,
     session_id: str,
     backend: UserBackend,
-    settings: Settings,
+    phone: str,
 ) -> bool:
-    """Run Telethon OTP/2FA auth flow via relay bidirectional messaging.
+    """Send OTP code to Telegram and notify relay."""
+    from mcp_relay_core.relay.client import send_message
 
-    Uses send_message(type='input_required') for user input and
-    poll_for_responses() to receive OTP code and optional 2FA password.
-
-    Args:
-        relay_url: Base URL of the relay server.
-        session_id: Active relay session ID.
-        backend: Connected UserBackend instance.
-        settings: Settings with phone number.
-
-    Returns:
-        True if authentication succeeded, False otherwise.
-    """
-    from mcp_relay_core.relay.client import poll_for_responses, send_message
-
-    phone = settings.phone
-    if not phone:
-        await send_message(
-            relay_url,
-            session_id,
-            {
-                "type": "error",
-                "text": "Phone number is required for user mode authentication.",
-            },
-        )
-        return False
-
-    # Step 1: Send OTP code to Telegram
     try:
         await send_message(
             relay_url,
@@ -145,6 +119,7 @@ async def _relay_telethon_auth(
             },
         )
         await backend.send_code(phone)
+        return True
     except Exception as e:
         await send_message(
             relay_url,
@@ -156,51 +131,132 @@ async def _relay_telethon_auth(
         )
         return False
 
-    # Step 2: Ask user for OTP code via relay
-    otp_message_id = await send_message(
+
+async def _ask_for_input(
+    relay_url: str,
+    session_id: str,
+    text: str,
+    field: str,
+    input_type: str,
+    placeholder: str = "",
+    timeout_error: str = "Timed out waiting for input.",
+) -> str | None:
+    """Ask for user input via relay and poll for response."""
+    from mcp_relay_core.relay.client import poll_for_responses, send_message
+
+    message_id = await send_message(
         relay_url,
         session_id,
         {
             "type": "input_required",
-            "text": "Enter the OTP code sent to your Telegram app",
-            "data": {"field": "otp_code", "input_type": "text", "placeholder": "12345"},
+            "text": text,
+            "data": {
+                "field": field,
+                "input_type": input_type,
+                "placeholder": placeholder,
+            },
         },
     )
 
     try:
-        otp_code = await poll_for_responses(
+        response = await poll_for_responses(
             relay_url,
             session_id,
-            otp_message_id,
+            message_id,
             timeout_s=300.0,
         )
+        return response.strip()
     except RuntimeError:
         await send_message(
             relay_url,
             session_id,
             {
                 "type": "error",
-                "text": "Timed out waiting for OTP code.",
+                "text": timeout_error,
             },
         )
-        return False
+        return None
 
-    # Step 3: Try sign in with OTP code
-    try:
-        result = await backend.sign_in(phone, otp_code.strip())
-        name = result.get("authenticated_as", "User")
+
+async def _notify_auth_success(
+    relay_url: str,
+    session_id: str,
+    result: dict,
+) -> None:
+    """Notify relay of successful authentication."""
+    from mcp_relay_core.relay.client import send_message
+
+    name = result.get("authenticated_as", "User")
+    await send_message(
+        relay_url,
+        session_id,
+        {
+            "type": "complete",
+            "text": f"Authenticated as {name}. Session saved. You can close this tab.",
+        },
+    )
+
+
+async def _relay_telethon_auth(
+    relay_url: str,
+    session_id: str,
+    backend: UserBackend,
+    settings: Settings,
+) -> bool:
+    """Run Telethon OTP/2FA auth flow via relay bidirectional messaging.
+
+    Uses helper functions to poll for OTP code and optional 2FA password.
+
+    Args:
+        relay_url: Base URL of the relay server.
+        session_id: Active relay session ID.
+        backend: Connected UserBackend instance.
+        settings: Settings with phone number.
+
+    Returns:
+        True if authentication succeeded, False otherwise.
+    """
+    phone = settings.phone
+    if not phone:
+        from mcp_relay_core.relay.client import send_message
+
         await send_message(
             relay_url,
             session_id,
             {
-                "type": "complete",
-                "text": f"Authenticated as {name}. Session saved. You can close this tab.",
+                "type": "error",
+                "text": "Phone number is required for user mode authentication.",
             },
         )
+        return False
+
+    # Step 1: Send OTP code to Telegram
+    if not await _send_otp_step(relay_url, session_id, backend, phone):
+        return False
+
+    # Step 2: Ask user for OTP code via relay
+    otp_code = await _ask_for_input(
+        relay_url,
+        session_id,
+        text="Enter the OTP code sent to your Telegram app",
+        field="otp_code",
+        input_type="text",
+        placeholder="12345",
+        timeout_error="Timed out waiting for OTP code.",
+    )
+    if not otp_code:
+        return False
+
+    # Step 3: Try sign in with OTP code
+    try:
+        result = await backend.sign_in(phone, otp_code)
+        await _notify_auth_success(relay_url, session_id, result)
         return True
     except Exception as e:
         error_msg = str(e)
         if not _needs_2fa_password(error_msg):
+            from mcp_relay_core.relay.client import send_message
+
             # Not a 2FA error -- sign-in failed for another reason
             await send_message(
                 relay_url,
@@ -213,52 +269,26 @@ async def _relay_telethon_auth(
             return False
 
     # Step 4: 2FA password required -- ask user
-    password_message_id = await send_message(
+    password = await _ask_for_input(
         relay_url,
         session_id,
-        {
-            "type": "input_required",
-            "text": "Your account has two-factor authentication. Enter your 2FA password.",
-            "data": {
-                "field": "2fa_password",
-                "input_type": "password",
-                "placeholder": "",
-            },
-        },
+        text="Your account has two-factor authentication. Enter your 2FA password.",
+        field="2fa_password",
+        input_type="password",
+        placeholder="",
+        timeout_error="Timed out waiting for 2FA password.",
     )
-
-    try:
-        password = await poll_for_responses(
-            relay_url,
-            session_id,
-            password_message_id,
-            timeout_s=300.0,
-        )
-    except RuntimeError:
-        await send_message(
-            relay_url,
-            session_id,
-            {
-                "type": "error",
-                "text": "Timed out waiting for 2FA password.",
-            },
-        )
+    if not password:
         return False
 
     # Step 5: Sign in with 2FA password
     try:
-        result = await backend.sign_in(phone, otp_code.strip(), password=password)
-        name = result.get("authenticated_as", "User")
-        await send_message(
-            relay_url,
-            session_id,
-            {
-                "type": "complete",
-                "text": f"Authenticated as {name}. Session saved. You can close this tab.",
-            },
-        )
+        result = await backend.sign_in(phone, otp_code, password=password)
+        await _notify_auth_success(relay_url, session_id, result)
         return True
     except Exception as e:
+        from mcp_relay_core.relay.client import send_message
+
         await send_message(
             relay_url,
             session_id,
