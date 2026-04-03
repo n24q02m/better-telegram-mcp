@@ -9,7 +9,9 @@ from pydantic_settings import BaseSettings
 
 def _empty_to_none(v: str | None) -> str | None:
     """Treat empty string as None (plugin.json sets env vars to '' by default)."""
-    return v if v else None
+    if not v or not v.strip():
+        return None
+    return v
 
 
 class Settings(BaseSettings):

@@ -84,3 +84,13 @@ def test_session_path(monkeypatch):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC")
     s = Settings()
     assert str(s.session_path).endswith("default.session")
+
+
+def test_empty_to_none():
+    from better_telegram_mcp.config import _empty_to_none
+
+    assert _empty_to_none(None) is None
+    assert _empty_to_none("") is None
+    assert _empty_to_none("   ") is None
+    assert _empty_to_none("valid") == "valid"
+    assert _empty_to_none("  valid  ") == "  valid  "
