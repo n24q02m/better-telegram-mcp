@@ -193,9 +193,14 @@ def _sanitize_error(msg: str) -> str:
 
 
 def _find_free_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
+    """Find an available port on 127.0.0.1."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind(("127.0.0.1", 0))
+            return s.getsockname()[1]
+    except OSError as e:
+        raise RuntimeError(f"Could not find a free port: {e}") from e
 
 
 def _mask_phone(phone: str) -> str:
