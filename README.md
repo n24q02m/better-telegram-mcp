@@ -47,12 +47,6 @@ Via marketplace (includes skills: /setup-bot, /channel-post):
 
 Set credentials in `~/.claude/settings.local.json` or shell profile. See [Environment Variables](#environment-variables).
 
-### Gemini CLI Extension
-
-```bash
-gemini extensions install https://github.com/n24q02m/better-telegram-mcp
-```
-
 ### Codex CLI
 
 Add to `~/.codex/config.toml`:
@@ -94,7 +88,7 @@ args = ["--python", "3.13", "better-telegram-mcp"]
 ```
 
 <details>
-<summary>Other MCP clients (Cursor, Codex, Gemini CLI)</summary>
+<summary>Other MCP clients (Cursor, Codex)</summary>
 
 ```jsonc
 // Cursor (~/.cursor/mcp.json), Windsurf, Cline, Amp, OpenCode
