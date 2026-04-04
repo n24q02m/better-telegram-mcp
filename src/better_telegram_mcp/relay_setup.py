@@ -94,13 +94,10 @@ def check_saved_sessions() -> bool:
 def _is_user_mode_config(config: dict[str, str]) -> bool:
     """Check if config has user-mode credentials (phone number).
 
-    Identifies user-mode if TELEGRAM_PHONE is present OR if both
-    TELEGRAM_API_ID and TELEGRAM_API_HASH are present.
+    API ID and API Hash have built-in defaults in config.py, so only phone
+    is needed from relay to identify user mode.
     """
-    return bool(
-        config.get("TELEGRAM_PHONE")
-        or (config.get("TELEGRAM_API_ID") and config.get("TELEGRAM_API_HASH"))
-    )
+    return bool(config.get("TELEGRAM_PHONE"))
 
 
 async def _relay_telethon_auth(
