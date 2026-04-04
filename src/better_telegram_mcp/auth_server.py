@@ -228,11 +228,8 @@ class AuthServer:
         self.url: str = ""
 
     def _get_client_ip(self, request: Request) -> str:
-        """Extract client IP, respecting reverse proxy headers."""
-        if "cf-connecting-ip" in request.headers:
-            return request.headers["cf-connecting-ip"]
-        if "x-forwarded-for" in request.headers:
-            return request.headers["x-forwarded-for"].split(",")[0].strip()
+        """Extract client IP from the connection."""
+        # 🛡️ Sentinel: Prevent rate limit bypass by not blindly trusting proxy headers
         return request.client.host if request.client else "unknown"
 
     def _check_rate_limit(self, key: str) -> bool:

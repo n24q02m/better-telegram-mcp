@@ -53,12 +53,12 @@ def _check_rate_limit(ip: str, limit: int) -> bool:
 
 
 def _get_client_ip(request: Request) -> str:
-    """Safely extract client IP, respecting reverse proxies if headers are present."""
-    if "cf-connecting-ip" in request.headers:
-        return request.headers["cf-connecting-ip"]
-    if "x-forwarded-for" in request.headers:
-        # X-Forwarded-For can be a comma-separated list of IPs; the first is the client
-        return request.headers["x-forwarded-for"].split(",")[0].strip()
+    """Safely extract client IP from the connection.
+
+    🛡️ Sentinel: Do not blindly trust X-Forwarded-For or CF-Connecting-IP headers,
+    as they can be trivially spoofed by attackers to bypass rate limits.
+    If behind a proxy, configure ASGI server (e.g., uvicorn --proxy-headers) securely.
+    """
     return request.client.host if request.client else "unknown"
 
 
