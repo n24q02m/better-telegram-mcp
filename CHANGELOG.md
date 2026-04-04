@@ -2,6 +2,20 @@
 
 <!-- version list -->
 
+## v4.1.0 (2026-04-04)
+
+### Bug Fixes
+
+- CSRF token protection, auth_server tests, dependency updates, and test improvements
+  ([#169](https://github.com/n24q02m/better-telegram-mcp/pull/169),
+  [`1f743de`](https://github.com/n24q02m/better-telegram-mcp/commit/1f743de1a8cad73bd835cb8fefeb70c5c9cdc132))
+
+### Features
+
+- Add agent/manual setup guides, simplify README, cleanup root
+  ([`1dad3c9`](https://github.com/n24q02m/better-telegram-mcp/commit/1dad3c9ea91b4e5517d4274bc6cd81477ad30b8e))
+
+
 ## v4.0.1 (2026-04-03)
 
 ### Bug Fixes
