@@ -8,6 +8,7 @@ Manages the lifecycle of per-user TelegramBackend instances:
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import secrets
 import time
@@ -65,9 +66,9 @@ class TelegramAuthProvider:
 
         Returns the number of successfully restored sessions.
         """
-        import asyncio
-
-        sessions = self._store.load_all()
+        # ⚡ Bolt: Offload synchronous I/O and crypto operations to a worker thread
+        # to prevent blocking the main asyncio event loop.
+        sessions = await asyncio.to_thread(self._store.load_all)
         now = time.time()
 
         # ⚡ Bolt: Initialize Telegram backends concurrently instead of sequentially
@@ -80,7 +81,9 @@ class TelegramAuthProvider:
                     "Session {} expired, removing",
                     info.session_name[:8],
                 )
-                self._store.delete(bearer)
+                # ⚡ Bolt: Offload deletion to prevent blocking
+                # ⚡ Bolt: Offload deletion to prevent blocking
+                await asyncio.to_thread(self._store.delete, bearer)
                 return False
 
             try:
@@ -97,7 +100,7 @@ class TelegramAuthProvider:
                     "Failed to restore session {}, removing",
                     info.session_name[:8],
                 )
-                self._store.delete(bearer)
+                await asyncio.to_thread(self._store.delete, bearer)
                 return False
 
         if not sessions:
@@ -164,7 +167,8 @@ class TelegramAuthProvider:
             bot_token=bot_token,
         )
 
-        self._store.store(bearer, info)
+        # ⚡ Bolt: Offload synchronous store I/O and crypto
+        await asyncio.to_thread(self._store.store, bearer, info)
         self.active_clients[bearer] = backend
         logger.info("Registered bot session: {}", session_name[:8])
         return bearer
@@ -272,7 +276,8 @@ class TelegramAuthProvider:
             phone=phone,
         )
 
-        self._store.store(bearer, info)
+        # ⚡ Bolt: Offload synchronous store I/O and crypto
+        await asyncio.to_thread(self._store.store, bearer, info)
         self.active_clients[bearer] = backend
         logger.info("Registered user session: {}", pending["session_name"][:8])
         return result
@@ -296,11 +301,13 @@ class TelegramAuthProvider:
         for sid in to_remove:
             del self.session_owners[sid]
 
-        return self._store.delete(bearer)
+        # ⚡ Bolt: Offload deletion to prevent blocking
+        return await asyncio.to_thread(self._store.delete, bearer)
 
     async def cleanup_expired(self) -> int:
         """Remove expired sessions. Returns count of removed sessions."""
-        sessions = self._store.load_all()
+        # ⚡ Bolt: Offload load_all I/O to prevent blocking
+        sessions = await asyncio.to_thread(self._store.load_all)
         removed = 0
         now = time.time()
 
