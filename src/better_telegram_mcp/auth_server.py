@@ -20,8 +20,6 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse
 from starlette.routing import Route
 
-from .utils.formatting import _mask_phone
-
 if TYPE_CHECKING:
     from .backends.base import TelegramBackend
     from .config import Settings
@@ -186,6 +184,12 @@ def _find_free_port() -> int:
         return s.getsockname()[1]
 
 
+def _mask_phone(phone: str) -> str:
+    if len(phone) > 7:
+        return phone[:4] + "***" + phone[-4:]
+    return phone[:2] + "***"
+
+
 class AuthServer:
     """Local web server for OTP authentication (TELEGRAM_AUTH_URL=local)."""
 
@@ -290,7 +294,9 @@ class AuthServer:
         import uvicorn
 
         app = self._make_app()
-        config = uvicorn.Config(app, host="127.0.0.1", port=self._port, log_level="warning")
+        config = uvicorn.Config(
+            app, host="127.0.0.1", port=self._port, log_level="warning"
+        )
         server = uvicorn.Server(config)
 
         # 🛡️ Sentinel: Bind explicitly to 127.0.0.1 for local security

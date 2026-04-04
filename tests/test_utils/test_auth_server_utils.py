@@ -1,6 +1,6 @@
 import pytest
 
-from better_telegram_mcp.auth_server import _sanitize_error
+from better_telegram_mcp.auth_server import _mask_phone, _sanitize_error
 
 
 @pytest.mark.parametrize(
@@ -35,3 +35,19 @@ from better_telegram_mcp.auth_server import _sanitize_error
 )
 def test_sanitize_error(msg, expected):
     assert _sanitize_error(msg) == expected
+
+
+@pytest.mark.parametrize(
+    "phone, expected",
+    [
+        ("", "***"),
+        ("1", "1***"),
+        ("12", "12***"),
+        ("123", "12***"),
+        ("1234567", "12***"),
+        ("12345678", "1234***5678"),
+        ("+1234567890", "+123***7890"),
+    ],
+)
+def test_mask_phone(phone, expected):
+    assert _mask_phone(phone) == expected

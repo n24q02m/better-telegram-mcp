@@ -1,11 +1,9 @@
 import json
 from datetime import datetime
 
-import pytest
-
 from better_telegram_mcp.backends.base import ModeError
 from better_telegram_mcp.backends.security import SecurityError
-from better_telegram_mcp.utils.formatting import _mask_phone, err, ok, safe_error
+from better_telegram_mcp.utils.formatting import err, ok, safe_error
 
 
 def test_ok_basic_serialization():
@@ -102,19 +100,3 @@ def test_safe_error_generic_exceptions():
 
         # Ensure internal details are NOT leaked
         assert str(exc) not in result
-
-
-@pytest.mark.parametrize(
-    "phone, expected",
-    [
-        ("", "***"),
-        ("1", "***"),
-        ("12", "***"),
-        ("123", "***"),
-        ("1234", "+***1234"),
-        ("1234567890", "+***7890"),
-        ("+1234567890", "+***7890"),
-    ],
-)
-def test_mask_phone(phone, expected):
-    assert _mask_phone(phone) == expected
