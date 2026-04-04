@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import html
 import re
+import secrets
 import socket
 import time
 from collections import defaultdict
@@ -103,7 +104,7 @@ button:disabled{background:#333;color:#666;cursor:not-allowed}
   </div>
 </div>
 <script>
-const $=id=>document.getElementById(id);
+const $=id=>document.getElementById(id),_t=new URLSearchParams(window.location.search).get("token");
 function show(id){
   document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
   $(id).classList.add('active');
@@ -115,7 +116,7 @@ function btnReset(btn,text){btn.disabled=false;btn.textContent=text}
 function showPwd(){$('pwd-section').style.display='block';$('pwd').focus()}
 
 async function checkStatus(){
-  try{const r=await fetch('/status');const d=await r.json();
+  try{const r=await fetch('/status',{headers:{'X-Auth-Token':_t}});const d=await r.json();
     if(d.authenticated){$('auth-name').textContent=d.name||'User';show('step2')}
     else{show('step0');$('otp').focus()}
   }catch(e){show('step0')}
@@ -124,7 +125,7 @@ async function checkStatus(){
 async function sendCode(){
   const btn=$('btn-send'),s=$('s0');
   btnLoading(btn,'Sending...');clearSt($('s1'));
-  try{const r=await fetch('/send-code',{method:'POST'});const d=await r.json();
+  try{const r=await fetch('/send-code',{method:'POST',headers:{'X-Auth-Token':_t}});const d=await r.json();
     if(d.ok){st(s,'info','Code sent! Check your Telegram app.');btnReset(btn,'Resend Code');$('otp').focus()}
     else{st(s,'error',d.error||'Failed to send code');btnReset(btn,'Retry')}
   }catch(e){st(s,'error','Network error. Check your connection.');btnReset(btn,'Retry')}
@@ -136,7 +137,7 @@ async function verify(){
   if(!code){st(s,'error','Please enter the OTP code first.');return}
   btnLoading(btn,'Verifying...');
   try{const body={code};const pwd=$('pwd').value.trim();if(pwd)body.password=pwd;
-    const r=await fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const r=await fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json','X-Auth-Token':_t},body:JSON.stringify(body)});
     const d=await r.json();
     if(d.ok){$('auth-name').textContent=d.name||'User';show('step2')}
     else{
@@ -193,9 +194,14 @@ def _sanitize_error(msg: str) -> str:
 
 
 def _find_free_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
+    """Find an available port on 127.0.0.1."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind(("127.0.0.1", 0))
+            return s.getsockname()[1]
+    except OSError as e:
+        raise RuntimeError(f"Could not find a free port: {e}") from e
 
 
 def _mask_phone(phone: str) -> str:
@@ -217,6 +223,7 @@ class AuthServer:
         self._auth_name: str = ""
         self._uvicorn_server: object | None = None
         self._rate_limits: dict[str, list[float]] = defaultdict(list)
+        self._token = secrets.token_urlsafe(32)
         self.port: int = 0
         self.url: str = ""
 
@@ -244,9 +251,18 @@ class AuthServer:
             phone = self._settings.phone or "unknown"
             # 🛡️ Sentinel: Prevent XSS by escaping dynamic data before insertion
             page_html = _PAGE.replace("PHONE", html.escape(_mask_phone(phone)))
-            return HTMLResponse(page_html)
+            return HTMLResponse(
+                page_html,
+                headers={
+                    "Content-Security-Policy": "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'",
+                    "X-Frame-Options": "DENY",
+                    "X-Content-Type-Options": "nosniff",
+                },
+            )
 
         async def status_endpoint(request: Request) -> JSONResponse:
+            if request.headers.get("X-Auth-Token") != self._token:
+                return JSONResponse({"error": "Forbidden"}, status_code=403)
             try:
                 authorized = await self._backend.is_authorized()
             except Exception:
@@ -257,6 +273,8 @@ class AuthServer:
             return JSONResponse(data)
 
         async def send_code(request: Request) -> JSONResponse:
+            if request.headers.get("X-Auth-Token") != self._token:
+                return JSONResponse({"error": "Forbidden"}, status_code=403)
             ip = self._get_client_ip(request)
             if not self._check_rate_limit(f"send_code:{ip}"):
                 return JSONResponse(
@@ -278,6 +296,8 @@ class AuthServer:
                 return JSONResponse({"ok": False, "error": _sanitize_error(str(e))})
 
         async def verify(request: Request) -> JSONResponse:
+            if request.headers.get("X-Auth-Token") != self._token:
+                return JSONResponse({"error": "Forbidden"}, status_code=403)
             ip = self._get_client_ip(request)
             if not self._check_rate_limit(f"verify:{ip}"):
                 return JSONResponse(
@@ -331,16 +351,25 @@ class AuthServer:
         import uvicorn
 
         self.port = _find_free_port()
-        self.url = f"http://127.0.0.1:{self.port}"
+        self.url = f"http://127.0.0.1:{self.port}?token={self._token}"
 
         app = self._make_app()
         config = uvicorn.Config(
             app, host="127.0.0.1", port=self.port, log_level="warning"
         )
         server = uvicorn.Server(config)
-        asyncio.create_task(server.serve())
+        task = asyncio.create_task(server.serve())
         self._uvicorn_server = server
+
+        # Wait briefly to see if it fails (e.g. port already bound)
         await asyncio.sleep(0.3)
+        if task.done():
+            try:
+                task.result()  # Raise exception if task failed
+            except OSError as e:
+                raise RuntimeError(
+                    f"Could not start server on port {self.port}: {e}"
+                ) from e
         logger.info("Auth server started at {}", self.url)
         return self.url
 
