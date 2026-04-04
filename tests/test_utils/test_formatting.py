@@ -107,15 +107,16 @@ def test_mask_phone_empty():
 
 
 def test_mask_phone_short():
-    assert _mask_phone("1") == "***"
-    assert _mask_phone("12") == "***"
-    assert _mask_phone("123") == "***"
+    assert _mask_phone("1") == "1***"
+    assert _mask_phone("12") == "12***"
+    assert _mask_phone("123") == "12***"
 
 
 def test_mask_phone_boundary():
-    assert _mask_phone("1234") == "+***1234"
+    # len(phone) == 8, uses long format
+    assert _mask_phone("12345678") == "1234***5678"
 
 
 def test_mask_phone_typical():
-    assert _mask_phone("+1234567890") == "+***7890"
-    assert _mask_phone("447700900123") == "+***0123"
+    assert _mask_phone("+1234567890") == "+123***7890"
+    assert _mask_phone("447700900123") == "4477***0123"

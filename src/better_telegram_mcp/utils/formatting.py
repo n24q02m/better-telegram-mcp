@@ -24,6 +24,6 @@ def safe_error(e: Exception) -> str:
 
 def _mask_phone(phone: str) -> str:
     """Mask a phone number for display."""
-    if len(phone) < 4:
-        return "***"
-    return f"+***{phone[-4:]}"
+    if len(phone) > 7:
+        return phone[:4] + "***" + phone[-4:]
+    return phone[:2] + "***"
