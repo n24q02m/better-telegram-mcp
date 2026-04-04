@@ -228,11 +228,13 @@ class AuthServer:
         self.url: str = ""
 
     def _get_client_ip(self, request: Request) -> str:
-        """Extract client IP, respecting reverse proxy headers."""
-        if "cf-connecting-ip" in request.headers:
-            return request.headers["cf-connecting-ip"]
-        if "x-forwarded-for" in request.headers:
-            return request.headers["x-forwarded-for"].split(",")[0].strip()
+        """Extract client IP securely from the transport layer.
+
+        Security Pattern (Sentinel): Client IP extraction must strictly return
+        request.client.host to prevent IP spoofing and rate limit bypass. Do not
+        manually parse x-forwarded-for or cf-connecting-ip; reverse proxy trust
+        must be configured at the ASGI server level (e.g., Uvicorn).
+        """
         return request.client.host if request.client else "unknown"
 
     def _check_rate_limit(self, key: str) -> bool:
