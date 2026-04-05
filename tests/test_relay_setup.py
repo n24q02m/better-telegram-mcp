@@ -587,11 +587,14 @@ class TestSanitizeError:
 
 
 class TestNeeds2faPassword:
-    def test_password_keyword(self):
+    def test_session_password_needed(self):
         assert _needs_2fa_password("SessionPasswordNeeded") is True
 
-    def test_2fa_keyword(self):
-        assert _needs_2fa_password("2fa authentication required") is True
+    def test_password_required(self):
+        assert _needs_2fa_password("password required") is True
+
+    def test_2fa_password(self):
+        assert _needs_2fa_password("2fa password") is True
 
     def test_two_factor_keyword(self):
         assert _needs_2fa_password("Two-factor auth needed") is True
@@ -599,8 +602,21 @@ class TestNeeds2faPassword:
     def test_srp_keyword(self):
         assert _needs_2fa_password("SRP protocol required") is True
 
-    def test_no_match(self):
+    def test_mixed_case(self):
+        assert _needs_2fa_password("TwO-FaCtOr needed") is True
+        assert _needs_2fa_password("PASSWORD REQUIRED") is True
+
+    def test_no_match_just_password(self):
+        assert _needs_2fa_password("incorrect password") is False
+
+    def test_no_match_random(self):
         assert _needs_2fa_password("Invalid phone number") is False
+        assert _needs_2fa_password("") is False
+        assert _needs_2fa_password("error 123") is False
+
+    def test_no_match_just_2fa(self):
+        # 2fa without password should not match unless it's two-factor/srp
+        assert _needs_2fa_password("2fa error") is False
 
 
 # --- _is_user_mode_config ---
