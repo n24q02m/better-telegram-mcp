@@ -10,7 +10,6 @@ Resolution order (relay only when ALL local sources are empty):
 
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -18,6 +17,7 @@ from typing import TYPE_CHECKING
 from loguru import logger
 
 from .relay_schema import RELAY_SCHEMA
+from .utils.formatting import sanitize_error
 
 if TYPE_CHECKING:
     from .backends.user_backend import UserBackend
@@ -31,40 +31,6 @@ ALL_POSSIBLE_FIELDS = [
     "TELEGRAM_BOT_TOKEN",
     "TELEGRAM_PHONE",
 ]
-
-# Error sanitization patterns (same as auth_server.py for consistency)
-_CAUSED_BY_RE = re.compile(r"\s*\(caused by \w+\)\s*$", re.IGNORECASE)
-_ERROR_SIMPLIFICATIONS: list[tuple[re.Pattern[str], str]] = [
-    (
-        re.compile(r".*password.*required.*", re.IGNORECASE),
-        "Two-factor authentication password is required.",
-    ),
-    (
-        re.compile(r".*password.*invalid.*|.*invalid.*password.*", re.IGNORECASE),
-        "Incorrect 2FA password. Please try again.",
-    ),
-    (
-        re.compile(r".*phone.*code.*invalid.*|.*invalid.*code.*", re.IGNORECASE),
-        "Invalid OTP code. Please check and try again.",
-    ),
-    (
-        re.compile(r".*phone.*code.*expired.*|.*code.*expired.*", re.IGNORECASE),
-        "OTP code has expired. Please request a new one.",
-    ),
-    (
-        re.compile(r".*flood.*wait.*|.*too many.*", re.IGNORECASE),
-        "Too many attempts. Please wait a moment and try again.",
-    ),
-]
-
-
-def _sanitize_error(msg: str) -> str:
-    """Simplify internal error messages to user-friendly text."""
-    cleaned = _CAUSED_BY_RE.sub("", msg).strip()
-    for pattern, friendly in _ERROR_SIMPLIFICATIONS:
-        if pattern.match(cleaned):
-            return friendly
-    return cleaned
 
 
 def _needs_2fa_password(error_msg: str) -> bool:
@@ -151,7 +117,7 @@ async def _relay_telethon_auth(
             session_id,
             {
                 "type": "error",
-                "text": f"Failed to send OTP code: {_sanitize_error(str(e))}",
+                "text": f"Failed to send OTP code: {sanitize_error(str(e))}",
             },
         )
         return False
@@ -207,7 +173,7 @@ async def _relay_telethon_auth(
                 session_id,
                 {
                     "type": "error",
-                    "text": f"Authentication failed: {_sanitize_error(error_msg)}",
+                    "text": f"Authentication failed: {sanitize_error(error_msg)}",
                 },
             )
             return False
@@ -264,7 +230,7 @@ async def _relay_telethon_auth(
             session_id,
             {
                 "type": "error",
-                "text": f"Authentication failed: {_sanitize_error(str(e))}",
+                "text": f"Authentication failed: {sanitize_error(str(e))}",
             },
         )
         return False

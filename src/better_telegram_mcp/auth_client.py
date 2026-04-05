@@ -13,17 +13,13 @@ from typing import TYPE_CHECKING, Any
 import httpx
 from loguru import logger
 
+from .utils.formatting import mask_phone
+
 if TYPE_CHECKING:
     from .backends.base import TelegramBackend
     from .config import Settings
 
 POLL_INTERVAL = 2  # seconds
-
-
-def _mask_phone(phone: str) -> str:
-    if len(phone) > 7:
-        return phone[:4] + "***" + phone[-4:]
-    return phone[:2] + "***"
 
 
 class AuthClient:
@@ -48,7 +44,7 @@ class AuthClient:
         phone = self._settings.phone or ""
         resp = await self._client.post(
             f"{self._base_url}/api/sessions",
-            json={"phone_masked": _mask_phone(phone)},
+            json={"phone_masked": mask_phone(phone)},
         )
         resp.raise_for_status()
         data = resp.json()

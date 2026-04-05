@@ -1,9 +1,16 @@
 import json
 from datetime import datetime
 
+import pytest
 from better_telegram_mcp.backends.base import ModeError
 from better_telegram_mcp.backends.security import SecurityError
-from better_telegram_mcp.utils.formatting import err, ok, safe_error
+from better_telegram_mcp.utils.formatting import (
+    err,
+    mask_phone,
+    ok,
+    safe_error,
+    sanitize_error,
+)
 
 
 def test_ok_basic_serialization():
@@ -100,3 +107,32 @@ def test_safe_error_generic_exceptions():
 
         # Ensure internal details are NOT leaked
         assert str(exc) not in result
+
+
+def test_mask_phone():
+    assert mask_phone("1234567890") == "1234***7890"
+    assert mask_phone("+1234567890") == "+123***7890"
+    assert mask_phone("1234567") == "12***"
+    assert mask_phone("12") == "12***"
+
+
+def test_sanitize_error():
+    assert sanitize_error("Some error (caused by something)") == "Some error"
+    assert sanitize_error("password is required") == "Two-factor authentication password is required."
+    assert sanitize_error("Some error (caused by AuthError)") == "Some error"
+    assert sanitize_error("password is required") == "Two-factor authentication password is required."
+    assert sanitize_error("invalid password") == "Incorrect 2FA password. Please try again."
+    assert sanitize_error("phone code is invalid") == "Invalid OTP code. Please check and try again."
+    assert sanitize_error("code expired") == "OTP code has expired. Please request a new one."
+    assert sanitize_error("flood wait 300") == "Too many attempts. Please wait a moment and try again."
+    assert sanitize_error("Normal error") == "Normal error"
+
+
+def test_safe_error_edge_cases():
+    # Exception with special characters in message
+    msg = 'Error with "quotes", \nnew lines, and 🚀'
+    exc = ValueError(msg)
+    result = safe_error(exc)
+    parsed = json.loads(result)
+    assert parsed["error"] == msg
+    assert '🚀' in result

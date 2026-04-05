@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import html
-import re
 import secrets
 import socket
 import time
@@ -21,6 +20,8 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse
 from starlette.routing import Route
+
+from .utils.formatting import mask_phone, sanitize_error
 
 if TYPE_CHECKING:
     from .backends.base import TelegramBackend
@@ -158,41 +159,6 @@ checkStatus();
 </html>"""
 
 
-_CAUSED_BY_RE = re.compile(r"\s*\(caused by \w+\)\s*$", re.IGNORECASE)
-
-_ERROR_SIMPLIFICATIONS: list[tuple[re.Pattern[str], str]] = [
-    (
-        re.compile(r".*password.*required.*", re.IGNORECASE),
-        "Two-factor authentication password is required.",
-    ),
-    (
-        re.compile(r".*password.*invalid.*|.*invalid.*password.*", re.IGNORECASE),
-        "Incorrect 2FA password. Please try again.",
-    ),
-    (
-        re.compile(r".*phone.*code.*invalid.*|.*invalid.*code.*", re.IGNORECASE),
-        "Invalid OTP code. Please check and try again.",
-    ),
-    (
-        re.compile(r".*phone.*code.*expired.*|.*code.*expired.*", re.IGNORECASE),
-        "OTP code has expired. Please request a new one.",
-    ),
-    (
-        re.compile(r".*flood.*wait.*|.*too many.*", re.IGNORECASE),
-        "Too many attempts. Please wait a moment and try again.",
-    ),
-]
-
-
-def _sanitize_error(msg: str) -> str:
-    """Simplify internal error messages to user-friendly text."""
-    cleaned = _CAUSED_BY_RE.sub("", msg).strip()
-    for pattern, friendly in _ERROR_SIMPLIFICATIONS:
-        if pattern.match(cleaned):
-            return friendly
-    return cleaned
-
-
 def _find_free_port() -> int:
     """Find an available port on 127.0.0.1."""
     try:
@@ -202,12 +168,6 @@ def _find_free_port() -> int:
             return s.getsockname()[1]
     except OSError as e:
         raise RuntimeError(f"Could not find a free port: {e}") from e
-
-
-def _mask_phone(phone: str) -> str:
-    if len(phone) > 7:
-        return phone[:4] + "***" + phone[-4:]
-    return phone[:2] + "***"
 
 
 class AuthServer:
@@ -250,7 +210,7 @@ class AuthServer:
         async def index(request: Request) -> HTMLResponse:
             phone = self._settings.phone or "unknown"
             # 🛡️ Sentinel: Prevent XSS by escaping dynamic data before insertion
-            page_html = _PAGE.replace("PHONE", html.escape(_mask_phone(phone)))
+            page_html = _PAGE.replace("PHONE", html.escape(mask_phone(phone)))
             return HTMLResponse(
                 page_html,
                 headers={
@@ -293,7 +253,7 @@ class AuthServer:
                 await self._backend.send_code(phone)
                 return JSONResponse({"ok": True})
             except Exception as e:
-                return JSONResponse({"ok": False, "error": _sanitize_error(str(e))})
+                return JSONResponse({"ok": False, "error": sanitize_error(str(e))})
 
         async def verify(request: Request) -> JSONResponse:
             if request.headers.get("X-Auth-Token") != self._token:
@@ -331,7 +291,7 @@ class AuthServer:
                     kw in error_msg.lower()
                     for kw in ("password", "2fa", "two-factor", "srp")
                 )
-                clean_msg = _sanitize_error(error_msg)
+                clean_msg = sanitize_error(error_msg)
                 resp: dict = {"ok": False, "error": clean_msg}
                 if needs_password:
                     resp["needs_password"] = True
