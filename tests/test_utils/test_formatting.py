@@ -3,7 +3,7 @@ from datetime import datetime
 
 from better_telegram_mcp.backends.base import ModeError
 from better_telegram_mcp.backends.security import SecurityError
-from better_telegram_mcp.utils.formatting import err, ok, safe_error
+from better_telegram_mcp.utils.formatting import _mask_phone, err, ok, safe_error
 
 
 def test_ok_basic_serialization():
@@ -39,6 +39,25 @@ def test_ok_unserializable_objects():
     parsed = json.loads(result)
     assert parsed["date"] == "2024-01-01 12:00:00"
     assert parsed["custom"] == "CustomObjectString"
+
+
+def test_ok_various_types():
+    # Verify ok() handles None, empty collections, and nested objects
+    test_cases = [
+        (None, "null"),
+        ([], "[]"),
+        ({}, "{}"),
+        (True, "true"),
+        (False, "false"),
+        (
+            {"nested": [1, 2, {"a": 1}]},
+            '{"nested": [1, 2, {"a": 1}]}',
+        ),
+    ]
+    for data, expected in test_cases:
+        result = ok(data)
+        assert result == expected
+        assert json.loads(result) == data
 
 
 def test_err_basic_serialization():
@@ -100,3 +119,12 @@ def test_safe_error_generic_exceptions():
 
         # Ensure internal details are NOT leaked
         assert str(exc) not in result
+
+
+def test_mask_phone_utility():
+    # Verify _mask_phone handles various lengths
+    assert _mask_phone("1234567890") == "1234***7890"  # length > 7
+    assert _mask_phone("12345678") == "1234***5678"  # length > 7
+    assert _mask_phone("1234567") == "12***"  # length <= 7
+    assert _mask_phone("123") == "12***"  # length <= 7
+    assert _mask_phone("12") == "12***"  # length <= 7

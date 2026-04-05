@@ -13,17 +13,13 @@ from typing import TYPE_CHECKING, Any
 import httpx
 from loguru import logger
 
+from .utils.formatting import _mask_phone
+
 if TYPE_CHECKING:
     from .backends.base import TelegramBackend
     from .config import Settings
 
 POLL_INTERVAL = 2  # seconds
-
-
-def _mask_phone(phone: str) -> str:
-    if len(phone) > 7:
-        return phone[:4] + "***" + phone[-4:]
-    return phone[:2] + "***"
 
 
 class AuthClient:
