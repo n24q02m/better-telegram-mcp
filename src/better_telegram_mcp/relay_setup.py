@@ -70,9 +70,8 @@ def _sanitize_error(msg: str) -> str:
 def _needs_2fa_password(error_msg: str) -> bool:
     """Check if the error indicates 2FA password is required."""
     msg = error_msg.lower()
-    return (
-        ("password" in msg and ("required" in msg or "2fa" in msg))
-        or any(kw in msg for kw in ("two-factor", "srp", "sessionpasswordneeded"))
+    return ("password" in msg and ("required" in msg or "2fa" in msg)) or any(
+        kw in msg for kw in ("two-factor", "srp", "sessionpasswordneeded")
     )
 
 
