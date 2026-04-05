@@ -3,7 +3,7 @@ from datetime import datetime
 
 from better_telegram_mcp.backends.base import ModeError
 from better_telegram_mcp.backends.security import SecurityError
-from better_telegram_mcp.utils.formatting import err, ok, safe_error
+from better_telegram_mcp.utils.formatting import _mask_phone, err, ok, safe_error
 
 
 def test_ok_basic_serialization():
@@ -100,3 +100,24 @@ def test_safe_error_generic_exceptions():
 
         # Ensure internal details are NOT leaked
         assert str(exc) not in result
+
+
+def test_mask_phone_empty():
+    assert _mask_phone("") == "***"
+
+
+def test_mask_phone_very_short():
+    assert _mask_phone("1") == "1***"
+    assert _mask_phone("12") == "12***"
+
+
+def test_mask_phone_boundary():
+    # Exactly 7 characters
+    assert _mask_phone("1234567") == "12***"
+    # Exactly 8 characters
+    assert _mask_phone("12345678") == "1234***5678"
+
+
+def test_mask_phone_long():
+    assert _mask_phone("1234567890") == "1234***7890"
+    assert _mask_phone("+12345678901") == "+123***8901"

@@ -10,22 +10,23 @@ from starlette.testclient import TestClient
 from better_telegram_mcp.auth_server import (
     AuthServer,
     _find_free_port,
-    _mask_phone,
     _sanitize_error,
 )
 from better_telegram_mcp.config import Settings
+from better_telegram_mcp.utils.formatting import _mask_phone
 
 # --- Utility function tests ---
 
 
-class TestFindFreePort:
-    def test_success(self):
+class TestPortDiscovery:
+    def test_find_free_port(self):
         port = _find_free_port()
-        assert isinstance(port, int)
         assert port > 0
+        assert isinstance(port, int)
 
-    def test_failure(self):
-        with patch("socket.socket") as mock_socket:
+    def test_find_free_port_failure(self):
+        # We need to patch the socket class IN the module where it is used
+        with patch("better_telegram_mcp.auth_server.socket.socket") as mock_socket:
             mock_s = MagicMock()
             mock_socket.return_value.__enter__.return_value = mock_s
             mock_s.bind.side_effect = OSError("Address already in use")
