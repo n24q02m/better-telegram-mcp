@@ -18,6 +18,8 @@ from typing import TYPE_CHECKING
 
 from loguru import logger
 from starlette.applications import Starlette
+from starlette.middleware import Middleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse
 from starlette.routing import Route
@@ -249,6 +251,11 @@ class AuthServer:
     def _make_app(self) -> Starlette:
         async def index(request: Request) -> HTMLResponse:
             phone = self._settings.phone or "unknown"
+            if request.query_params.get("token") != self._token:
+                return HTMLResponse(
+                    "<h1>Forbidden</h1><p>Invalid or missing token.</p>",
+                    status_code=403,
+                )
             # 🛡️ Sentinel: Prevent XSS by escaping dynamic data before insertion
             page_html = _PAGE.replace("PHONE", html.escape(_mask_phone(phone)))
             return HTMLResponse(
@@ -338,12 +345,18 @@ class AuthServer:
                 return JSONResponse(resp)
 
         return Starlette(
+            middleware=[
+                Middleware(
+                    TrustedHostMiddleware,
+                    allowed_hosts=["127.0.0.1", "localhost", "testserver"],
+                )
+            ],
             routes=[
                 Route("/", index),
                 Route("/status", status_endpoint),
                 Route("/send-code", send_code, methods=["POST"]),
                 Route("/verify", verify, methods=["POST"]),
-            ]
+            ],
         )
 
     async def start(self) -> str:

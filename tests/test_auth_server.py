@@ -1,7 +1,3 @@
-"""Tests for auth_server: CSRF token, rate limiting, endpoints, utilities."""
-
-from __future__ import annotations
-
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -15,19 +11,18 @@ from better_telegram_mcp.auth_server import (
 )
 from better_telegram_mcp.config import Settings
 
-# --- Utility function tests ---
+# --- Unit tests ---
 
 
 class TestFindFreePort:
-    def test_success(self):
+    def test_find_free_port_success(self):
         port = _find_free_port()
         assert isinstance(port, int)
         assert port > 0
 
-    def test_failure(self):
+    def test_find_free_port_os_error(self):
         with patch("socket.socket") as mock_socket:
-            mock_s = MagicMock()
-            mock_socket.return_value.__enter__.return_value = mock_s
+            mock_s = mock_socket.return_value.__enter__.return_value
             mock_s.bind.side_effect = OSError("Address already in use")
 
             with pytest.raises(RuntimeError, match="Could not find a free port"):
@@ -152,15 +147,15 @@ class TestCSRFProtection:
 
 
 class TestSecurityHeaders:
-    def test_index_has_csp(self, _client):
-        response = _client.get("/")
+    def test_index_has_csp(self, _client, _server):
+        response = _client.get(f"/?token={_server._token}")
         assert response.status_code == 200
         assert "Content-Security-Policy" in response.headers
         assert response.headers["X-Frame-Options"] == "DENY"
         assert response.headers["X-Content-Type-Options"] == "nosniff"
 
-    def test_index_contains_masked_phone(self, _client):
-        response = _client.get("/")
+    def test_index_contains_masked_phone(self, _client, _server):
+        response = _client.get(f"/?token={_server._token}")
         assert "1234***7890" in response.text
 
 
@@ -294,3 +289,42 @@ class TestAuthServerStart:
 
             with pytest.raises(RuntimeError, match="Could not start server"):
                 await server.start()
+
+
+class TestAdditionalSecurity:
+    def test_index_forbidden_without_token(self, _client):
+        response = _client.get("/")
+        assert response.status_code == 403
+        assert "Forbidden" in response.text
+
+    def test_index_forbidden_with_wrong_token(self, _client):
+        response = _client.get("/?token=wrong")
+        assert response.status_code == 403
+        assert "Forbidden" in response.text
+
+    def test_index_success_with_token(self, _client, _server):
+        response = _client.get(f"/?token={_server._token}")
+        assert response.status_code == 200
+        assert "Telegram Authentication" in response.text
+
+    def test_trusted_host_middleware_allows_localhost(self, _client, _server):
+        response = _client.get(
+            f"/?token={_server._token}", headers={"Host": "127.0.0.1"}
+        )
+        assert response.status_code == 200
+
+        response = _client.get(
+            f"/?token={_server._token}", headers={"Host": "localhost"}
+        )
+        assert response.status_code == 200
+
+        response = _client.get(
+            f"/?token={_server._token}", headers={"Host": "testserver"}
+        )
+        assert response.status_code == 200
+
+    def test_trusted_host_middleware_rejects_other_hosts(self, _client, _server):
+        response = _client.get(
+            f"/?token={_server._token}", headers={"Host": "attacker.com"}
+        )
+        assert response.status_code == 400
