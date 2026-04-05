@@ -433,12 +433,7 @@ def create_http_mcp_server() -> FastMCP:
 
 
 def main() -> None:
-    import os
+    """Delegates to the Typer CLI app."""
+    from .cli import app
 
-    transport = os.environ.get("TRANSPORT_MODE", "stdio")
-    if transport == "http":
-        from .transports.http import start_http
-
-        start_http(Settings())
-    else:
-        mcp.run(transport="stdio")
+    app()

@@ -348,9 +348,10 @@ async def test_help_works_during_pending_auth():
 
 
 def test_main_calls_run():
-    with patch.object(mcp, "run") as mock_run:
+    # Since main() now calls Typer app(), we mock the app instead of mcp.run
+    with patch("better_telegram_mcp.cli.app") as mock_app:
         main()
-        mock_run.assert_called_once_with(transport="stdio")
+        mock_app.assert_called_once()
 
 
 # --- unconfigured state tests (no credentials) ---
@@ -547,15 +548,10 @@ async def test_lifespan_unconfigured_mode():
 
 
 def test_main_http_transport():
-    """main() starts HTTP transport when TRANSPORT_MODE=http."""
-    import os
-
-    with (
-        patch.dict(os.environ, {"TRANSPORT_MODE": "http"}),
-        patch("better_telegram_mcp.transports.http.start_http") as mock_start_http,
-    ):
+    """main() delegatest to Typer app, which handles transport."""
+    with patch("better_telegram_mcp.cli.app") as mock_app:
         main()
-        mock_start_http.assert_called_once()
+        mock_app.assert_called_once()
 
 
 # --- lifespan: user mode unauthorized, no phone, no relay ---
