@@ -36,16 +36,16 @@ class TestFindFreePort:
 
 class TestMaskPhone:
     def test_long_phone(self):
-        assert _mask_phone("1234567890") == "1234***7890"
+        assert _mask_phone("1234567890") == "+***7890"
 
     def test_medium_phone(self):
-        assert _mask_phone("12345678") == "1234***5678"
+        assert _mask_phone("12345678") == "+***5678"
 
     def test_short_phone(self):
-        assert _mask_phone("1234567") == "12***"
+        assert _mask_phone("1234567") == "+***4567"
 
     def test_very_short_phone(self):
-        assert _mask_phone("12") == "12***"
+        assert _mask_phone("12") == "***"
 
 
 class TestSanitizeError:
@@ -161,7 +161,7 @@ class TestSecurityHeaders:
 
     def test_index_contains_masked_phone(self, _client):
         response = _client.get("/")
-        assert "1234***7890" in response.text
+        assert "+***7890" in response.text
 
 
 class TestStatusEndpoint:

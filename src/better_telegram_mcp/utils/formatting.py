@@ -1,7 +1,33 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
+
+_CAUSED_BY_RE = re.compile(r"\s*\(caused by \w+\)\s*$", re.IGNORECASE)
+
+_ERROR_SIMPLIFICATIONS: list[tuple[re.Pattern[str], str]] = [
+    (
+        re.compile(r".*password.*required.*", re.IGNORECASE),
+        "Two-factor authentication password is required.",
+    ),
+    (
+        re.compile(r".*password.*invalid.*|.*invalid.*password.*", re.IGNORECASE),
+        "Incorrect 2FA password. Please try again.",
+    ),
+    (
+        re.compile(r".*phone.*code.*invalid.*|.*invalid.*code.*", re.IGNORECASE),
+        "Invalid OTP code. Please check and try again.",
+    ),
+    (
+        re.compile(r".*phone.*code.*expired.*|.*code.*expired.*", re.IGNORECASE),
+        "OTP code has expired. Please request a new one.",
+    ),
+    (
+        re.compile(r".*flood.*wait.*|.*too many.*", re.IGNORECASE),
+        "Too many attempts. Please wait a moment and try again.",
+    ),
+]
 
 
 def ok(data: Any) -> str:
@@ -20,3 +46,18 @@ def safe_error(e: Exception) -> str:
     if isinstance(e, (ModeError, SecurityError, ValueError, FileNotFoundError)):
         return err(str(e))
     return err(f"{type(e).__name__}: Operation failed. Check server logs for details.")
+
+
+def _sanitize_error(msg: str) -> str:
+    """Simplify internal error messages to user-friendly text."""
+    cleaned = _CAUSED_BY_RE.sub("", msg).strip()
+    for pattern, friendly in _ERROR_SIMPLIFICATIONS:
+        if pattern.match(cleaned):
+            return friendly
+    return cleaned
+
+
+def _mask_phone(phone: str) -> str:
+    if len(phone) < 4:
+        return "***"
+    return f"+***{phone[-4:]}"
