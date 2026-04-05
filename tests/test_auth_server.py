@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -30,8 +31,11 @@ class TestFindFreePort:
             mock_socket.return_value.__enter__.return_value = mock_s
             mock_s.bind.side_effect = OSError("Address already in use")
 
-            with pytest.raises(RuntimeError, match="Could not find a free port"):
+            with pytest.raises(
+                RuntimeError, match="Could not find a free port"
+            ) as excinfo:
                 _find_free_port()
+            assert isinstance(excinfo.value.__cause__, OSError)
 
 
 class TestMaskPhone:
@@ -294,3 +298,42 @@ class TestAuthServerStart:
 
             with pytest.raises(RuntimeError, match="Could not start server"):
                 await server.start()
+
+
+class TestAuthServerIP:
+    def test_get_client_ip_cloudflare(self, _server):
+        request = MagicMock()
+        request.headers = {"cf-connecting-ip": "1.2.3.4"}
+        assert _server._get_client_ip(request) == "1.2.3.4"
+
+    def test_get_client_ip_x_forwarded_for(self, _server):
+        request = MagicMock()
+        request.headers = {"x-forwarded-for": "5.6.7.8, 10.0.0.1"}
+        assert _server._get_client_ip(request) == "5.6.7.8"
+
+    def test_get_client_ip_direct(self, _server):
+        request = MagicMock()
+        request.headers = {}
+        request.client.host = "9.10.11.12"
+        assert _server._get_client_ip(request) == "9.10.11.12"
+
+    def test_get_client_ip_unknown(self, _server):
+        request = MagicMock()
+        request.headers = {}
+        request.client = None
+        assert _server._get_client_ip(request) == "unknown"
+
+
+class TestAuthServerWaitForAuth:
+    @pytest.mark.asyncio
+    async def test_wait_for_auth(self, _server):
+        # Fire and forget setting the event
+        async def set_event():
+            await asyncio.sleep(0.1)
+            _server._auth_complete.set()
+
+        asyncio.create_task(set_event())
+
+        # Should return after set_event finishes
+        await _server.wait_for_auth()
+        assert _server._auth_complete.is_set()
