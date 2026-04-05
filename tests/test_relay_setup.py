@@ -540,6 +540,14 @@ def test_relay_schema_structure():
 
 
 class TestSanitizeError:
+    def test_phone_number_invalid(self):
+        assert _sanitize_error("PHONE_NUMBER_INVALID") == (
+            "Invalid phone number format"
+        )
+
+    def test_phone_code_invalid_raw(self):
+        assert _sanitize_error("PHONE_CODE_INVALID") == ("Invalid verification code")
+
     def test_password_required(self):
         assert _sanitize_error("Password is required for this account") == (
             "Two-factor authentication password is required."

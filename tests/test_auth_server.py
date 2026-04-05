@@ -49,6 +49,12 @@ class TestMaskPhone:
 
 
 class TestSanitizeError:
+    def test_phone_number_invalid(self):
+        assert _sanitize_error("PHONE_NUMBER_INVALID") == "Invalid phone number format"
+
+    def test_phone_code_invalid_raw(self):
+        assert _sanitize_error("PHONE_CODE_INVALID") == "Invalid verification code"
+
     def test_phone_code_invalid(self):
         assert (
             _sanitize_error("phone code invalid (caused by SendCodeRequest)")
@@ -294,3 +300,28 @@ class TestAuthServerStart:
 
             with pytest.raises(RuntimeError, match="Could not start server"):
                 await server.start()
+
+
+class TestAuthServerInternal:
+    def test_get_client_ip_cf(self, _server):
+        request = MagicMock()
+        request.headers = {"cf-connecting-ip": "1.2.3.4"}
+        assert _server._get_client_ip(request) == "1.2.3.4"
+
+    def test_get_client_ip_x_forwarded(self, _server):
+        request = MagicMock()
+        request.headers = {"x-forwarded-for": "5.6.7.8, 10.0.0.1"}
+        assert _server._get_client_ip(request) == "5.6.7.8"
+
+    @pytest.mark.asyncio
+    async def test_wait_for_auth(self, _server):
+        # Set event after a short delay
+        async def set_event():
+            await asyncio.sleep(0.1)
+            _server._auth_complete.set()
+
+        import asyncio
+
+        asyncio.create_task(set_event())
+        await _server.wait_for_auth()
+        assert _server._auth_complete.is_set()
