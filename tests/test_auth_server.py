@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -12,8 +11,9 @@ from better_telegram_mcp.auth_server import (
     AuthServer,
     _find_free_port,
 )
-from better_telegram_mcp.utils.formatting import mask_phone as _mask_phone, sanitize_error as _sanitize_error
 from better_telegram_mcp.config import Settings
+from better_telegram_mcp.utils.formatting import mask_phone as _mask_phone
+from better_telegram_mcp.utils.formatting import sanitize_error as _sanitize_error
 
 # --- Utility function tests ---
 
@@ -123,7 +123,7 @@ def _client(_server):
 
 class TestCSRFProtection:
     def test_status_unauthorized_without_token(self, _client):
-        response = _client.get("/status")
+        _client.get("/status")
         # AuthServer uses custom token check, not Starlette middleware
         # and returns 401 for /status if token mismatch?
         # Actually /status doesn't check token in my previous cat, let me re-check.
@@ -191,7 +191,9 @@ class TestSendCodeEndpoint:
         headers = {"X-Auth-Token": _server._token}
         response = _client.post("/send-code", headers=headers)
         assert response.json()["ok"] is False
-        assert response.json()["error"] == "Invalid OTP code. Please check and try again."
+        assert (
+            response.json()["error"] == "Invalid OTP code. Please check and try again."
+        )
 
     def test_rate_limited(self, _client, _server, _mock_backend):
         _server._RATE_LIMIT_MAX = 0
@@ -251,7 +253,9 @@ class TestAuthServerStart:
             mock_instance.shutdown = AsyncMock()
 
             # Mock _find_free_port to avoid using real socket
-            with patch("better_telegram_mcp.auth_server._find_free_port", return_value=12345):
+            with patch(
+                "better_telegram_mcp.auth_server._find_free_port", return_value=12345
+            ):
                 port = await server.start()
 
                 assert port == 12345

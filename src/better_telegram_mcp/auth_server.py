@@ -261,7 +261,9 @@ class AuthServer:
             msg = str(e)
             logger.warning("AuthServer verify failed: {}", msg)
             needs_pwd = (
-                "password" in msg.lower() or "2fa" in msg.lower() or "srp" in msg.lower()
+                "password" in msg.lower()
+                or "2fa" in msg.lower()
+                or "srp" in msg.lower()
             )
             return JSONResponse(
                 {
@@ -296,7 +298,9 @@ class AuthServer:
 
         import uvicorn
 
-        config = uvicorn.Config(app, host="127.0.0.1", port=self.port, log_level="error")
+        config = uvicorn.Config(
+            app, host="127.0.0.1", port=self.port, log_level="error"
+        )
         self._uvicorn_server = uvicorn.Server(config)
 
         # Start uvicorn in background
