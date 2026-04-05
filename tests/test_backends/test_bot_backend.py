@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -454,3 +455,15 @@ async def test_connect_unknown_error():
     )
     with pytest.raises(ConnectionError, match="Unknown error"):
         await bot.connect()
+
+
+async def test_connect_mock_call_error():
+    """Targeted test to hit connect exception handling by mocking _call."""
+    bot = BotBackend("123456:ABC-DEF")
+    error = TelegramAPIError("Mocked API Error")
+    bot._call = AsyncMock(side_effect=error)
+
+    with pytest.raises(ConnectionError, match="Mocked API Error") as exc_info:
+        await bot.connect()
+
+    assert exc_info.value.__cause__ is error
