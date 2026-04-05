@@ -792,6 +792,29 @@ class TestClearCache:
 
         mock_session.save.assert_called_once()
 
+    async def test_clear_cache_rmtree_exception_swallowed(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        # mock session to avoid save() warning
+        mock_client.session = MagicMock()
+        mock_client.session.save = MagicMock()
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        # Create cache directory
+        cache_dir = tmp_path / "cache"
+        cache_dir.mkdir()
+
+        with patch("shutil.rmtree") as mock_rmtree:
+            mock_rmtree.side_effect = Exception("RM error")
+            # Should not raise an exception
+            await backend.clear_cache()
+            mock_rmtree.assert_called_once_with(cache_dir)
+
 
 class TestManageTopics:
     async def test_topics_list(self, tmp_path, mock_client, mock_client_class):
