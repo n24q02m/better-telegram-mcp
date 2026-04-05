@@ -144,6 +144,21 @@ class TestValidateUrl:
         monkeypatch.setattr("socket.getaddrinfo", lambda host, port: [])
         validate_url("http://resolves-to-nothing.com/")
 
+    def test_dns_resolution_timeout_blocked(self, monkeypatch):
+        """socket.timeout (subclass of OSError) is also caught and wrapped."""
+        original_err = TimeoutError("Resolution timed out")
+
+        def mock_getaddrinfo(*args, **kwargs):
+            raise original_err
+
+        monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
+        with pytest.raises(
+            SecurityError, match="Failed to resolve hostname"
+        ) as excinfo:
+            validate_url("http://timeout.attacker.com/")
+
+        assert excinfo.value.__cause__ is original_err
+
 
 class TestValidateFilePath:
     def test_normal_path_allowed(self, tmp_path):
@@ -229,6 +244,11 @@ class TestValidateOutputDir:
         base = tmp_path / "downloads"
         with pytest.raises(SecurityError, match="must be within"):
             validate_output_dir(str(data), base_dir=base)
+
+    def test_base_dir_ok(self, tmp_path):
+        data = tmp_path / "data"
+        result = validate_output_dir(str(data), base_dir=tmp_path)
+        assert result == data.resolve()
 
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_var_spool_blocked(self):
