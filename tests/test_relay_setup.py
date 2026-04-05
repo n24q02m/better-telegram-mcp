@@ -12,7 +12,6 @@ from better_telegram_mcp.relay_setup import (
     _needs_2fa_password,
     _relay_telethon_auth,
 )
-from better_telegram_mcp.utils.formatting import sanitize_error
 
 # --- Settings.from_relay_config ---
 

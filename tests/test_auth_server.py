@@ -11,7 +11,6 @@ from better_telegram_mcp.auth_server import (
     AuthServer,
     _find_free_port,
 )
-from better_telegram_mcp.utils.formatting import mask_phone, sanitize_error
 from better_telegram_mcp.config import Settings
 
 # --- Utility function tests ---
