@@ -322,8 +322,8 @@ async def _initiate_relay_session(relay_url: str):
 
 async def _run_user_auth_flow(relay_url: str, session_id: str, config: dict[str, str]):
     """Handle UserBackend authentication flow after receiving relay config."""
-    from .config import Settings
     from .backends.user_backend import UserBackend
+    from .config import Settings
 
     settings = Settings.from_relay_config(config)
     backend = UserBackend(settings)
