@@ -10,6 +10,7 @@ from ..utils.formatting import err, ok, safe_error
 
 
 class ChatOptions(BaseModel):
+    action: str = Field(..., description="Action to perform")
     chat_id: str | int | None = Field(default=None, description="ID of the chat")
     title: str | None = Field(default=None, description="Title for new/updated chat")
     description: str | None = Field(default=None, description="Description for chat")
@@ -125,10 +126,10 @@ _ACTION_HANDLERS: dict[
 
 async def handle_chats(
     backend: TelegramBackend,
-    action: str,
     options: ChatOptions,
 ) -> str:
     try:
+        action = options.action
         handler = _ACTION_HANDLERS.get(action)
         if handler:
             return await handler(backend, options)
