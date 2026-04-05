@@ -60,6 +60,32 @@ def test_err_unicode_handling():
     assert parsed["error"] == message
 
 
+def test_err_special_characters():
+    # Test strings with special JSON characters
+    message = "Line 1\nLine 2\tTabbed \"Quoted\" \\Backslash\\"
+    result = err(message)
+
+    parsed = json.loads(result)
+    assert parsed["error"] == message
+
+
+def test_err_empty_string():
+    message = ""
+    result = err(message)
+    assert result == '{"error": ""}'
+
+    parsed = json.loads(result)
+    assert parsed["error"] == ""
+
+
+def test_err_long_string():
+    message = "a" * 1000
+    result = err(message)
+
+    parsed = json.loads(result)
+    assert parsed["error"] == message
+
+
 def test_safe_error_allowed_exceptions():
     # Exceptions that should expose their actual message
     allowed_exceptions = [
@@ -84,7 +110,7 @@ def test_safe_error_generic_exceptions():
     generic_exceptions = [
         KeyError("internal_key"),
         TypeError("bad type"),
-        RuntimeError("system crash"),
+        RuntimeesError("system crash") if False else RuntimeError("system crash"),
         Exception("generic fail"),
     ]
 
@@ -100,3 +126,33 @@ def test_safe_error_generic_exceptions():
 
         # Ensure internal details are NOT leaked
         assert str(exc) not in result
+
+from better_telegram_mcp.utils.formatting import mask_phone, sanitize_error
+
+def test_mask_phone_variants():
+    # Long phone (> 7 chars)
+    assert mask_phone("1234567890") == "1234***7890"
+    assert mask_phone("12345678") == "1234***5678"
+
+    # Short phone (<= 7 chars)
+    assert mask_phone("1234567") == "12***"
+    assert mask_phone("12") == "12***"
+    assert mask_phone("1") == "1***"
+    assert mask_phone("") == "***"
+
+def test_sanitize_error_variants():
+    # Known simplifications
+    assert sanitize_error("password required") == "Two-factor authentication password is required."
+    assert sanitize_error("PASSWORD REQUIRED") == "Two-factor authentication password is required."
+    assert sanitize_error("invalid password") == "Incorrect 2FA password. Please try again."
+    assert sanitize_error("phone code invalid") == "Invalid OTP code. Please check and try again."
+    assert sanitize_error("code expired") == "OTP code has expired. Please request a new one."
+    assert sanitize_error("flood wait 300") == "Too many attempts. Please wait a moment and try again."
+
+    # Caused by stripping
+    assert sanitize_error("Internal error (caused by SomeRPCError)") == "Internal error"
+    assert sanitize_error("Already sanitized (caused by some_error) ") == "Already sanitized"
+
+    # Passthrough
+    assert sanitize_error("Unknown random error") == "Unknown random error"
+    assert sanitize_error("") == ""

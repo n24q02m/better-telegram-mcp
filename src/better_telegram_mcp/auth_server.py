@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import html
-import re
 import secrets
 import socket
 import time
@@ -21,6 +20,8 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse
 from starlette.routing import Route
+
+from .utils.formatting import mask_phone, sanitize_error
 
 if TYPE_CHECKING:
     from .backends.base import TelegramBackend
@@ -38,105 +39,92 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#0f0f0f;color:#e0
   display:flex;justify-content:center;align-items:center;min-height:100vh}
 .card{background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:2.5rem;
   max-width:420px;width:100%}
-h1{font-size:1.5rem;margin-bottom:.5rem;color:#fff}
-.sub{color:#888;font-size:.875rem;margin-bottom:1.5rem}
-.step{display:none}.step.active{display:block}
-label{display:block;font-size:.875rem;color:#aaa;margin-bottom:.5rem}
-input{width:100%;padding:.75rem 1rem;background:#111;border:1px solid #444;
-  border-radius:8px;color:#fff;font-size:1rem;outline:none;margin-bottom:1rem;
-  font-family:monospace;letter-spacing:.15em;text-align:center}
-input[type="password"]{letter-spacing:normal;text-align:left}
-input:focus{border-color:#3b82f6}
-button{width:100%;padding:.75rem;background:#3b82f6;color:#fff;border:none;
-  border-radius:8px;font-size:1rem;cursor:pointer;font-weight:500}
-button:hover{background:#2563eb}
-button:disabled{background:#333;color:#666;cursor:not-allowed}
-.st{margin-top:1rem;padding:.75rem;border-radius:8px;font-size:.875rem;display:none}
-.st.error{display:block;background:#2d1111;border:1px solid #dc2626;color:#f87171}
-.st.success{display:block;background:#0d2818;border:1px solid #16a34a;color:#4ade80}
-.st.info{display:block;background:#1a1a2e;border:1px solid #3b82f6;color:#93c5fd}
-.phone{font-family:monospace;color:#3b82f6}
-#pwd-section{display:none;margin-top:.5rem}
-.pwd-hint{font-size:.8rem;color:#888;margin-bottom:.5rem}
-.divider{border:0;border-top:1px solid #333;margin:1.25rem 0}
+h1{font-size:1.5rem;font-weight:600;margin-bottom:.5rem;color:#fff}
+p{color:#999;font-size:.9rem;line-height:1.5;margin-bottom:2rem}
+.form-group{margin-bottom:1.5rem}
+label{display:block;font-size:.8rem;font-weight:500;margin-bottom:.5rem;color:#bbb;text-transform:uppercase;letter-spacing:.05em}
+input{width:100%;background:#262626;border:1px solid #333;border-radius:6px;padding:.75rem;color:#fff;font-size:1rem;transition:border-color .2s}
+input:focus{outline:none;border-color:#2481cc}
+button{width:100%;background:#2481cc;color:#fff;border:none;border-radius:6px;padding:.75rem;font-size:1rem;font-weight:600;cursor:pointer;transition:background .2s}
+button:hover{background:#288fdf}
+button:disabled{background:#333;cursor:not-allowed;color:#666}
+.status{margin-top:1rem;font-size:.85rem;text-align:center;min-height:1.25rem}
+.status.error{color:#ff4d4d}
+.status.success{color:#4dff88}
+.step{display:none}
+.step.active{display:block}
+.phone-display{background:#262626;padding:.5rem .75rem;border-radius:6px;font-family:monospace;color:#2481cc;margin-bottom:1.5rem;display:inline-block}
+#pwd-group{display:none}
 </style>
 </head>
 <body>
 <div class="card">
-  <h1>Telegram Authentication</h1>
-  <p class="sub">MCP Server -- <span class="phone">PHONE</span></p>
+  <div id="step1" class="step active">
+    <h1>Authentication</h1>
+    <p>Sign in to Telegram to enable MCP tools. A code will be sent to your Telegram app.</p>
+    <div class="phone-display">PHONE</div>
+    <button id="btn-send" onclick="sendCode()">Send Code</button>
+    <div id="status1" class="status"></div>
+  </div>
 
-  <div id="step0" class="step">
-    <p style="margin-bottom:1rem;color:#aaa">
-      Step 1: Send a login code to your Telegram app.
-    </p>
-    <button id="btn-send" onclick="sendCode()">Send OTP Code</button>
-    <div id="s0" class="st"></div>
-
-    <hr class="divider">
-
-    <p style="margin-bottom:.75rem;color:#aaa">
-      Step 2: Enter the code you received.
-    </p>
-    <label for="otp">OTP Code</label>
-    <input id="otp" type="text" placeholder="Enter code" autofocus
-           inputmode="numeric" pattern="[0-9]*"
-           autocomplete="one-time-code">
-    <div id="pwd-section">
-      <label for="pwd">2FA Password</label>
-      <input id="pwd" type="password" placeholder="Enter your 2FA password"
-             autocomplete="current-password">
-      <p class="pwd-hint">Your account has two-factor authentication enabled.</p>
+  <div id="step-verify" class="step">
+    <h1>Verify Code</h1>
+    <p>Enter the 5-digit code sent to your Telegram app.</p>
+    <div class="form-group">
+      <label for="otp">OTP Code</label>
+      <input type="text" id="otp" placeholder="12345" autocomplete="one-time-code">
     </div>
-    <button id="btn-verify" onclick="verify()">Verify Code</button>
-    <div id="s1" class="st"></div>
+    <div id="pwd-group" class="form-group">
+      <label for="pwd">2FA Password</label>
+      <input type="password" id="pwd" placeholder="Enter password">
+    </div>
+    <button id="btn-verify" onclick="verify()">Verify</button>
+    <div id="status-v" class="status"></div>
   </div>
 
   <div id="step2" class="step">
-    <div class="st success" style="display:block">
-      Authenticated as <strong id="auth-name"></strong>.<br>
-      MCP server is now active. You can close this tab.
-    </div>
-  </div>
-
-  <div id="loading" class="step active">
-    <p style="color:#666">Checking session...</p>
+    <h1 style="color:#4dff88">✓ Authenticated</h1>
+    <p>Successfully signed in as <strong id="auth-name" style="color:#fff">User</strong>. You can now close this tab and return to your agent.</p>
+    <button onclick="window.close()">Close Tab</button>
   </div>
 </div>
+
 <script>
-const $=id=>document.getElementById(id),_t=new URLSearchParams(window.location.search).get("token");
+const $=id=>document.getElementById(id);
+const _t="TOKEN";
+let _needsPwd=false;
+
+function st(e,c,m){e.textContent=m;e.className='status '+c}
+function btnLoad(b,t){b.disabled=true;b.textContent=t}
+function btnReset(b,t){b.disabled=false;b.textContent=t}
 function show(id){
   document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
   $(id).classList.add('active');
 }
-function st(el,cls,msg){el.className='st '+cls;el.textContent=msg;el.style.display='block'}
-function clearSt(el){el.className='st';el.textContent='';el.style.display='none'}
-function btnLoading(btn,text){btn.disabled=true;btn.textContent=text}
-function btnReset(btn,text){btn.disabled=false;btn.textContent=text}
-function showPwd(){$('pwd-section').style.display='block';$('pwd').focus()}
-
-async function checkStatus(){
-  try{const r=await fetch('/status',{headers:{'X-Auth-Token':_t}});const d=await r.json();
-    if(d.authenticated){$('auth-name').textContent=d.name||'User';show('step2')}
-    else{show('step0');$('otp').focus()}
-  }catch(e){show('step0')}
+function showPwd(){
+  _needsPwd=true;
+  $('pwd-group').style.display='block';
 }
 
 async function sendCode(){
-  const btn=$('btn-send'),s=$('s0');
-  btnLoading(btn,'Sending...');clearSt($('s1'));
-  try{const r=await fetch('/send-code',{method:'POST',headers:{'X-Auth-Token':_t}});const d=await r.json();
-    if(d.ok){st(s,'info','Code sent! Check your Telegram app.');btnReset(btn,'Resend Code');$('otp').focus()}
-    else{st(s,'error',d.error||'Failed to send code');btnReset(btn,'Retry')}
-  }catch(e){st(s,'error','Network error. Check your connection.');btnReset(btn,'Retry')}
+  const btn=$('btn-send'), s=$('status1');
+  btnLoad(btn,'Sending...');
+  try{
+    const r=await fetch('/send-code',{method:'POST',headers:{'X-Auth-Token':_t}});
+    const d=await r.json();
+    if(d.ok){show('step-verify')}
+    else{st(s,'error',d.error||'Failed to send code');btnReset(btn,'Send Code')}
+  }catch(e){st(s,'error','Network error');btnReset(btn,'Send Code')}
 }
 
 async function verify(){
-  const btn=$('btn-verify'),s=$('s1');
-  const code=$('otp').value.trim();
-  if(!code){st(s,'error','Please enter the OTP code first.');return}
-  btnLoading(btn,'Verifying...');
-  try{const body={code};const pwd=$('pwd').value.trim();if(pwd)body.password=pwd;
+  const btn=$('btn-verify'), s=$('status-v'), code=$('otp').value;
+  if(!code){st(s,'error','Please enter the code');return}
+  const body={code};
+  if(_needsPwd)body.password=$('pwd').value;
+
+  btnLoad(btn,'Verifying...');
+  try{
     const r=await fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json','X-Auth-Token':_t},body:JSON.stringify(body)});
     const d=await r.json();
     if(d.ok){$('auth-name').textContent=d.name||'User';show('step2')}
@@ -152,45 +140,9 @@ $('otp').addEventListener('keydown',e=>{if(e.key==='Enter')verify()});
 document.addEventListener('DOMContentLoaded',()=>{
   const p=$('pwd');if(p)p.addEventListener('keydown',e=>{if(e.key==='Enter')verify()});
 });
-checkStatus();
 </script>
 </body>
 </html>"""
-
-
-_CAUSED_BY_RE = re.compile(r"\s*\(caused by \w+\)\s*$", re.IGNORECASE)
-
-_ERROR_SIMPLIFICATIONS: list[tuple[re.Pattern[str], str]] = [
-    (
-        re.compile(r".*password.*required.*", re.IGNORECASE),
-        "Two-factor authentication password is required.",
-    ),
-    (
-        re.compile(r".*password.*invalid.*|.*invalid.*password.*", re.IGNORECASE),
-        "Incorrect 2FA password. Please try again.",
-    ),
-    (
-        re.compile(r".*phone.*code.*invalid.*|.*invalid.*code.*", re.IGNORECASE),
-        "Invalid OTP code. Please check and try again.",
-    ),
-    (
-        re.compile(r".*phone.*code.*expired.*|.*code.*expired.*", re.IGNORECASE),
-        "OTP code has expired. Please request a new one.",
-    ),
-    (
-        re.compile(r".*flood.*wait.*|.*too many.*", re.IGNORECASE),
-        "Too many attempts. Please wait a moment and try again.",
-    ),
-]
-
-
-def _sanitize_error(msg: str) -> str:
-    """Simplify internal error messages to user-friendly text."""
-    cleaned = _CAUSED_BY_RE.sub("", msg).strip()
-    for pattern, friendly in _ERROR_SIMPLIFICATIONS:
-        if pattern.match(cleaned):
-            return friendly
-    return cleaned
 
 
 def _find_free_port() -> int:
@@ -202,12 +154,6 @@ def _find_free_port() -> int:
             return s.getsockname()[1]
     except OSError as e:
         raise RuntimeError(f"Could not find a free port: {e}") from e
-
-
-def _mask_phone(phone: str) -> str:
-    if len(phone) > 7:
-        return phone[:4] + "***" + phone[-4:]
-    return phone[:2] + "***"
 
 
 class AuthServer:
@@ -239,148 +185,131 @@ class AuthServer:
         """Check if key is within rate limit. Returns True if allowed."""
         now = time.time()
         window_start = now - self._RATE_LIMIT_WINDOW
-        timestamps = self._rate_limits[key]
-        self._rate_limits[key] = [t for t in timestamps if t > window_start]
+        self._rate_limits[key] = [t for t in self._rate_limits[key] if t > window_start]
         if len(self._rate_limits[key]) >= self._RATE_LIMIT_MAX:
             return False
         self._rate_limits[key].append(now)
         return True
 
-    def _make_app(self) -> Starlette:
-        async def index(request: Request) -> HTMLResponse:
-            phone = self._settings.phone or "unknown"
-            # 🛡️ Sentinel: Prevent XSS by escaping dynamic data before insertion
-            page_html = _PAGE.replace("PHONE", html.escape(_mask_phone(phone)))
-            return HTMLResponse(
-                page_html,
-                headers={
-                    "Content-Security-Policy": "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'",
-                    "X-Frame-Options": "DENY",
-                    "X-Content-Type-Options": "nosniff",
-                },
+    async def _handle_index(self, request: Request) -> HTMLResponse:
+        """Serve the auth form."""
+        if self._auth_complete.is_set():
+            page_html = _PAGE.replace("step active", "step").replace(
+                'id="step2" class="step"', 'id="step2" class="step active"'
+            )
+            page_html = page_html.replace("User", html.escape(self._auth_name))
+        else:
+            phone = self._settings.phone or "Unknown"
+            page_html = _PAGE.replace("PHONE", html.escape(mask_phone(phone)))
+
+        page_html = page_html.replace("TOKEN", self._token)
+        return HTMLResponse(page_html)
+
+    async def _handle_send_code(self, request: Request) -> JSONResponse:
+        """Send OTP code to Telegram app."""
+        if request.headers.get("x-auth-token") != self._token:
+            return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
+
+        ip = self._get_client_ip(request)
+        if not self._check_rate_limit(f"send_code:{ip}"):
+            return JSONResponse(
+                {"ok": False, "error": "Too many requests. Please wait."},
+                status_code=429,
             )
 
-        async def status_endpoint(request: Request) -> JSONResponse:
-            if request.headers.get("X-Auth-Token") != self._token:
-                return JSONResponse({"error": "Forbidden"}, status_code=403)
-            try:
-                authorized = await self._backend.is_authorized()
-            except Exception:
-                authorized = False
-            data: dict = {"authenticated": authorized}
-            if authorized and self._auth_name:
-                data["name"] = self._auth_name
-            return JSONResponse(data)
+        phone = self._settings.phone
+        if not phone:
+            return JSONResponse({"ok": False, "error": "Phone number not configured"})
 
-        async def send_code(request: Request) -> JSONResponse:
-            if request.headers.get("X-Auth-Token") != self._token:
-                return JSONResponse({"error": "Forbidden"}, status_code=403)
-            ip = self._get_client_ip(request)
-            if not self._check_rate_limit(f"send_code:{ip}"):
-                return JSONResponse(
-                    {
-                        "ok": False,
-                        "error": "Too many attempts. Please try again later.",
-                    },
-                    status_code=429,
-                )
-            phone = self._settings.phone
-            if not phone:
-                return JSONResponse(
-                    {"ok": False, "error": "TELEGRAM_PHONE not configured"}
-                )
-            try:
-                await self._backend.send_code(phone)
-                return JSONResponse({"ok": True})
-            except Exception as e:
-                return JSONResponse({"ok": False, "error": _sanitize_error(str(e))})
+        try:
+            await self._backend.send_code(phone)
+            return JSONResponse({"ok": True})
+        except Exception as e:
+            logger.warning("AuthServer send_code failed: {}", e)
+            return JSONResponse({"ok": False, "error": sanitize_error(str(e))})
 
-        async def verify(request: Request) -> JSONResponse:
-            if request.headers.get("X-Auth-Token") != self._token:
-                return JSONResponse({"error": "Forbidden"}, status_code=403)
-            ip = self._get_client_ip(request)
-            if not self._check_rate_limit(f"verify:{ip}"):
-                return JSONResponse(
-                    {
-                        "ok": False,
-                        "error": "Too many attempts. Please try again later.",
-                    },
-                    status_code=429,
-                )
-            try:
-                body = await request.json()
-            except Exception:
-                return JSONResponse({"ok": False, "error": "Invalid request"})
-            code = body.get("code", "").strip()
-            if not code:
-                return JSONResponse({"ok": False, "error": "Code is required"})
-            phone = self._settings.phone
-            if not phone:
-                return JSONResponse(
-                    {"ok": False, "error": "TELEGRAM_PHONE not configured"}
-                )
-            password = body.get("password") or None
-            try:
-                result = await self._backend.sign_in(phone, code, password=password)
-                self._auth_name = result.get("authenticated_as", "User")
-                self._auth_complete.set()
-                return JSONResponse({"ok": True, "name": self._auth_name})
-            except Exception as e:
-                error_msg = str(e)
-                needs_password = any(
-                    kw in error_msg.lower()
-                    for kw in ("password", "2fa", "two-factor", "srp")
-                )
-                clean_msg = _sanitize_error(error_msg)
-                resp: dict = {"ok": False, "error": clean_msg}
-                if needs_password:
-                    resp["needs_password"] = True
-                return JSONResponse(resp)
+    async def _handle_verify(self, request: Request) -> JSONResponse:
+        """Verify OTP code and optional password."""
+        if request.headers.get("x-auth-token") != self._token:
+            return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
 
-        return Starlette(
+        ip = self._get_client_ip(request)
+        if not self._check_rate_limit(f"verify:{ip}"):
+            return JSONResponse(
+                {"ok": False, "error": "Too many requests. Please wait."},
+                status_code=429,
+            )
+
+        try:
+            data = await request.json()
+        except Exception:
+            return JSONResponse({"ok": False, "error": "Invalid request body"})
+
+        code = data.get("code")
+        password = data.get("password")
+        phone = self._settings.phone
+
+        if not code or not phone:
+            return JSONResponse({"ok": False, "error": "Code and phone required"})
+
+        try:
+            result = await self._backend.sign_in(phone, code, password=password)
+            self._auth_name = result.get("authenticated_as", "User")
+            self._auth_complete.set()
+            return JSONResponse({"ok": True, "name": self._auth_name})
+        except Exception as e:
+            msg = str(e)
+            logger.warning("AuthServer verify failed: {}", msg)
+            needs_pwd = (
+                "password" in msg.lower() or "2fa" in msg.lower() or "srp" in msg.lower()
+            )
+            return JSONResponse(
+                {
+                    "ok": False,
+                    "error": sanitize_error(msg),
+                    "needs_password": needs_pwd,
+                }
+            )
+
+    async def _handle_status(self, request: Request) -> JSONResponse:
+        """Check authentication status."""
+        return JSONResponse(
+            {
+                "authenticated": self._auth_complete.is_set(),
+                "name": self._auth_name,
+            }
+        )
+
+    async def start(self) -> int:
+        """Start the web server in the background. Returns the port."""
+        self.port = _find_free_port()
+        self.url = f"http://127.0.0.1:{self.port}"
+
+        app = Starlette(
             routes=[
-                Route("/", index),
-                Route("/status", status_endpoint),
-                Route("/send-code", send_code, methods=["POST"]),
-                Route("/verify", verify, methods=["POST"]),
+                Route("/", self._handle_index, methods=["GET"]),
+                Route("/send-code", self._handle_send_code, methods=["POST"]),
+                Route("/verify", self._handle_verify, methods=["POST"]),
+                Route("/status", self._handle_status, methods=["GET"]),
             ]
         )
 
-    async def start(self) -> str:
-        """Start the auth server. Returns the URL."""
         import uvicorn
 
-        self.port = _find_free_port()
-        self.url = f"http://127.0.0.1:{self.port}?token={self._token}"
+        config = uvicorn.Config(app, host="127.0.0.1", port=self.port, log_level="error")
+        self._uvicorn_server = uvicorn.Server(config)
 
-        app = self._make_app()
-        config = uvicorn.Config(
-            app, host="127.0.0.1", port=self.port, log_level="warning"
-        )
-        server = uvicorn.Server(config)
-        task = asyncio.create_task(server.serve())
-        self._uvicorn_server = server
+        # Start uvicorn in background
+        asyncio.create_task(self._uvicorn_server.serve())
+        logger.info("AuthServer started at {}", self.url)
+        return self.port
 
-        # Wait briefly to see if it fails (e.g. port already bound)
-        await asyncio.sleep(0.3)
-        if task.done():
-            try:
-                task.result()  # Raise exception if task failed
-            except OSError as e:
-                raise RuntimeError(
-                    f"Could not start server on port {self.port}: {e}"
-                ) from e
-        logger.info("Auth server started at {}", self.url)
-        return self.url
+    async def stop(self) -> None:
+        """Stop the web server."""
+        if self._uvicorn_server:
+            await self._uvicorn_server.shutdown()
+            self._uvicorn_server = None
 
     async def wait_for_auth(self) -> None:
         """Block until authentication is complete."""
         await self._auth_complete.wait()
-
-    async def stop(self) -> None:
-        """Stop the auth server."""
-        if self._uvicorn_server is not None:
-            self._uvicorn_server.should_exit = True
-            await asyncio.sleep(0.5)
-            self._uvicorn_server = None
-            logger.info("Auth server stopped")
