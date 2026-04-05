@@ -582,6 +582,12 @@ class TestSanitizeError:
     def test_passthrough_unknown_error(self):
         assert _sanitize_error("Some unknown error") == "Some unknown error"
 
+    def test_phone_number_invalid(self):
+        assert _sanitize_error("PHONE_NUMBER_INVALID") == "Invalid phone number format"
+
+    def test_phone_code_invalid_api(self):
+        assert _sanitize_error("PHONE_CODE_INVALID") == "Invalid verification code"
+
 
 # --- _needs_2fa_password ---
 
