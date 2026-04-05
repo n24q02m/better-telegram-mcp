@@ -11,10 +11,10 @@ from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from better_telegram_mcp.auth.per_user_session_store import (
-    PerUserSessionStore,
-    SessionInfo,
     _LEGACY_SALT,
     _MAGIC,
+    PerUserSessionStore,
+    SessionInfo,
 )
 
 
@@ -227,7 +227,9 @@ class TestPerUserSessionStore:
         and re-storing should migrate to embedded format."""
 
         # Manually create a legacy encrypted file
-        sessions = {"b1": SessionInfo(session_name="s1", mode="bot", bot_token="t1").to_dict()}
+        sessions = {
+            "b1": SessionInfo(session_name="s1", mode="bot", bot_token="t1").to_dict()
+        }
         key = store._derive_key(_LEGACY_SALT)
         aesgcm = AESGCM(key)
         nonce = os.urandom(12)

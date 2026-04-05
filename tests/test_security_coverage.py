@@ -1,13 +1,17 @@
 import os
-import stat
 from pathlib import Path
-import pytest
+
+from better_telegram_mcp.auth.per_user_session_store import (
+    PerUserSessionStore,
+    SessionInfo,
+)
 from better_telegram_mcp.transports.credential_store import CredentialStore
-from better_telegram_mcp.auth.per_user_session_store import PerUserSessionStore, SessionInfo
+
 
 def test_credential_store_chmod_unlink_failure(monkeypatch, tmp_path):
     def mock_chmod(*args, **kwargs):
         raise OSError("chmod failed")
+
     def mock_unlink(*args, **kwargs):
         raise OSError("unlink failed")
 
@@ -23,7 +27,8 @@ def test_credential_store_chmod_unlink_failure(monkeypatch, tmp_path):
     monkeypatch.setattr(Path, "unlink", mock_unlink)
 
     store = CredentialStore(data_dir)
-    store.store({"key": "val"}) # Should hit chmod/unlink except blocks
+    store.store({"key": "val"})  # Should hit chmod/unlink except blocks
+
 
 def test_per_user_session_store_chmod_failure(monkeypatch, tmp_path):
     def mock_chmod(*args, **kwargs):
@@ -33,7 +38,9 @@ def test_per_user_session_store_chmod_failure(monkeypatch, tmp_path):
     monkeypatch.setattr(Path, "chmod", mock_chmod)
 
     data_dir = tmp_path / "data"
-    store = PerUserSessionStore(data_dir) # Triggers _resolve_or_generate_secret -> chmod
+    store = PerUserSessionStore(
+        data_dir
+    )  # Triggers _resolve_or_generate_secret -> chmod
 
     info = SessionInfo(session_name="test", mode="bot")
-    store.store("token", info) # Triggers _write_all -> chmod
+    store.store("token", info)  # Triggers _write_all -> chmod

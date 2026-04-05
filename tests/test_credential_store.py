@@ -11,9 +11,9 @@ from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from better_telegram_mcp.transports.credential_store import (
-    CredentialStore,
     _LEGACY_SALT,
     _MAGIC,
+    CredentialStore,
 )
 
 
