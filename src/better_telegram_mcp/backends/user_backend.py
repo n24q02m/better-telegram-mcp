@@ -141,7 +141,7 @@ class UserBackend(TelegramBackend):
         session_file = (s.data_dir / s.session_name).with_suffix(".session")
         if session_file.exists():
             try:
-                os.chmod(session_file, 0o600)
+                await asyncio.to_thread(os.chmod, session_file, 0o600)
             except OSError:
                 pass
 
