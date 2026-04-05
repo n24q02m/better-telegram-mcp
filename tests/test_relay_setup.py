@@ -619,15 +619,24 @@ class TestIsUserModeConfig:
         }
         assert _is_user_mode_config(config) is True
 
-    def test_missing_phone(self):
+    def test_api_credentials_present(self):
+        """Providing both API credentials indicates user mode even without phone."""
         config = {"TELEGRAM_API_ID": "123", "TELEGRAM_API_HASH": "abc"}
+        assert _is_user_mode_config(config) is True
+
+    def test_partial_api_credentials_missing_hash(self):
+        config = {"TELEGRAM_API_ID": "123"}
+        assert _is_user_mode_config(config) is False
+
+    def test_partial_api_credentials_missing_id(self):
+        config = {"TELEGRAM_API_HASH": "abc"}
         assert _is_user_mode_config(config) is False
 
     def test_bot_config(self):
         config = {"TELEGRAM_BOT_TOKEN": "123:ABC"}
         assert _is_user_mode_config(config) is False
 
-    def test_empty_phone(self):
+    def test_empty_phone_and_no_api(self):
         config = {"TELEGRAM_PHONE": ""}
         assert _is_user_mode_config(config) is False
 
