@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -292,5 +293,46 @@ class TestAuthServerStart:
                 side_effect=OSError("Address already in use")
             )
 
-            with pytest.raises(RuntimeError, match="Could not start server"):
+            with pytest.raises(RuntimeError, match="Could not start server") as excinfo:
                 await server.start()
+            assert isinstance(excinfo.value.__cause__, OSError)
+
+
+class TestGetClientIp:
+    def test_cf_connecting_ip(self, _server):
+        mock_request = MagicMock()
+        mock_request.headers = {"cf-connecting-ip": "1.1.1.1"}
+        assert _server._get_client_ip(mock_request) == "1.1.1.1"
+
+    def test_x_forwarded_for(self, _server):
+        mock_request = MagicMock()
+        mock_request.headers = {"x-forwarded-for": "2.2.2.2, 3.3.3.3"}
+        assert _server._get_client_ip(mock_request) == "2.2.2.2"
+
+    def test_default_ip(self, _server):
+        mock_request = MagicMock()
+        mock_request.headers = {}
+        mock_request.client.host = "4.4.4.4"
+        assert _server._get_client_ip(mock_request) == "4.4.4.4"
+
+    def test_unknown_ip(self, _server):
+        mock_request = MagicMock()
+        mock_request.headers = {}
+        mock_request.client = None
+        assert _server._get_client_ip(mock_request) == "unknown"
+
+
+class TestWaitForAuth:
+    @pytest.mark.asyncio
+    async def test_wait_for_auth_success(self, _server):
+        # Set auth complete event in the background
+        async def trigger_auth():
+            await asyncio.sleep(0.1)
+            _server._auth_complete.set()
+
+        trigger_task = asyncio.create_task(trigger_auth())
+
+        # This should complete now
+        await asyncio.wait_for(_server.wait_for_auth(), timeout=1.0)
+        assert _server._auth_complete.is_set()
+        await trigger_task
