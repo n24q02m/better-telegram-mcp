@@ -114,6 +114,20 @@ class TestConnect:
         assert backend._client is not None
         mock_client.connect.assert_awaited_once()
 
+    async def test_connect_os_error_is_ignored(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+
+        with patch("os.open", side_effect=OSError("Permission denied")):
+            # Should not raise
+            await backend.connect()
+
+        mock_client.connect.assert_awaited_once()
+
 
 class TestDisconnect:
     async def test_disconnect(self, tmp_path, mock_client, mock_client_class):
@@ -581,6 +595,25 @@ class TestJoinChat:
         result = await backend.join_chat("https://t.me/somepublicchannel")
 
         assert result is True
+
+    async def test_join_plus_hash_link(self, tmp_path, mock_client, mock_client_class):
+        from telethon.tl.functions.messages import ImportChatInviteRequest
+
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_client.__call__ = AsyncMock()
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        # This exercises the line: if invite_hash.startswith("+"): invite_hash = invite_hash[1:]
+        await backend.join_chat("https://t.me/joinchat/+abc123")
+
+        # Verify the hash passed to Telethon has no leading +
+        call_args = mock_client.call_args_list[0][0][0]
+        assert isinstance(call_args, ImportChatInviteRequest)
+        assert call_args.hash == "abc123"
 
     async def test_join_public_username(self, tmp_path, mock_client, mock_client_class):
         from better_telegram_mcp.backends.user_backend import UserBackend
@@ -1360,6 +1393,25 @@ class TestSignIn:
         await backend.sign_in("+84912345678", "12345")
 
         assert session_file.stat().st_mode & 0o777 == 0o600
+
+    async def test_sign_in_os_error_swallowed(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_me = MagicMock()
+        mock_me.first_name = "Test"
+        mock_me.username = "testuser"
+        mock_client.sign_in = AsyncMock()
+        mock_client.get_me = AsyncMock(return_value=mock_me)
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        with patch("os.chmod", side_effect=OSError("Perm error")):
+            # Should not raise
+            await backend.sign_in("+84912345678", "12345")
 
 
 class TestSerializeMessage:

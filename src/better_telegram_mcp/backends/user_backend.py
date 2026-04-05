@@ -93,7 +93,7 @@ class UserBackend(TelegramBackend):
             try:
                 await self._client.disconnect()
             except Exception:
-                pass  # Ignore errors during disconnect cleanup
+                pass  # Ignore errors during disconnect
             self._client = None
 
     async def is_connected(self) -> bool:
