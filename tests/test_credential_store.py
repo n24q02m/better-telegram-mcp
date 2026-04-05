@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+import json
+import os
 from pathlib import Path
 
 import pytest
 from cryptography.exceptions import InvalidTag
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from better_telegram_mcp.transports.credential_store import CredentialStore
+from better_telegram_mcp.transports.credential_store import (
+    CredentialStore,
+    _LEGACY_SALT,
+    _MAGIC,
+)
 
 
 @pytest.fixture
@@ -135,59 +142,74 @@ class TestCredentialStore:
 
     def test_legacy_salt_migration(self, data_dir: Path) -> None:
         """Credentials stored with legacy hardcoded salt should be loadable,
-        and re-storing should migrate to a random salt."""
-        from better_telegram_mcp.transports.credential_store import _LEGACY_SALT
+        and re-storing should migrate to the embedded format."""
+        secret = "test-secret"
+        store = CredentialStore(data_dir, secret=secret)
 
-        store = CredentialStore(data_dir, secret="test-secret")
-        # Simulate legacy: write credentials with legacy salt
-        # (new install creates random salt, so we need to force legacy)
-        store._salt = _LEGACY_SALT
-        store._cached_key = None
-        # Write a credentials file (using legacy salt)
+        # Manually create a legacy encrypted file (no MAGIC, no embedded salt)
         creds = {"TELEGRAM_BOT_TOKEN": "legacy-token"}
-        # Manually encrypt and write without triggering migration
-        import json
-        import os
-
-        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-
-        key = store._derive_key()
+        key = store._derive_key(_LEGACY_SALT)
         aesgcm = AESGCM(key)
         nonce = os.urandom(12)
         plaintext = json.dumps(creds).encode()
         ciphertext = aesgcm.encrypt(nonce, plaintext, None)
         store._path.write_bytes(nonce + ciphertext)
 
-        # Remove salt file to simulate legacy state
-        salt_path = data_dir / ".salt"
-        if salt_path.exists():
-            salt_path.unlink()
-
-        # Create new store -- should detect legacy salt (creds exist, no .salt)
-        store2 = CredentialStore(data_dir, secret="test-secret")
-        assert store2._salt == _LEGACY_SALT
-        loaded = store2.load()
+        # Load it -- should fallback to _LEGACY_SALT
+        loaded = store.load()
         assert loaded == creds
 
-        # Re-store should trigger salt migration
-        store2.store(creds)
-        assert store2._salt != _LEGACY_SALT
-        assert salt_path.exists()
+        # Re-store it -- should now use embedded format
+        store.store(creds)
+        raw_data = store._path.read_bytes()
+        assert raw_data.startswith(_MAGIC)
 
-        # New store should use the migrated salt
-        store3 = CredentialStore(data_dir, secret="test-secret")
-        assert store3._salt != _LEGACY_SALT
-        assert store3.load() == creds
+        # Verify it still loads
+        assert store.load() == creds
 
-    def test_random_salt_for_new_install(self, data_dir: Path) -> None:
-        """New installation should generate random salt, not use legacy."""
-        from better_telegram_mcp.transports.credential_store import _LEGACY_SALT
-
-        store = CredentialStore(data_dir, secret="test-secret")
-        assert store._salt != _LEGACY_SALT
+    def test_salt_file_migration(self, data_dir: Path) -> None:
+        """Credentials stored with a salt from .salt file should be loadable,
+        and re-storing should migrate to embedded format and remove .salt file."""
+        secret = "test-secret"
+        custom_salt = os.urandom(16)
         salt_path = data_dir / ".salt"
-        assert salt_path.exists()
-        assert len(store._salt) == 16
+        salt_path.write_bytes(custom_salt)
+
+        store = CredentialStore(data_dir, secret=secret)
+
+        # Manually create an encrypted file using the custom salt
+        creds = {"api_id": "999"}
+        key = store._derive_key(custom_salt)
+        aesgcm = AESGCM(key)
+        nonce = os.urandom(12)
+        plaintext = json.dumps(creds).encode()
+        ciphertext = aesgcm.encrypt(nonce, plaintext, None)
+        store._path.write_bytes(nonce + ciphertext)
+
+        # Load it -- should use salt from .salt file
+        assert store.load() == creds
+
+        # Re-store -- should migrate
+        store.store(creds)
+        assert not salt_path.exists()
+        assert store._path.read_bytes().startswith(_MAGIC)
+        assert store.load() == creds
+
+    def test_embedded_format_uniqueness(self, data_dir: Path) -> None:
+        """Every store operation should use a new random salt."""
+        store = CredentialStore(data_dir, secret="test-secret")
+        creds = {"key": "val"}
+
+        store.store(creds)
+        data1 = store._path.read_bytes()
+
+        store.store(creds)
+        data2 = store._path.read_bytes()
+
+        # Even with same plaintext/secret, output should be different due to new salt/nonce
+        assert data1 != data2
+        assert data1.startswith(_MAGIC)
+        assert data2.startswith(_MAGIC)
 
     def test_chmod_failure_swallowed(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path

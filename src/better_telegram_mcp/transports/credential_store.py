@@ -15,6 +15,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
+_MAGIC = b"SALT"
 _LEGACY_SALT = b"mcp-telegram-creds"
 _KDF_ITERATIONS = 100_000
 _NONCE_SIZE = 12
@@ -33,28 +34,14 @@ class CredentialStore:
         self._secret = secret or os.environ.get("CREDENTIAL_SECRET", "")
         if not self._secret:
             self._secret = self._resolve_or_generate_secret(data_dir)
-        self._salt = self._resolve_salt()
         # Cache derived key to avoid repeated 100k iteration PBKDF2 (~60ms) overhead
-        self._cached_key: bytes | None = None
+        self._cached_key: tuple[bytes, bytes] | None = None  # (salt, key)
 
-    def _resolve_salt(self) -> bytes:
-        """Load persisted salt, fallback to legacy, or generate new one."""
+    def _resolve_legacy_salt(self) -> bytes:
+        """Load persisted salt or fallback to legacy."""
         if self._salt_path.exists():
             return self._salt_path.read_bytes()
-
-        # Backward compatibility: existing credentials use legacy hardcoded salt
-        if self._path.exists():
-            return _LEGACY_SALT
-
-        # New installation: generate random salt
-        salt = os.urandom(16)
-        self._salt_path.parent.mkdir(parents=True, exist_ok=True)
-        self._salt_path.write_bytes(salt)
-        try:
-            self._salt_path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
-        except OSError:
-            pass
-        return salt
+        return _LEGACY_SALT
 
     @staticmethod
     def _resolve_or_generate_secret(data_dir: Path) -> str:
@@ -71,51 +58,66 @@ class CredentialStore:
             pass  # Windows may not support chmod
         return secret
 
-    def _derive_key(self) -> bytes:
-        if self._cached_key is not None:
-            return self._cached_key
+    def _derive_key(self, salt: bytes) -> bytes:
+        if self._cached_key and self._cached_key[0] == salt:
+            return self._cached_key[1]
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
-            salt=self._salt,
+            salt=salt,
             iterations=_KDF_ITERATIONS,
         )
-        self._cached_key = kdf.derive(self._secret.encode())
-        return self._cached_key
+        key = kdf.derive(self._secret.encode())
+        self._cached_key = (salt, key)
+        return key
 
     def store(self, credentials: dict[str, str]) -> None:
-        """Encrypt and save credentials."""
+        """Encrypt and save credentials using a new random salt."""
         self._path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Migrate from legacy hardcoded salt to random salt on re-encryption
-        if self._salt == _LEGACY_SALT:
-            new_salt = os.urandom(16)
-            self._salt_path.write_bytes(new_salt)
-            try:
-                self._salt_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
-            except OSError:
-                pass
-            self._salt = new_salt
-            self._cached_key = None  # Force re-derivation
-
-        key = self._derive_key()
+        salt = os.urandom(16)
+        key = self._derive_key(salt)
         aesgcm = AESGCM(key)
         nonce = os.urandom(_NONCE_SIZE)
         plaintext = json.dumps(credentials).encode()
         ciphertext = aesgcm.encrypt(nonce, plaintext, None)
-        self._path.write_bytes(nonce + ciphertext)
+
+        # Embedded format: MAGIC + SALT + NONCE + CIPHERTEXT
+        self._path.write_bytes(_MAGIC + salt + nonce + ciphertext)
+
         try:
             self._path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
         except OSError:
-            pass  # Windows may not support chmod
+            pass
+
+        # Cleanup legacy salt file if it exists
+        if self._salt_path.exists():
+            try:
+                self._salt_path.unlink()
+            except OSError:
+                pass
 
     def load(self) -> dict[str, str] | None:
-        """Load and decrypt credentials. Returns None if not found."""
+        """Load and decrypt credentials. Supports legacy and embedded salt formats."""
         if not self._path.exists():
             return None
-        key = self._derive_key()
+
         data = self._path.read_bytes()
-        nonce, ciphertext = data[:_NONCE_SIZE], data[_NONCE_SIZE:]
+
+        if data.startswith(_MAGIC):
+            # Embedded salt format
+            salt = data[len(_MAGIC) : len(_MAGIC) + 16]
+            nonce_start = len(_MAGIC) + 16
+            nonce = data[nonce_start : nonce_start + _NONCE_SIZE]
+            ciphertext = data[nonce_start + _NONCE_SIZE :]
+            key = self._derive_key(salt)
+        else:
+            # Legacy format
+            salt = self._resolve_legacy_salt()
+            nonce = data[:_NONCE_SIZE]
+            ciphertext = data[_NONCE_SIZE:]
+            key = self._derive_key(salt)
+
         aesgcm = AESGCM(key)
         plaintext = aesgcm.decrypt(nonce, ciphertext, None)
         return json.loads(plaintext)

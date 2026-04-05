@@ -19,7 +19,8 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-_SALT = b"mcp-telegram-sessions"
+_MAGIC = b"SALT"
+_LEGACY_SALT = b"mcp-telegram-sessions"
 _KDF_ITERATIONS = 100_000
 _NONCE_SIZE = 12
 
@@ -56,7 +57,7 @@ class PerUserSessionStore:
         self._secret = secret or os.environ.get("CREDENTIAL_SECRET", "")
         if not self._secret:
             self._secret = self._resolve_or_generate_secret(data_dir)
-        self._cached_key: bytes | None = None
+        self._cached_key: tuple[bytes, bytes] | None = None  # (salt, key)
 
     @staticmethod
     def _resolve_or_generate_secret(data_dir: Path) -> str:
@@ -73,28 +74,41 @@ class PerUserSessionStore:
             pass  # Windows may not support chmod
         return secret
 
-    def _derive_key(self) -> bytes:
-        if self._cached_key is not None:
-            return self._cached_key
+    def _derive_key(self, salt: bytes) -> bytes:
+        if self._cached_key and self._cached_key[0] == salt:
+            return self._cached_key[1]
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
-            salt=_SALT,
+            salt=salt,
             iterations=_KDF_ITERATIONS,
         )
-        self._cached_key = kdf.derive(self._secret.encode())
-        return self._cached_key
+        key = kdf.derive(self._secret.encode())
+        self._cached_key = (salt, key)
+        return key
 
     def _encrypt(self, data: bytes) -> bytes:
-        key = self._derive_key()
+        salt = os.urandom(16)
+        key = self._derive_key(salt)
         aesgcm = AESGCM(key)
         nonce = os.urandom(_NONCE_SIZE)
         ciphertext = aesgcm.encrypt(nonce, data, None)
-        return nonce + ciphertext
+        # Embedded format: MAGIC + SALT + NONCE + CIPHERTEXT
+        return _MAGIC + salt + nonce + ciphertext
 
     def _decrypt(self, data: bytes) -> bytes:
-        key = self._derive_key()
-        nonce, ciphertext = data[:_NONCE_SIZE], data[_NONCE_SIZE:]
+        if data.startswith(_MAGIC):
+            # Embedded salt format
+            salt = data[len(_MAGIC) : len(_MAGIC) + 16]
+            nonce_start = len(_MAGIC) + 16
+            nonce = data[nonce_start : nonce_start + _NONCE_SIZE]
+            ciphertext = data[nonce_start + _NONCE_SIZE :]
+            key = self._derive_key(salt)
+        else:
+            # Legacy format
+            key = self._derive_key(_LEGACY_SALT)
+            nonce, ciphertext = data[:_NONCE_SIZE], data[_NONCE_SIZE:]
+
         aesgcm = AESGCM(key)
         return aesgcm.decrypt(nonce, ciphertext, None)
 

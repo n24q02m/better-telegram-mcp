@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import json
+import os
 from pathlib import Path
 
 import pytest
 from cryptography.exceptions import InvalidTag
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from better_telegram_mcp.auth.per_user_session_store import (
     PerUserSessionStore,
     SessionInfo,
+    _LEGACY_SALT,
+    _MAGIC,
 )
 
 
@@ -216,3 +221,29 @@ class TestPerUserSessionStore:
         store3 = PerUserSessionStore(data_dir)
         with pytest.raises(InvalidTag):
             store3.load_all()
+
+    def test_legacy_salt_migration(self, store: PerUserSessionStore) -> None:
+        """Sessions stored with legacy hardcoded salt should be loadable,
+        and re-storing should migrate to embedded format."""
+
+        # Manually create a legacy encrypted file
+        sessions = {"b1": SessionInfo(session_name="s1", mode="bot", bot_token="t1").to_dict()}
+        key = store._derive_key(_LEGACY_SALT)
+        aesgcm = AESGCM(key)
+        nonce = os.urandom(12)
+        plaintext = json.dumps(sessions).encode()
+        ciphertext = aesgcm.encrypt(nonce, plaintext, None)
+        store._path.write_bytes(nonce + ciphertext)
+
+        # Load it -- should fallback to _LEGACY_SALT
+        loaded = store.load("b1")
+        assert loaded is not None
+        assert loaded.session_name == "s1"
+
+        # Re-store it -- should now use embedded format
+        store.store("b1", loaded)
+        raw_data = store._path.read_bytes()
+        assert raw_data.startswith(_MAGIC)
+
+        # Verify it still loads
+        assert store.load("b1").session_name == "s1"
