@@ -7,6 +7,7 @@ Reuses the key derivation pattern from transports/credential_store.py.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import stat
@@ -98,16 +99,16 @@ class PerUserSessionStore:
         aesgcm = AESGCM(key)
         return aesgcm.decrypt(nonce, ciphertext, None)
 
-    def _read_all(self) -> dict[str, dict]:
-        """Read and decrypt all sessions from disk."""
+    def _read_all_sync(self) -> dict[str, dict]:
+        """Synchronous version of read_all for thread offloading."""
         if not self._path.exists():
             return {}
         raw = self._path.read_bytes()
         plaintext = self._decrypt(raw)
         return json.loads(plaintext)
 
-    def _write_all(self, sessions: dict[str, dict]) -> None:
-        """Encrypt and write all sessions to disk."""
+    def _write_all_sync(self, sessions: dict[str, dict]) -> None:
+        """Synchronous version of write_all for thread offloading."""
         self._path.parent.mkdir(parents=True, exist_ok=True)
         plaintext = json.dumps(sessions).encode()
         encrypted = self._encrypt(plaintext)
@@ -117,32 +118,32 @@ class PerUserSessionStore:
         except OSError:
             pass
 
-    def store(self, bearer: str, info: SessionInfo) -> None:
+    async def store(self, bearer: str, info: SessionInfo) -> None:
         """Store a session for the given bearer token."""
-        sessions = self._read_all()
+        sessions = await asyncio.to_thread(self._read_all_sync)
         sessions[bearer] = info.to_dict()
-        self._write_all(sessions)
+        await asyncio.to_thread(self._write_all_sync, sessions)
 
-    def load(self, bearer: str) -> SessionInfo | None:
+    async def load(self, bearer: str) -> SessionInfo | None:
         """Load session info for a bearer token. Returns None if not found."""
-        sessions = self._read_all()
+        sessions = await asyncio.to_thread(self._read_all_sync)
         data = sessions.get(bearer)
         if data is None:
             return None
         return SessionInfo.from_dict(data)
 
-    def load_all(self) -> dict[str, SessionInfo]:
+    async def load_all(self) -> dict[str, SessionInfo]:
         """Load all stored sessions."""
-        sessions = self._read_all()
+        sessions = await asyncio.to_thread(self._read_all_sync)
         return {
             bearer: SessionInfo.from_dict(data) for bearer, data in sessions.items()
         }
 
-    def delete(self, bearer: str) -> bool:
+    async def delete(self, bearer: str) -> bool:
         """Delete a session. Returns True if it existed."""
-        sessions = self._read_all()
+        sessions = await asyncio.to_thread(self._read_all_sync)
         if bearer not in sessions:
             return False
         del sessions[bearer]
-        self._write_all(sessions)
+        await asyncio.to_thread(self._write_all_sync, sessions)
         return True

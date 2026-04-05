@@ -9,6 +9,7 @@ Single-user fallback: stored credentials via relay page (backward compat).
 
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 from contextvars import ContextVar
@@ -44,7 +45,7 @@ async def setup_credentials(settings: Settings) -> dict[str, str]:
         RuntimeError: If relay setup fails or times out.
     """
     store = CredentialStore(settings.data_dir)
-    creds = store.load()
+    creds = await store.load()
 
     if creds is not None:
         logger.info("Loaded stored credentials from {}", settings.data_dir)
@@ -75,7 +76,7 @@ async def setup_credentials(settings: Settings) -> dict[str, str]:
         msg = "Relay setup timed out or session expired"
         raise RuntimeError(msg) from exc
 
-    store.store(creds)
+    await store.store(creds)
     logger.info("Credentials stored successfully")
     return creds
 
@@ -107,17 +108,50 @@ def _start_single_user_http(settings: Settings) -> None:
 
     Backward compatible with the original HTTP transport.
     """
-    import asyncio
-
     from ..server import mcp
 
     # If env vars already have credentials, skip CredentialStore/relay
     if not settings.is_configured:
         store = CredentialStore(settings.data_dir)
-        creds = store.load()
 
-        if creds is None:
-            creds = asyncio.run(setup_credentials(settings))
+        # ⚡ Bolt: Robust event loop management for bridging async to sync
+        # Especially important for tests where a loop might already be running.
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        async def _get_creds():
+            c = await store.load()
+            if c is None:
+                c = await setup_credentials(settings)
+            return c
+
+        if loop.is_running():
+            # In tests, the loop is already running. We use a thread to wait for the result
+            # while the main thread's loop continues to run.
+            import threading
+            from concurrent.futures import Future
+
+            res_future = Future()
+
+            def _run_in_new_loop():
+                new_loop = asyncio.new_event_loop()
+                try:
+                    asyncio.set_event_loop(new_loop)
+                    coro = _get_creds()
+                    res_future.set_result(new_loop.run_until_complete(coro))
+                except Exception as e:
+                    res_future.set_exception(e)
+                finally:
+                    new_loop.close()
+
+            threading.Thread(target=_run_in_new_loop).start()
+            creds = res_future.result()
+        else:
+            # Normal CLI entry point: run until complete.
+            creds = loop.run_until_complete(_get_creds())
 
         # Apply credentials to environment so lifespan picks them up
         for key, value in creds.items():

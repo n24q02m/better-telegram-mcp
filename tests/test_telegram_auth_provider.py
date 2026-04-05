@@ -81,7 +81,7 @@ class TestRegisterBot:
 
             bearer = await provider.register_bot("", "123:ABC")
 
-        info = provider._store.load(bearer)
+        info = await provider._store.load(bearer)
         assert info is not None
         assert info.mode == "bot"
         assert info.bot_token == "123:ABC"
@@ -309,7 +309,7 @@ class TestRestoreSessions:
     async def test_restore_bot_sessions(self, provider: TelegramAuthProvider) -> None:
         """Should restore bot sessions from store on startup."""
         # Store a session directly
-        provider._store.store(
+        await provider._store.store(
             "stored-bearer",
             SessionInfo(
                 session_name="test",
@@ -334,7 +334,7 @@ class TestRestoreSessions:
         self, provider: TelegramAuthProvider
     ) -> None:
         """Should remove expired sessions during restore."""
-        provider._store.store(
+        await provider._store.store(
             "expired-bearer",
             SessionInfo(
                 session_name="old",
@@ -352,7 +352,7 @@ class TestRestoreSessions:
         self, provider: TelegramAuthProvider
     ) -> None:
         """Should remove sessions that fail to reconnect."""
-        provider._store.store(
+        await provider._store.store(
             "broken-bearer",
             SessionInfo(
                 session_name="broken",
@@ -373,7 +373,7 @@ class TestRestoreSessions:
             restored = await provider.restore_sessions()
 
         assert restored == 0
-        assert provider._store.load("broken-bearer") is None
+        assert await provider._store.load("broken-bearer") is None
 
 
 class TestCleanupExpired:
@@ -382,7 +382,7 @@ class TestCleanupExpired:
     ) -> None:
         """Should remove expired sessions."""
         # Store an expired session
-        provider._store.store(
+        await provider._store.store(
             "expired",
             SessionInfo(
                 session_name="old",
@@ -392,7 +392,7 @@ class TestCleanupExpired:
             ),
         )
         # Store a valid session
-        provider._store.store(
+        await provider._store.store(
             "valid",
             SessionInfo(
                 session_name="new",
@@ -404,8 +404,8 @@ class TestCleanupExpired:
 
         removed = await provider.cleanup_expired()
         assert removed == 1
-        assert provider._store.load("expired") is None
-        assert provider._store.load("valid") is not None
+        assert await provider._store.load("expired") is None
+        assert await provider._store.load("valid") is not None
 
     async def test_cleanup_stale_otps(self, provider: TelegramAuthProvider) -> None:
         """Should clean up pending OTPs older than 5 minutes."""
