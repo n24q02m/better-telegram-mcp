@@ -144,7 +144,9 @@ HTTP mode requires a separate deployment. See the [HTTP transport source](../src
 
 ## Authentication
 
-### Zero-Config Relay (Default)
+### Zero-Config Relay (BETA, Optional)
+
+> **Note**: Relay is a **BETA** credential provisioning flow. For stable production use, prefer **Environment Variables** above. The relay blocks server startup on first run and may time out in some MCP clients.
 
 On first run without any credentials in environment:
 
@@ -182,7 +184,7 @@ Auth modes:
 | **Self-hosted** | `https://your-domain.com` | Custom relay deployment |
 | **Local** | `local` | Desktop, offline |
 
-### Environment Variables (CI/Automation)
+### Environment Variables (Recommended)
 
 Set credentials directly as environment variables to skip relay entirely.
 
