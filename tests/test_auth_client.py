@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+
 from better_telegram_mcp.auth_client import AuthClient, _mask_phone
 from better_telegram_mcp.config import Settings
 
@@ -32,10 +33,15 @@ def auth_client(mock_backend, settings):
 
 async def test_create_session(auth_client):
     mock_resp = MagicMock()
-    mock_resp.json.return_value = {"url": "https://auth.example.com/login", "token": "test-token"}
+    mock_resp.json.return_value = {
+        "url": "https://auth.example.com/login",
+        "token": "test-token",
+    }
     mock_resp.raise_for_status = MagicMock()
 
-    with patch.object(auth_client._client, "post", AsyncMock(return_value=mock_resp)) as mock_post:
+    with patch.object(
+        auth_client._client, "post", AsyncMock(return_value=mock_resp)
+    ) as mock_post:
         url = await auth_client.create_session()
         assert url == "https://auth.example.com/login"
         assert auth_client._token == "test-token"
@@ -73,11 +79,17 @@ async def test_poll_and_execute_command(auth_client):
     mock_resp_done.json.return_value = {"status": "completed"}
 
     # Mock get to return command first, then completed to exit the loop
-    with patch.object(auth_client._client, "get", AsyncMock(side_effect=[mock_resp_cmd, mock_resp_done])):
+    with patch.object(
+        auth_client._client,
+        "get",
+        AsyncMock(side_effect=[mock_resp_cmd, mock_resp_done]),
+    ):
         with patch.object(auth_client, "_handle_command", AsyncMock()) as mock_handle:
             with patch("asyncio.sleep", AsyncMock()):
                 await auth_client.poll_and_execute()
-                mock_handle.assert_called_once_with({"status": "command", "action": "send_code"})
+                mock_handle.assert_called_once_with(
+                    {"status": "command", "action": "send_code"}
+                )
 
 
 async def test_poll_and_execute_http_error(auth_client):
@@ -87,7 +99,11 @@ async def test_poll_and_execute_http_error(auth_client):
     mock_resp_done = MagicMock()
     mock_resp_done.json.return_value = {"status": "completed"}
 
-    with patch.object(auth_client._client, "get", AsyncMock(side_effect=[httpx.HTTPError("error"), mock_resp_done])):
+    with patch.object(
+        auth_client._client,
+        "get",
+        AsyncMock(side_effect=[httpx.HTTPError("error"), mock_resp_done]),
+    ):
         with patch("asyncio.sleep", AsyncMock()):
             await auth_client.poll_and_execute()
             # It should catch the error and continue to the next iteration
@@ -101,7 +117,11 @@ async def test_poll_and_execute_exception(auth_client):
     mock_resp_done = MagicMock()
     mock_resp_done.json.return_value = {"status": "completed"}
 
-    with patch.object(auth_client._client, "get", AsyncMock(side_effect=[Exception("error"), mock_resp_done])):
+    with patch.object(
+        auth_client._client,
+        "get",
+        AsyncMock(side_effect=[Exception("error"), mock_resp_done]),
+    ):
         with patch("asyncio.sleep", AsyncMock()):
             await auth_client.poll_and_execute()
             assert auth_client._auth_complete.is_set()
@@ -128,7 +148,9 @@ async def test_handle_command_verify_success(auth_client, mock_backend):
     mock_backend.sign_in.return_value = {"authenticated_as": "Test User"}
     with patch.object(auth_client, "_push_result", AsyncMock()) as mock_push:
         await auth_client._handle_command(cmd)
-        mock_backend.sign_in.assert_called_once_with("1234567890", "12345", password="pass")
+        mock_backend.sign_in.assert_called_once_with(
+            "1234567890", "12345", password="pass"
+        )
         mock_push.assert_called_once_with("verify", ok=True, name="Test User")
         assert auth_client._auth_complete.is_set()
 
@@ -152,7 +174,9 @@ async def test_push_result_success(auth_client):
 
 async def test_push_result_error(auth_client):
     auth_client._token = "test-token"
-    with patch.object(auth_client._client, "post", AsyncMock(side_effect=Exception("push error"))):
+    with patch.object(
+        auth_client._client, "post", AsyncMock(side_effect=Exception("push error"))
+    ):
         # Should catch and log
         await auth_client._push_result("test_action")
 
