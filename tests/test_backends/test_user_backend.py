@@ -543,7 +543,7 @@ class TestCreateChat:
         assert result == {"title": "Phantom"}
 
 
-class TestJoinChat:
+class TestJoinChat2:
     async def test_join_invite_link(self, tmp_path, mock_client, mock_client_class):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
@@ -1400,14 +1400,11 @@ class TestSerializeMessage:
         # getattr with default should return None, then fallback
         result = UserBackend._serialize_dialog(d2)
         assert result["id"] == 1
-
     @pytest.mark.skipif(
         sys.platform == "win32",
         reason="Windows does not support Unix file permissions (chmod 0o600)",
     )
-    async def test_connect_does_not_follow_symlinks(
-        self, tmp_path, mock_client, mock_client_class
-    ):
+    async def test_connect_does_not_follow_symlinks(self, tmp_path, mock_client, mock_client_class):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         # Setup paths
@@ -1429,3 +1426,53 @@ class TestSerializeMessage:
         # Since O_EXCL is used, the os.open should fail with OSError(EEXIST)
         # The file contents should NOT be truncated and permissions unchanged
         assert target_file.read_text() == "secret_content"
+
+    async def test_sign_in_chmod_oserror(self, tmp_path, mock_client, mock_client_class):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        session_file = tmp_path / "test_session.session"
+        session_file.write_text("fake")
+
+        mock_me = MagicMock()
+        mock_me.first_name = "Test"
+        mock_me.username = "testuser"
+        mock_client.sign_in = AsyncMock()
+        mock_client.get_me = AsyncMock(return_value=mock_me)
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        with patch("os.chmod", side_effect=OSError("chmod failed")):
+            result = await backend.sign_in("+84912345678", "12345")
+
+        assert result["authenticated_as"] == "Test"
+
+class TestJoinChatSecurity:
+    async def test_join_chat_with_hash(self, tmp_path, mock_client, mock_client_class):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_client.__call__ = AsyncMock()
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        # Test normal invite link
+        result = await backend.join_chat("https://t.me/joinchat/hash123")
+        assert result is True
+
+        # Test invite link with +
+        result = await backend.join_chat("https://t.me/+hash456")
+        assert result is True
+
+    async def test_join_chat_with_username(self, tmp_path, mock_client, mock_client_class):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_client.__call__ = AsyncMock()
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        # Test public username
+        result = await backend.join_chat("public_user")
+        assert result is True

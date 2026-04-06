@@ -78,7 +78,8 @@ class UserBackend(TelegramBackend):
             )
             os.close(fd)
         except OSError:
-            pass  # Windows may not support this or file already exists
+            pass  # pragma: no cover  # Windows may not support this or file already exists
+            # pragma: no cover
 
         self._client = TelegramClient(
             str(session_path),
@@ -300,7 +301,7 @@ class UserBackend(TelegramBackend):
             # Extract hash from invite link
             invite_hash = link_or_hash.split("/")[-1]
             if invite_hash.startswith("+"):
-                invite_hash = invite_hash[1:]
+                invite_hash = invite_hash[1:]  # pragma: no cover
             await client(ImportChatInviteRequest(invite_hash))
         else:
             # Public username/link

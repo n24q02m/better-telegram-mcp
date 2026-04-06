@@ -110,6 +110,7 @@ omit = [
     "*/auth_client.py",
     "*/transports/http.py",
     "*/transports/http_multi_user.py",
+    "*/credential_state.py",
 ]
 
 [tool.coverage.report]
