@@ -232,7 +232,9 @@ class AuthServer:
         if "cf-connecting-ip" in request.headers:
             return request.headers["cf-connecting-ip"]  # pragma: no cover
         if "x-forwarded-for" in request.headers:
-            return request.headers["x-forwarded-for"].split(",")[0].strip()  # pragma: no cover
+            return (
+                request.headers["x-forwarded-for"].split(",")[0].strip()
+            )  # pragma: no cover
         return request.client.host if request.client else "unknown"
 
     def _check_rate_limit(self, key: str) -> bool:
