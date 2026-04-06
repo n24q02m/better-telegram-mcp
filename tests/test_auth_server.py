@@ -294,6 +294,7 @@ class TestAuthServerStart:
 
             with pytest.raises(RuntimeError, match="Could not start server"):
                 await server.start()
+
     @pytest.mark.asyncio
     async def test_wait_for_auth(self):
         backend = MagicMock()
