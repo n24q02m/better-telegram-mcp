@@ -6,12 +6,12 @@
     "url": "https://github.com/n24q02m/better-telegram-mcp.git",
     "source": "github"
   },
-  "version": "4.1.0",
+  "version": "4.2.0",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "better-telegram-mcp",
-      "version": "4.1.0",
+      "version": "4.2.0",
       "runtimeHint": "uvx",
       "runtimeArgs": [
         "--python",

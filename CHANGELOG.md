@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v4.2.0 (2026-04-06)
+
+### Bug Fixes
+
+- Mark relay as BETA, promote env vars as primary setup method
+  ([`756bf22`](https://github.com/n24q02m/better-telegram-mcp/commit/756bf223c32f6c76a39c27b0555a22723ea6b95a))
+
+### Features
+
+- Non-blocking relay with state machine and lazy trigger
+  ([`567f08a`](https://github.com/n24q02m/better-telegram-mcp/commit/567f08ab22f9c5999a2e0f50de863d3c10fd5c9f))
+
+
 ## v4.1.0 (2026-04-04)
 
 ### Bug Fixes
