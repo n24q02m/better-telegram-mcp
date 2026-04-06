@@ -294,3 +294,15 @@ class TestAuthServerStart:
 
             with pytest.raises(RuntimeError, match="Could not start server"):
                 await server.start()
+    @pytest.mark.asyncio
+    async def test_wait_for_auth(self):
+        backend = MagicMock()
+        settings = MagicMock()
+        settings.phone = "+1234567890"
+        server = AuthServer(backend, settings)
+
+        # We can set the event manually to simulate authentication completion
+        server._auth_complete.set()
+
+        # wait_for_auth should return immediately since the event is set
+        await server.wait_for_auth()
