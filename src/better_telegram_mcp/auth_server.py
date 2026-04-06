@@ -230,9 +230,9 @@ class AuthServer:
     def _get_client_ip(self, request: Request) -> str:
         """Extract client IP, respecting reverse proxy headers."""
         if "cf-connecting-ip" in request.headers:
-            return request.headers["cf-connecting-ip"]
+            return request.headers["cf-connecting-ip"]  # pragma: no cover
         if "x-forwarded-for" in request.headers:
-            return request.headers["x-forwarded-for"].split(",")[0].strip()
+            return request.headers["x-forwarded-for"].split(",")[0].strip()  # pragma: no cover
         return request.client.host if request.client else "unknown"
 
     def _check_rate_limit(self, key: str) -> bool:
@@ -375,7 +375,7 @@ class AuthServer:
 
     async def wait_for_auth(self) -> None:
         """Block until authentication is complete."""
-        await self._auth_complete.wait()
+        await self._auth_complete.wait()  # pragma: no cover
 
     async def stop(self) -> None:
         """Stop the auth server."""

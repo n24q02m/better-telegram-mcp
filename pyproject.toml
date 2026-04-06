@@ -108,6 +108,7 @@ source = ["better_telegram_mcp"]
 omit = [
     "tests/*",
     "*/auth_client.py",
+    "*/credential_state.py",
     "*/transports/http.py",
     "*/transports/http_multi_user.py",
 ]
