@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -1399,3 +1400,32 @@ class TestSerializeMessage:
         # getattr with default should return None, then fallback
         result = UserBackend._serialize_dialog(d2)
         assert result["id"] == 1
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Windows does not support Unix file permissions (chmod 0o600)",
+    )
+    async def test_connect_does_not_follow_symlinks(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        # Setup paths
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        session_file = data_dir / "test_session.session"
+        target_file = tmp_path / "secret_target.txt"
+        target_file.write_text("secret_content")
+
+        # Create a malicious symlink pointing to the target file
+        os.symlink(target_file, session_file)
+
+        settings = _make_settings(tmp_path)
+        settings.data_dir = data_dir
+        backend = UserBackend(settings)
+
+        await backend.connect()
+
+        # Since O_EXCL is used, the os.open should fail with OSError(EEXIST)
+        # The file contents should NOT be truncated and permissions unchanged
+        assert target_file.read_text() == "secret_content"
