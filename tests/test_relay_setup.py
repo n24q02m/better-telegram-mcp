@@ -445,18 +445,16 @@ async def test_ensure_config_returns_none_on_relay_error():
 
 
 @pytest.mark.asyncio
-async def test_lifespan_tries_relay_when_unconfigured():
-    """Lifespan should attempt relay setup when no env vars are set."""
+async def test_lifespan_tries_credential_state_when_unconfigured():
+    """Lifespan should use resolve_credential_state when no env vars are set."""
     import better_telegram_mcp.server as srv
+    from better_telegram_mcp.credential_state import CredentialState
     from better_telegram_mcp.server import _lifespan, mcp
-
-    relay_config = {"TELEGRAM_BOT_TOKEN": "relay:TOKEN"}
 
     mock_bot = AsyncMock()
     mock_bot.is_authorized = AsyncMock(return_value=True)
 
-    # Create a mock Settings class that returns unconfigured first,
-    # then configured when from_relay_config is called
+    # First Settings() returns unconfigured, second (after resolve) returns configured
     unconfigured_settings = MagicMock(is_configured=False)
     configured_settings = MagicMock(
         is_configured=True,
@@ -464,15 +462,21 @@ async def test_lifespan_tries_relay_when_unconfigured():
         bot_token="relay:TOKEN",
     )
 
-    mock_settings_cls = MagicMock(return_value=unconfigured_settings)
-    mock_settings_cls.from_relay_config = MagicMock(return_value=configured_settings)
+    call_count = 0
+
+    def settings_factory(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        return unconfigured_settings if call_count == 1 else configured_settings
+
+    def mock_resolve():
+        return CredentialState.CONFIGURED
 
     with (
-        patch.object(srv, "Settings", mock_settings_cls),
+        patch.object(srv, "Settings", side_effect=settings_factory),
         patch(
-            "better_telegram_mcp.relay_setup.ensure_config",
-            new_callable=AsyncMock,
-            return_value=relay_config,
+            "better_telegram_mcp.credential_state.resolve_credential_state",
+            side_effect=mock_resolve,
         ),
         patch.dict(
             "sys.modules",
@@ -488,21 +492,23 @@ async def test_lifespan_tries_relay_when_unconfigured():
             mock_bot.connect.assert_awaited_once()
 
         mock_bot.disconnect.assert_awaited_once()
-        mock_settings_cls.from_relay_config.assert_called_once_with(relay_config)
 
 
 @pytest.mark.asyncio
-async def test_lifespan_falls_back_to_unconfigured_when_relay_fails():
-    """Lifespan should fall back to unconfigured state when relay fails."""
+async def test_lifespan_falls_back_to_unconfigured_when_no_credentials():
+    """Lifespan should fall back to unconfigured state when no credentials found."""
     import better_telegram_mcp.server as srv
+    from better_telegram_mcp.credential_state import CredentialState
     from better_telegram_mcp.server import _lifespan, mcp
+
+    def mock_resolve():
+        return CredentialState.AWAITING_SETUP
 
     with (
         patch.object(srv, "Settings", return_value=MagicMock(is_configured=False)),
         patch(
-            "better_telegram_mcp.relay_setup.ensure_config",
-            new_callable=AsyncMock,
-            return_value=None,
+            "better_telegram_mcp.credential_state.resolve_credential_state",
+            side_effect=mock_resolve,
         ),
     ):
         async with _lifespan(mcp):

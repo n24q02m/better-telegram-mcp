@@ -88,14 +88,15 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
     global _backend, _settings, _pending_auth, _unconfigured
     _settings = Settings()
 
-    # If env vars not set, try relay config (config file -> relay setup)
-    relay_config = None
+    # Non-blocking credential resolution (fast, <10ms)
+    # Replaces the old blocking ensure_config() which waited 300s for relay.
     if not _settings.is_configured:
-        from .relay_setup import ensure_config
+        from .credential_state import resolve_credential_state
 
-        relay_config = await ensure_config()
-        if relay_config:
-            _settings = Settings.from_relay_config(relay_config)
+        state = resolve_credential_state()
+        # If config was loaded from file, re-create Settings to pick up env vars
+        if state.value == "configured":
+            _settings = Settings()
 
     if not _settings.is_configured:
         if _multi_user_mode:
