@@ -44,7 +44,7 @@ async def setup_credentials(settings: Settings) -> dict[str, str]:
         RuntimeError: If relay setup fails or times out.
     """
     store = CredentialStore(settings.data_dir)
-    creds = store.load()
+    creds = await store.load()
 
     if creds is not None:
         logger.info("Loaded stored credentials from {}", settings.data_dir)
@@ -75,7 +75,7 @@ async def setup_credentials(settings: Settings) -> dict[str, str]:
         msg = "Relay setup timed out or session expired"
         raise RuntimeError(msg) from exc
 
-    store.store(creds)
+    await store.store(creds)
     logger.info("Credentials stored successfully")
     return creds
 
@@ -108,16 +108,53 @@ def _start_single_user_http(settings: Settings) -> None:
     Backward compatible with the original HTTP transport.
     """
     import asyncio
+    import threading
 
     from ..server import mcp
 
     # If env vars already have credentials, skip CredentialStore/relay
     if not settings.is_configured:
         store = CredentialStore(settings.data_dir)
-        creds = store.load()
 
-        if creds is None:
-            creds = asyncio.run(setup_credentials(settings))
+        # Bridging async to sync safely
+        def _load_creds():
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+
+            if loop and loop.is_running():
+                # Loop already running, use dedicated thread
+                result = []
+
+                def _thread_worker():
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        creds = new_loop.run_until_complete(store.load())
+                        if creds is None:
+                            creds = new_loop.run_until_complete(
+                                setup_credentials(settings)
+                            )
+                        result.append(creds)
+                    finally:
+                        new_loop.close()
+
+                t = threading.Thread(target=_thread_worker)
+                t.start()
+                t.join()
+                return result[0]
+            else:
+                # No running loop, safe to run directly
+                async def _get():
+                    creds = await store.load()
+                    if creds is None:
+                        creds = await setup_credentials(settings)
+                    return creds
+
+                return asyncio.run(_get())
+
+        creds = _load_creds()
 
         # Apply credentials to environment so lifespan picks them up
         for key, value in creds.items():
