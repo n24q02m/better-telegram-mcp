@@ -2,9 +2,9 @@ from __future__ import annotations
 
 
 def _cli() -> None:
-    from .server import main
+    from .cli import _cli as cli_main
 
-    main()
+    cli_main()
 
 
 if __name__ == "__main__":
