@@ -27,9 +27,13 @@ class CredentialStore:
     received via the relay page.
     """
 
+    _salt_cache: dict[Path, bytes] = {}
+    _secret_cache: dict[Path, str] = {}
+
     def __init__(self, data_dir: Path, secret: str | None = None) -> None:
         self._path = data_dir / "credentials.enc"
-        self._salt_path = data_dir / ".salt"
+        self._salt_path = (data_dir / ".salt").resolve()
+        self._secret_path = (data_dir / ".secret").resolve()
         self._secret = secret or os.environ.get("CREDENTIAL_SECRET", "")
         if not self._secret:
             self._secret = self._resolve_or_generate_secret(data_dir)
@@ -37,10 +41,21 @@ class CredentialStore:
         # Cache derived key to avoid repeated 100k iteration PBKDF2 (~60ms) overhead
         self._cached_key: bytes | None = None
 
+    @classmethod
+    def clear_cache(cls) -> None:
+        """Clear the salt and secret caches (primarily for tests)."""
+        cls._salt_cache.clear()
+        cls._secret_cache.clear()
+
     def _resolve_salt(self) -> bytes:
         """Load persisted salt, fallback to legacy, or generate new one."""
+        if self._salt_path in self._salt_cache:
+            return self._salt_cache[self._salt_path]
+
         if self._salt_path.exists():
-            return self._salt_path.read_bytes()
+            salt = self._salt_path.read_bytes()
+            self._salt_cache[self._salt_path] = salt
+            return salt
 
         # Backward compatibility: existing credentials use legacy hardcoded salt
         if self._path.exists():
@@ -54,14 +69,21 @@ class CredentialStore:
             self._salt_path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
         except OSError:
             pass
+        self._salt_cache[self._salt_path] = salt
         return salt
 
-    @staticmethod
-    def _resolve_or_generate_secret(data_dir: Path) -> str:
+    @classmethod
+    def _resolve_or_generate_secret(cls, data_dir: Path) -> str:
         """Load persisted secret or generate a new one."""
-        secret_path = data_dir / ".secret"
+        secret_path = (data_dir / ".secret").resolve()
+        if secret_path in cls._secret_cache:
+            return cls._secret_cache[secret_path]
+
         if secret_path.exists():
-            return secret_path.read_text().strip()
+            secret = secret_path.read_text().strip()
+            cls._secret_cache[secret_path] = secret
+            return secret
+
         data_dir.mkdir(parents=True, exist_ok=True)
         secret = os.urandom(32).hex()
         secret_path.write_text(secret)
@@ -69,6 +91,7 @@ class CredentialStore:
             secret_path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
         except OSError:
             pass  # Windows may not support chmod
+        cls._secret_cache[secret_path] = secret
         return secret
 
     def _derive_key(self) -> bytes:
@@ -96,6 +119,7 @@ class CredentialStore:
             except OSError:
                 pass
             self._salt = new_salt
+            self._salt_cache[self._salt_path] = new_salt
             self._cached_key = None  # Force re-derivation
 
         key = self._derive_key()
@@ -124,3 +148,6 @@ class CredentialStore:
         """Delete stored credentials."""
         if self._path.exists():
             self._path.unlink()
+        # Also remove from cache
+        self._salt_cache.pop(self._salt_path, None)
+        self._secret_cache.pop(self._secret_path, None)

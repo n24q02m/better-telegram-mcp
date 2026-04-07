@@ -164,6 +164,7 @@ class TestCredentialStore:
             salt_path.unlink()
 
         # Create new store -- should detect legacy salt (creds exist, no .salt)
+        CredentialStore.clear_cache()
         store2 = CredentialStore(data_dir, secret="test-secret")
         assert store2._salt == _LEGACY_SALT
         loaded = store2.load()
