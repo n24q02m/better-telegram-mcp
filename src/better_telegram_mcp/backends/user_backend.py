@@ -32,6 +32,32 @@ class UserBackend(TelegramBackend):
         return self._client
 
     @staticmethod
+    def _atomic_session_create(path: Path) -> None:
+        """Atomically create a session file with secure permissions."""
+        try:
+            fd = os.open(str(path), os.O_CREAT | os.O_WRONLY | os.O_EXCL, 0o600)
+            os.close(fd)
+        except FileExistsError:
+            pass  # Already exists, which is fine
+        except OSError:
+            # Fallback for systems that don't support O_EXCL or other OS errors
+            if not path.exists():
+                try:
+                    fd = os.open(str(path), os.O_CREAT | os.O_WRONLY, 0o600)
+                    os.close(fd)
+                except OSError:
+                    pass
+
+    @staticmethod
+    def _secure_session_file(path: Path) -> None:
+        """Ensure an existing session file has secure permissions."""
+        if path.exists():
+            try:
+                os.chmod(path, 0o600)
+            except OSError:
+                pass
+
+    @staticmethod
     def _serialize_message(msg: Any) -> dict[str, Any]:
         sender_id = None
         if msg.sender_id is not None:
@@ -67,16 +93,16 @@ class UserBackend(TelegramBackend):
         s = self._settings
         # Telethon auto-appends .session, so pass path without extension
         session_path = s.data_dir / s.session_name
-        s.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+
+        # Ensure data directory exists with secure permissions
+        await asyncio.to_thread(
+            s.data_dir.mkdir, parents=True, exist_ok=True, mode=0o700
+        )
 
         # Pre-create session file with secure permissions to avoid TOCTOU
         # where Telethon creates it with default (insecure) permissions
         actual_session_path = session_path.with_suffix(".session")
-        try:
-            fd = os.open(str(actual_session_path), os.O_CREAT | os.O_WRONLY, 0o600)
-            os.close(fd)
-        except OSError:
-            pass  # Windows may not support this or file already exists
+        await asyncio.to_thread(self._atomic_session_create, actual_session_path)
 
         self._client = TelegramClient(
             str(session_path),
@@ -109,7 +135,7 @@ class UserBackend(TelegramBackend):
         if self._client is not None and self._client.session:
             # Clear Telethon's entity cache by deleting cached entities
             try:
-                self._client.session.save()
+                await asyncio.to_thread(self._client.session.save)
             except Exception:
                 pass
 
@@ -139,11 +165,7 @@ class UserBackend(TelegramBackend):
         # Ensure existing session files (from older versions) are also secured
         s = self._settings
         session_file = (s.data_dir / s.session_name).with_suffix(".session")
-        if session_file.exists():
-            try:
-                os.chmod(session_file, 0o600)
-            except OSError:
-                pass
+        await asyncio.to_thread(self._secure_session_file, session_file)
 
         return {
             "authenticated_as": getattr(me, "first_name", ""),
@@ -466,7 +488,7 @@ class UserBackend(TelegramBackend):
         download_path: Path | str | None = None
         if output_dir:
             safe_dir = validate_output_dir(output_dir)
-            safe_dir.mkdir(parents=True, exist_ok=True)
+            await asyncio.to_thread(safe_dir.mkdir, parents=True, exist_ok=True)
             download_path = await client.download_media(msg, file=str(safe_dir))
         else:
             download_path = await client.download_media(msg)
