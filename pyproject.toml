@@ -107,7 +107,7 @@ empty-body = "ignore"
 source = ["better_telegram_mcp"]
 omit = [
     "tests/*",
-    "*/auth_client.py",
+
     "*/transports/http.py",
     "*/transports/http_multi_user.py",
 ]
