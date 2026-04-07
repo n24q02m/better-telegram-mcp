@@ -17,7 +17,6 @@ from better_telegram_mcp.credential_state import (
     trigger_relay_setup,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -171,8 +170,6 @@ def test_resolve_from_config_file_user():
 
 def test_resolve_from_config_file_does_not_overwrite_existing_env():
     """Config file values should not overwrite existing env vars."""
-    saved = {"TELEGRAM_BOT_TOKEN": "from_file"}
-
     with patch.dict(
         os.environ, {"TELEGRAM_BOT_TOKEN": "from_env"}, clear=False
     ):
@@ -409,9 +406,8 @@ async def test_trigger_relay_exception_returns_none():
 @pytest.mark.asyncio
 async def test_poll_relay_background_bot_mode():
     """Bot mode config -> save + apply env + notify complete."""
-    from better_telegram_mcp.credential_state import _poll_relay_background
-
     import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _poll_relay_background
 
     cs._state = CredentialState.SETUP_IN_PROGRESS
 
@@ -453,9 +449,8 @@ async def test_poll_relay_background_bot_mode():
 @pytest.mark.asyncio
 async def test_poll_relay_background_user_mode():
     """User mode config -> calls _handle_user_mode_auth."""
-    from better_telegram_mcp.credential_state import _poll_relay_background
-
     import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _poll_relay_background
 
     cs._state = CredentialState.SETUP_IN_PROGRESS
 
@@ -497,9 +492,8 @@ async def test_poll_relay_background_user_mode():
 @pytest.mark.asyncio
 async def test_poll_relay_background_relay_skipped():
     """RELAY_SKIPPED error -> state back to AWAITING_SETUP."""
-    from better_telegram_mcp.credential_state import _poll_relay_background
-
     import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _poll_relay_background
 
     cs._state = CredentialState.SETUP_IN_PROGRESS
 
@@ -518,9 +512,8 @@ async def test_poll_relay_background_relay_skipped():
 @pytest.mark.asyncio
 async def test_poll_relay_background_runtime_error():
     """Non-RELAY_SKIPPED RuntimeError -> state back to AWAITING_SETUP."""
-    from better_telegram_mcp.credential_state import _poll_relay_background
-
     import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _poll_relay_background
 
     cs._state = CredentialState.SETUP_IN_PROGRESS
 
@@ -539,9 +532,8 @@ async def test_poll_relay_background_runtime_error():
 @pytest.mark.asyncio
 async def test_poll_relay_background_generic_exception():
     """Generic exception -> state back to AWAITING_SETUP."""
-    from better_telegram_mcp.credential_state import _poll_relay_background
-
     import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _poll_relay_background
 
     cs._state = CredentialState.SETUP_IN_PROGRESS
 
@@ -560,9 +552,8 @@ async def test_poll_relay_background_generic_exception():
 @pytest.mark.asyncio
 async def test_poll_relay_background_bot_send_message_error():
     """Bot mode: send_message failure is swallowed, state still CONFIGURED."""
-    from better_telegram_mcp.credential_state import _poll_relay_background
-
     import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _poll_relay_background
 
     cs._state = CredentialState.SETUP_IN_PROGRESS
 
@@ -604,9 +595,8 @@ async def test_poll_relay_background_bot_send_message_error():
 @pytest.mark.asyncio
 async def test_poll_relay_background_custom_timeout():
     """Custom timeout is passed through to poll_for_result."""
-    from better_telegram_mcp.credential_state import _poll_relay_background
-
     import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _poll_relay_background
 
     cs._state = CredentialState.SETUP_IN_PROGRESS
 
