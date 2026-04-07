@@ -282,7 +282,9 @@ class TestStartHttp:
     def test_start_single_user_http_no_stored_creds(self, settings: Settings) -> None:
         """Should call setup_credentials if no credentials found anywhere."""
         with (
-            patch("better_telegram_mcp.transports.http.CredentialStore") as mock_store_cls,
+            patch(
+                "better_telegram_mcp.transports.http.CredentialStore"
+            ) as mock_store_cls,
             patch(
                 "better_telegram_mcp.transports.http.setup_credentials",
                 new_callable=AsyncMock,
