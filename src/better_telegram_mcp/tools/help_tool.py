@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import difflib
+import functools
 from pathlib import Path
 
 from ..utils.formatting import err
@@ -8,6 +10,14 @@ from ..utils.formatting import err
 _DOCS_DIR = Path(__file__).resolve().parent.parent / "docs"
 
 _VALID_TOPICS = {"messages", "chats", "media", "contacts"}
+
+
+@functools.cache
+def _read_doc_sync(path: Path) -> str | None:
+    """Bolt: Read file synchronously; wrapped in lru_cache for performance."""
+    if path.exists():
+        return path.read_text(encoding="utf-8").strip()
+    return None
 
 
 async def handle_help(topic: str | None = None) -> str:
@@ -21,8 +31,6 @@ async def handle_help(topic: str | None = None) -> str:
         return err("No documentation found.")
 
     if topic not in _VALID_TOPICS:
-        import difflib
-
         closest = difflib.get_close_matches(
             topic, [*_VALID_TOPICS, "all", "telegram"], n=1
         )
@@ -40,8 +48,5 @@ async def handle_help(topic: str | None = None) -> str:
 
 async def _load_doc(topic: str) -> str | None:
     path = _DOCS_DIR / f"{topic}.md"
-    if path.exists():
-        # Bolt: Read file asynchronously to prevent blocking the event loop
-        content = await asyncio.to_thread(path.read_text, encoding="utf-8")
-        return content.strip()
-    return None
+    # Bolt: Read file via a cached sync function in a separate thread to prevent blocking
+    return await asyncio.to_thread(_read_doc_sync, path)

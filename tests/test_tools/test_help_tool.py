@@ -102,3 +102,39 @@ async def test_help_all_no_docs(monkeypatch):
     result = await handle_help("all")
     parsed = json.loads(result)
     assert "error" in parsed
+
+
+@pytest.mark.asyncio
+async def test_help_caching(monkeypatch):
+    from pathlib import Path
+    from unittest.mock import MagicMock
+
+    import better_telegram_mcp.tools.help_tool
+
+    # Clear cache before test
+    better_telegram_mcp.tools.help_tool._read_doc_sync.cache_clear()
+
+    # Mock Path.exists and Path.read_text
+    mock_read = MagicMock(return_value="Cached content")
+    monkeypatch.setattr(Path, "exists", lambda self: True)
+    monkeypatch.setattr(Path, "read_text", mock_read)
+
+    try:
+        # First call
+        result1 = await handle_help("messages")
+        assert result1 == "Cached content"
+        assert mock_read.call_count == 1
+
+        # Second call (same topic)
+        result2 = await handle_help("messages")
+        assert result2 == "Cached content"
+        # Should still be 1 because it's cached
+        assert mock_read.call_count == 1
+
+        # Third call (different topic)
+        result3 = await handle_help("chats")
+        assert result3 == "Cached content"
+        assert mock_read.call_count == 2
+    finally:
+        # Clean up cache
+        better_telegram_mcp.tools.help_tool._read_doc_sync.cache_clear()
