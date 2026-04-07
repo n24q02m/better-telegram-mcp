@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import unittest.mock
 from pathlib import Path
 
 import pytest
@@ -216,3 +217,28 @@ class TestPerUserSessionStore:
         store3 = PerUserSessionStore(data_dir)
         with pytest.raises(InvalidTag):
             store3.load_all()
+
+    def test_caching_behavior(self, store: PerUserSessionStore) -> None:
+        """Verify that _decrypt is called only once for multiple loads."""
+        info = SessionInfo(session_name="test", mode="bot", bot_token="123:ABC")
+        store.store("bearer-1", info)
+
+        # Clear cache to force at least one read
+        store._cache = None
+
+        # Patching _decrypt to track calls
+        original_decrypt = store._decrypt
+        with unittest.mock.patch.object(
+            store, "_decrypt", side_effect=original_decrypt
+        ) as mock_decrypt:
+            # First load should call _decrypt
+            store.load("bearer-1")
+            assert mock_decrypt.call_count == 1
+
+            # Second load should use cache and NOT call _decrypt
+            store.load("bearer-1")
+            assert mock_decrypt.call_count == 1
+
+            # load_all should also use cache
+            store.load_all()
+            assert mock_decrypt.call_count == 1
