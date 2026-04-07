@@ -543,6 +543,323 @@ async def test_lifespan_unconfigured_mode():
         assert srv._unconfigured is False
 
 
+# --- setup_* config actions (credential state integration) ---
+
+
+@pytest.mark.asyncio
+async def test_config_setup_status():
+    """setup_status returns credential state info."""
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import config
+
+    old_unconfigured = srv._unconfigured
+    old_pending = srv._pending_auth
+    try:
+        srv._unconfigured = False
+        srv._pending_auth = False
+
+        with (
+            patch(
+                "better_telegram_mcp.credential_state.get_state",
+                return_value=MagicMock(value="configured"),
+            ),
+            patch(
+                "better_telegram_mcp.credential_state.get_setup_url",
+                return_value=None,
+            ),
+        ):
+            result = json.loads(await config(action="setup_status"))
+            assert result["state"] == "configured"
+            assert "setup_url" in result
+            assert "configured" in result
+            assert "pending_auth" in result
+    finally:
+        srv._unconfigured = old_unconfigured
+        srv._pending_auth = old_pending
+
+
+@pytest.mark.asyncio
+async def test_config_setup_start_already_configured():
+    """setup_start returns already_configured if state is CONFIGURED without force."""
+    from better_telegram_mcp.credential_state import CredentialState
+    from better_telegram_mcp.server import config
+
+    with patch(
+        "better_telegram_mcp.credential_state.get_state",
+        return_value=CredentialState.CONFIGURED,
+    ):
+        result = json.loads(await config(action="setup_start"))
+        assert result["status"] == "already_configured"
+        assert "force" in result["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_config_setup_start_force():
+    """setup_start with key='force' triggers relay even when configured."""
+    from better_telegram_mcp.credential_state import CredentialState
+    from better_telegram_mcp.server import config
+
+    with (
+        patch(
+            "better_telegram_mcp.credential_state.get_state",
+            return_value=CredentialState.CONFIGURED,
+        ),
+        patch(
+            "better_telegram_mcp.credential_state.trigger_relay_setup",
+            new_callable=AsyncMock,
+            return_value="https://relay.example.com/setup",
+        ),
+    ):
+        result = json.loads(await config(action="setup_start", key="force"))
+        assert result["status"] == "setup_started"
+        assert result["setup_url"] == "https://relay.example.com/setup"
+
+
+@pytest.mark.asyncio
+async def test_config_setup_start_awaiting():
+    """setup_start when awaiting -> triggers relay."""
+    from better_telegram_mcp.credential_state import CredentialState
+    from better_telegram_mcp.server import config
+
+    with (
+        patch(
+            "better_telegram_mcp.credential_state.get_state",
+            return_value=CredentialState.AWAITING_SETUP,
+        ),
+        patch(
+            "better_telegram_mcp.credential_state.trigger_relay_setup",
+            new_callable=AsyncMock,
+            return_value="https://relay.example.com/new-setup",
+        ),
+    ):
+        result = json.loads(await config(action="setup_start"))
+        assert result["status"] == "setup_started"
+        assert "new-setup" in result["setup_url"]
+
+
+@pytest.mark.asyncio
+async def test_config_setup_start_relay_fails():
+    """setup_start when relay fails -> returns error."""
+    from better_telegram_mcp.credential_state import CredentialState
+    from better_telegram_mcp.server import config
+
+    with (
+        patch(
+            "better_telegram_mcp.credential_state.get_state",
+            return_value=CredentialState.AWAITING_SETUP,
+        ),
+        patch(
+            "better_telegram_mcp.credential_state.trigger_relay_setup",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+    ):
+        result = json.loads(await config(action="setup_start"))
+        assert "error" in result
+        assert "Failed" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_config_setup_reset():
+    """setup_reset clears credentials."""
+    from better_telegram_mcp.server import config
+
+    with patch("better_telegram_mcp.credential_state.reset_state") as mock_reset:
+        result = json.loads(await config(action="setup_reset"))
+        assert result["status"] == "ok"
+        assert "cleared" in result["message"].lower()
+        mock_reset.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_config_setup_complete():
+    """setup_complete re-resolves credential state."""
+    from better_telegram_mcp.credential_state import CredentialState
+    from better_telegram_mcp.server import config
+
+    with (
+        patch(
+            "better_telegram_mcp.credential_state.resolve_credential_state",
+            return_value=CredentialState.CONFIGURED,
+        ),
+        patch(
+            "better_telegram_mcp.credential_state.get_state",
+            return_value=CredentialState.CONFIGURED,
+        ),
+    ):
+        result = json.loads(await config(action="setup_complete"))
+        assert result["status"] == "ok"
+        assert result["state"] == "configured"
+
+
+@pytest.mark.asyncio
+async def test_config_setup_status_works_when_unconfigured():
+    """setup_status works even when server is unconfigured."""
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import config
+
+    old = srv._unconfigured
+    try:
+        srv._unconfigured = True
+        with (
+            patch(
+                "better_telegram_mcp.credential_state.get_state",
+                return_value=MagicMock(value="awaiting_setup"),
+            ),
+            patch(
+                "better_telegram_mcp.credential_state.get_setup_url",
+                return_value=None,
+            ),
+        ):
+            result = json.loads(await config(action="setup_status"))
+            assert result["state"] == "awaiting_setup"
+    finally:
+        srv._unconfigured = old
+
+
+@pytest.mark.asyncio
+async def test_config_setup_reset_works_when_unconfigured():
+    """setup_reset works even when server is unconfigured."""
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import config
+
+    old = srv._unconfigured
+    try:
+        srv._unconfigured = True
+        with patch("better_telegram_mcp.credential_state.reset_state"):
+            result = json.loads(await config(action="setup_reset"))
+            assert result["status"] == "ok"
+    finally:
+        srv._unconfigured = old
+
+
+# --- lifespan: resolve_credential_state integration ---
+
+
+@pytest.mark.asyncio
+async def test_lifespan_resolves_credentials_when_unconfigured():
+    """Lifespan calls resolve_credential_state and re-creates Settings if configured."""
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import _lifespan
+
+    mock_settings_initial = MagicMock()
+    mock_settings_initial.is_configured = False
+
+    mock_settings_reconfigured = MagicMock()
+    mock_settings_reconfigured.is_configured = True
+    mock_settings_reconfigured.mode = "bot"
+    mock_settings_reconfigured.bot_token = "resolved:token"
+
+    mock_bot = AsyncMock()
+    mock_bot.is_authorized = AsyncMock(return_value=True)
+
+    settings_call_count = 0
+
+    def settings_factory(*args, **kwargs):
+        nonlocal settings_call_count
+        settings_call_count += 1
+        if settings_call_count == 1:
+            return mock_settings_initial
+        return mock_settings_reconfigured
+
+    from better_telegram_mcp.credential_state import CredentialState
+
+    with (
+        patch.object(srv, "Settings", side_effect=settings_factory),
+        patch(
+            "better_telegram_mcp.credential_state.resolve_credential_state",
+            return_value=CredentialState.CONFIGURED,
+        ),
+        patch.dict(
+            "sys.modules",
+            {
+                "better_telegram_mcp.backends.bot_backend": type(
+                    "module",
+                    (),
+                    {"BotBackend": MagicMock(return_value=mock_bot)},
+                )()
+            },
+        ),
+    ):
+        async with _lifespan(mcp):
+            assert srv._settings is mock_settings_reconfigured
+            mock_bot.connect.assert_awaited_once()
+
+        mock_bot.disconnect.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_lifespan_multi_user_mode_unconfigured():
+    """Multi-user mode starts without global backend when unconfigured."""
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import _lifespan
+
+    old_multi = srv._multi_user_mode
+    try:
+        srv._multi_user_mode = True
+
+        mock_settings = MagicMock()
+        mock_settings.is_configured = False
+
+        with (
+            patch.object(srv, "Settings", return_value=mock_settings),
+            patch(
+                "better_telegram_mcp.credential_state.resolve_credential_state",
+                return_value=MagicMock(value="awaiting_setup"),
+            ),
+        ):
+            async with _lifespan(mcp):
+                # In multi-user mode, unconfigured is OK
+                assert srv._unconfigured is not True
+    finally:
+        srv._multi_user_mode = old_multi
+
+
+# --- get_backend multi-user mode ---
+
+
+def test_get_backend_multi_user_mode():
+    """get_backend returns per-user backend in multi-user mode."""
+    import better_telegram_mcp.server as srv
+
+    old_multi = srv._multi_user_mode
+    old_backend = srv._backend
+    try:
+        srv._multi_user_mode = True
+        mock_per_user = MagicMock()
+
+        with patch(
+            "better_telegram_mcp.transports.http.get_current_backend",
+            return_value=mock_per_user,
+        ):
+            result = get_backend()
+            assert result is mock_per_user
+    finally:
+        srv._multi_user_mode = old_multi
+        srv._backend = old_backend
+
+
+def test_get_backend_multi_user_mode_fallback():
+    """get_backend falls back to global backend when ContextVar is None."""
+    import better_telegram_mcp.server as srv
+
+    old_multi = srv._multi_user_mode
+    old_backend = srv._backend
+    try:
+        srv._multi_user_mode = True
+        srv._backend = MagicMock()
+
+        with patch(
+            "better_telegram_mcp.transports.http.get_current_backend",
+            return_value=None,
+        ):
+            result = get_backend()
+            assert result is srv._backend
+    finally:
+        srv._multi_user_mode = old_multi
+        srv._backend = old_backend
+
+
 # --- main() HTTP transport ---
 
 
