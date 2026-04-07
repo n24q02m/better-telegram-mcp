@@ -170,9 +170,7 @@ def test_resolve_from_config_file_user():
 
 def test_resolve_from_config_file_does_not_overwrite_existing_env():
     """Config file values should not overwrite existing env vars."""
-    with patch.dict(
-        os.environ, {"TELEGRAM_BOT_TOKEN": "from_env"}, clear=False
-    ):
+    with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": "from_env"}, clear=False):
         # Bot token already in env -> hits env check first, never reads config
         state = resolve_credential_state()
 
@@ -188,9 +186,7 @@ def test_resolve_config_file_empty():
         os.environ.pop("TELEGRAM_PHONE", None)
 
         with (
-            patch(
-                "mcp_relay_core.storage.config_file.read_config", return_value=saved
-            ),
+            patch("mcp_relay_core.storage.config_file.read_config", return_value=saved),
             patch(
                 "better_telegram_mcp.credential_state.check_saved_sessions",
                 return_value=False,
@@ -208,9 +204,7 @@ def test_resolve_config_file_none():
         os.environ.pop("TELEGRAM_PHONE", None)
 
         with (
-            patch(
-                "mcp_relay_core.storage.config_file.read_config", return_value=None
-            ),
+            patch("mcp_relay_core.storage.config_file.read_config", return_value=None),
             patch(
                 "better_telegram_mcp.credential_state.check_saved_sessions",
                 return_value=False,
@@ -249,9 +243,7 @@ def test_resolve_saved_sessions_found():
         os.environ.pop("TELEGRAM_PHONE", None)
 
         with (
-            patch(
-                "mcp_relay_core.storage.config_file.read_config", return_value=None
-            ),
+            patch("mcp_relay_core.storage.config_file.read_config", return_value=None),
             patch(
                 "better_telegram_mcp.credential_state.check_saved_sessions",
                 return_value=True,
@@ -269,9 +261,7 @@ def test_resolve_nothing_found():
         os.environ.pop("TELEGRAM_PHONE", None)
 
         with (
-            patch(
-                "mcp_relay_core.storage.config_file.read_config", return_value=None
-            ),
+            patch("mcp_relay_core.storage.config_file.read_config", return_value=None),
             patch(
                 "better_telegram_mcp.credential_state.check_saved_sessions",
                 return_value=False,
