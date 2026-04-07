@@ -114,6 +114,19 @@ class TestConnect:
         assert backend._client is not None
         mock_client.connect.assert_awaited_once()
 
+    async def test_connect_handles_os_open_error(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+
+        with patch("os.open", side_effect=OSError("Failed")):
+            await backend.connect()
+
+        assert backend._client is not None
+
 
 class TestDisconnect:
     async def test_disconnect(self, tmp_path, mock_client, mock_client_class):
@@ -566,6 +579,21 @@ class TestJoinChat:
         await backend.connect()
 
         result = await backend.join_chat("https://t.me/+abc123")
+
+        assert result is True
+
+    async def test_join_chat_with_plus_in_hash(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_client.return_value = MagicMock()
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        result = await backend.join_chat("https://t.me/joinchat/+abc")
 
         assert result is True
 
@@ -1358,8 +1386,32 @@ class TestSignIn:
         backend = UserBackend(settings)
         await backend.connect()
         await backend.sign_in("+84912345678", "12345")
-
         assert session_file.stat().st_mode & 0o777 == 0o600
+
+    async def test_sign_in_handles_chmod_oserror(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        # Create a fake session file
+        session_file = tmp_path / "test_session.session"
+        session_file.write_text("fake")
+
+        mock_me = MagicMock()
+        mock_me.first_name = "Test"
+        mock_me.username = "testuser"
+        mock_client.sign_in = AsyncMock()
+        mock_client.get_me = AsyncMock(return_value=mock_me)
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        with patch("os.chmod", side_effect=OSError("Permission denied")):
+            result = await backend.sign_in("+84912345678", "12345")
+
+        assert result["authenticated_as"] == "Test"
+        assert result["username"] == "testuser"
 
 
 class TestSerializeMessage:
