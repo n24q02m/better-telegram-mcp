@@ -82,9 +82,27 @@ def _not_ready_response() -> str:
     )
 
 
-@asynccontextmanager
-async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
-    global _backend, _settings, _pending_auth, _unconfigured
+def _init_backend() -> None:
+    """Initialize the backend based on current settings."""
+    global _backend
+    assert _settings is not None
+
+    if _settings.mode == "bot":
+        from .backends.bot_backend import BotBackend
+
+        assert _settings.bot_token is not None
+        _backend = BotBackend(_settings.bot_token)
+    else:
+        from .backends.user_backend import UserBackend
+
+        assert _settings.api_id is not None
+        assert _settings.api_hash is not None
+        _backend = UserBackend(_settings)
+
+
+def _setup_config() -> None:
+    """Initialize settings and resolve credentials."""
+    global _settings
     _settings = Settings()
 
     # Non-blocking credential resolution (fast, <10ms)
@@ -96,6 +114,12 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
         # If config was loaded from file, re-create Settings to pick up env vars
         if state.value == "configured":
             _settings = Settings()
+
+
+@asynccontextmanager
+async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
+    global _backend, _settings, _pending_auth, _unconfigured
+    _setup_config()
 
     if not _settings.is_configured:
         if _multi_user_mode:
@@ -121,18 +145,7 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
         return
 
     logger.info("Mode: {}", _settings.mode)
-
-    if _settings.mode == "bot":
-        from .backends.bot_backend import BotBackend
-
-        assert _settings.bot_token is not None
-        _backend = BotBackend(_settings.bot_token)
-    else:
-        from .backends.user_backend import UserBackend
-
-        assert _settings.api_id is not None
-        assert _settings.api_hash is not None
-        _backend = UserBackend(_settings)
+    _init_backend()
 
     await _backend.connect()
     logger.info("Connected to Telegram ({})", _settings.mode)
