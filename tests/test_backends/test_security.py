@@ -142,7 +142,8 @@ class TestValidateUrl:
     def test_dns_resolution_empty_result_allowed(self, monkeypatch):
         """If hostname resolves to empty result list, it passes validation."""
         monkeypatch.setattr("socket.getaddrinfo", lambda host, port: [])
-        validate_url("http://resolves-to-nothing.com/")
+        with pytest.raises(SecurityError, match="no addresses returned"):
+            validate_url("http://resolves-to-nothing.com/")
 
 
 class TestValidateFilePath:

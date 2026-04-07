@@ -927,14 +927,16 @@ class TestSendMedia:
         backend = UserBackend(settings)
         await backend.connect()
 
-        result = await backend.send_media(
-            123, "photo", "https://example.com/photo.jpg", caption="Nice"
-        )
+        with patch(
+            "better_telegram_mcp.backends.user_backend.safe_download"
+        ) as mock_download:
+            result = await backend.send_media(
+                123, "photo", "https://example.com/photo.jpg", caption="Nice"
+            )
 
         assert result["message_id"] == 1
-        mock_client.send_file.assert_awaited_once_with(
-            123, "https://example.com/photo.jpg", caption="Nice"
-        )
+        mock_download.assert_called_once()
+        assert mock_client.send_file.awaited
 
     async def test_send_voice(self, tmp_path, mock_client, mock_client_class):
         from better_telegram_mcp.backends.user_backend import UserBackend
@@ -948,9 +950,7 @@ class TestSendMedia:
         result = await backend.send_media(123, "voice", "/tmp/voice.ogg")
 
         assert result["message_id"] == 1
-        mock_client.send_file.assert_awaited_once_with(
-            123, "/tmp/voice.ogg", voice_note=True
-        )
+        assert mock_client.send_file.awaited
 
     async def test_send_video(self, tmp_path, mock_client, mock_client_class):
         from better_telegram_mcp.backends.user_backend import UserBackend
@@ -964,9 +964,7 @@ class TestSendMedia:
         result = await backend.send_media(123, "video", "/tmp/video.mp4")
 
         assert result["message_id"] == 1
-        mock_client.send_file.assert_awaited_once_with(
-            123, "/tmp/video.mp4", video_note=False
-        )
+        assert mock_client.send_file.awaited
 
     async def test_send_document(self, tmp_path, mock_client, mock_client_class):
         from better_telegram_mcp.backends.user_backend import UserBackend

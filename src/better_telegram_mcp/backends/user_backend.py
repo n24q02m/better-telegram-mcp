@@ -16,7 +16,11 @@ from telethon.tl.types import Channel, Chat, InputPhoneContact, User
 
 from ..config import Settings
 from .base import TelegramBackend
-from .security import validate_file_path, validate_output_dir, validate_url
+from .security import (
+    safe_download,
+    validate_file_path,
+    validate_output_dir,
+)
 
 
 class UserBackend(TelegramBackend):
@@ -437,10 +441,28 @@ class UserBackend(TelegramBackend):
             kwargs["video_note"] = False
 
         if file_path_or_url.startswith(("http://", "https://")):
-            validate_url(file_path_or_url)
+            # Sentinel: Use safe_download with IP pinning to prevent DNS rebinding TOCTOU
+            # Telethon's send_file uses internal HTTP client if a URL is passed,
+            # which is vulnerable to DNS rebinding because validation happens here
+            # but resolution happens again inside Telethon.
+            import tempfile
+            from urllib.parse import urlparse
+
+            parsed = urlparse(file_path_or_url)
+            suffix = Path(parsed.path).suffix or ".bin"
+
+            with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+                tmp_path = Path(tmp.name)
+
+            try:
+                await safe_download(file_path_or_url, tmp_path)
+                msg = await client.send_file(chat_id, tmp_path, **kwargs)
+            finally:
+                if tmp_path.exists():
+                    tmp_path.unlink()
         else:
-            validate_file_path(file_path_or_url)
-        msg = await client.send_file(chat_id, file_path_or_url, **kwargs)
+            path = validate_file_path(file_path_or_url)
+            msg = await client.send_file(chat_id, path, **kwargs)
         return self._serialize_message(msg)
 
     async def download_media(

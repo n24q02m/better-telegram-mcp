@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlparse
 
 import httpx
 from loguru import logger
@@ -35,10 +36,23 @@ class AuthClient:
         self._auth_complete = asyncio.Event()
         self._base_url = settings.auth_url.rstrip("/")
 
-        # Validate auth_url to prevent SSRF
+        # Validate auth_url to prevent SSRF and pin IP for security
         from .backends.security import validate_url
 
-        validate_url(self._base_url)
+        ip = validate_url(self._base_url)
+        parsed = urlparse(self._base_url)
+        hostname = parsed.hostname or ""
+
+        # Sentinel: Pin IP address to prevent DNS rebinding TOCTOU
+        # We replace the hostname in base_url with the validated IP
+        ip_host = f"[{ip}]" if ":" in ip else ip
+        self._pinned_base_url = self._base_url.replace(hostname, ip_host, 1)
+
+        # Standard headers and extensions for pinned IP requests
+        self._headers = {"Host": hostname}
+        self._extensions = (
+            {"sni_hostname": hostname} if parsed.scheme == "https" else {}
+        )
 
         self._client = httpx.AsyncClient(timeout=10.0)
         self.url: str = ""  # auth page URL for user
@@ -47,8 +61,10 @@ class AuthClient:
         """Create auth session on remote server. Returns auth page URL."""
         phone = self._settings.phone or ""
         resp = await self._client.post(
-            f"{self._base_url}/api/sessions",
+            f"{self._pinned_base_url}/api/sessions",
             json={"phone_masked": _mask_phone(phone)},
+            headers=self._headers,
+            extensions=self._extensions,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -63,7 +79,9 @@ class AuthClient:
             await asyncio.sleep(POLL_INTERVAL)
             try:
                 resp = await self._client.get(
-                    f"{self._base_url}/api/sessions/{self._token}"
+                    f"{self._pinned_base_url}/api/sessions/{self._token}",
+                    headers=self._headers,
+                    extensions=self._extensions,
                 )
                 data = resp.json()
 
@@ -110,8 +128,10 @@ class AuthClient:
         """Push command result back to relay server."""
         try:
             await self._client.post(
-                f"{self._base_url}/api/sessions/{self._token}/result",
+                f"{self._pinned_base_url}/api/sessions/{self._token}/result",
                 json={"action": action, **kwargs},
+                headers=self._headers,
+                extensions=self._extensions,
             )
         except Exception as e:
             logger.debug("Push result error: {}", e)

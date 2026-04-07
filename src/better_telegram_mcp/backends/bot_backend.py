@@ -6,7 +6,7 @@ from typing import Any
 import httpx
 
 from .base import TelegramBackend
-from .security import validate_file_path, validate_url
+from .security import safe_download, validate_file_path
 
 API_BASE = "https://api.telegram.org/bot{}/"
 
@@ -249,14 +249,33 @@ class BotBackend(TelegramBackend):
         method = method_map.get(media_type, "sendDocument")
 
         if file_path_or_url.startswith(("http://", "https://")):
-            validate_url(file_path_or_url)
-            field = media_type if media_type != "document" else "document"
-            return await self._call(
-                method,
-                chat_id=chat_id,
-                **{field: file_path_or_url},
-                caption=caption,
-            )
+            # Sentinel: Use safe_download with IP pinning to prevent DNS rebinding TOCTOU.
+            # While Telegram Bot API servers are likely safe, pinning the IP here ensures
+            # that we don't leak internal data if a malicious URL resolves to a local service.
+            import tempfile
+            from pathlib import Path
+            from urllib.parse import urlparse
+
+            parsed = urlparse(file_path_or_url)
+            suffix = Path(parsed.path).suffix or ".bin"
+
+            with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+                tmp_path = Path(tmp.name)
+
+            try:
+                await safe_download(file_path_or_url, tmp_path)
+                field = media_type if media_type != "document" else "document"
+                # Read file asynchronously to prevent blocking the event loop
+                file_content = await asyncio.to_thread(tmp_path.read_bytes)
+                return await self._call_form(
+                    method,
+                    files={field: (tmp_path.name, file_content)},
+                    chat_id=chat_id,
+                    caption=caption,
+                )
+            finally:
+                if tmp_path.exists():
+                    tmp_path.unlink()
 
         path = validate_file_path(file_path_or_url)
         if not path.exists():

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -291,10 +292,14 @@ async def test_manage_topics_unknown():
 async def test_send_media_url():
     msg = {"message_id": 50}
     bot = _make_bot(msg)
-    result = await bot.send_media(
-        123, "photo", "https://example.com/photo.jpg", caption="Nice"
-    )
+    with patch(
+        "better_telegram_mcp.backends.bot_backend.safe_download"
+    ) as mock_download:
+        result = await bot.send_media(
+            123, "photo", "https://example.com/photo.jpg", caption="Nice"
+        )
     assert result["message_id"] == 50
+    mock_download.assert_called_once()
 
 
 async def test_send_media_file(tmp_path):
@@ -378,10 +383,14 @@ async def test_send_media_document_type():
     """Verify document media type uses correct field name."""
     msg = {"message_id": 52}
     bot = _make_bot(msg)
-    result = await bot.send_media(
-        123, "document", "https://example.com/doc.pdf", caption="Doc"
-    )
+    with patch(
+        "better_telegram_mcp.backends.bot_backend.safe_download"
+    ) as mock_download:
+        result = await bot.send_media(
+            123, "document", "https://example.com/doc.pdf", caption="Doc"
+        )
     assert result["message_id"] == 52
+    mock_download.assert_called_once()
 
 
 async def test_send_media_file_document(tmp_path):
