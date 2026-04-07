@@ -22,6 +22,8 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse
 from starlette.routing import Route
 
+from .utils.formatting import mask_phone
+
 if TYPE_CHECKING:
     from .backends.base import TelegramBackend
     from .config import Settings
@@ -204,12 +206,6 @@ def _find_free_port() -> int:
         raise RuntimeError(f"Could not find a free port: {e}") from e
 
 
-def _mask_phone(phone: str) -> str:
-    if len(phone) > 7:
-        return phone[:4] + "***" + phone[-4:]
-    return phone[:2] + "***"
-
-
 class AuthServer:
     """Local web server for OTP authentication (TELEGRAM_AUTH_URL=local)."""
 
@@ -250,7 +246,7 @@ class AuthServer:
         async def index(request: Request) -> HTMLResponse:
             phone = self._settings.phone or "unknown"
             # 🛡️ Sentinel: Prevent XSS by escaping dynamic data before insertion
-            page_html = _PAGE.replace("PHONE", html.escape(_mask_phone(phone)))
+            page_html = _PAGE.replace("PHONE", html.escape(mask_phone(phone)))
             return HTMLResponse(
                 page_html,
                 headers={

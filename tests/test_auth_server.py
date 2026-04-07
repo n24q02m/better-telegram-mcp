@@ -10,25 +10,23 @@ from starlette.testclient import TestClient
 from better_telegram_mcp.auth_server import (
     AuthServer,
     _find_free_port,
-    _mask_phone,
     _sanitize_error,
 )
 from better_telegram_mcp.config import Settings
+from better_telegram_mcp.utils.formatting import mask_phone
 
 # --- Utility function tests ---
 
 
 class TestFindFreePort:
-    def test_success(self):
+    def test_find_free_port_success(self):
         port = _find_free_port()
-        assert isinstance(port, int)
         assert port > 0
+        assert port < 65536
 
-    def test_failure(self):
-        with patch("socket.socket") as mock_socket:
-            mock_s = MagicMock()
-            mock_socket.return_value.__enter__.return_value = mock_s
-            mock_s.bind.side_effect = OSError("Address already in use")
+    def test_find_free_port_error(self):
+        with patch("socket.socket") as mock_socket_class:
+            mock_socket_class.side_effect = OSError("Address already in use")
 
             with pytest.raises(RuntimeError, match="Could not find a free port"):
                 _find_free_port()
@@ -36,16 +34,16 @@ class TestFindFreePort:
 
 class TestMaskPhone:
     def test_long_phone(self):
-        assert _mask_phone("1234567890") == "1234***7890"
+        assert mask_phone("1234567890") == "1234***7890"
 
     def test_medium_phone(self):
-        assert _mask_phone("12345678") == "1234***5678"
+        assert mask_phone("12345678") == "1234***5678"
 
     def test_short_phone(self):
-        assert _mask_phone("1234567") == "12***"
+        assert mask_phone("1234567") == "12***"
 
     def test_very_short_phone(self):
-        assert _mask_phone("12") == "12***"
+        assert mask_phone("12") == "12***"
 
 
 class TestSanitizeError:
