@@ -26,6 +26,18 @@ _BLOCKED_NETWORKS = [
     ipaddress.ip_network("fe80::/10"),
 ]
 
+# Pre-computed bitwise lookup tables for performance
+_BLOCKED_V4_INTS = [
+    (int(n.network_address), int(n.netmask))
+    for n in _BLOCKED_NETWORKS
+    if n.version == 4
+]
+_BLOCKED_V6_INTS = [
+    (int(n.network_address), int(n.netmask))
+    for n in _BLOCKED_NETWORKS
+    if n.version == 6
+]
+
 
 def validate_url(url: str) -> None:
     """Validate URL is safe (no SSRF to internal networks)."""
@@ -50,13 +62,25 @@ def validate_url(url: str) -> None:
     try:
         # Get all IPs for this hostname
         addr_info = socket.getaddrinfo(hostname, None)
-        for _, _, _, _, sockaddr in addr_info:
+        for family, _, _, _, sockaddr in addr_info:
             ip_str = sockaddr[0]
-            addr = ipaddress.ip_address(ip_str)
-            for network in _BLOCKED_NETWORKS:
-                if addr in network:
-                    msg = f"Access to internal/private IP {ip_str} ({hostname}) is blocked"
-                    raise SecurityError(msg)
+            # Fast bitwise matching for blocked networks
+            if family == socket.AF_INET:
+                addr_int = int.from_bytes(
+                    socket.inet_pton(socket.AF_INET, ip_str), "big"
+                )
+                for net_addr, mask in _BLOCKED_V4_INTS:
+                    if (addr_int & mask) == net_addr:
+                        msg = f"Access to internal/private IP {ip_str} ({hostname}) is blocked"
+                        raise SecurityError(msg)
+            elif family == socket.AF_INET6:
+                addr_int = int.from_bytes(
+                    socket.inet_pton(socket.AF_INET6, ip_str), "big"
+                )
+                for net_addr, mask in _BLOCKED_V6_INTS:
+                    if (addr_int & mask) == net_addr:
+                        msg = f"Access to internal/private IP {ip_str} ({hostname}) is blocked"
+                        raise SecurityError(msg)
     except OSError as e:
         # If hostname resolution fails, deny access instead of silently passing
         # to prevent bypassing SSRF checks via transient failures or DNS rebinding
