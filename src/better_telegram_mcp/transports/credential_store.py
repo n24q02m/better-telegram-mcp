@@ -6,6 +6,7 @@ Key derived from server secret (CREDENTIAL_SECRET env var or auto-generated).
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import stat
@@ -57,6 +58,7 @@ class CredentialStore:
         return salt
 
     @staticmethod
+    @functools.cache
     def _resolve_or_generate_secret(data_dir: Path) -> str:
         """Load persisted secret or generate a new one."""
         secret_path = data_dir / ".secret"

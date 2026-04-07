@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
+import os
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from cryptography.exceptions import InvalidTag
@@ -146,12 +149,9 @@ class TestCredentialStore:
         # Write a credentials file (using legacy salt)
         creds = {"TELEGRAM_BOT_TOKEN": "legacy-token"}
         # Manually encrypt and write without triggering migration
-        import json
-        import os
-
+        key = store._derive_key()
         from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-        key = store._derive_key()
         aesgcm = AESGCM(key)
         nonce = os.urandom(12)
         plaintext = json.dumps(creds).encode()
@@ -202,3 +202,55 @@ class TestCredentialStore:
         store = CredentialStore(tmp_path)
         # Store writing triggers credential chmod
         store.store({"api_id": "123"})
+
+    def test_secret_is_cached(self, tmp_path: Path) -> None:
+        """Verify that _resolve_or_generate_secret is cached."""
+        # Ensure a clean cache for the test
+        CredentialStore._resolve_or_generate_secret.cache_clear()
+
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        secret_path = data_dir / ".secret"
+        secret_path.write_text("persisted-secret")
+
+        # Patch the read_text method of Path
+        with patch.object(
+            Path, "read_text", side_effect=Path.read_text, autospec=True
+        ) as mock_read:
+            # First call - should invoke the wrapped method which calls read_text
+            s1 = CredentialStore._resolve_or_generate_secret(data_dir)
+            assert s1 == "persisted-secret"
+
+            # Count how many times read_text was called for our .secret file
+            initial_calls = sum(
+                1
+                for call in mock_read.call_args_list
+                if str(call.args[0]).endswith(".secret")
+            )
+            assert initial_calls == 1
+
+            # Second call with same data_dir - should be cached and NOT call read_text
+            s2 = CredentialStore._resolve_or_generate_secret(data_dir)
+            assert s2 == "persisted-secret"
+
+            after_calls = sum(
+                1
+                for call in mock_read.call_args_list
+                if str(call.args[0]).endswith(".secret")
+            )
+            assert after_calls == initial_calls
+
+            # Call with different data_dir - should NOT be cached and SHOULD call read_text
+            other_dir = tmp_path / "other"
+            other_dir.mkdir()
+            (other_dir / ".secret").write_text("other-secret")
+
+            s3 = CredentialStore._resolve_or_generate_secret(other_dir)
+            assert s3 == "other-secret"
+
+            final_calls = sum(
+                1
+                for call in mock_read.call_args_list
+                if str(call.args[0]).endswith(".secret")
+            )
+            assert final_calls == initial_calls + 1
