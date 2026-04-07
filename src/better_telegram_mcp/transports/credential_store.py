@@ -16,7 +16,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 _LEGACY_SALT = b"mcp-telegram-creds"
-_KDF_ITERATIONS = 100_000
+_KDF_ITERATIONS = 600_000
 _NONCE_SIZE = 12
 
 

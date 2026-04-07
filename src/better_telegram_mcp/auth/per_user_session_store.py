@@ -19,8 +19,8 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-_SALT = b"mcp-telegram-sessions"
-_KDF_ITERATIONS = 100_000
+_LEGACY_SALT = b"mcp-telegram-sessions"
+_KDF_ITERATIONS = 600_000
 _NONCE_SIZE = 12
 
 
@@ -56,7 +56,25 @@ class PerUserSessionStore:
         self._secret = secret or os.environ.get("CREDENTIAL_SECRET", "")
         if not self._secret:
             self._secret = self._resolve_or_generate_secret(data_dir)
+        self._salt_path = data_dir / ".session-salt"
+        self._salt = self._resolve_salt()
         self._cached_key: bytes | None = None
+
+    def _resolve_salt(self) -> bytes:
+        """Load persisted salt, fallback to legacy, or generate new one."""
+        if self._salt_path.exists():
+            return self._salt_path.read_bytes()
+        # Legacy: use hardcoded salt for backward compat on first read
+        return _LEGACY_SALT
+
+    def _persist_salt(self, salt: bytes) -> None:
+        """Save random salt to disk (called on first store)."""
+        self._salt_path.parent.mkdir(parents=True, exist_ok=True)
+        self._salt_path.write_bytes(salt)
+        try:
+            self._salt_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
+        except OSError:
+            pass
 
     @staticmethod
     def _resolve_or_generate_secret(data_dir: Path) -> str:
@@ -79,7 +97,7 @@ class PerUserSessionStore:
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
-            salt=_SALT,
+            salt=self._salt,
             iterations=_KDF_ITERATIONS,
         )
         self._cached_key = kdf.derive(self._secret.encode())
@@ -108,6 +126,12 @@ class PerUserSessionStore:
 
     def _write_all(self, sessions: dict[str, dict]) -> None:
         """Encrypt and write all sessions to disk."""
+        # Migrate from legacy salt to random salt on first write
+        if self._salt == _LEGACY_SALT and not self._salt_path.exists():
+            new_salt = os.urandom(16)
+            self._persist_salt(new_salt)
+            self._salt = new_salt
+            self._cached_key = None  # Invalidate cached key
         self._path.parent.mkdir(parents=True, exist_ok=True)
         plaintext = json.dumps(sessions).encode()
         encrypted = self._encrypt(plaintext)
