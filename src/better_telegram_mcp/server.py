@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -62,23 +63,21 @@ def _not_ready_response() -> str:
             {
                 "error": "Not configured",
                 "setup": {
+                    "relay": "Use config(action='setup_start') to configure via browser",
                     "bot_mode": {
                         "env_var": "TELEGRAM_BOT_TOKEN",
                         "how": "Get token from @BotFather on Telegram",
-                        "example": "TELEGRAM_BOT_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
                     },
                     "user_mode": {
                         "env_vars": ["TELEGRAM_PHONE"],
                         "how": "Set your phone number (API credentials have built-in defaults)",
-                        "example": "TELEGRAM_PHONE=+84912345678",
-                        "optional_overrides": ["TELEGRAM_API_ID", "TELEGRAM_API_HASH"],
                     },
                 },
             }
         )
     return err(
         "Telegram session not authenticated. "
-        "Remove credential env vars and restart to trigger relay setup, "
+        "Use config(action='setup_reset') then config(action='setup_start') to reconfigure, "
         "or set TELEGRAM_PHONE in your MCP server env config."
     )
 
@@ -364,6 +363,7 @@ async def config(
     action: str,
     message_limit: int | None = None,
     timeout: int | None = None,
+    key: str | None = None,
 ) -> str:
     """Server configuration and runtime settings.
 
@@ -371,7 +371,86 @@ async def config(
     - status: Show connection state, mode, and current config
     - set (message_limit|timeout): Update runtime limits
     - cache_clear: Clear internal caches
+    - setup_status: Show credential state and relay URL
+    - setup_start (-> key='force'): Start relay setup via browser
+    - setup_reset: Clear saved credentials
+    - setup_complete: Re-resolve credentials after relay config
     """
+    # Setup actions work regardless of configured state
+    match action:
+        case "setup_status":
+            from .credential_state import get_setup_url, get_state
+
+            state = get_state()
+            return ok(
+                {
+                    "state": state.value,
+                    "setup_url": get_setup_url(),
+                    "configured": not _unconfigured,
+                    "pending_auth": _pending_auth,
+                    "env_keys": [
+                        k
+                        for k in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_PHONE")
+                        if os.environ.get(k)
+                    ],
+                }
+            )
+
+        case "setup_start":
+            from .credential_state import (
+                CredentialState,
+                get_state,
+                trigger_relay_setup,
+            )
+
+            if get_state() == CredentialState.CONFIGURED and not (
+                key and key.lower() == "force"
+            ):
+                return ok(
+                    {
+                        "status": "already_configured",
+                        "message": "Already configured. Use key='force' to reconfigure.",
+                    }
+                )
+            url = await trigger_relay_setup(force=True)
+            if url:
+                return ok(
+                    {
+                        "status": "setup_started",
+                        "setup_url": url,
+                        "message": "Open this URL to configure Telegram credentials.",
+                    }
+                )
+            return err("Failed to start relay session.")
+
+        case "setup_reset":
+            from .credential_state import reset_state
+
+            reset_state()
+            return ok(
+                {
+                    "status": "ok",
+                    "message": "Credentials cleared. Use setup_start to reconfigure.",
+                }
+            )
+
+        case "setup_complete":
+            from .credential_state import (
+                CredentialState,
+                get_state,
+                resolve_credential_state,
+            )
+
+            resolve_credential_state()
+            state = get_state()
+            return ok(
+                {
+                    "status": "ok",
+                    "state": state.value,
+                    "message": "Credential state refreshed.",
+                }
+            )
+
     if _unconfigured:
         if action == "status":
             return ok(
@@ -388,6 +467,7 @@ async def config(
                             " (API credentials have built-in defaults)"
                         ),
                     },
+                    "hint": "Use action='setup_start' to configure via browser relay.",
                 }
             )
         return _not_ready_response()
