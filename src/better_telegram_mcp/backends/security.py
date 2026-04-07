@@ -13,17 +13,50 @@ class SecurityError(Exception):
 
 
 # Private/internal IP ranges that should not be accessed via SSRF
-_BLOCKED_NETWORKS = [
-    ipaddress.ip_network("0.0.0.0/8"),
-    ipaddress.ip_network("127.0.0.0/8"),
-    ipaddress.ip_network("10.0.0.0/8"),
-    ipaddress.ip_network("172.16.0.0/12"),
-    ipaddress.ip_network("192.168.0.0/16"),
-    ipaddress.ip_network("169.254.0.0/16"),
-    ipaddress.ip_network("::1/128"),
-    ipaddress.ip_network("::ffff:0:0/96"),
-    ipaddress.ip_network("fc00::/7"),
-    ipaddress.ip_network("fe80::/10"),
+_BLOCKED_V4_INTS = [
+    (
+        int(ipaddress.ip_network("0.0.0.0/8").network_address),
+        int(ipaddress.ip_network("0.0.0.0/8").netmask),
+    ),
+    (
+        int(ipaddress.ip_network("127.0.0.0/8").network_address),
+        int(ipaddress.ip_network("127.0.0.0/8").netmask),
+    ),
+    (
+        int(ipaddress.ip_network("10.0.0.0/8").network_address),
+        int(ipaddress.ip_network("10.0.0.0/8").netmask),
+    ),
+    (
+        int(ipaddress.ip_network("172.16.0.0/12").network_address),
+        int(ipaddress.ip_network("172.16.0.0/12").netmask),
+    ),
+    (
+        int(ipaddress.ip_network("192.168.0.0/16").network_address),
+        int(ipaddress.ip_network("192.168.0.0/16").netmask),
+    ),
+    (
+        int(ipaddress.ip_network("169.254.0.0/16").network_address),
+        int(ipaddress.ip_network("169.254.0.0/16").netmask),
+    ),
+]
+
+_BLOCKED_V6_INTS = [
+    (
+        int(ipaddress.ip_network("::1/128").network_address),
+        int(ipaddress.ip_network("::1/128").netmask),
+    ),
+    (
+        int(ipaddress.ip_network("::ffff:0:0/96").network_address),
+        int(ipaddress.ip_network("::ffff:0:0/96").netmask),
+    ),
+    (
+        int(ipaddress.ip_network("fc00::/7").network_address),
+        int(ipaddress.ip_network("fc00::/7").netmask),
+    ),
+    (
+        int(ipaddress.ip_network("fe80::/10").network_address),
+        int(ipaddress.ip_network("fe80::/10").netmask),
+    ),
 ]
 
 
@@ -53,10 +86,18 @@ def validate_url(url: str) -> None:
         for _, _, _, _, sockaddr in addr_info:
             ip_str = sockaddr[0]
             addr = ipaddress.ip_address(ip_str)
-            for network in _BLOCKED_NETWORKS:
-                if addr in network:
-                    msg = f"Access to internal/private IP {ip_str} ({hostname}) is blocked"
-                    raise SecurityError(msg)
+            addr_int = int(addr)
+
+            if isinstance(addr, ipaddress.IPv4Address):
+                for net_addr, mask in _BLOCKED_V4_INTS:
+                    if (addr_int & mask) == net_addr:
+                        msg = f"Access to internal/private IP {ip_str} ({hostname}) is blocked"
+                        raise SecurityError(msg)
+            else:
+                for net_addr, mask in _BLOCKED_V6_INTS:
+                    if (addr_int & mask) == net_addr:
+                        msg = f"Access to internal/private IP {ip_str} ({hostname}) is blocked"
+                        raise SecurityError(msg)
     except OSError as e:
         # If hostname resolution fails, deny access instead of silently passing
         # to prevent bypassing SSRF checks via transient failures or DNS rebinding
