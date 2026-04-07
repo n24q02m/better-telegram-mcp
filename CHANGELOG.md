@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.3.0-beta.1 (2026-04-07)
+
+### Features
+
+- Add setup actions to config tool for relay trigger
+  ([`0bb2979`](https://github.com/n24q02m/better-telegram-mcp/commit/0bb2979b699345da5441975d7e08cc18663aace1))
+
+
 ## v4.2.0 (2026-04-06)
 
 ### Bug Fixes
