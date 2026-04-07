@@ -12,6 +12,7 @@ import os
 import stat
 import time
 from dataclasses import asdict, dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
@@ -22,6 +23,16 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 _LEGACY_SALT = b"mcp-telegram-sessions"
 _KDF_ITERATIONS = 600_000
 _NONCE_SIZE = 12
+
+
+@lru_cache(maxsize=32)
+def _read_bytes_cached(path: Path) -> bytes:
+    return path.read_bytes()
+
+
+@lru_cache(maxsize=32)
+def _read_text_cached(path: Path) -> str:
+    return path.read_text().strip()
 
 
 @dataclass
@@ -63,7 +74,7 @@ class PerUserSessionStore:
     def _resolve_salt(self) -> bytes:
         """Load persisted salt, fallback to legacy, or generate new one."""
         if self._salt_path.exists():
-            return self._salt_path.read_bytes()
+            return _read_bytes_cached(self._salt_path)
         # Legacy: use hardcoded salt for backward compat on first read
         return _LEGACY_SALT
 
@@ -71,6 +82,7 @@ class PerUserSessionStore:
         """Save random salt to disk (called on first store)."""
         self._salt_path.parent.mkdir(parents=True, exist_ok=True)
         self._salt_path.write_bytes(salt)
+        _read_bytes_cached.cache_clear()
         try:
             self._salt_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
         except OSError:
@@ -81,10 +93,11 @@ class PerUserSessionStore:
         """Load persisted secret or generate a new one."""
         secret_path = data_dir / ".secret"
         if secret_path.exists():
-            return secret_path.read_text().strip()
+            return _read_text_cached(secret_path)
         data_dir.mkdir(parents=True, exist_ok=True)
         secret = os.urandom(32).hex()
         secret_path.write_text(secret)
+        _read_text_cached.cache_clear()
         try:
             secret_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
         except OSError:

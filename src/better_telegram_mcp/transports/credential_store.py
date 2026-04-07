@@ -9,11 +9,23 @@ from __future__ import annotations
 import json
 import os
 import stat
+from functools import lru_cache
 from pathlib import Path
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+
+@lru_cache(maxsize=32)
+def _read_bytes_cached(path: Path) -> bytes:
+    return path.read_bytes()
+
+
+@lru_cache(maxsize=32)
+def _read_text_cached(path: Path) -> str:
+    return path.read_text().strip()
+
 
 _LEGACY_SALT = b"mcp-telegram-creds"
 _KDF_ITERATIONS = 600_000
@@ -40,7 +52,7 @@ class CredentialStore:
     def _resolve_salt(self) -> bytes:
         """Load persisted salt, fallback to legacy, or generate new one."""
         if self._salt_path.exists():
-            return self._salt_path.read_bytes()
+            return _read_bytes_cached(self._salt_path)
 
         # Backward compatibility: existing credentials use legacy hardcoded salt
         if self._path.exists():
@@ -50,6 +62,7 @@ class CredentialStore:
         salt = os.urandom(16)
         self._salt_path.parent.mkdir(parents=True, exist_ok=True)
         self._salt_path.write_bytes(salt)
+        _read_bytes_cached.cache_clear()
         try:
             self._salt_path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
         except OSError:
@@ -61,10 +74,11 @@ class CredentialStore:
         """Load persisted secret or generate a new one."""
         secret_path = data_dir / ".secret"
         if secret_path.exists():
-            return secret_path.read_text().strip()
+            return _read_text_cached(secret_path)
         data_dir.mkdir(parents=True, exist_ok=True)
         secret = os.urandom(32).hex()
         secret_path.write_text(secret)
+        _read_text_cached.cache_clear()
         try:
             secret_path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
         except OSError:
@@ -91,6 +105,7 @@ class CredentialStore:
         if self._salt == _LEGACY_SALT:
             new_salt = os.urandom(16)
             self._salt_path.write_bytes(new_salt)
+            _read_bytes_cached.cache_clear()
             try:
                 self._salt_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
             except OSError:
