@@ -59,6 +59,7 @@ class PerUserSessionStore:
         self._salt_path = data_dir / ".session-salt"
         self._salt = self._resolve_salt()
         self._cached_key: bytes | None = None
+        self._cache: dict[str, dict] | None = None
 
     def _resolve_salt(self) -> bytes:
         """Load persisted salt, fallback to legacy, or generate new one."""
@@ -118,11 +119,15 @@ class PerUserSessionStore:
 
     def _read_all(self) -> dict[str, dict]:
         """Read and decrypt all sessions from disk."""
+        if self._cache is not None:
+            return self._cache.copy()
         if not self._path.exists():
+            self._cache = {}
             return {}
         raw = self._path.read_bytes()
         plaintext = self._decrypt(raw)
-        return json.loads(plaintext)
+        self._cache = json.loads(plaintext)
+        return self._cache.copy()
 
     def _write_all(self, sessions: dict[str, dict]) -> None:
         """Encrypt and write all sessions to disk."""
@@ -140,6 +145,7 @@ class PerUserSessionStore:
             self._path.chmod(stat.S_IRUSR | stat.S_IWUSR)
         except OSError:
             pass
+        self._cache = sessions.copy()
 
     def store(self, bearer: str, info: SessionInfo) -> None:
         """Store a session for the given bearer token."""
