@@ -927,14 +927,19 @@ class TestSendMedia:
         backend = UserBackend(settings)
         await backend.connect()
 
-        result = await backend.send_media(
-            123, "photo", "https://example.com/photo.jpg", caption="Nice"
-        )
+        with patch("httpx.AsyncClient.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.content = b"fake data"
+            mock_get.return_value.raise_for_status = lambda: None
+            result = await backend.send_media(
+                123, "photo", "https://example.com/photo.jpg", caption="Nice"
+            )
 
         assert result["message_id"] == 1
-        mock_client.send_file.assert_awaited_once_with(
-            123, "https://example.com/photo.jpg", caption="Nice"
-        )
+        args, kwargs = mock_client.send_file.call_args
+        assert args[0] == 123
+        assert "/tmp/" in args[1]
+        assert kwargs["caption"] == "Nice"
 
     async def test_send_voice(self, tmp_path, mock_client, mock_client_class):
         from better_telegram_mcp.backends.user_backend import UserBackend

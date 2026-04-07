@@ -4,6 +4,7 @@ import asyncio
 import os
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from loguru import logger
 from telethon import TelegramClient
@@ -16,7 +17,12 @@ from telethon.tl.types import Channel, Chat, InputPhoneContact, User
 
 from ..config import Settings
 from .base import TelegramBackend
-from .security import validate_file_path, validate_output_dir, validate_url
+from .security import (
+    SecurityError,
+    validate_file_path,
+    validate_output_dir,
+    validate_url,
+)
 
 
 class UserBackend(TelegramBackend):
@@ -437,11 +443,49 @@ class UserBackend(TelegramBackend):
             kwargs["video_note"] = False
 
         if file_path_or_url.startswith(("http://", "https://")):
-            validate_url(file_path_or_url)
+            # SSRF Fix: Pin IP, download locally, then upload.
+            # Prevents TOCTOU where URL resolves to public during validation
+            # but private during actual download by Telethon/Telegram.
+            import tempfile
+
+            import httpx
+
+            pinned_ip = validate_url(file_path_or_url)
+            parsed = urlparse(file_path_or_url)
+            netloc = pinned_ip
+            if parsed.port:
+                netloc = f"{netloc}:{parsed.port}"
+            pinned_url = parsed._replace(netloc=netloc).geturl()
+            hostname = parsed.hostname
+
+            with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                tmp_path = Path(tmp.name)
+
+            try:
+                async with httpx.AsyncClient(timeout=60.0) as http_client:
+                    resp = await http_client.get(
+                        pinned_url,
+                        headers={"Host": hostname},
+                        extensions={"sni_hostname": hostname},
+                    )
+                    resp.raise_for_status()
+                    # ⚡ Bolt: Write file in a thread to prevent blocking the event loop
+                    await asyncio.to_thread(tmp_path.write_bytes, resp.content)
+
+                # Upload local file
+                msg = await client.send_file(chat_id, str(tmp_path), **kwargs)
+                return self._serialize_message(msg)
+            except Exception as e:
+                raise SecurityError(
+                    f"Failed to safely download media from URL: {e}"
+                ) from e
+            finally:
+                if tmp_path.exists():
+                    tmp_path.unlink()
         else:
             validate_file_path(file_path_or_url)
-        msg = await client.send_file(chat_id, file_path_or_url, **kwargs)
-        return self._serialize_message(msg)
+            msg = await client.send_file(chat_id, file_path_or_url, **kwargs)
+            return self._serialize_message(msg)
 
     async def download_media(
         self,

@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import tempfile
+from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
 from .base import TelegramBackend
-from .security import validate_file_path, validate_url
+from .security import SecurityError, validate_file_path, validate_url
 
 API_BASE = "https://api.telegram.org/bot{}/"
 
@@ -249,27 +252,62 @@ class BotBackend(TelegramBackend):
         method = method_map.get(media_type, "sendDocument")
 
         if file_path_or_url.startswith(("http://", "https://")):
-            validate_url(file_path_or_url)
-            field = media_type if media_type != "document" else "document"
-            return await self._call(
-                method,
-                chat_id=chat_id,
-                **{field: file_path_or_url},
-                caption=caption,
-            )
+            # SSRF Fix: Pin IP, download locally, then upload.
+            # Prevents TOCTOU where URL resolves to public during validation
+            # but private during actual download by Telethon/Telegram.
+            pinned_ip = validate_url(file_path_or_url)
+            parsed = urlparse(file_path_or_url)
+            netloc = pinned_ip
+            if parsed.port:
+                netloc = f"{netloc}:{parsed.port}"
+            pinned_url = parsed._replace(netloc=netloc).geturl()
+            hostname = parsed.hostname
 
-        path = validate_file_path(file_path_or_url)
+            with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                tmp_path = Path(tmp.name)
+
+            try:
+                async with httpx.AsyncClient(timeout=60.0) as client:
+                    resp = await client.get(
+                        pinned_url,
+                        headers={"Host": hostname},
+                        extensions={"sni_hostname": hostname},
+                    )
+                    resp.raise_for_status()
+                    await asyncio.to_thread(tmp_path.write_bytes, resp.content)
+
+                # Update path to local temp file for uploading
+                file_path_or_url = str(tmp_path)
+            except Exception as e:
+                if tmp_path.exists():
+                    tmp_path.unlink()
+                raise SecurityError(
+                    f"Failed to safely download media from URL: {e}"
+                ) from e
+
+            # Now proceed with local file upload logic
+            path = tmp_path
+        else:
+            path = validate_file_path(file_path_or_url)
+
         if not path.exists():
             raise FileNotFoundError(f"File not found: {file_path_or_url}")
-        field = media_type if media_type != "document" else "document"
-        # ⚡ Bolt: Read file asynchronously to prevent blocking the event loop
-        file_content = await asyncio.to_thread(path.read_bytes)
-        return await self._call_form(
-            method,
-            files={field: (path.name, file_content)},
-            chat_id=chat_id,
-            caption=caption,
-        )
+
+        try:
+            field = media_type if media_type != "document" else "document"
+            # ⚡ Bolt: Read file asynchronously to prevent blocking the event loop
+            file_content = await asyncio.to_thread(path.read_bytes)
+            result = await self._call_form(
+                method,
+                files={field: (path.name, file_content)},
+                chat_id=chat_id,
+                caption=caption,
+            )
+            return result
+        finally:
+            # Clean up if it was a temporary download
+            if file_path_or_url.startswith(tempfile.gettempdir()) and path.exists():
+                path.unlink()
 
     async def download_media(
         self,

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlparse
 
 import httpx
 from loguru import logger
@@ -35,11 +36,18 @@ class AuthClient:
         self._auth_complete = asyncio.Event()
         self._base_url = settings.auth_url.rstrip("/")
 
-        # Validate auth_url to prevent SSRF
+        # Validate auth_url to prevent SSRF and pin IP to prevent DNS rebinding
         from .backends.security import validate_url
 
-        validate_url(self._base_url)
+        self._pinned_ip = validate_url(self._base_url)
+        parsed = urlparse(self._base_url)
+        netloc = self._pinned_ip
+        if parsed.port:
+            netloc = f"{netloc}:{parsed.port}"
+        self._pinned_url = parsed._replace(netloc=netloc).geturl()
+        self._hostname = parsed.hostname
 
+        # Use pinned IP but original hostname for SNI and Host header
         self._client = httpx.AsyncClient(timeout=10.0)
         self.url: str = ""  # auth page URL for user
 
@@ -47,7 +55,9 @@ class AuthClient:
         """Create auth session on remote server. Returns auth page URL."""
         phone = self._settings.phone or ""
         resp = await self._client.post(
-            f"{self._base_url}/api/sessions",
+            f"{self._pinned_url}/api/sessions",
+            headers={"Host": self._hostname},
+            extensions={"sni_hostname": self._hostname},
             json={"phone_masked": _mask_phone(phone)},
         )
         resp.raise_for_status()
@@ -63,7 +73,9 @@ class AuthClient:
             await asyncio.sleep(POLL_INTERVAL)
             try:
                 resp = await self._client.get(
-                    f"{self._base_url}/api/sessions/{self._token}"
+                    f"{self._pinned_url}/api/sessions/{self._token}",
+                    headers={"Host": self._hostname},
+                    extensions={"sni_hostname": self._hostname},
                 )
                 data = resp.json()
 
@@ -110,7 +122,9 @@ class AuthClient:
         """Push command result back to relay server."""
         try:
             await self._client.post(
-                f"{self._base_url}/api/sessions/{self._token}/result",
+                f"{self._pinned_url}/api/sessions/{self._token}/result",
+                headers={"Host": self._hostname},
+                extensions={"sni_hostname": self._hostname},
                 json={"action": action, **kwargs},
             )
         except Exception as e:

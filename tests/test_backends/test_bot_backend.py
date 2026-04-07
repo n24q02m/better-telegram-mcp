@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -291,9 +292,13 @@ async def test_manage_topics_unknown():
 async def test_send_media_url():
     msg = {"message_id": 50}
     bot = _make_bot(msg)
-    result = await bot.send_media(
-        123, "photo", "https://example.com/photo.jpg", caption="Nice"
-    )
+    with patch("httpx.AsyncClient.get") as mock_get:
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.content = b"fake data"
+        mock_get.return_value.raise_for_status = lambda: None
+        result = await bot.send_media(
+            123, "photo", "https://example.com/photo.jpg", caption="Nice"
+        )
     assert result["message_id"] == 50
 
 
@@ -378,9 +383,13 @@ async def test_send_media_document_type():
     """Verify document media type uses correct field name."""
     msg = {"message_id": 52}
     bot = _make_bot(msg)
-    result = await bot.send_media(
-        123, "document", "https://example.com/doc.pdf", caption="Doc"
-    )
+    with patch("httpx.AsyncClient.get") as mock_get:
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.content = b"fake data"
+        mock_get.return_value.raise_for_status = lambda: None
+        result = await bot.send_media(
+            123, "document", "https://example.com/doc.pdf", caption="Doc"
+        )
     assert result["message_id"] == 52
 
 

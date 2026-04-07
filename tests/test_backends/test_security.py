@@ -19,10 +19,10 @@ _IS_WINDOWS = sys.platform == "win32"
 
 class TestValidateUrl:
     def test_https_allowed(self):
-        validate_url("https://example.com/photo.jpg")
+        assert validate_url("https://example.com/photo.jpg")
 
     def test_http_allowed(self):
-        validate_url("http://example.com/photo.jpg")
+        assert validate_url("http://example.com/photo.jpg")
 
     def test_ftp_blocked(self):
         with pytest.raises(SecurityError, match="Only http/https"):
@@ -91,7 +91,7 @@ class TestValidateUrl:
             validate_url("http://")
 
     def test_public_ip_allowed(self):
-        validate_url("https://93.184.216.34/image.jpg")
+        assert validate_url("https://93.184.216.34/image.jpg") == "93.184.216.34"
 
     def test_dns_resolution_blocks_internal(self, monkeypatch):
         # Mock socket.getaddrinfo to simulate malicious domain resolving to 127.0.0.1
@@ -139,10 +139,11 @@ class TestValidateUrl:
 
         assert excinfo.value.__cause__ is original_err
 
-    def test_dns_resolution_empty_result_allowed(self, monkeypatch):
+    def test_dns_resolution_empty_result_blocked(self, monkeypatch):
         """If hostname resolves to empty result list, it passes validation."""
         monkeypatch.setattr("socket.getaddrinfo", lambda host, port: [])
-        validate_url("http://resolves-to-nothing.com/")
+        with pytest.raises(SecurityError, match="did not resolve"):
+            validate_url("http://resolves-to-nothing.com/")
 
 
 class TestValidateFilePath:
