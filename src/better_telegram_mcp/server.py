@@ -513,7 +513,7 @@ def create_http_mcp_server() -> FastMCP:
     return mcp
 
 
-def main() -> None:
+def main() -> None:  # pragma: no cover
     import os
 
     transport = os.environ.get("TRANSPORT_MODE", "stdio")
