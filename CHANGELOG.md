@@ -2,6 +2,35 @@
 
 <!-- version list -->
 
+## v4.3.0 (2026-04-07)
+
+### Bug Fixes
+
+- Add credential state tests for relay redesign
+  ([`6d72698`](https://github.com/n24q02m/better-telegram-mcp/commit/6d726989ee2f2a809428ff60df016a637b29087a))
+
+- Apply ruff formatting to credential state tests
+  ([`ed98dac`](https://github.com/n24q02m/better-telegram-mcp/commit/ed98dacf1d66dedfd7e388e77fca558191222f1b))
+
+- PBKDF2 600k iterations and random salt migration in session store
+  ([`48987f3`](https://github.com/n24q02m/better-telegram-mcp/commit/48987f38fe3a5144c90cd67f75bbe251667ff28e))
+
+- Remove BETA markers and promote relay as primary setup method
+  ([`c8c05fa`](https://github.com/n24q02m/better-telegram-mcp/commit/c8c05fa79edb42257184671b67a6e06d1447d55e))
+
+- Resolve ruff lint errors in credential state tests
+  ([`1a5a374`](https://github.com/n24q02m/better-telegram-mcp/commit/1a5a374d37109ad28102b9397a030006588dccc6))
+
+- Sync uv.lock with current version
+  ([`328705f`](https://github.com/n24q02m/better-telegram-mcp/commit/328705fe3abab4ce64c2437f25b032e85bc5c533))
+
+### Features
+
+- Migrate code review from Qodo to CodeRabbit
+  ([#211](https://github.com/n24q02m/better-telegram-mcp/pull/211),
+  [`065e50d`](https://github.com/n24q02m/better-telegram-mcp/commit/065e50dbd61b956d370f7722dc19b9e4b7ba3d5b))
+
+
 ## v4.3.0-beta.1 (2026-04-07)
 
 ### Features
