@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import stat
+from functools import lru_cache
 from pathlib import Path
 
 from cryptography.hazmat.primitives import hashes
@@ -57,6 +58,7 @@ class CredentialStore:
         return salt
 
     @staticmethod
+    @lru_cache
     def _resolve_or_generate_secret(data_dir: Path) -> str:
         """Load persisted secret or generate a new one."""
         secret_path = data_dir / ".secret"
