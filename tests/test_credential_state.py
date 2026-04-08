@@ -308,10 +308,16 @@ async def test_trigger_relay_reuses_existing_session():
     mock_session_info = MagicMock()
     mock_session_info.relay_url = "https://relay.example.com/reused"
 
-    with patch(
-        "mcp_relay_core.acquire_session_lock",
-        new_callable=AsyncMock,
-        return_value=mock_session_info,
+    with (
+        patch(
+            "mcp_relay_core.acquire_session_lock",
+            new_callable=AsyncMock,
+            return_value=mock_session_info,
+        ),
+        patch(
+            "better_telegram_mcp.credential_state._poll_relay_background",
+            new_callable=AsyncMock,
+        ),
     ):
         result = await trigger_relay_setup()
 
@@ -342,7 +348,10 @@ async def test_trigger_relay_creates_new_session():
             new_callable=AsyncMock,
         ) as mock_write_lock,
         patch("mcp_relay_core.try_open_browser") as mock_browser,
-        patch("asyncio.create_task") as mock_create_task,
+        patch(
+            "better_telegram_mcp.credential_state._poll_relay_background",
+            new_callable=AsyncMock,
+        ) as mock_poll,
     ):
         result = await trigger_relay_setup()
 
@@ -350,7 +359,7 @@ async def test_trigger_relay_creates_new_session():
     assert get_state() == CredentialState.SETUP_IN_PROGRESS
     mock_write_lock.assert_awaited_once()
     mock_browser.assert_called_once_with("https://relay.example.com/new")
-    mock_create_task.assert_called_once()
+    mock_poll.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -363,10 +372,16 @@ async def test_trigger_relay_force_reconfigures():
     mock_session_info = MagicMock()
     mock_session_info.relay_url = "https://relay.example.com/forced"
 
-    with patch(
-        "mcp_relay_core.acquire_session_lock",
-        new_callable=AsyncMock,
-        return_value=mock_session_info,
+    with (
+        patch(
+            "mcp_relay_core.acquire_session_lock",
+            new_callable=AsyncMock,
+            return_value=mock_session_info,
+        ),
+        patch(
+            "better_telegram_mcp.credential_state._poll_relay_background",
+            new_callable=AsyncMock,
+        ),
     ):
         result = await trigger_relay_setup(force=True)
 
