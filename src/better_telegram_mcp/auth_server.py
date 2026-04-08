@@ -228,11 +228,12 @@ class AuthServer:
         self.url: str = ""
 
     def _get_client_ip(self, request: Request) -> str:
-        """Extract client IP, respecting reverse proxy headers."""
-        if "cf-connecting-ip" in request.headers:
-            return request.headers["cf-connecting-ip"]
-        if "x-forwarded-for" in request.headers:
-            return request.headers["x-forwarded-for"].split(",")[0].strip()
+        """Extract client IP.
+
+        Strictly returns the actual socket IP and ignores reverse proxy headers
+        like cf-connecting-ip and x-forwarded-for to prevent IP spoofing and
+        rate-limiting bypass.
+        """
         return request.client.host if request.client else "unknown"
 
     def _check_rate_limit(self, key: str) -> bool:
