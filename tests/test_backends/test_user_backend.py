@@ -1361,6 +1361,58 @@ class TestSignIn:
 
         assert session_file.stat().st_mode & 0o777 == 0o600
 
+    async def test_connect_handles_oserror(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        with patch("os.open", side_effect=OSError("Permission denied")):
+            settings = _make_settings(tmp_path)
+            backend = UserBackend(settings)
+            # Should not raise
+            await backend.connect()
+            assert backend._client is not None
+
+    async def test_sign_in_handles_chmod_oserror(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_me = MagicMock()
+        mock_me.first_name = "Test"
+        mock_client.sign_in = AsyncMock()
+        mock_client.get_me = AsyncMock(return_value=mock_me)
+
+        session_file = tmp_path / "test_session.session"
+        session_file.write_text("fake")
+
+        with patch("os.chmod", side_effect=OSError("Not supported")):
+            settings = _make_settings(tmp_path)
+            backend = UserBackend(settings)
+            await backend.connect()
+            await backend.sign_in("+84912345678", "12345")
+            # Should not raise
+
+    async def test_join_chat_with_plus_in_hash(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_client.__call__ = AsyncMock()
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        await backend.join_chat("https://t.me/joinchat/+somehash")
+
+        from telethon.tl.functions.messages import ImportChatInviteRequest
+
+        # Check that the hash was extracted and the + was removed
+        call_args = mock_client.call_args[0][0]
+        assert isinstance(call_args, ImportChatInviteRequest)
+        assert call_args.hash == "somehash"
+
 
 class TestSerializeMessage:
     def test_serialize_message_null_sender(self):

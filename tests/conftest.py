@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -152,3 +152,15 @@ def mock_backend():
 @pytest.fixture
 def mock_user_backend():
     return MockBackend("user")
+
+
+@pytest.fixture(autouse=True, scope="session")
+def mock_webbrowser_globally():
+    """Globally prevent any test from opening a real browser."""
+    with patch("webbrowser.open", return_value=True):
+        yield
+
+@pytest.fixture(autouse=True)
+def mock_path_home(tmp_path, monkeypatch):
+    """Mock Path.home() to point to a temporary directory for each test."""
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
