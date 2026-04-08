@@ -91,6 +91,9 @@ def open_browser(url: str, browser: str = "chrome") -> None:
             [exe, url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
         )
     else:
+        # Skip in CI to avoid hangs
+        if os.environ.get("GITHUB_ACTIONS"):
+            return
         import webbrowser
 
         webbrowser.open(url)
