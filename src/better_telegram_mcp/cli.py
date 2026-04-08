@@ -9,46 +9,13 @@ from typing import Annotated
 import typer
 
 from .config import Settings
+from .utils.formatting import mask_phone, sanitize_error
 
 app = typer.Typer(
     name="better-telegram-mcp",
     help="Better Telegram MCP Server CLI",
     no_args_is_help=False,
 )
-
-
-def _sanitize_error(msg: str) -> str:
-    """Simplify internal error messages to user-friendly text."""
-    import re
-
-    _CAUSED_BY_RE = re.compile(r"\s*\(caused by \w+\)\s*$", re.IGNORECASE)
-    _ERROR_SIMPLIFICATIONS: list[tuple[re.Pattern[str], str]] = [
-        (
-            re.compile(r".*password.*required.*", re.IGNORECASE),
-            "Two-factor authentication password is required.",
-        ),
-        (
-            re.compile(r".*password.*invalid.*|.*invalid.*password.*", re.IGNORECASE),
-            "Incorrect 2FA password. Please try again.",
-        ),
-        (
-            re.compile(r".*phone.*code.*invalid.*|.*invalid.*code.*", re.IGNORECASE),
-            "Invalid OTP code. Please check and try again.",
-        ),
-        (
-            re.compile(r".*phone.*code.*expired.*|.*code.*expired.*", re.IGNORECASE),
-            "OTP code has expired. Please request a new one.",
-        ),
-        (
-            re.compile(r".*flood.*wait.*|.*too many.*", re.IGNORECASE),
-            "Too many attempts. Please wait a moment and try again.",
-        ),
-    ]
-    cleaned = _CAUSED_BY_RE.sub("", msg).strip()
-    for pattern, friendly in _ERROR_SIMPLIFICATIONS:
-        if pattern.match(cleaned):
-            return friendly
-    return cleaned
 
 
 async def _run_auth() -> None:
@@ -74,11 +41,11 @@ async def _run_auth() -> None:
             typer.echo("Error: TELEGRAM_PHONE is not set.")
             raise typer.Exit(code=1)
 
-        typer.echo(f"Sending OTP code to {phone}...")
+        typer.echo(f"Sending OTP code to {mask_phone(phone)}...")
         try:
             await backend.send_code(phone)
         except Exception as e:
-            typer.echo(f"Failed to send code: {_sanitize_error(str(e))}")
+            typer.echo(f"Failed to send code: {sanitize_error(str(e))}")
             raise typer.Exit(code=1) from e
 
         code = typer.prompt("Enter the OTP code sent to your Telegram app")
@@ -105,10 +72,10 @@ async def _run_auth() -> None:
                         f"Successfully authenticated as {result.get('authenticated_as', 'User')}!"
                     )
                 except Exception as e2:
-                    typer.echo(f"Authentication failed: {_sanitize_error(str(e2))}")
+                    typer.echo(f"Authentication failed: {sanitize_error(str(e2))}")
                     raise typer.Exit(code=1) from e2
             else:
-                typer.echo(f"Authentication failed: {_sanitize_error(error_msg)}")
+                typer.echo(f"Authentication failed: {sanitize_error(error_msg)}")
                 raise typer.Exit(code=1) from e
 
     finally:

@@ -10,7 +10,7 @@ from starlette.testclient import TestClient
 from better_telegram_mcp.auth_server import (
     AuthServer,
     _find_free_port,
-    _mask_phone,
+    mask_phone,
     _sanitize_error,
 )
 from better_telegram_mcp.config import Settings
@@ -36,16 +36,16 @@ class TestFindFreePort:
 
 class TestMaskPhone:
     def test_long_phone(self):
-        assert _mask_phone("1234567890") == "1234***7890"
+        assert mask_phone("1234567890") == "1234***7890"
 
     def test_medium_phone(self):
-        assert _mask_phone("12345678") == "1234***5678"
+        assert mask_phone("12345678") == "1234***5678"
 
     def test_short_phone(self):
-        assert _mask_phone("1234567") == "12***"
+        assert mask_phone("1234567") == "12***"
 
     def test_very_short_phone(self):
-        assert _mask_phone("12") == "12***"
+        assert mask_phone("12") == "12***"
 
 
 class TestSanitizeError:
