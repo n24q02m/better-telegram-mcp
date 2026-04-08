@@ -393,7 +393,7 @@ async def ensure_config() -> dict[str, str] | None:
                         session.session_id,
                         {
                             "type": "complete",
-                            "text": "Telegram config saved. Session already authorized!",
+                            "text": "Existing Telethon session found — already authorized. No OTP needed. You can close this tab.",
                         },
                     )
             finally:

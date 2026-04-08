@@ -301,7 +301,7 @@ async def _handle_user_mode_auth(
                 session.session_id,  # ty: ignore[union-attr]
                 {
                     "type": "complete",
-                    "text": "Telegram config saved. Session already authorized!",
+                    "text": "Existing Telethon session found — already authorized. No OTP needed. You can close this tab.",
                 },
             )
     finally:
