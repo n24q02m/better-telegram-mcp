@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from cryptography.exceptions import InvalidTag
@@ -11,7 +12,6 @@ from better_telegram_mcp.auth.per_user_session_store import (
     PerUserSessionStore,
     SessionInfo,
 )
-from unittest.mock import patch
 
 
 @pytest.fixture

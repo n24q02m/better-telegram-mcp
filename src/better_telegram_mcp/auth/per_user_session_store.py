@@ -7,11 +7,11 @@ Reuses the key derivation pattern from transports/credential_store.py.
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import stat
 import time
-import copy
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Literal
