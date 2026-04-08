@@ -332,12 +332,15 @@ async def ensure_config() -> dict[str, str] | None:
     )
 
     # Open browser automatically (non-blocking, best-effort)
+    # Skip in CI to avoid hangs/failures
     import asyncio
+    import os
     import webbrowser
 
-    asyncio.get_event_loop().run_in_executor(
-        None, lambda: webbrowser.open(session.relay_url)
-    )
+    if not os.environ.get("GITHUB_ACTIONS"):
+        asyncio.get_event_loop().run_in_executor(
+            None, lambda: webbrowser.open(session.relay_url)
+        )
 
     # Poll for result
     try:
