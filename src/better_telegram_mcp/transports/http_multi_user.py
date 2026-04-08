@@ -53,13 +53,21 @@ def _check_rate_limit(ip: str, limit: int) -> bool:
 
 
 def _get_client_ip(request: Request) -> str:
-    """Safely extract client IP, respecting reverse proxies if headers are present."""
-    if "cf-connecting-ip" in request.headers:
-        return request.headers["cf-connecting-ip"]
-    if "x-forwarded-for" in request.headers:
-        # X-Forwarded-For can be a comma-separated list of IPs; the first is the client
-        return request.headers["x-forwarded-for"].split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    """Extract actual client socket IP to prevent spoofing and rate limit bypass."""
+    import os
+
+    client_ip = request.client.host if request.client else "unknown"
+    # 🛡️ Sentinel: Never trust x-forwarded-for or cf-connecting-ip headers for rate
+    # limiting unless explicitly behind a configured trusted proxy, as they can be easily spoofed.
+    trusted_proxies_env = os.environ.get("TELEGRAM_TRUSTED_PROXIES", "")
+    trusted_proxies = [p.strip() for p in trusted_proxies_env.split(",") if p.strip()]
+
+    if client_ip in trusted_proxies:
+        if "cf-connecting-ip" in request.headers:
+            return request.headers["cf-connecting-ip"]
+        if "x-forwarded-for" in request.headers:
+            return request.headers["x-forwarded-for"].split(",")[0].strip()
+    return client_ip
 
 
 def _extract_bearer(request: Request) -> str | None:
