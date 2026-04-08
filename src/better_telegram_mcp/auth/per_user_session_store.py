@@ -12,6 +12,7 @@ import os
 import stat
 import time
 from dataclasses import asdict, dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
@@ -51,6 +52,11 @@ class PerUserSessionStore:
     Maps bearer_token (hashed) -> SessionInfo.
     """
 
+    @classmethod
+    def clear_cache(cls) -> None:
+        """Clear internal caches."""
+        cls._resolve_or_generate_secret.cache_clear()
+
     def __init__(self, data_dir: Path, secret: str | None = None) -> None:
         self._path = data_dir / "sessions.enc"
         self._secret = secret or os.environ.get("CREDENTIAL_SECRET", "")
@@ -77,6 +83,7 @@ class PerUserSessionStore:
             pass
 
     @staticmethod
+    @lru_cache
     def _resolve_or_generate_secret(data_dir: Path) -> str:
         """Load persisted secret or generate a new one."""
         secret_path = data_dir / ".secret"

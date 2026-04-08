@@ -28,6 +28,11 @@ class CredentialStore:
     received via the relay page.
     """
 
+    @classmethod
+    def clear_cache(cls) -> None:
+        """Clear internal caches."""
+        cls._resolve_or_generate_secret.cache_clear()
+
     def __init__(self, data_dir: Path, secret: str | None = None) -> None:
         self._path = data_dir / "credentials.enc"
         self._salt_path = data_dir / ".salt"

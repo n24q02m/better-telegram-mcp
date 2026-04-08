@@ -13,6 +13,11 @@ from better_telegram_mcp.auth.per_user_session_store import (
 )
 
 
+@pytest.fixture(autouse=True)
+def clear_lru_cache():
+    PerUserSessionStore.clear_cache()
+
+
 @pytest.fixture
 def data_dir(tmp_path: Path) -> Path:
     d = tmp_path / "data"
@@ -216,3 +221,21 @@ class TestPerUserSessionStore:
         store3 = PerUserSessionStore(data_dir)
         with pytest.raises(InvalidTag):
             store3.load_all()
+
+    def test_chmod_failure_swallowed(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Test that OSError during chmod is silently ignored."""
+        def mock_chmod(*args, **kwargs):
+            raise OSError("chmod failed")
+        monkeypatch.setattr("pathlib.Path.chmod", mock_chmod)
+
+        store = PerUserSessionStore(tmp_path)
+        # Store writing triggers chmod
+        store.store("b1", SessionInfo(session_name="s1", mode="bot"))
+
+    def test_resolve_salt_legacy_fallback(self, data_dir: Path) -> None:
+        """Test legacy salt fallback when .session-salt missing."""
+        from better_telegram_mcp.auth.per_user_session_store import _LEGACY_SALT
+        store = PerUserSessionStore(data_dir)
+        assert store._salt == _LEGACY_SALT

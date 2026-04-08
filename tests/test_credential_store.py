@@ -10,6 +10,11 @@ from cryptography.exceptions import InvalidTag
 from better_telegram_mcp.transports.credential_store import CredentialStore
 
 
+@pytest.fixture(autouse=True)
+def clear_lru_cache():
+    CredentialStore.clear_cache()
+
+
 @pytest.fixture
 def data_dir(tmp_path: Path) -> Path:
     d = tmp_path / "data"
