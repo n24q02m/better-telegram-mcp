@@ -1,15 +1,20 @@
 """Non-blocking credential state management for better-telegram-mcp.
 
-State machine: awaiting_setup -> setup_in_progress -> configured
+State machine: awaiting_setup -> setup_in_progress -> (configured)
 Reset: configured -> awaiting_setup (via setup tool)
 
 Unlike wet-mcp, telegram has NO local fallback -- all tools need credentials.
 When state is AWAITING_SETUP, tools return a clear error with setup URL.
+
+Hot-reload: after relay saves credentials, the on_configured callback
+(registered by server.py) reinitializes the Telegram backend so tools
+work immediately without restart.
 """
 
 from __future__ import annotations
 
 import os
+from collections.abc import Awaitable, Callable
 from enum import Enum
 
 from loguru import logger
@@ -36,6 +41,7 @@ class CredentialState(Enum):
 # Module-level state
 _state = CredentialState.AWAITING_SETUP
 _setup_url: str | None = None
+_on_configured_callback: Callable[[], Awaitable[None]] | None = None
 
 
 def get_state() -> CredentialState:
@@ -229,6 +235,13 @@ async def _poll_relay_background(
         _state = CredentialState.CONFIGURED
         logger.info("Relay config applied successfully")
 
+        # Hot-reload: reinitialize backend so tools work without restart
+        if _on_configured_callback:
+            try:
+                await _on_configured_callback()
+            except Exception as e:
+                logger.warning("Backend reinit after relay failed: {}", e)
+
         # Release session lock
         from mcp_relay_core import release_session_lock
 
@@ -293,6 +306,16 @@ async def _handle_user_mode_auth(
             )
     finally:
         await backend.disconnect()
+
+
+def set_on_configured(callback: Callable[[], Awaitable[None]]) -> None:
+    """Register callback invoked after relay credentials are applied.
+
+    server.py uses this to reinitialize the Telegram backend (hot-reload)
+    so tools work immediately without server restart.
+    """
+    global _on_configured_callback
+    _on_configured_callback = callback
 
 
 def set_state(state: CredentialState) -> None:
