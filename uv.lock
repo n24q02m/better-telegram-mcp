@@ -55,6 +55,7 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "starlette" },
     { name = "telethon" },
+    { name = "typer" },
     { name = "uvicorn" },
 ]
 
@@ -81,6 +82,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.13.1" },
     { name = "starlette", specifier = ">=1.0.0" },
     { name = "telethon", specifier = ">=1.42.0" },
+    { name = "typer", specifier = ">=0.24.1" },
     { name = "uvicorn", specifier = ">=0.43.0" },
 ]
 
