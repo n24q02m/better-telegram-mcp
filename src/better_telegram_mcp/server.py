@@ -82,12 +82,13 @@ def _not_ready_response() -> str:
     )
 
 
-def _setup_config() -> None:
-    """Initialize settings and resolve credentials."""
-    global _settings
+@asynccontextmanager
+async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
+    global _backend, _settings, _pending_auth, _unconfigured
     _settings = Settings()
 
     # Non-blocking credential resolution (fast, <10ms)
+    # Replaces the old blocking ensure_config() which waited 300s for relay.
     if not _settings.is_configured:
         from .credential_state import resolve_credential_state
 
@@ -95,28 +96,6 @@ def _setup_config() -> None:
         # If config was loaded from file, re-create Settings to pick up env vars
         if state.value == "configured":
             _settings = Settings()
-
-
-def _init_backend() -> None:
-    """Initialize the appropriate Telegram backend."""
-    global _backend
-    if _settings.mode == "bot":
-        from .backends.bot_backend import BotBackend
-
-        assert _settings.bot_token is not None
-        _backend = BotBackend(_settings.bot_token)
-    else:
-        from .backends.user_backend import UserBackend
-
-        assert _settings.api_id is not None
-        assert _settings.api_hash is not None
-        _backend = UserBackend(_settings)
-
-
-@asynccontextmanager
-async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
-    global _backend, _settings, _pending_auth, _unconfigured
-    _setup_config()
 
     if not _settings.is_configured:
         if _multi_user_mode:
@@ -142,7 +121,18 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
         return
 
     logger.info("Mode: {}", _settings.mode)
-    _init_backend()
+
+    if _settings.mode == "bot":
+        from .backends.bot_backend import BotBackend
+
+        assert _settings.bot_token is not None
+        _backend = BotBackend(_settings.bot_token)
+    else:
+        from .backends.user_backend import UserBackend
+
+        assert _settings.api_id is not None
+        assert _settings.api_hash is not None
+        _backend = UserBackend(_settings)
 
     await _backend.connect()
     logger.info("Connected to Telegram ({})", _settings.mode)
