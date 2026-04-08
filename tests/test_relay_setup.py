@@ -242,6 +242,9 @@ async def test_ensure_config_returns_none_on_saved_sessions():
     mock_result_none.source = None
 
     with (
+        patch("webbrowser.open"),
+        patch("webbrowser.open"),
+        patch("webbrowser.open"),
         patch(
             "mcp_relay_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
@@ -272,6 +275,7 @@ async def test_ensure_config_triggers_relay_when_nothing_found():
     expected_config = {"TELEGRAM_BOT_TOKEN": "relay:TOKEN"}
 
     with (
+        patch("webbrowser.open"),
         patch(
             "mcp_relay_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
@@ -311,6 +315,7 @@ async def test_ensure_config_returns_none_when_relay_unreachable():
     mock_result_none.source = None
 
     with (
+        patch("webbrowser.open"),
         patch(
             "mcp_relay_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
@@ -343,6 +348,7 @@ async def test_ensure_config_returns_none_on_poll_timeout():
     mock_session.relay_url = "https://example.com/setup?s=abc#k=key&p=pass"
 
     with (
+        patch("webbrowser.open"),
         patch(
             "mcp_relay_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
@@ -380,6 +386,7 @@ async def test_ensure_config_returns_none_on_relay_skipped():
     mock_session.relay_url = "https://example.com/setup?s=abc#k=key&p=pass"
 
     with (
+        patch("webbrowser.open"),
         patch(
             "mcp_relay_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
@@ -417,6 +424,7 @@ async def test_ensure_config_returns_none_on_relay_error():
     mock_session.relay_url = "https://example.com/setup?s=abc#k=key&p=pass"
 
     with (
+        patch("webbrowser.open"),
         patch(
             "mcp_relay_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
@@ -880,6 +888,7 @@ async def test_ensure_config_user_mode_triggers_telethon_auth():
     mock_backend.is_authorized.return_value = False
 
     with (
+        patch("webbrowser.open"),
         patch(
             "mcp_relay_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
@@ -944,6 +953,7 @@ async def test_ensure_config_user_mode_already_authorized():
     mock_backend.is_authorized.return_value = True
 
     with (
+        patch("webbrowser.open"),
         patch(
             "mcp_relay_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
@@ -998,6 +1008,7 @@ async def test_ensure_config_bot_mode_sends_complete():
     bot_config = {"TELEGRAM_BOT_TOKEN": "relay:TOKEN"}
 
     with (
+        patch("webbrowser.open"),
         patch(
             "mcp_relay_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
@@ -1054,6 +1065,7 @@ async def test_ensure_config_user_mode_auth_fails():
     mock_backend.is_authorized.return_value = False
 
     with (
+        patch("webbrowser.open"),
         patch(
             "mcp_relay_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
