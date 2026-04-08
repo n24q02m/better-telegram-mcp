@@ -71,7 +71,7 @@ button:disabled{background:#333;color:#666;cursor:not-allowed}
       Step 1: Send a login code to your Telegram app.
     </p>
     <button id="btn-send" onclick="sendCode()">Send OTP Code</button>
-    <div id="s0" class="st"></div>
+    <div id="s0" class="st" role="status" aria-live="polite"></div>
 
     <hr class="divider">
 
@@ -89,11 +89,11 @@ button:disabled{background:#333;color:#666;cursor:not-allowed}
       <p class="pwd-hint">Your account has two-factor authentication enabled.</p>
     </div>
     <button id="btn-verify" onclick="verify()">Verify Code</button>
-    <div id="s1" class="st"></div>
+    <div id="s1" class="st" role="status" aria-live="polite"></div>
   </div>
 
   <div id="step2" class="step">
-    <div class="st success" style="display:block">
+    <div class="st success" style="display:block" role="status" aria-live="polite">
       Authenticated as <strong id="auth-name"></strong>.<br>
       MCP server is now active. You can close this tab.
     </div>
