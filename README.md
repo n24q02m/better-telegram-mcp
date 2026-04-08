@@ -49,7 +49,7 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 | `chat` | `list`, `info`, `create`, `join`, `leave`, `members`, `admin`, `settings`, `topics` | List and manage chats, groups, channels. Members, admin, forum topics |
 | `media` | `send_photo`, `send_file`, `send_voice`, `send_video`, `download` | Send photos, files, voice notes, videos. Download media from messages |
 | `contact` | `list`, `search`, `add`, `block` | List, search, add contacts. Block/unblock users (user mode only) |
-| `config` | `status`, `set`, `cache_clear` | Server status, update runtime settings, clear cache |
+| `config` | `status`, `set`, `cache_clear`, `setup_status`, `setup_start`, `setup_reset`, `setup_complete` | Server status, runtime settings, cache, credential setup (relay, status, reset, complete) |
 | `help` | -- | Full documentation for any topic |
 
 ### MCP Resources
