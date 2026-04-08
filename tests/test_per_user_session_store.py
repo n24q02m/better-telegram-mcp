@@ -242,3 +242,21 @@ class TestPerUserSessionStore:
             # load_all should also use cache
             store.load_all()
             assert mock_decrypt.call_count == 1
+
+    def test_chmod_failure_coverage(
+        self, store: PerUserSessionStore, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Exercise OSError branches in chmod calls for coverage."""
+
+        def mock_chmod(path, mode, **kwargs):
+            raise OSError("mock error")
+
+        monkeypatch.setattr("os.chmod", mock_chmod)
+
+        # Trigger _persist_salt via _write_all (first write with legacy salt)
+        store._salt = b"mcp-telegram-sessions"  # _LEGACY_SALT
+        info = SessionInfo(session_name="test", mode="bot")
+        store.store("b1", info)  # Should catch OSError in _persist_salt and _write_all
+
+        # Trigger _resolve_or_generate_secret
+        store._resolve_or_generate_secret(store._path.parent / "new_dir")
