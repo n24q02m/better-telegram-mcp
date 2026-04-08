@@ -217,7 +217,7 @@ async def test_push_result_error(auth_client):
 
 
 def test_mask_phone():
-    from better_telegram_mcp.auth_client import _mask_phone
+    from better_telegram_mcp.utils.formatting import mask_phone as _mask_phone
 
     assert _mask_phone("1234567890") == "1234***7890"
     assert _mask_phone("1234567") == "12***"

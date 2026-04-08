@@ -10,7 +10,6 @@ Resolution order (relay only when ALL local sources are empty):
 
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -18,6 +17,7 @@ from typing import TYPE_CHECKING
 from loguru import logger
 
 from .relay_schema import RELAY_SCHEMA
+from .utils.formatting import sanitize_error
 
 if TYPE_CHECKING:
     from .backends.user_backend import UserBackend
@@ -31,40 +31,6 @@ ALL_POSSIBLE_FIELDS = [
     "TELEGRAM_BOT_TOKEN",
     "TELEGRAM_PHONE",
 ]
-
-# Error sanitization patterns (same as auth_server.py for consistency)
-_CAUSED_BY_RE = re.compile(r"\s*\(caused by \w+\)\s*$", re.IGNORECASE)
-_ERROR_SIMPLIFICATIONS: list[tuple[re.Pattern[str], str]] = [
-    (
-        re.compile(r".*password.*required.*", re.IGNORECASE),
-        "Two-factor authentication password is required.",
-    ),
-    (
-        re.compile(r".*password.*invalid.*|.*invalid.*password.*", re.IGNORECASE),
-        "Incorrect 2FA password. Please try again.",
-    ),
-    (
-        re.compile(r".*phone.*code.*invalid.*|.*invalid.*code.*", re.IGNORECASE),
-        "Invalid OTP code. Please check and try again.",
-    ),
-    (
-        re.compile(r".*phone.*code.*expired.*|.*code.*expired.*", re.IGNORECASE),
-        "OTP code has expired. Please request a new one.",
-    ),
-    (
-        re.compile(r".*flood.*wait.*|.*too many.*", re.IGNORECASE),
-        "Too many attempts. Please wait a moment and try again.",
-    ),
-]
-
-
-def _sanitize_error(msg: str) -> str:
-    """Simplify internal error messages to user-friendly text."""
-    cleaned = _CAUSED_BY_RE.sub("", msg).strip()
-    for pattern, friendly in _ERROR_SIMPLIFICATIONS:
-        if pattern.match(cleaned):
-            return friendly
-    return cleaned
 
 
 def _needs_2fa_password(error_msg: str) -> bool:
@@ -151,122 +117,95 @@ async def _relay_telethon_auth(
             session_id,
             {
                 "type": "error",
-                "text": f"Failed to send OTP code: {_sanitize_error(str(e))}",
+                "text": f"Failed to send code: {sanitize_error(str(e))}",
             },
         )
         return False
 
-    # Step 2: Ask user for OTP code via relay
-    otp_message_id = await send_message(
-        relay_url,
-        session_id,
-        {
-            "type": "input_required",
-            "text": "Enter the OTP code sent to your Telegram app",
-            "data": {"field": "otp_code", "input_type": "text", "placeholder": "12345"},
-        },
-    )
-
+    # Step 2: Request OTP code from user via relay
     try:
-        otp_code = await poll_for_responses(
-            relay_url,
-            session_id,
-            otp_message_id,
-            timeout_s=300.0,
-        )
-    except RuntimeError:
-        await send_message(
+        msg_resp = await send_message(
             relay_url,
             session_id,
             {
-                "type": "error",
-                "text": "Timed out waiting for OTP code.",
+                "type": "input_required",
+                "label": "Telegram OTP Code",
+                "placeholder": "12345",
+                "help": f"Check your Telegram app for a code sent to {phone}",
             },
         )
-        return False
+        # Handle both old (string) and new (object with message_id) responses
+        msg_id = getattr(msg_resp, "message_id", "")
+        code = await poll_for_responses(relay_url, session_id, msg_id)
+        if not code:
+            return False
 
-    # Step 3: Try sign in with OTP code
-    try:
-        result = await backend.sign_in(phone, otp_code.strip())
-        name = result.get("authenticated_as", "User")
-        await send_message(
-            relay_url,
-            session_id,
-            {
-                "type": "complete",
-                "text": f"Authenticated as {name}. Session saved. You can close this tab.",
-            },
-        )
-        return True
-    except Exception as e:
-        error_msg = str(e)
-        if not _needs_2fa_password(error_msg):
-            # Not a 2FA error -- sign-in failed for another reason
+        # Step 3: Sign in
+        try:
+            await backend.sign_in(phone, code)
             await send_message(
                 relay_url,
                 session_id,
                 {
-                    "type": "error",
-                    "text": f"Authentication failed: {_sanitize_error(error_msg)}",
+                    "type": "complete",
+                    "text": "Telegram user authentication successful! Setup complete.",
                 },
             )
-            return False
+            return True
+        except Exception as e:
+            error_msg = str(e)
+            if not _needs_2fa_password(error_msg):
+                await send_message(
+                    relay_url,
+                    session_id,
+                    {
+                        "type": "error",
+                        "text": f"Authentication failed: {sanitize_error(error_msg)}",
+                    },
+                )
+                return False
 
-    # Step 4: 2FA password required -- ask user
-    password_message_id = await send_message(
-        relay_url,
-        session_id,
-        {
-            "type": "input_required",
-            "text": "Your account has two-factor authentication. Enter your 2FA password.",
-            "data": {
-                "field": "2fa_password",
-                "input_type": "password",
-                "placeholder": "",
-            },
-        },
-    )
+            # Step 4: Request 2FA password via relay
+            msg_resp = await send_message(
+                relay_url,
+                session_id,
+                {
+                    "type": "input_required",
+                    "label": "Two-Factor Password",
+                    "placeholder": "Your 2FA password",
+                    "help": "Your account has 2FA enabled. Please enter your password.",
+                    "is_password": True,
+                },
+            )
+            msg_id = getattr(msg_resp, "message_id", "")
+            password = await poll_for_responses(relay_url, session_id, msg_id)
+            if not password:
+                return False
 
-    try:
-        password = await poll_for_responses(
-            relay_url,
-            session_id,
-            password_message_id,
-            timeout_s=300.0,
-        )
-    except RuntimeError:
-        await send_message(
-            relay_url,
-            session_id,
-            {
-                "type": "error",
-                "text": "Timed out waiting for 2FA password.",
-            },
-        )
-        return False
+            try:
+                await backend.sign_in(phone, code, password=password)
+                await send_message(
+                    relay_url,
+                    session_id,
+                    {
+                        "type": "complete",
+                        "text": "Telegram user authentication successful! Setup complete.",
+                    },
+                )
+                return True
+            except Exception as e2:
+                await send_message(
+                    relay_url,
+                    session_id,
+                    {
+                        "type": "error",
+                        "text": f"2FA authentication failed: {sanitize_error(str(e2))}",
+                    },
+                )
+                return False
 
-    # Step 5: Sign in with 2FA password
-    try:
-        result = await backend.sign_in(phone, otp_code.strip(), password=password)
-        name = result.get("authenticated_as", "User")
-        await send_message(
-            relay_url,
-            session_id,
-            {
-                "type": "complete",
-                "text": f"Authenticated as {name}. Session saved. You can close this tab.",
-            },
-        )
-        return True
     except Exception as e:
-        await send_message(
-            relay_url,
-            session_id,
-            {
-                "type": "error",
-                "text": f"Authentication failed: {_sanitize_error(str(e))}",
-            },
-        )
+        logger.error("Relay authentication flow error: {}", e)
         return False
 
 
@@ -333,11 +272,10 @@ async def ensure_config() -> dict[str, str] | None:
 
     # Open browser automatically (non-blocking, best-effort)
     import asyncio
-    import webbrowser
 
-    asyncio.get_event_loop().run_in_executor(
-        None, lambda: webbrowser.open(session.relay_url)
-    )
+    from mcp_relay_core import try_open_browser
+
+    try_open_browser(session.relay_url)
 
     # Poll for result
     try:

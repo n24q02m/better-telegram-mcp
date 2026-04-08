@@ -10,10 +10,9 @@ from starlette.testclient import TestClient
 from better_telegram_mcp.auth_server import (
     AuthServer,
     _find_free_port,
-    _mask_phone,
-    _sanitize_error,
 )
 from better_telegram_mcp.config import Settings
+from better_telegram_mcp.utils.formatting import mask_phone, sanitize_error
 
 # --- Utility function tests ---
 
@@ -36,55 +35,55 @@ class TestFindFreePort:
 
 class TestMaskPhone:
     def test_long_phone(self):
-        assert _mask_phone("1234567890") == "1234***7890"
+        assert mask_phone("1234567890") == "1234***7890"
 
     def test_medium_phone(self):
-        assert _mask_phone("12345678") == "1234***5678"
+        assert mask_phone("12345678") == "1234***5678"
 
     def test_short_phone(self):
-        assert _mask_phone("1234567") == "12***"
+        assert mask_phone("1234567") == "12***"
 
     def test_very_short_phone(self):
-        assert _mask_phone("12") == "12***"
+        assert mask_phone("12") == "12***"
 
 
 class TestSanitizeError:
     def test_phone_code_invalid(self):
         assert (
-            _sanitize_error("phone code invalid (caused by SendCodeRequest)")
+            sanitize_error("phone code invalid (caused by SendCodeRequest)")
             == "Invalid OTP code. Please check and try again."
         )
 
     def test_password_required(self):
         assert (
-            _sanitize_error("password required")
+            sanitize_error("password required")
             == "Two-factor authentication password is required."
         )
 
     def test_password_invalid(self):
         assert (
-            _sanitize_error("password invalid")
+            sanitize_error("password invalid")
             == "Incorrect 2FA password. Please try again."
         )
 
     def test_code_expired(self):
         assert (
-            _sanitize_error("phone code expired")
+            sanitize_error("phone code expired")
             == "OTP code has expired. Please request a new one."
         )
 
     def test_flood_wait(self):
         assert (
-            _sanitize_error("flood wait 300 seconds")
+            sanitize_error("flood wait 300 seconds")
             == "Too many attempts. Please wait a moment and try again."
         )
 
     def test_caused_by_stripped(self):
-        result = _sanitize_error("Something happened (caused by SomeError)")
+        result = sanitize_error("Something happened (caused by SomeError)")
         assert result == "Something happened"
 
     def test_passthrough(self):
-        assert _sanitize_error("Something else") == "Something else"
+        assert sanitize_error("Something else") == "Something else"
 
 
 # --- AuthServer tests ---

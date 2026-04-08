@@ -11,10 +11,8 @@ from better_telegram_mcp.relay_setup import (
     _is_user_mode_config,
     _needs_2fa_password,
     _relay_telethon_auth,
-    _sanitize_error,
 )
-
-# --- Settings.from_relay_config ---
+from better_telegram_mcp.utils.formatting import sanitize_error
 
 
 @pytest.mark.asyncio
@@ -542,51 +540,51 @@ def test_relay_schema_structure():
     assert keys == ["TELEGRAM_PHONE"]
 
 
-# --- _sanitize_error ---
+# --- sanitize_error ---
 
 
 class TestSanitizeError:
     def test_password_required(self):
-        assert _sanitize_error("Password is required for this account") == (
+        assert sanitize_error("Password is required for this account") == (
             "Two-factor authentication password is required."
         )
 
     def test_password_invalid(self):
-        assert _sanitize_error("The password is invalid") == (
+        assert sanitize_error("The password is invalid") == (
             "Incorrect 2FA password. Please try again."
         )
 
     def test_invalid_password(self):
-        assert _sanitize_error("Invalid password provided") == (
+        assert sanitize_error("Invalid password provided") == (
             "Incorrect 2FA password. Please try again."
         )
 
     def test_phone_code_invalid(self):
-        assert _sanitize_error("Phone code is invalid") == (
+        assert sanitize_error("Phone code is invalid") == (
             "Invalid OTP code. Please check and try again."
         )
 
     def test_code_expired(self):
-        assert _sanitize_error("Phone code has expired") == (
+        assert sanitize_error("Phone code has expired") == (
             "OTP code has expired. Please request a new one."
         )
 
     def test_flood_wait(self):
-        assert _sanitize_error("Flood wait of 300 seconds") == (
+        assert sanitize_error("Flood wait of 300 seconds") == (
             "Too many attempts. Please wait a moment and try again."
         )
 
     def test_too_many(self):
-        assert _sanitize_error("Too many requests") == (
+        assert sanitize_error("Too many requests") == (
             "Too many attempts. Please wait a moment and try again."
         )
 
     def test_strips_caused_by_suffix(self):
-        result = _sanitize_error("Something happened (caused by SomeError)")
+        result = sanitize_error("Something happened (caused by SomeError)")
         assert result == "Something happened"
 
     def test_passthrough_unknown_error(self):
-        assert _sanitize_error("Some unknown error") == "Some unknown error"
+        assert sanitize_error("Some unknown error") == "Some unknown error"
 
 
 # --- _needs_2fa_password ---

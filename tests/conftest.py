@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -152,3 +152,9 @@ def mock_backend():
 @pytest.fixture
 def mock_user_backend():
     return MockBackend("user")
+
+
+@pytest.fixture(autouse=True)
+def mock_webbrowser():
+    with patch("mcp_relay_core.try_open_browser") as mock:
+        yield mock
