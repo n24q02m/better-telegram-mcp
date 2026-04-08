@@ -47,6 +47,7 @@ input{width:100%;padding:.75rem 1rem;background:#111;border:1px solid #444;
   font-family:monospace;letter-spacing:.15em;text-align:center}
 input[type="password"]{letter-spacing:normal;text-align:left}
 input:focus{border-color:#3b82f6}
+input:focus-visible,button:focus-visible{outline:2px solid #3b82f6;outline-offset:2px}
 button{width:100%;padding:.75rem;background:#3b82f6;color:#fff;border:none;
   border-radius:8px;font-size:1rem;cursor:pointer;font-weight:500}
 button:hover{background:#2563eb}
@@ -111,8 +112,8 @@ function show(id){
 }
 function st(el,cls,msg){el.className='st '+cls;el.textContent=msg;el.style.display='block'}
 function clearSt(el){el.className='st';el.textContent='';el.style.display='none'}
-function btnLoading(btn,text){btn.disabled=true;btn.textContent=text}
-function btnReset(btn,text){btn.disabled=false;btn.textContent=text}
+function btnLoading(btn,text){btn.disabled=true;btn.textContent=text;btn.setAttribute('aria-busy','true')}
+function btnReset(btn,text){btn.disabled=false;btn.textContent=text;btn.removeAttribute('aria-busy')}
 function showPwd(){$('pwd-section').style.display='block';$('pwd').focus()}
 
 async function checkStatus(){
