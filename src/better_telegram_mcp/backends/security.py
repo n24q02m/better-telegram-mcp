@@ -46,10 +46,6 @@ _BLOCKED_V6_INTS = [
         int(ipaddress.ip_network("::1/128").netmask),
     ),
     (
-        int(ipaddress.ip_network("::ffff:0:0/96").network_address),
-        int(ipaddress.ip_network("::ffff:0:0/96").netmask),
-    ),
-    (
         int(ipaddress.ip_network("fc00::/7").network_address),
         int(ipaddress.ip_network("fc00::/7").netmask),
     ),
@@ -94,6 +90,14 @@ def validate_url(url: str) -> None:
                         msg = f"Access to internal/private IP {ip_str} ({hostname}) is blocked"
                         raise SecurityError(msg)
             else:
+                # Handle IPv4-mapped IPv6: ::ffff:1.2.3.4
+                if addr.ipv4_mapped:
+                    mapped_v4_int = int(addr.ipv4_mapped)
+                    for net_addr, mask in _BLOCKED_V4_INTS:
+                        if (mapped_v4_int & mask) == net_addr:
+                            msg = f"Access to internal/private IP {ip_str} ({hostname}) is blocked"
+                            raise SecurityError(msg)
+
                 for net_addr, mask in _BLOCKED_V6_INTS:
                     if (addr_int & mask) == net_addr:
                         msg = f"Access to internal/private IP {ip_str} ({hostname}) is blocked"
