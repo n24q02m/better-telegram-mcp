@@ -381,10 +381,13 @@ async def test_trigger_relay_force_reconfigures():
 @pytest.mark.asyncio
 async def test_trigger_relay_exception_returns_none():
     """Relay setup failure -> returns None, state back to AWAITING_SETUP."""
-    with patch(
-        "mcp_relay_core.acquire_session_lock",
-        new_callable=AsyncMock,
-        side_effect=Exception("network error"),
+    with (
+        patch(
+            "mcp_relay_core.acquire_session_lock",
+            new_callable=AsyncMock,
+            side_effect=Exception("network error"),
+        ),
+        patch("asyncio.create_task", return_value=MagicMock()),
     ):
         result = await trigger_relay_setup()
 
