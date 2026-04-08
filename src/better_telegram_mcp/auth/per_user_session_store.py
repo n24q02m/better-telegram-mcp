@@ -7,6 +7,7 @@ Reuses the key derivation pattern from transports/credential_store.py.
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import stat
@@ -59,6 +60,7 @@ class PerUserSessionStore:
         self._salt_path = data_dir / ".session-salt"
         self._salt = self._resolve_salt()
         self._cached_key: bytes | None = None
+        self._cached_sessions: dict[str, dict] | None = None
 
     def _resolve_salt(self) -> bytes:
         """Load persisted salt, fallback to legacy, or generate new one."""
@@ -118,11 +120,16 @@ class PerUserSessionStore:
 
     def _read_all(self) -> dict[str, dict]:
         """Read and decrypt all sessions from disk."""
+        if self._cached_sessions is not None:
+            return copy.deepcopy(self._cached_sessions)
+
         if not self._path.exists():
+            self._cached_sessions = {}
             return {}
         raw = self._path.read_bytes()
         plaintext = self._decrypt(raw)
-        return json.loads(plaintext)
+        self._cached_sessions = json.loads(plaintext)
+        return copy.deepcopy(self._cached_sessions)
 
     def _write_all(self, sessions: dict[str, dict]) -> None:
         """Encrypt and write all sessions to disk."""
@@ -136,6 +143,7 @@ class PerUserSessionStore:
         plaintext = json.dumps(sessions).encode()
         encrypted = self._encrypt(plaintext)
         self._path.write_bytes(encrypted)
+        self._cached_sessions = copy.deepcopy(sessions)
         try:
             self._path.chmod(stat.S_IRUSR | stat.S_IWUSR)
         except OSError:
