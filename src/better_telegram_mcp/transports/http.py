@@ -108,7 +108,6 @@ def _start_single_user_http(settings: Settings) -> None:
     Backward compatible with the original HTTP transport.
     """
     import asyncio
-    import threading
 
     from ..server import mcp
 
@@ -116,45 +115,10 @@ def _start_single_user_http(settings: Settings) -> None:
     if not settings.is_configured:
         store = CredentialStore(settings.data_dir)
 
-        # Bridging async to sync safely
-        def _load_creds():
-            try:
-                loop = asyncio.get_running_loop()
-            except RuntimeError:
-                loop = None
+        creds = store._sync_load()
 
-            if loop and loop.is_running():
-                # Loop already running, use dedicated thread
-                result = []
-
-                def _thread_worker():
-                    new_loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(new_loop)
-                    try:
-                        creds = new_loop.run_until_complete(store.load())
-                        if creds is None:
-                            creds = new_loop.run_until_complete(
-                                setup_credentials(settings)
-                            )
-                        result.append(creds)
-                    finally:
-                        new_loop.close()
-
-                t = threading.Thread(target=_thread_worker)
-                t.start()
-                t.join()
-                return result[0]
-            else:
-                # No running loop, safe to run directly
-                async def _get():
-                    creds = await store.load()
-                    if creds is None:
-                        creds = await setup_credentials(settings)
-                    return creds
-
-                return asyncio.run(_get())
-
-        creds = _load_creds()
+        if creds is None:
+            creds = asyncio.run(setup_credentials(settings))
 
         # Apply credentials to environment so lifespan picks them up
         for key, value in creds.items():

@@ -24,6 +24,7 @@ def settings(data_dir: Path) -> Settings:
     return Settings(data_dir=data_dir)
 
 
+@pytest.mark.asyncio
 class TestSetupCredentials:
     async def test_loads_stored_credentials(
         self, settings: Settings, data_dir: Path
@@ -121,6 +122,7 @@ class TestSetupCredentials:
         assert await store.load() == expected_creds
 
 
+@pytest.mark.asyncio
 class TestStartHttp:
     async def test_start_http_with_stored_credentials(
         self, settings: Settings, data_dir: Path

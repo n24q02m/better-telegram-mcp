@@ -52,11 +52,14 @@ class PerUserSessionStore:
     """
 
     def __init__(self, data_dir: Path, secret: str | None = None) -> None:
+        import threading
+
         self._path = data_dir / "sessions.enc"
         self._secret = secret or os.environ.get("CREDENTIAL_SECRET", "")
         if not self._secret:
             self._secret = self._resolve_or_generate_secret(data_dir)
         self._cached_key: bytes | None = None
+        self._lock = threading.Lock()
 
     @staticmethod
     def _resolve_or_generate_secret(data_dir: Path) -> str:
@@ -119,9 +122,10 @@ class PerUserSessionStore:
 
     def _sync_store(self, bearer: str, info: SessionInfo) -> None:
         """Synchronous implementation of store."""
-        sessions = self._read_all()
-        sessions[bearer] = info.to_dict()
-        self._write_all(sessions)
+        with self._lock:
+            sessions = self._read_all()
+            sessions[bearer] = info.to_dict()
+            self._write_all(sessions)
 
     async def store(self, bearer: str, info: SessionInfo) -> None:
         """Store a session for the given bearer token."""
@@ -131,11 +135,12 @@ class PerUserSessionStore:
 
     def _sync_load(self, bearer: str) -> SessionInfo | None:
         """Synchronous implementation of load."""
-        sessions = self._read_all()
-        data = sessions.get(bearer)
-        if data is None:
-            return None
-        return SessionInfo.from_dict(data)
+        with self._lock:
+            sessions = self._read_all()
+            data = sessions.get(bearer)
+            if data is None:
+                return None
+            return SessionInfo.from_dict(data)
 
     async def load(self, bearer: str) -> SessionInfo | None:
         """Load session info for a bearer token. Returns None if not found."""
@@ -145,10 +150,11 @@ class PerUserSessionStore:
 
     def _sync_load_all(self) -> dict[str, SessionInfo]:
         """Synchronous implementation of load_all."""
-        sessions = self._read_all()
-        return {
-            bearer: SessionInfo.from_dict(data) for bearer, data in sessions.items()
-        }
+        with self._lock:
+            sessions = self._read_all()
+            return {
+                bearer: SessionInfo.from_dict(data) for bearer, data in sessions.items()
+            }
 
     async def load_all(self) -> dict[str, SessionInfo]:
         """Load all stored sessions."""
@@ -158,12 +164,13 @@ class PerUserSessionStore:
 
     def _sync_delete(self, bearer: str) -> bool:
         """Synchronous implementation of delete."""
-        sessions = self._read_all()
-        if bearer not in sessions:
-            return False
-        del sessions[bearer]
-        self._write_all(sessions)
-        return True
+        with self._lock:
+            sessions = self._read_all()
+            if bearer not in sessions:
+                return False
+            del sessions[bearer]
+            self._write_all(sessions)
+            return True
 
     async def delete(self, bearer: str) -> bool:
         """Delete a session. Returns True if it existed."""

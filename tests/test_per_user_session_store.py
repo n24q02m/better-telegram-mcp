@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-import pytest_asyncio
 from cryptography.exceptions import InvalidTag
 
 from better_telegram_mcp.auth.per_user_session_store import (

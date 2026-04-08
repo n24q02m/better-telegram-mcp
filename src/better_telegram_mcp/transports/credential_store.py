@@ -28,6 +28,8 @@ class CredentialStore:
     """
 
     def __init__(self, data_dir: Path, secret: str | None = None) -> None:
+        import threading
+
         self._path = data_dir / "credentials.enc"
         self._salt_path = data_dir / ".salt"
         self._secret = secret or os.environ.get("CREDENTIAL_SECRET", "")
@@ -36,6 +38,7 @@ class CredentialStore:
         self._salt = self._resolve_salt()
         # Cache derived key to avoid repeated 100k iteration PBKDF2 (~60ms) overhead
         self._cached_key: bytes | None = None
+        self._lock = threading.Lock()
 
     def _resolve_salt(self) -> bytes:
         """Load persisted salt, fallback to legacy, or generate new one."""
@@ -85,29 +88,30 @@ class CredentialStore:
 
     def _sync_store(self, credentials: dict[str, str]) -> None:
         """Synchronous implementation of store."""
-        self._path.parent.mkdir(parents=True, exist_ok=True)
+        with self._lock:
+            self._path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Migrate from legacy hardcoded salt to random salt on re-encryption
-        if self._salt == _LEGACY_SALT:
-            new_salt = os.urandom(16)
-            self._salt_path.write_bytes(new_salt)
+            # Migrate from legacy hardcoded salt to random salt on re-encryption
+            if self._salt == _LEGACY_SALT:
+                new_salt = os.urandom(16)
+                self._salt_path.write_bytes(new_salt)
+                try:
+                    self._salt_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
+                except OSError:
+                    pass
+                self._salt = new_salt
+                self._cached_key = None  # Force re-derivation
+
+            key = self._derive_key()
+            aesgcm = AESGCM(key)
+            nonce = os.urandom(_NONCE_SIZE)
+            plaintext = json.dumps(credentials).encode()
+            ciphertext = aesgcm.encrypt(nonce, plaintext, None)
+            self._path.write_bytes(nonce + ciphertext)
             try:
-                self._salt_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
+                self._path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
             except OSError:
-                pass
-            self._salt = new_salt
-            self._cached_key = None  # Force re-derivation
-
-        key = self._derive_key()
-        aesgcm = AESGCM(key)
-        nonce = os.urandom(_NONCE_SIZE)
-        plaintext = json.dumps(credentials).encode()
-        ciphertext = aesgcm.encrypt(nonce, plaintext, None)
-        self._path.write_bytes(nonce + ciphertext)
-        try:
-            self._path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
-        except OSError:
-            pass  # Windows may not support chmod
+                pass  # Windows may not support chmod
 
     async def store(self, credentials: dict[str, str]) -> None:
         """Encrypt and save credentials."""
@@ -117,14 +121,15 @@ class CredentialStore:
 
     def _sync_load(self) -> dict[str, str] | None:
         """Synchronous implementation of load."""
-        if not self._path.exists():
-            return None
-        key = self._derive_key()
-        data = self._path.read_bytes()
-        nonce, ciphertext = data[:_NONCE_SIZE], data[_NONCE_SIZE:]
-        aesgcm = AESGCM(key)
-        plaintext = aesgcm.decrypt(nonce, ciphertext, None)
-        return json.loads(plaintext)
+        with self._lock:
+            if not self._path.exists():
+                return None
+            key = self._derive_key()
+            data = self._path.read_bytes()
+            nonce, ciphertext = data[:_NONCE_SIZE], data[_NONCE_SIZE:]
+            aesgcm = AESGCM(key)
+            plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+            return json.loads(plaintext)
 
     async def load(self) -> dict[str, str] | None:
         """Load and decrypt credentials. Returns None if not found."""
@@ -134,8 +139,9 @@ class CredentialStore:
 
     def _sync_delete(self) -> None:
         """Synchronous implementation of delete."""
-        if self._path.exists():
-            self._path.unlink()
+        with self._lock:
+            if self._path.exists():
+                self._path.unlink()
 
     async def delete(self) -> None:
         """Delete stored credentials."""
