@@ -152,3 +152,13 @@ def mock_backend():
 @pytest.fixture
 def mock_user_backend():
     return MockBackend("user")
+
+
+@pytest.fixture(autouse=True)
+def mock_browser_open(monkeypatch):
+    """Mock webbrowser.open and try_open_browser globally to prevent CI timeouts."""
+    monkeypatch.setattr("webbrowser.open", lambda *args, **kwargs: True)
+    try:
+        monkeypatch.setattr("mcp_relay_core.try_open_browser", lambda *args, **kwargs: True)
+    except AttributeError:
+        pass
