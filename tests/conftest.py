@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -23,6 +23,13 @@ def pytest_addoption(parser):
         )
     except ValueError:
         pass  # Already added
+
+
+@pytest.fixture(autouse=True)
+def mock_browser_globally():
+    """Prevent tests from opening real browsers."""
+    with patch("webbrowser.open") as mock_web, patch("mcp_relay_core.try_open_browser") as mock_relay:
+        yield mock_web, mock_relay
 
 
 class MockBackend(TelegramBackend):
