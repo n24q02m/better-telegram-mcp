@@ -18,13 +18,13 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 
 @lru_cache(maxsize=32)
-def _read_bytes_cached(path: Path) -> bytes:
-    return path.read_bytes()
+def _read_bytes_cached(path_str: str) -> bytes:
+    return Path(path_str).read_bytes()
 
 
 @lru_cache(maxsize=32)
-def _read_text_cached(path: Path) -> str:
-    return path.read_text().strip()
+def _read_text_cached(path_str: str) -> str:
+    return Path(path_str).read_text().strip()
 
 
 _LEGACY_SALT = b"mcp-telegram-creds"
@@ -52,7 +52,7 @@ class CredentialStore:
     def _resolve_salt(self) -> bytes:
         """Load persisted salt, fallback to legacy, or generate new one."""
         if self._salt_path.exists():
-            return _read_bytes_cached(self._salt_path)
+            return _read_bytes_cached(str(self._salt_path.absolute()))
 
         # Backward compatibility: existing credentials use legacy hardcoded salt
         if self._path.exists():
@@ -74,7 +74,7 @@ class CredentialStore:
         """Load persisted secret or generate a new one."""
         secret_path = data_dir / ".secret"
         if secret_path.exists():
-            return _read_text_cached(secret_path)
+            return _read_text_cached(str(secret_path.absolute()))
         data_dir.mkdir(parents=True, exist_ok=True)
         secret = os.urandom(32).hex()
         secret_path.write_text(secret)
