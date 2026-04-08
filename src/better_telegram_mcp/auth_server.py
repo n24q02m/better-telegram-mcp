@@ -50,7 +50,8 @@ input:focus{border-color:#3b82f6}
 button{width:100%;padding:.75rem;background:#3b82f6;color:#fff;border:none;
   border-radius:8px;font-size:1rem;cursor:pointer;font-weight:500}
 button:hover{background:#2563eb}
-button:disabled{background:#333;color:#666;cursor:not-allowed}
+button:focus-visible{outline:2px solid #3b82f6;outline-offset:2px}
+button:disabled{background:#333;color:#888;cursor:not-allowed}
 .st{margin-top:1rem;padding:.75rem;border-radius:8px;font-size:.875rem;display:none}
 .st.error{display:block;background:#2d1111;border:1px solid #dc2626;color:#f87171}
 .st.success{display:block;background:#0d2818;border:1px solid #16a34a;color:#4ade80}
@@ -99,7 +100,7 @@ button:disabled{background:#333;color:#666;cursor:not-allowed}
     </div>
   </div>
 
-  <div id="loading" class="step active">
+  <div id="loading" class="step active" role="status" aria-live="polite">
     <p style="color:#666">Checking session...</p>
   </div>
 </div>
@@ -111,8 +112,8 @@ function show(id){
 }
 function st(el,cls,msg){el.className='st '+cls;el.textContent=msg;el.style.display='block'}
 function clearSt(el){el.className='st';el.textContent='';el.style.display='none'}
-function btnLoading(btn,text){btn.disabled=true;btn.textContent=text}
-function btnReset(btn,text){btn.disabled=false;btn.textContent=text}
+function btnLoading(btn,text){btn.disabled=true;btn.textContent=text;btn.setAttribute('aria-busy','true')}
+function btnReset(btn,text){btn.disabled=false;btn.textContent=text;btn.removeAttribute('aria-busy')}
 function showPwd(){$('pwd-section').style.display='block';$('pwd').focus()}
 
 async function checkStatus(){
