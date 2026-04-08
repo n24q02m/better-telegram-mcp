@@ -229,7 +229,7 @@ async def _relay_telethon_auth(
         placeholder="12345",
         error_label="OTP code",
     )
-    if not otp_code:
+    if otp_code is None:
         return False
 
     # Step 3: Try sign in with OTP code
@@ -259,7 +259,7 @@ async def _relay_telethon_auth(
         input_type="password",
         error_label="2FA password",
     )
-    if not password:
+    if password is None:
         return False
 
     # Step 5: Sign in with 2FA password
