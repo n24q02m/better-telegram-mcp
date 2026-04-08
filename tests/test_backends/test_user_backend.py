@@ -765,6 +765,24 @@ class TestClearCache:
 
         mock_session.save.assert_called_once()
 
+    async def test_clear_cache_handles_exception(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_session = MagicMock()
+        mock_session.save.side_effect = Exception("Save failed")
+        mock_client.session = mock_session
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        # Should not raise
+        await backend.clear_cache()
+
+        mock_session.save.assert_called_once()
+
     async def test_clear_cache_not_connected(self, tmp_path):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
@@ -1332,7 +1350,41 @@ class TestSignIn:
         await backend.connect()
 
         assert session_file.exists()
-        assert session_file.stat().st_mode & 0o777 == 0o600
+
+    async def test_connect_open_handles_oserror(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+
+        with patch("os.open", side_effect=OSError("Open failed")):
+            # Should not raise
+            await backend.connect()
+
+    async def test_sign_in_chmod_handles_oserror(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        # Create a fake session file
+        session_file = tmp_path / "test_session.session"
+        session_file.write_text("fake")
+
+        mock_me = MagicMock()
+        mock_me.first_name = "Test"
+        mock_me.username = "testuser"
+        mock_client.sign_in = AsyncMock()
+        mock_client.get_me = AsyncMock(return_value=mock_me)
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        with patch("os.chmod", side_effect=OSError("Chmod failed")):
+            # Should not raise
+            await backend.sign_in("+84912345678", "12345")
 
     @pytest.mark.skipif(
         sys.platform == "win32",

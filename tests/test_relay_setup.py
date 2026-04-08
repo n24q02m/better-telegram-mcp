@@ -187,7 +187,8 @@ def test_check_saved_sessions_with_sessions(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_ensure_config_returns_config_file_data():
+@patch("webbrowser.open")
+async def test_ensure_config_returns_config_file_data(mock_webbrowser):
     """ensure_config returns data from config file when available."""
     from better_telegram_mcp.relay_setup import ensure_config
 
@@ -206,7 +207,8 @@ async def test_ensure_config_returns_config_file_data():
 
 
 @pytest.mark.asyncio
-async def test_ensure_config_checks_user_mode_fields():
+@patch("webbrowser.open")
+async def test_ensure_config_checks_user_mode_fields(mock_webbrowser):
     """ensure_config checks user mode fields if bot mode fields not found."""
     from better_telegram_mcp.relay_setup import ensure_config
 
@@ -233,7 +235,8 @@ async def test_ensure_config_checks_user_mode_fields():
 
 
 @pytest.mark.asyncio
-async def test_ensure_config_returns_none_on_saved_sessions():
+@patch("webbrowser.open")
+async def test_ensure_config_returns_none_on_saved_sessions(mock_webbrowser):
     """ensure_config returns None when saved sessions exist (no relay needed)."""
     from better_telegram_mcp.relay_setup import ensure_config
 
@@ -257,7 +260,8 @@ async def test_ensure_config_returns_none_on_saved_sessions():
 
 
 @pytest.mark.asyncio
-async def test_ensure_config_triggers_relay_when_nothing_found():
+@patch("webbrowser.open")
+async def test_ensure_config_triggers_relay_when_nothing_found(mock_webbrowser):
     """ensure_config triggers relay setup when no config found anywhere."""
     from better_telegram_mcp.relay_setup import ensure_config
 
@@ -302,7 +306,8 @@ async def test_ensure_config_triggers_relay_when_nothing_found():
 
 
 @pytest.mark.asyncio
-async def test_ensure_config_returns_none_when_relay_unreachable():
+@patch("webbrowser.open")
+async def test_ensure_config_returns_none_when_relay_unreachable(mock_webbrowser):
     """ensure_config returns None when relay server is unreachable."""
     from better_telegram_mcp.relay_setup import ensure_config
 
@@ -331,7 +336,8 @@ async def test_ensure_config_returns_none_when_relay_unreachable():
 
 
 @pytest.mark.asyncio
-async def test_ensure_config_returns_none_on_poll_timeout():
+@patch("webbrowser.open")
+async def test_ensure_config_returns_none_on_poll_timeout(mock_webbrowser):
     """ensure_config returns None when relay polling times out."""
     from better_telegram_mcp.relay_setup import ensure_config
 
@@ -368,7 +374,8 @@ async def test_ensure_config_returns_none_on_poll_timeout():
 
 
 @pytest.mark.asyncio
-async def test_ensure_config_returns_none_on_relay_skipped():
+@patch("webbrowser.open")
+async def test_ensure_config_returns_none_on_relay_skipped(mock_webbrowser):
     """ensure_config returns None when user skips relay setup."""
     from better_telegram_mcp.relay_setup import ensure_config
 
@@ -405,7 +412,8 @@ async def test_ensure_config_returns_none_on_relay_skipped():
 
 
 @pytest.mark.asyncio
-async def test_ensure_config_returns_none_on_relay_error():
+@patch("webbrowser.open")
+async def test_ensure_config_returns_none_on_relay_error(mock_webbrowser):
     """ensure_config returns None on unexpected relay RuntimeError."""
     from better_telegram_mcp.relay_setup import ensure_config
 
@@ -858,7 +866,8 @@ async def test_relay_auth_2fa_sign_in_fails():
 
 
 @pytest.mark.asyncio
-async def test_ensure_config_user_mode_triggers_telethon_auth():
+@patch("webbrowser.open")
+async def test_ensure_config_user_mode_triggers_telethon_auth(mock_webbrowser):
     """ensure_config triggers Telethon auth for user mode config."""
     from better_telegram_mcp.relay_setup import ensure_config
 
@@ -922,7 +931,8 @@ async def test_ensure_config_user_mode_triggers_telethon_auth():
 
 
 @pytest.mark.asyncio
-async def test_ensure_config_user_mode_already_authorized():
+@patch("webbrowser.open")
+async def test_ensure_config_user_mode_already_authorized(mock_webbrowser):
     """ensure_config sends complete message when user is already authorized."""
     from better_telegram_mcp.relay_setup import ensure_config
 
@@ -983,7 +993,8 @@ async def test_ensure_config_user_mode_already_authorized():
 
 
 @pytest.mark.asyncio
-async def test_ensure_config_bot_mode_sends_complete():
+@patch("webbrowser.open")
+async def test_ensure_config_bot_mode_sends_complete(mock_webbrowser):
     """ensure_config sends complete message for bot mode config."""
     from better_telegram_mcp.relay_setup import ensure_config
 
@@ -1032,7 +1043,8 @@ async def test_ensure_config_bot_mode_sends_complete():
 
 
 @pytest.mark.asyncio
-async def test_ensure_config_user_mode_auth_fails():
+@patch("webbrowser.open")
+async def test_ensure_config_user_mode_auth_fails(mock_webbrowser):
     """ensure_config still returns config when Telethon auth fails."""
     from better_telegram_mcp.relay_setup import ensure_config
 
