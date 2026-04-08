@@ -4,7 +4,6 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from mcp.server.fastmcp import FastMCP
 
 import better_telegram_mcp.server as srv
 from better_telegram_mcp.server import (

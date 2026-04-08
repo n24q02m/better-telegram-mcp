@@ -5,11 +5,9 @@ Provides a production-grade MCP server for Telegram, supporting both Bot API and
 
 from __future__ import annotations
 
-import asyncio
 import json
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Any
 
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
@@ -83,7 +81,7 @@ def _not_ready_response() -> str:
 
 
 @asynccontextmanager
-async def _lifespan(srv: FastMCP) -> AsyncGenerator[None, None]:
+async def _lifespan(srv: FastMCP) -> AsyncGenerator[None]:
     """Lifespan manager for the MCP server."""
     global _backend, _settings, _pending_auth, _unconfigured
     _settings = Settings()
