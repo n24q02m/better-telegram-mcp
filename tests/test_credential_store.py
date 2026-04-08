@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import stat
 from pathlib import Path
 
 import pytest
@@ -203,3 +204,17 @@ class TestCredentialStore:
         store = CredentialStore(tmp_path)
         # Store writing triggers credential chmod
         store.store({"api_id": "123"})
+
+    def test_delete_clears_from_cache(self, data_dir: Path) -> None:
+        """Test that delete() also removes the salt and secret from the cache."""
+        store = CredentialStore(data_dir)
+        salt_path = store._salt_path
+        secret_path = store._secret_path
+
+        assert salt_path in CredentialStore._salt_cache
+        assert secret_path in CredentialStore._secret_cache
+
+        store.delete()
+
+        assert salt_path not in CredentialStore._salt_cache
+        assert secret_path not in CredentialStore._secret_cache
