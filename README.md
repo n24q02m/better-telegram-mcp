@@ -69,19 +69,32 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 - **Session File Security** -- 600 permissions, 2FA via web UI only (never stored in env vars)
 - **Error Sanitization** -- Credentials never leaked in error messages
 
-## Shared HTTP Event Relay
+## SSE vs Relay Dispatcher
 
-The server can optionally forward **all inbound raw Telegram updates from all authenticated user sessions** to **one shared external HTTP endpoint**.
+This project exposes two separate features that should not be conflated:
 
-This relay is:
-- **optional** -- existing MCP behavior stays unchanged when it is not configured
-- **env-only in v1** -- there is no runtime API for changing relay settings
-- **multi-user aware** -- every payload includes the account that received the event
-- **user-mode only** -- bot-mode inbound event capture is not part of this feature
+- **Relay dispatcher** -- callback-style delivery used for relay setup and external integration flows.
+- **HTTP SSE stream** -- the live event stream at `GET /events/telegram`.
+
+Key rules:
+
+- **SSE is bearer-only.** Clients must send `Authorization: Bearer ...` on both `/mcp` and `GET /events/telegram`.
+- **SSE does not accept `callback_url`.** It is not a callback subscription API.
+- **Relay web UI auth is for relay setup**, not for authenticating SSE clients.
+
+## Unified HTTP SSE Stream
+
+In HTTP multi-user mode, the server exposes one shared live event stream at `GET /events/telegram`.
+
+This flow is:
+- **bearer-authenticated only** -- the same bearer used for `/mcp` must be sent in the `Authorization: Bearer ...` header
+- **shared across user and bot sessions** -- user mode publishes raw Telethon updates, bot mode publishes Bot API long-poll updates
+- **live-only in v1** -- no replay buffer, no resume support, and `Last-Event-ID` is ignored
+- **honest about delivery** -- if no SSE client is connected, events are not buffered for later subscribers
 
 ### When it works
 
-The shared relay is used in **HTTP multi-user mode**.
+The unified SSE endpoint is available in **HTTP multi-user mode**.
 
 Multi-user HTTP mode requires:
 - `TRANSPORT_MODE=http`
@@ -90,11 +103,21 @@ Multi-user HTTP mode requires:
 - `TELEGRAM_API_ID`
 - `TELEGRAM_API_HASH`
 
-Relay delivery is enabled only when `TELEGRAM_RELAY_ENDPOINT_URL` is also set.
+Then authenticate a bot or user session through the HTTP auth flow and open `GET /events/telegram` with that bearer token.
+
+This HTTP auth flow is the bearer issuance flow for SSE access. It is separate from relay setup.
+
+### Request model
+
+- **Write path:** `POST /mcp`
+- **Read path:** `GET /events/telegram`
+- **Auth:** `Authorization: Bearer <token>` header only
+
+Native browser EventSource is **not supported** in v1 because it cannot send the required `Authorization` header. Use `curl`, `httpx`, or a custom `fetch()`/stream reader instead.
 
 ### Quick setup
 
-To enable delivery, set **all** of the following env vars and start the server in HTTP multi-user mode:
+Start the server in HTTP multi-user mode:
 
 ```bash
 export TRANSPORT_MODE=http
@@ -102,86 +125,68 @@ export PUBLIC_URL="https://your-public-host.example.com"
 export DCR_SERVER_SECRET="replace-with-a-random-secret"
 export TELEGRAM_API_ID="123456"
 export TELEGRAM_API_HASH="your_api_hash"
-export TELEGRAM_RELAY_ENDPOINT_URL="https://your-endpoint.example.com/telegram-events"
 
 uv run better-telegram-mcp
 ```
 
-Setting these env vars enables the relay, but events are sent only for **user accounts that have actually been authenticated and connected** through the HTTP multi-user flow.
+Authenticate a Telegram session through the HTTP auth endpoints, then connect to the SSE stream with the returned bearer:
 
-Once a user account is authenticated and connected, the server starts POSTing JSON events for that account to `TELEGRAM_RELAY_ENDPOINT_URL`.
+```bash
+curl -N \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Accept: text/event-stream" \
+  "https://your-public-host.example.com/events/telegram"
+```
 
-### Relay Environment Variables
+Equivalent clients can be built with `httpx` or a custom `fetch()` stream reader.
 
-| Variable | Default | Description |
-|:--|:--|:--|
-| `TELEGRAM_RELAY_ENDPOINT_URL` | unset | Shared external HTTP endpoint that receives JSON event payloads |
-| `TELEGRAM_RELAY_QUEUE_SIZE` | `10000` | Max in-memory queued events before new events are dropped |
-| `TELEGRAM_RELAY_TIMEOUT_SECONDS` | `10` | HTTP request timeout per delivery attempt |
-| `TELEGRAM_RELAY_MAX_RETRIES` | `5` | Max retry attempts for transient failures |
-| `TELEGRAM_RELAY_BACKOFF_INITIAL_MS` | `500` | Initial retry backoff in milliseconds |
-| `TELEGRAM_RELAY_BACKOFF_MAX_MS` | `30000` | Max retry backoff in milliseconds |
+### Delivery behavior
 
-`TELEGRAM_RELAY_ENDPOINT_URL` is validated with the same SSRF protections used elsewhere in the project. Internal/private/localhost targets are rejected.
+- **One shared SSE endpoint:** `GET /events/telegram`
+- **Per-bearer isolation:** a bearer only receives its own Telegram events
+- **User support:** raw Telethon updates after successful user auth
+- **Bot support:** Bot API long polling with durable offset persistence
+- **Live-only:** missed events are not replayed to later subscribers
+- **No replay semantics:** `Last-Event-ID` is ignored and there is no server-side event history
+- **Single active connection in v1:** a second connection for the same bearer closes the first with `event: error` and `{"reason":"connection_replaced"}`
+- **Overflow behavior:** if the per-subscriber queue fills, the stream closes with `event: error` and `{"reason":"overflow"}`
+- **Runtime stop behavior:** revoke or shutdown closes the stream with `event: error` and `{"reason":"runtime_stopped"}`
+- **No subscriber attached:** events are dropped instead of being buffered for replay
+- **Duplicate bot tokens:** the same active bot token cannot be registered under multiple bearers in v1
 
-### Delivery Behavior
+### Event payload
 
-- **Payload format:** JSON
-- **Scope:** all raw Telethon updates from authorized user sessions
-- **Destination:** one shared process-wide endpoint
-- **Guarantee:** **at-least-once**
-- **Duplicates:** possible during retries or reconnect catch-up; dedupe downstream by `event_id`
-- **Retry policy:** retries only on timeout/network failures, HTTP `429`, and `5xx`
-- **No retry:** other `4xx` responses are treated as terminal failures
-- **Backpressure:** queue overflow drops new events instead of blocking Telegram update processing
-- **Durability:** **in-memory only in v1**; queued events can be lost on process crash or prolonged outage
-- **Outbound auth:** none in v1
+Each SSE message carries the full unified JSON envelope in the `data:` field:
 
-### Payload Shape
-
-Each event contains:
-- `event_id` -- deterministic SHA-256 hash derived from `account.telegram_user_id` and the canonical raw update JSON
-- `event_type` -- raw Telegram update type from the update `_` field, e.g. `UpdateNewMessage`
+- `event_id` -- deterministic SHA-256 hash derived from normalized account identity and the canonical raw update JSON
+- `event_type` -- raw Telegram update type such as `UpdateNewMessage`
 - `occurred_at` -- server-side ISO 8601 timestamp when the envelope was created
-- `account.telegram_user_id` -- stable Telegram account ID
+- `mode` -- `"user"` or `"bot"`
+- `account.telegram_id` -- stable Telegram account or bot ID
 - `account.session_name` -- local session name used by this server
 - `account.username` -- included when Telegram provides it
-- `update` -- raw `update.to_dict()` payload
+- `account.mode` -- `"user"` or `"bot"`
+- `update` -- raw update payload
 
 The payload intentionally does **not** include bearer tokens or phone numbers.
 
-Your endpoint should expect a JSON envelope with account metadata plus raw Telegram update data. The `update` field can contain different Telegram update types, not only `UpdateNewMessage`.
+### Example SSE frame
 
-### Example Payload
-
-The JSON below is **one `UpdateNewMessage` example**. The nested shape inside `update` varies by Telegram update type.
-
-```json
-{
-  "event_id": "8c85b6dcf7b6ef2d7d4f0d5536f8b2aa8520bc0bcf5d3eaa541d5f5bc9d5db8a",
-  "event_type": "UpdateNewMessage",
-  "occurred_at": "2026-04-09T09:15:30.123456+00:00",
-  "account": {
-    "telegram_user_id": 123456789,
-    "session_name": "default",
-    "username": "example_user"
-  },
-  "update": {
-    "_": "UpdateNewMessage",
-    "message": {
-      "_": "Message",
-      "id": 42,
-      "message": "hello"
-    }
-  }
-}
+```text
+id: 8c85b6dcf7b6ef2d7d4f0d5536f8b2aa8520bc0bcf5d3eaa541d5f5bc9d5db8a
+event: UpdateNewMessage
+data: {"event_id":"8c85b6dcf7b6ef2d7d4f0d5536f8b2aa8520bc0bcf5d3eaa541d5f5bc9d5db8a","event_type":"UpdateNewMessage","occurred_at":"2026-04-09T09:15:30.123456+00:00","mode":"user","account":{"telegram_id":123456789,"session_name":"default","username":"example_user","mode":"user"},"update":{"_":"UpdateNewMessage","message":{"_":"Message","id":42,"message":"hello"}}}
 ```
 
-### Operator Notes
+### v1 restrictions
 
-- Pending OTP sessions do **not** emit relay events until authentication is completed.
-- Relay delivery is intentionally isolated from MCP tools/resources; events are pushed externally, not exposed as MCP subscriptions.
-- `/health` in multi-user HTTP mode exposes only `relay_enabled: true|false` and does not leak the relay URL.
+- No callback URL subscription API for the SSE stream
+- No webhook subscription API for clients
+- No WebSocket transport for Telegram events
+- No replay buffer or resume support
+- No browser-auth workaround for native browser EventSource
+
+The relay dispatcher remains available as a separate feature and is not part of these SSE restrictions.
 
 ## Build from Source
 

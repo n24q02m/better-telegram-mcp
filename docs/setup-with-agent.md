@@ -104,7 +104,9 @@ For shared/multi-user deployments, the server can run as an HTTP endpoint with b
 
 This is the deployment mode to use when you want **one container** to act as the Telegram boundary for an agent system:
 - MCP tools provide the **write path** from the agent into Telegram
-- the shared HTTP event relay provides the **feedback path** from Telegram back into your agent runtime
+- `GET /events/telegram` provides the **feedback path** from Telegram back into your agent runtime
+
+The feedback path is the SSE stream. The relay dispatcher / setup UI is a separate feature used to configure credentials and relay-related flows; it is not the auth mechanism for SSE clients.
 
 In other words, this mode lets an orchestrator treat `better-telegram-mcp` as one bidirectional integration point instead of splitting outbound actions and inbound event collection across separate services.
 
@@ -123,9 +125,9 @@ In other words, this mode lets an orchestrator treat `better-telegram-mcp` as on
 
 HTTP mode requires a separate deployment. See the [HTTP transport source](../src/better_telegram_mcp/transports/) for details.
 
-### Optional Feedback Channel for Agent Systems
+### Telegram feedback stream for agent systems
 
-If your agent runtime also needs to receive Telegram events from the connected user accounts, set these additional env vars on the same container:
+If your agent runtime also needs to receive Telegram events from connected sessions, set these env vars on the same container:
 
 ```bash
 export TRANSPORT_MODE=http
@@ -133,15 +135,33 @@ export PUBLIC_URL="https://your-public-host.example.com"
 export DCR_SERVER_SECRET="replace-with-a-random-secret"
 export TELEGRAM_API_ID="123456"
 export TELEGRAM_API_HASH="your_api_hash"
-export TELEGRAM_RELAY_ENDPOINT_URL="https://your-endpoint.example.com/telegram-events"
 ```
 
 With that configuration:
 - the container still exposes MCP over HTTP for agent actions
-- the same container also POSTs JSON Telegram events to `TELEGRAM_RELAY_ENDPOINT_URL`
-- events are emitted only for **authenticated and connected user accounts** in the HTTP multi-user flow
+- the same container also exposes one shared SSE endpoint at `GET /events/telegram`
+- the SSE stream supports **both authenticated user sessions and authenticated bot sessions**
+- bot sessions are delivered via Bot API long polling
+- the stream is **live-only** in v1: no replay buffer, no resume support, and `Last-Event-ID` is ignored
+- if no SSE client is connected, events are dropped instead of being replayed later
+- a duplicate active bot token cannot be registered under multiple bearers in v1
 
-If `TELEGRAM_RELAY_ENDPOINT_URL` is not set, the server still works as an MCP server, but no external feedback events are sent.
+For SSE access, clients must send `Authorization: Bearer ...` on the `/events/telegram` request. `TELEGRAM_AUTH_URL` is for relay setup and browser-assisted credential flow, not for SSE authentication.
+
+Connect with the same bearer token you use for `/mcp`:
+
+```bash
+curl -N \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Accept: text/event-stream" \
+  "https://your-domain.com/events/telegram"
+```
+
+Supported clients include `curl`, `httpx`, and custom `fetch()` stream readers. Native browser EventSource is not supported because it cannot send the required bearer header.
+
+There is no callback URL API, webhook subscription API, or WebSocket event endpoint for the SSE stream in v1.
+
+The relay dispatcher remains a separate callback-style feature; do not treat this SSE restriction as removing relay support.
 
 ## Environment Variables
 
@@ -172,7 +192,7 @@ If `TELEGRAM_RELAY_ENDPOINT_URL` is not set, the server still works as an MCP se
 
 ### Zero-Config Relay
 
-> **Recommended.** The relay is the primary setup method. Credentials are encrypted end-to-end and stored locally. Environment variables are supported for backward compatibility.
+> **Recommended.** The relay is the primary setup method for credentials. Credentials are encrypted end-to-end and stored locally. Environment variables are supported for backward compatibility.
 
 On first run without any credentials in environment:
 
@@ -201,6 +221,8 @@ After credentials are configured (via relay or environment variables), user mode
 4. If 2FA is enabled, enter your password (never stored in environment)
 5. Session file is saved at `~/.better-telegram-mcp/<name>.session` (600 permissions)
 6. Tools become active immediately -- no restart needed
+
+This web-based auth UI is for credential setup and session bootstrap. It does not authorize SSE reads; SSE always uses bearer auth on `GET /events/telegram`.
 
 Auth modes:
 

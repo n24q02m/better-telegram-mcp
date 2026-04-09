@@ -18,7 +18,7 @@ For Claude Code users, the plugin approach is the simplest.
    /plugin install better-telegram-mcp@n24q02m-plugins
    ```
 3. The server starts automatically when Claude Code launches
-4. On first run, a relay setup URL appears -- open it to configure credentials
+4. On first run, a relay setup URL appears -- open it to configure relay credentials and auth
 
 ## Method 2: uvx Direct
 
@@ -56,7 +56,7 @@ For Claude Code users, the plugin approach is the simplest.
    ```
 
 2. Restart your MCP client
-3. A relay setup URL appears -- configure credentials via the web UI
+3. A relay setup URL appears -- configure relay credentials via the web UI
 
 ## Method 3: Docker
 
@@ -126,6 +126,36 @@ For shared deployments with multiple users:
 
 This requires deploying the HTTP transport separately.
 
+### Telegram SSE feedback stream
+
+In HTTP multi-user mode the server exposes one shared SSE endpoint at `GET /events/telegram`.
+
+This SSE stream is separate from the relay dispatcher / web UI setup flow. Use the web UI to set up relay credentials; use bearer auth to read SSE events.
+
+- Authenticate with the same `Authorization: Bearer ...` header you use for `/mcp`
+- The stream supports both user sessions and bot sessions
+- Bot delivery uses Bot API long polling
+- The stream is **live-only** in v1: no replay buffer, no resume support, and `Last-Event-ID` is ignored
+- If no SSE client is connected, events are dropped instead of replayed later
+- A duplicate active bot token cannot be registered under multiple bearers in v1
+
+Do not pass `callback_url` to SSE. Callback-style delivery belongs to the separate relay dispatcher feature.
+
+Example:
+
+```bash
+curl -N \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Accept: text/event-stream" \
+  "https://your-domain.com/events/telegram"
+```
+
+Supported clients include `curl`, `httpx`, and custom `fetch()` stream readers. Native browser EventSource is not supported because it cannot send the required bearer header.
+
+There is no callback URL API, webhook subscription API, or WebSocket endpoint for the SSE stream in v1.
+
+That restriction does not remove the relay dispatcher / web UI setup flow, which is a separate feature.
+
 ## Method 5: Build from Source
 
 1. Clone the repository:
@@ -179,6 +209,8 @@ On first run with user mode credentials:
 5. Session file is saved at `~/.better-telegram-mcp/<name>.session` (600 permissions)
 6. Subsequent runs use the session file -- no re-authentication needed
 
+This browser-based auth UI is for relay-assisted setup and user-session bootstrap. It is not the auth mechanism for `GET /events/telegram`, which always uses bearer headers.
+
 **Headless environments (SSH/Docker):** The auth URL is logged to stderr. Use curl:
 
 ```bash
@@ -211,13 +243,13 @@ Instead of setting environment variables, you can use the web relay:
 | `TELEGRAM_SESSION_NAME` | No | `default` | Session file name |
 | `TELEGRAM_DATA_DIR` | No | `~/.better-telegram-mcp` | Data directory |
 
-### Optional Shared Event Relay
+### Optional Agent Feedback Flow
 
 If you are using this server as part of an agent or automation system, you can run it as a **single container with a feedback channel**:
 - MCP tools let the agent write to Telegram
-- the shared event relay sends inbound Telegram events back to your external system
+- `GET /events/telegram` sends inbound Telegram events back to your external system
 
-Use the same deployment when you want one service that both executes Telegram actions and reports new Telegram events from the connected user accounts.
+Use the same deployment when you want one service that both executes Telegram actions and reports new Telegram events from connected user or bot sessions.
 
 Required env vars for that setup:
 
@@ -227,13 +259,14 @@ export PUBLIC_URL="https://your-public-host.example.com"
 export DCR_SERVER_SECRET="replace-with-a-random-secret"
 export TELEGRAM_API_ID="123456"
 export TELEGRAM_API_HASH="your_api_hash"
-export TELEGRAM_RELAY_ENDPOINT_URL="https://your-endpoint.example.com/telegram-events"
 ```
 
 Notes:
-- events are sent only for **authenticated and connected user accounts** in HTTP multi-user mode
-- the relay sends JSON payloads to one shared external endpoint
-- if `TELEGRAM_RELAY_ENDPOINT_URL` is unset, the server continues working normally but no feedback events are delivered externally
+- open `GET /events/telegram` with the bearer token for the authenticated session
+- events are emitted only for that bearer's authenticated and connected Telegram session
+- supported clients include `curl`, `httpx`, and custom `fetch()` stream readers
+- native browser EventSource is not supported because it cannot send the bearer header
+- there is no replay support, callback URL API, webhook subscription API, or WebSocket endpoint in v1
 
 ### Mode Detection
 
