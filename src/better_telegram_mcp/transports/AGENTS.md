@@ -45,8 +45,8 @@ transports/
 
 ## Anti-Patterns
 
-- Do not mix relay callback behavior with SSE stream behavior.
-- Do not document or implement `callback_url` semantics in SSE paths.
+- Do not implement callback-style delivery for inbound Telegram events; SSE is the only supported delivery path.
+- Do not document or implement `callback_url` semantics for inbound event delivery.
 - Do not bypass bearer extraction or `_current_backend` injection for `/mcp`.
 - Do not treat `credential_store.py` as the multi-user bearer/session database.
 - Do not document `events/` as an independent user-facing subsystem yet; transport owns the operational contract.

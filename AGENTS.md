@@ -142,7 +142,7 @@ docs/                         # User-facing setup and flow documentation
 - **Multi-user HTTP mode**: `transports/http_multi_user.py` exposes auth endpoints, bearer-authenticated `/mcp`, `GET /events/telegram`, and per-request backend injection via `_current_backend`.
 - **Provider-owned runtimes**: `TelegramAuthProvider` owns per-bearer bot/user backends plus per-bearer SSE fanout hubs; restored sessions must attach sinks after runtime creation.
 - **Unified SSE**: one live-only `GET /events/telegram` stream for both bot and user sessions. Bearer auth required. No replay in v1. `Last-Event-ID` is ignored.
-- **Relay vs SSE are separate**: relay/callback setup flow is not the SSE delivery API. Do not mix `callback_url` semantics into SSE code or docs.
+- **Inbound delivery is SSE-only**: `GET /events/telegram` is the only supported path for inbound Telegram events in HTTP multi-user mode. Callback-style delivery is not supported.
 - **Duplicate active bot tokens rejected**: multi-user auth forbids the same live bot token under different bearers.
 
 ## Project-Specific Constraints
@@ -151,7 +151,7 @@ docs/                         # User-facing setup and flow documentation
 - Native browser `EventSource` is not supported in v1 because it cannot attach the required `Authorization` header.
 - `GET /events/telegram` is live-only in v1. No replay buffer, no resume support, `Last-Event-ID` ignored.
 - No WebSocket transport for Telegram events.
-- `callback_url` belongs to relay/callback flows, not SSE.
+- `callback_url` is not supported for inbound event delivery. Relay flows are for setup and auth only.
 - Do not confuse `transports/credential_store.py` with multi-user bearer/session persistence.
 
 ## Documentation
