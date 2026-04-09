@@ -104,9 +104,9 @@ For shared/multi-user deployments, the server can run as an HTTP endpoint with b
 
 This is the deployment mode to use when you want **one container** to act as the Telegram boundary for an agent system:
 - MCP tools provide the **write path** from the agent into Telegram
-- `GET /events/telegram` provides the **feedback path** from Telegram back into your agent runtime
+- `GET /events/telegram` provides the **inbound event feedback path** from Telegram back into your agent runtime
 
-The feedback path is the SSE stream. The relay dispatcher / setup UI is a separate feature used to configure credentials and relay-related flows; it is not the auth mechanism for SSE clients.
+The inbound event feedback path is the SSE stream. The relay dispatcher and web UI are separate features used to configure credentials and setup flows; they are not the delivery mechanism for inbound Telegram events.
 
 In other words, this mode lets an orchestrator treat `better-telegram-mcp` as one bidirectional integration point instead of splitting outbound actions and inbound event collection across separate services.
 
@@ -125,9 +125,9 @@ In other words, this mode lets an orchestrator treat `better-telegram-mcp` as on
 
 HTTP mode requires a separate deployment. See the [HTTP transport source](../src/better_telegram_mcp/transports/) for details.
 
-### Telegram feedback stream for agent systems
+### Inbound Telegram events for agent systems
 
-If your agent runtime also needs to receive Telegram events from connected sessions, set these env vars on the same container:
+If your agent runtime also needs to receive inbound Telegram events from connected sessions, set these env vars on the same container:
 
 ```bash
 export TRANSPORT_MODE=http
@@ -139,7 +139,7 @@ export TELEGRAM_API_HASH="your_api_hash"
 
 With that configuration:
 - the container still exposes MCP over HTTP for agent actions
-- the same container also exposes one shared SSE endpoint at `GET /events/telegram`
+- the same container also exposes one SSE endpoint at `GET /events/telegram` for inbound Telegram events
 - the SSE stream supports **both authenticated user sessions and authenticated bot sessions**
 - bot sessions are delivered via Bot API long polling
 - the stream is **live-only** in v1: no replay buffer, no resume support, and `Last-Event-ID` is ignored
@@ -159,9 +159,9 @@ curl -N \
 
 Supported clients include `curl`, `httpx`, and custom `fetch()` stream readers. Native browser EventSource is not supported because it cannot send the required bearer header.
 
-There is no callback URL API, webhook subscription API, or WebSocket event endpoint for the SSE stream in v1.
+There is no callback URL API, webhook subscription API, or WebSocket event endpoint for inbound event delivery in v1.
 
-The relay dispatcher remains a separate callback-style feature; do not treat this SSE restriction as removing relay support.
+**Legacy environment variable note:** `TELEGRAM_RELAY_ENDPOINT_URL` no longer enables inbound event delivery. Use `GET /events/telegram` with bearer auth instead.
 
 ## Environment Variables
 
@@ -178,7 +178,7 @@ The relay dispatcher remains a separate callback-style feature; do not treat thi
 
 | Variable | Required | Default | Description |
 |:---------|:---------|:--------|:------------|
-| `TELEGRAM_AUTH_URL` | No | `https://better-telegram-mcp.n24q02m.com` | Auth relay URL. Set `local` for localhost-only mode |
+| `TELEGRAM_AUTH_URL` | No | `https://better-telegram-mcp.n24q02m.com` | Auth relay URL for setup flows. Set `local` for localhost-only mode |
 | `TELEGRAM_SESSION_NAME` | No | `default` | Session file name (useful for multiple accounts) |
 | `TELEGRAM_DATA_DIR` | No | `~/.better-telegram-mcp` | Data directory for session files |
 
@@ -222,7 +222,7 @@ After credentials are configured (via relay or environment variables), user mode
 5. Session file is saved at `~/.better-telegram-mcp/<name>.session` (600 permissions)
 6. Tools become active immediately -- no restart needed
 
-This web-based auth UI is for credential setup and session bootstrap. It does not authorize SSE reads; SSE always uses bearer auth on `GET /events/telegram`.
+This web-based auth UI is for credential setup and session bootstrap. It does not authorize SSE reads for inbound events; SSE always uses bearer auth on `GET /events/telegram`.
 
 Auth modes:
 

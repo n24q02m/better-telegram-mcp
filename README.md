@@ -69,18 +69,15 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 - **Session File Security** -- 600 permissions, 2FA via web UI only (never stored in env vars)
 - **Error Sanitization** -- Credentials never leaked in error messages
 
-## SSE vs Relay Dispatcher
+## Inbound Event Delivery
 
-This project exposes two separate features that should not be conflated:
-
-- **Relay dispatcher** -- callback-style delivery used for relay setup and external integration flows.
-- **HTTP SSE stream** -- the live event stream at `GET /events/telegram`.
+Inbound Telegram events are delivered exclusively through the SSE stream at `GET /events/telegram` in HTTP multi-user mode.
 
 Key rules:
 
 - **SSE is bearer-only.** Clients must send `Authorization: Bearer ...` on both `/mcp` and `GET /events/telegram`.
-- **SSE does not accept `callback_url`.** It is not a callback subscription API.
-- **Relay web UI auth is for relay setup**, not for authenticating SSE clients.
+- **No callback-style delivery.** The server does not support `callback_url` for inbound event delivery.
+- **Relay is for setup only.** The relay dispatcher and web UI are used for credential setup and auth flows, not for delivering inbound Telegram events.
 
 ## Unified HTTP SSE Stream
 
@@ -186,7 +183,6 @@ data: {"event_id":"8c85b6dcf7b6ef2d7d4f0d5536f8b2aa8520bc0bcf5d3eaa541d5f5bc9d5d
 - No replay buffer or resume support
 - No browser-auth workaround for native browser EventSource
 
-The relay dispatcher remains available as a separate feature and is not part of these SSE restrictions.
 
 ## Build from Source
 

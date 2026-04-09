@@ -126,11 +126,11 @@ For shared deployments with multiple users:
 
 This requires deploying the HTTP transport separately.
 
-### Telegram SSE feedback stream
+### Inbound Telegram events
 
-In HTTP multi-user mode the server exposes one shared SSE endpoint at `GET /events/telegram`.
+In HTTP multi-user mode the server exposes one SSE endpoint at `GET /events/telegram` for inbound Telegram events.
 
-This SSE stream is separate from the relay dispatcher / web UI setup flow. Use the web UI to set up relay credentials; use bearer auth to read SSE events.
+This SSE stream is the only supported delivery path for inbound events. Callback-style delivery is not supported.
 
 - Authenticate with the same `Authorization: Bearer ...` header you use for `/mcp`
 - The stream supports both user sessions and bot sessions
@@ -139,7 +139,7 @@ This SSE stream is separate from the relay dispatcher / web UI setup flow. Use t
 - If no SSE client is connected, events are dropped instead of replayed later
 - A duplicate active bot token cannot be registered under multiple bearers in v1
 
-Do not pass `callback_url` to SSE. Callback-style delivery belongs to the separate relay dispatcher feature.
+Do not pass `callback_url` for inbound event delivery. The relay dispatcher and web UI are separate features used for credential setup and auth flows only.
 
 Example:
 
@@ -152,9 +152,9 @@ curl -N \
 
 Supported clients include `curl`, `httpx`, and custom `fetch()` stream readers. Native browser EventSource is not supported because it cannot send the required bearer header.
 
-There is no callback URL API, webhook subscription API, or WebSocket endpoint for the SSE stream in v1.
+There is no callback URL API, webhook subscription API, or WebSocket endpoint for inbound event delivery in v1.
 
-That restriction does not remove the relay dispatcher / web UI setup flow, which is a separate feature.
+**Legacy environment variable note:** `TELEGRAM_RELAY_ENDPOINT_URL` no longer enables inbound event delivery. Use `GET /events/telegram` with bearer auth instead.
 
 ## Method 5: Build from Source
 
@@ -239,13 +239,13 @@ Instead of setting environment variables, you can use the web relay:
 | `TELEGRAM_API_ID` | User mode | -- | API ID from my.telegram.org |
 | `TELEGRAM_API_HASH` | User mode | -- | API hash from my.telegram.org |
 | `TELEGRAM_PHONE` | User mode | -- | Phone with country code |
-| `TELEGRAM_AUTH_URL` | No | `https://better-telegram-mcp.n24q02m.com` | Auth relay URL. `local` for localhost |
+| `TELEGRAM_AUTH_URL` | No | `https://better-telegram-mcp.n24q02m.com` | Auth relay URL for setup flows. `local` for localhost |
 | `TELEGRAM_SESSION_NAME` | No | `default` | Session file name |
 | `TELEGRAM_DATA_DIR` | No | `~/.better-telegram-mcp` | Data directory |
 
-### Optional Agent Feedback Flow
+### Inbound Event Feedback for Agent Systems
 
-If you are using this server as part of an agent or automation system, you can run it as a **single container with a feedback channel**:
+If you are using this server as part of an agent or automation system, you can run it as a **single container with an inbound event feedback channel**:
 - MCP tools let the agent write to Telegram
 - `GET /events/telegram` sends inbound Telegram events back to your external system
 
@@ -267,7 +267,7 @@ Notes:
 - supported clients include `curl`, `httpx`, and custom `fetch()` stream readers
 - native browser EventSource is not supported because it cannot send the bearer header
 - there is no replay support, callback URL API, webhook subscription API, or WebSocket endpoint in v1
-
+- `TELEGRAM_RELAY_ENDPOINT_URL` no longer enables inbound event delivery; use `GET /events/telegram` with bearer auth instead
 ### Mode Detection
 
 - `TELEGRAM_API_ID` + `TELEGRAM_API_HASH` set: **User mode**
