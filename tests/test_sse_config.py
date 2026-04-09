@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from better_telegram_mcp.config import Settings
@@ -8,6 +10,7 @@ from better_telegram_mcp.config import Settings
 def test_sse_defaults_are_present() -> None:
     settings = Settings()
 
+    assert settings.auth_url == "https://better-telegram-mcp.n24q02m.com"
     assert settings.sse_subscriber_queue_size == 100
     assert settings.sse_heartbeat_seconds == 15
     assert settings.bot_poll_timeout_seconds == 30
@@ -26,16 +29,16 @@ def test_sse_defaults_are_present() -> None:
     ],
 )
 def test_sse_defaults_reject_non_positive_values(field_name: str, value: int) -> None:
+    kwargs: dict[str, Any] = {field_name: value}
+
     with pytest.raises(ValueError):
-        Settings(**{field_name: value})
+        Settings(**kwargs)
 
 
-def test_existing_relay_defaults_stay_unchanged() -> None:
+def test_legacy_relay_endpoint_env_is_ignored(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TELEGRAM_RELAY_ENDPOINT_URL", "https://example.com/events")
+
     settings = Settings()
 
-    assert settings.relay_endpoint_url is None
-    assert settings.relay_queue_size == 10000
-    assert settings.relay_timeout_seconds == 10
-    assert settings.relay_max_retries == 5
-    assert settings.relay_backoff_initial_ms == 500
-    assert settings.relay_backoff_max_ms == 30000
+    assert settings.auth_url == "https://better-telegram-mcp.n24q02m.com"
+    assert settings.is_configured is False

@@ -6,8 +6,6 @@ from typing import Literal
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
-from better_telegram_mcp.backends.security import validate_url
-
 
 def _empty_to_none(v: str | None) -> str | None:
     """Treat empty or whitespace-only string as None (plugin.json sets env vars to '' by default)."""
@@ -31,14 +29,6 @@ class Settings(BaseSettings):
     # Auth
     auth_url: str = "https://better-telegram-mcp.n24q02m.com"
 
-    # Shared event relay
-    relay_endpoint_url: str | None = None
-    relay_queue_size: int = 10000
-    relay_timeout_seconds: int = 10
-    relay_max_retries: int = 5
-    relay_backoff_initial_ms: int = 500
-    relay_backoff_max_ms: int = 30000
-
     # Unified SSE
     sse_subscriber_queue_size: int = Field(default=100, gt=0)
     sse_heartbeat_seconds: int = Field(default=15, gt=0)
@@ -58,10 +48,6 @@ class Settings(BaseSettings):
         self.bot_token = _empty_to_none(self.bot_token)
         self.api_hash = _empty_to_none(self.api_hash)
         self.phone = _empty_to_none(self.phone)
-        self.relay_endpoint_url = _empty_to_none(self.relay_endpoint_url)
-
-        if self.relay_endpoint_url is not None:
-            validate_url(self.relay_endpoint_url)
 
         has_bot = self.bot_token is not None
         # User mode requires phone (api_id/api_hash have built-in defaults)
