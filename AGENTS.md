@@ -1,5 +1,9 @@
 # AGENTS.md - better-telegram-mcp
 
+**Generated:** 2026-04-08 19:34:05 UTC
+**Commit:** 1b150fc
+**Branch:** main
+
 Telegram MCP Server. Python 3.13, uv, src layout. Dual-mode: Bot API (httpx) + MTProto (Telethon).
 
 ## Build / Lint / Test Commands
