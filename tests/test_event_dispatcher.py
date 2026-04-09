@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 from unittest.mock import AsyncMock
 
 import httpx
@@ -9,7 +10,7 @@ from better_telegram_mcp.config import Settings
 from better_telegram_mcp.events import HTTPEventDispatcher, build_event_envelope
 
 
-def _make_settings(**overrides: object) -> Settings:
+def _make_settings(**overrides: Any) -> Settings:
     return Settings(
         relay_endpoint_url="https://example.com/events",
         relay_queue_size=10,
@@ -33,6 +34,7 @@ def _make_account(**overrides: object) -> dict[str, object]:
         "telegram_user_id": 100,
         "session_name": "alice",
         "username": "alice_user",
+        "mode": "user",
         **overrides,
     }
 
@@ -52,8 +54,10 @@ def test_build_event_envelope_is_deterministic() -> None:
     second = build_event_envelope(account, update)
 
     assert first["event_id"] == second["event_id"]
+    assert first["mode"] == "user"
     assert first["event_type"] == "UpdateNewMessage"
-    assert first["account"]["telegram_user_id"] == 100
+    assert first["account"]["telegram_id"] == 100
+    assert first["account"]["mode"] == "user"
     assert first["account"]["session_name"] == "alice"
     assert first["update"] == update
 
@@ -63,6 +67,15 @@ def test_build_event_envelope_changes_event_id_for_different_account() -> None:
 
     first = build_event_envelope(_make_account(telegram_user_id=100), update)
     second = build_event_envelope(_make_account(telegram_user_id=200), update)
+
+    assert first["event_id"] != second["event_id"]
+
+
+def test_build_event_envelope_changes_event_id_for_different_session_name() -> None:
+    update = _make_update()
+
+    first = build_event_envelope(_make_account(session_name="alice"), update)
+    second = build_event_envelope(_make_account(session_name="bob"), update)
 
     assert first["event_id"] != second["event_id"]
 

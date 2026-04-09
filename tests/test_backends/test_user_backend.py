@@ -123,9 +123,10 @@ class TestConnect:
         mock_client.catch_up.assert_awaited_once()
         assert backend._event_handler is not None
         assert backend._account_metadata == {
-            "telegram_user_id": 100,
+            "telegram_id": 100,
             "session_name": "test_session",
             "username": "testuser",
+            "mode": "user",
         }
 
     async def test_connect_authorized_event_handler_enqueues_envelope(
@@ -155,9 +156,11 @@ class TestConnect:
 
         dispatcher.enqueue.assert_called_once()
         envelope = dispatcher.enqueue.call_args.args[0]
+        assert envelope["mode"] == "user"
         assert envelope["event_type"] == "UpdateNewMessage"
-        assert envelope["account"]["telegram_user_id"] == 100
+        assert envelope["account"]["telegram_id"] == 100
         assert envelope["account"]["session_name"] == "test_session"
+        assert envelope["account"]["mode"] == "user"
         assert envelope["update"] == update.to_dict.return_value
 
     async def test_connect_unauthorized_stays_connected(
@@ -290,6 +293,149 @@ class TestRelayActivation:
         assert args[1].__class__ is events.Raw
         mock_client.catch_up.assert_awaited_once()
         assert backend._event_handler is not None
+
+    async def test_event_capture_uses_generic_sink_publish_method(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        class _Sink:
+            def __init__(self) -> None:
+                self.publish = MagicMock(return_value=True)
+
+        sink = _Sink()
+        mock_client.get_me = AsyncMock(return_value=_mock_user())
+        mock_client.add_event_handler = MagicMock()
+        mock_client.remove_event_handler = MagicMock()
+        mock_client.catch_up = AsyncMock()
+        update = MagicMock()
+        update.to_dict.return_value = {
+            "_": "UpdateNewMessage",
+            "message": {"id": 1, "message": "hello"},
+        }
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings, event_dispatcher=sink)
+
+        await backend.connect()
+        assert backend._event_handler is not None
+
+        await backend._event_handler(update)
+
+        sink.publish.assert_called_once()
+        envelope = sink.publish.call_args.args[0]
+        assert envelope["account"]["telegram_id"] == 100
+        assert envelope["account"]["mode"] == "user"
+        assert envelope["update"] == update.to_dict.return_value
+
+    async def test_disconnect_stops_future_sink_publishes(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        class _Sink:
+            def __init__(self) -> None:
+                self.publish = MagicMock(return_value=True)
+
+        sink = _Sink()
+        mock_client.get_me = AsyncMock(return_value=_mock_user())
+        mock_client.add_event_handler = MagicMock()
+        mock_client.remove_event_handler = MagicMock()
+        mock_client.catch_up = AsyncMock()
+        update = MagicMock()
+        update.to_dict.return_value = {
+            "_": "UpdateNewMessage",
+            "message": {"id": 1, "message": "hello"},
+        }
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings, event_dispatcher=sink)
+
+        await backend.connect()
+        handler = backend._event_handler
+        assert handler is not None
+
+        await backend.disconnect()
+        await handler(update)
+
+        sink.publish.assert_not_called()
+
+    async def test_event_sink_enqueue_receives_normalized_envelope(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        class _Sink:
+            def __init__(self) -> None:
+                self.enqueue = MagicMock(return_value=True)
+
+        sink = _Sink()
+        mock_client.get_me = AsyncMock(return_value=_mock_user())
+        mock_client.add_event_handler = MagicMock()
+        mock_client.remove_event_handler = MagicMock()
+        mock_client.catch_up = AsyncMock()
+        update = MagicMock()
+        update.to_dict.return_value = {
+            "_": "UpdateNewMessage",
+            "message": {"id": 1, "message": "hello"},
+        }
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings, event_dispatcher=sink)
+
+        await backend.connect()
+        assert backend._event_handler is not None
+
+        await backend._event_handler(update)
+
+        sink.enqueue.assert_called_once()
+        envelope = sink.enqueue.call_args.args[0]
+        assert envelope["event_type"] == "UpdateNewMessage"
+        assert envelope["mode"] == "user"
+        assert envelope["account"] == {
+            "telegram_id": 100,
+            "session_name": "test_session",
+            "username": "testuser",
+            "mode": "user",
+        }
+        assert envelope["update"] == update.to_dict.return_value
+
+    async def test_sse_publish_receives_normalized_envelope(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        class _SSE:
+            def __init__(self) -> None:
+                self.publish = MagicMock(return_value=True)
+
+        sink = _SSE()
+        mock_client.get_me = AsyncMock(return_value=_mock_user())
+        mock_client.add_event_handler = MagicMock()
+        mock_client.remove_event_handler = MagicMock()
+        mock_client.catch_up = AsyncMock()
+        update = MagicMock()
+        update.to_dict.return_value = {
+            "_": "UpdateShortMessage",
+            "message": "hi",
+        }
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings, event_dispatcher=sink)
+
+        await backend.connect()
+        assert backend._event_handler is not None
+
+        await backend._event_handler(update)
+
+        sink.publish.assert_called_once()
+        envelope = sink.publish.call_args.args[0]
+        assert envelope["event_type"] == "UpdateShortMessage"
+        assert envelope["mode"] == "user"
+        assert envelope["account"]["telegram_id"] == 100
+        assert envelope["account"]["session_name"] == "test_session"
+        assert envelope["account"]["mode"] == "user"
+        assert envelope["update"] == update.to_dict.return_value
 
 
 class TestIsConnected:

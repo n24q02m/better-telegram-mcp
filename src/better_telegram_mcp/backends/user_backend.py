@@ -32,6 +32,17 @@ class UserBackend(TelegramBackend):
     def set_event_dispatcher(self, event_dispatcher: Any | None) -> None:
         self._event_dispatcher = event_dispatcher
 
+    def _publish_event(self, envelope: dict[str, Any]) -> None:
+        if self._event_dispatcher is None:
+            return
+
+        if hasattr(self._event_dispatcher, "enqueue"):
+            self._event_dispatcher.enqueue(envelope)
+            return
+
+        if hasattr(self._event_dispatcher, "publish"):
+            self._event_dispatcher.publish(envelope)
+
     async def enable_event_capture(self) -> None:
         await self._enable_event_capture()
 
@@ -121,9 +132,10 @@ class UserBackend(TelegramBackend):
 
         me = await client.get_me()
         self._account_metadata = {
-            "telegram_user_id": me.id,
+            "telegram_id": me.id,
             "session_name": self._settings.session_name,
             "username": getattr(me, "username", None),
+            "mode": "user",
         }
 
         async def _handle_raw_event(update: Any) -> None:
@@ -138,9 +150,9 @@ class UserBackend(TelegramBackend):
                 return
 
             try:
-                self._event_dispatcher.enqueue(envelope)
+                self._publish_event(envelope)
             except Exception as exc:
-                logger.warning("Failed to enqueue raw Telegram update: {}", exc)
+                logger.warning("Failed to publish raw Telegram update: {}", exc)
 
         self._event_handler = _handle_raw_event
         client.add_event_handler(self._event_handler, events.Raw())
