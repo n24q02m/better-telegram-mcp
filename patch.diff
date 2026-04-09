@@ -1,0 +1,23 @@
+--- src/better_telegram_mcp/auth_server.py
++++ src/better_telegram_mcp/auth_server.py
+@@ -107,8 +107,8 @@
+ }
+ function st(el,cls,msg){el.className='st '+cls;el.textContent=msg;el.style.display='block'}
+ function clearSt(el){el.className='st';el.textContent='';el.style.display='none'}
+-function btnLoading(btn,text){btn.disabled=true;btn.textContent=text;btn.setAttribute('aria-busy','true')}
+-function btnReset(btn,text){btn.disabled=false;btn.textContent=text;btn.removeAttribute('aria-busy')}
++function btnLoading(btn,text){btn.disabled=true;btn.innerHTML=`<span class="spinner" aria-hidden="true"></span>${text}`;btn.setAttribute('aria-busy','true');const f=btn.closest('form');if(f)f.querySelectorAll('input').forEach(i=>i.disabled=true)}
++function btnReset(btn,text){btn.disabled=false;btn.textContent=text;btn.removeAttribute('aria-busy');const f=btn.closest('form');if(f)f.querySelectorAll('input').forEach(i=>i.disabled=false)}
+ function showPwd(){$('pwd-section').style.display='block';$('pwd').focus()}
+
+ async function checkStatus(){
+@@ -140,10 +140,6 @@
+ }
+
+-$('otp').addEventListener('keydown',e=>{if(e.key==='Enter')verify()});
+-document.addEventListener('DOMContentLoaded',()=>{
+-  const p=$('pwd');if(p)p.addEventListener('keydown',e=>{if(e.key==='Enter')verify()});
+-});
+ checkStatus();
+ </script>
+ </body>
