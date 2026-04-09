@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 from better_telegram_mcp.backends.security import validate_url
@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     relay_max_retries: int = 5
     relay_backoff_initial_ms: int = 500
     relay_backoff_max_ms: int = 30000
+
+    # Unified SSE
+    sse_subscriber_queue_size: int = Field(default=100, gt=0)
+    sse_heartbeat_seconds: int = Field(default=15, gt=0)
+    bot_poll_timeout_seconds: int = Field(default=30, gt=0)
+    bot_poll_backoff_initial_ms: int = Field(default=1000, gt=0)
+    bot_poll_backoff_max_ms: int = Field(default=60000, gt=0)
 
     # Data
     data_dir: Path = Path.home() / ".better-telegram-mcp"
@@ -91,16 +98,22 @@ class Settings(BaseSettings):
         Returns:
             A configured Settings instance.
         """
-        kwargs: dict[str, object] = {
-            "bot_token": config.get("TELEGRAM_BOT_TOKEN"),
-            "phone": config.get("TELEGRAM_PHONE"),
-        }
-        # Only override defaults if relay explicitly provides values
-        if config.get("TELEGRAM_API_ID"):
-            kwargs["api_id"] = int(config["TELEGRAM_API_ID"])
-        if config.get("TELEGRAM_API_HASH"):
-            kwargs["api_hash"] = config["TELEGRAM_API_HASH"]
-        return cls(**kwargs)
+        api_id = (
+            int(config["TELEGRAM_API_ID"])
+            if config.get("TELEGRAM_API_ID")
+            else 37984984
+        )
+        api_hash = (
+            config["TELEGRAM_API_HASH"]
+            if config.get("TELEGRAM_API_HASH")
+            else "2f5f4c76c4de7c07302380c788390100"
+        )
+        return cls(
+            bot_token=config.get("TELEGRAM_BOT_TOKEN"),
+            phone=config.get("TELEGRAM_PHONE"),
+            api_id=api_id,
+            api_hash=api_hash,
+        )
 
     @property
     def session_path(self) -> Path:
