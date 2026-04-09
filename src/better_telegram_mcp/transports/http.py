@@ -9,6 +9,7 @@ Single-user fallback: stored credentials via relay page (backward compat).
 
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 from contextvars import ContextVar
@@ -44,7 +45,8 @@ async def setup_credentials(settings: Settings) -> dict[str, str]:
         RuntimeError: If relay setup fails or times out.
     """
     store = CredentialStore(settings.data_dir)
-    creds = store.load()
+    # ⚡ Bolt: Offload synchronous decryption (AES-GCM/PBKDF2) to prevent blocking the event loop
+    creds = await asyncio.to_thread(store.load)
 
     if creds is not None:
         logger.info("Loaded stored credentials from {}", settings.data_dir)
@@ -75,7 +77,8 @@ async def setup_credentials(settings: Settings) -> dict[str, str]:
         msg = "Relay setup timed out or session expired"
         raise RuntimeError(msg) from exc
 
-    store.store(creds)
+    # ⚡ Bolt: Offload synchronous encryption to prevent blocking the event loop
+    await asyncio.to_thread(store.store, creds)
     logger.info("Credentials stored successfully")
     return creds
 
