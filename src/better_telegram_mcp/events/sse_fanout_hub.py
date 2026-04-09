@@ -8,6 +8,8 @@ from typing import Any, Literal, TypeVar
 
 SSECloseReason = Literal["connection_replaced", "overflow", "runtime_stopped"]
 
+T = TypeVar("T")
+
 
 @dataclass(slots=True)
 class SSEFanoutItem:
@@ -118,7 +120,7 @@ class SSEFanoutHub:
     def _push_error(
         self, subscriber: asyncio.Queue[SSEFanoutItem], reason: SSECloseReason
     ) -> None:
-        while True:
+        for _ in range(self._queue_size + 1):
             try:
                 subscriber.put_nowait(SSEFanoutItem(kind="error", reason=reason))
                 return
@@ -141,8 +143,12 @@ class SSEFanoutHub:
 
         Called only from a different thread/loop (the producer side).
         Same-loop callers take the fast path in publish()/unsubscribe()
-        and never reach here.
+        and never reach here. Raises TimeoutError if the subscriber loop
+        does not execute the callback within 5 seconds.
         """
+        assert not SSEFanoutHub._in_subscriber_loop(loop), (
+            "_call_in_loop must not be called from the subscriber's event loop"
+        )
         result: Future[T] = Future()
 
         def runner() -> None:
@@ -152,7 +158,4 @@ class SSEFanoutHub:
                 result.set_exception(exc)
 
         loop.call_soon_threadsafe(runner)
-        return result.result()
-
-
-T = TypeVar("T")
+        return result.result(timeout=5.0)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from contextlib import suppress
 from pathlib import Path
 from types import SimpleNamespace
@@ -505,6 +506,10 @@ class TestTelegramSSEEndpoint:
             assert stream.status_code == 200
             assert stream.headers["content-type"].startswith("text/event-stream")
 
+            # First message is the retry hint
+            retry_msg = await stream.read_message()
+            assert retry_msg[0].startswith("retry:")
+
             assert (
                 await _publish_when_connected(runtime.hub, _make_event("evt-1")) is True
             )
@@ -523,6 +528,10 @@ class TestTelegramSSEEndpoint:
 
         stream = await _open_sse_stream(app, bearer="test-bearer")
         try:
+            # Skip retry hint
+            retry_msg = await stream.read_message()
+            assert retry_msg[0].startswith("retry:")
+
             message = await stream.read_message()
         finally:
             await stream.close()
@@ -535,6 +544,8 @@ class TestTelegramSSEEndpoint:
         _provider, runtime = _register_runtime(app)
 
         first_stream = await _open_sse_stream(app, bearer="test-bearer")
+        # Consume retry hint from first stream
+        await first_stream.read_message()
         second_stream = await _open_sse_stream(app, bearer="test-bearer")
         try:
             first_message = await first_stream.read_message()
@@ -542,6 +553,9 @@ class TestTelegramSSEEndpoint:
             assert json.loads(first_message[1].removeprefix("data: ")) == {
                 "reason": "connection_replaced"
             }
+
+            # Consume retry hint from second stream
+            await second_stream.read_message()
 
             assert (
                 await _publish_when_connected(runtime.hub, _make_event("evt-2")) is True
@@ -562,6 +576,9 @@ class TestTelegramSSEEndpoint:
 
         stream = await _open_sse_stream(app, bearer="test-bearer")
         try:
+            # Skip retry hint
+            await stream.read_message()
+
             assert (
                 await _publish_when_connected(runtime.hub, _make_event("evt-1")) is True
             )
@@ -580,6 +597,9 @@ class TestTelegramSSEEndpoint:
 
         stream = await _open_sse_stream(app, bearer="test-bearer")
         try:
+            # Skip retry hint
+            await stream.read_message()
+
             await runtime.hub.close("runtime_stopped")
             message = await stream.read_message()
         finally:
@@ -600,6 +620,9 @@ class TestTelegramSSEEndpoint:
             extra_headers={"Last-Event-ID": "evt-old"},
         )
         try:
+            # Skip retry hint
+            await stream.read_message()
+
             assert (
                 await _publish_when_connected(runtime.hub, _make_event("evt-live"))
                 is True
@@ -615,6 +638,8 @@ class TestTelegramSSEEndpoint:
         _provider, runtime = _register_runtime(app)
 
         stream = await _open_sse_stream(app, bearer="test-bearer")
+        # Skip retry hint
+        await stream.read_message()
         assert await _publish_when_connected(runtime.hub, _make_event("evt-1")) is True
         await stream.close()
 
@@ -676,3 +701,29 @@ class TestBackwardCompatibility:
         finally:
             server._multi_user_mode = False
             server._backend = None
+
+
+class TestRateLimitEviction:
+    def test_rate_limit_evicts_stale_keys(self) -> None:
+        """Stale keys should be evicted when dict exceeds threshold."""
+        from better_telegram_mcp.transports.http_multi_user import (
+            _MAX_RATE_LIMIT_KEYS,
+            _RATE_LIMIT_WINDOW,
+            _check_rate_limit,
+            _rate_limits,
+        )
+
+        _rate_limits.clear()
+        stale_timestamp = time.time() - _RATE_LIMIT_WINDOW - 10
+
+        for i in range(_MAX_RATE_LIMIT_KEYS + 1):
+            _rate_limits[f"stale-ip-{i}"] = [stale_timestamp]
+
+        assert len(_rate_limits) == _MAX_RATE_LIMIT_KEYS + 1
+
+        # One fresh call triggers eviction
+        _check_rate_limit("fresh-ip", 100)
+
+        assert len(_rate_limits) < _MAX_RATE_LIMIT_KEYS + 1
+        assert "fresh-ip" in _rate_limits
+        _rate_limits.clear()

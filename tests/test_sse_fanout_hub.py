@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from better_telegram_mcp.events.sse_fanout_hub import SSEFanoutHub
 
 
@@ -72,3 +74,35 @@ async def test_publish_without_subscriber_is_dropped() -> None:
     hub = SSEFanoutHub(subscriber_queue_size=2)
 
     assert hub.publish(_make_event("evt-4")) is False
+
+
+async def test_call_in_loop_asserts_on_same_loop() -> None:
+    """_call_in_loop must reject calls from the subscriber's own event loop."""
+    import asyncio
+
+    loop = asyncio.get_running_loop()
+    hub = SSEFanoutHub(subscriber_queue_size=2)
+    hub.subscribe()
+
+    with pytest.raises(AssertionError, match="must not be called from"):
+        hub._call_in_loop(loop, lambda: True)
+
+
+async def test_push_error_bounded_on_full_queue() -> None:
+    """_push_error must complete even when queue is full, without infinite loop."""
+    hub = SSEFanoutHub(subscriber_queue_size=2)
+    hub.subscribe()
+
+    # Fill queue to capacity
+    hub.publish(_make_event("fill-1"))
+    hub.publish(_make_event("fill-2"))
+
+    # Directly call _push_error on the internal queue — must not hang
+    hub._push_error(hub._subscriber.queue, "overflow")
+
+    # The error sentinel should be in the queue (after draining one item)
+    items = []
+    while not hub._subscriber.queue.empty():
+        items.append(hub._subscriber.queue.get_nowait())
+
+    assert any(item.kind == "error" and item.reason == "overflow" for item in items)

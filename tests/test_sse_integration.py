@@ -14,6 +14,7 @@ import pytest
 
 from better_telegram_mcp.auth.per_user_session_store import SessionInfo
 from better_telegram_mcp.auth.telegram_auth_provider import TelegramAuthProvider
+from better_telegram_mcp.backends.bot_backend import BotBackend
 from better_telegram_mcp.config import Settings
 from better_telegram_mcp.events import build_event_envelope
 from better_telegram_mcp.transports.http_multi_user import create_app
@@ -289,7 +290,7 @@ class FakeUserBackend:
         return False
 
 
-class FakeBotBackend:
+class FakeBotBackend(BotBackend):
     scenarios: dict[str, dict[str, Any]] = {}
     instances: dict[str, FakeBotBackend] = {}
 
@@ -316,6 +317,7 @@ class FakeBotBackend:
         cls.instances.clear()
 
     def __init__(self, bot_token: str) -> None:
+        # Skip BotBackend.__init__ to avoid creating a real httpx client
         scenario = self.scenarios.get(bot_token)
         if scenario is None:
             msg = f"No fake bot scenario configured for {bot_token}"
@@ -422,6 +424,9 @@ class TestUnifiedSSEIntegration:
 
             stream = await _open_sse_stream(app, bearer=bearer)
             try:
+                # Skip retry hint
+                await stream.read_message()
+
                 runtime = provider.resolve_runtime(bearer)
                 assert runtime is not None
                 backend = cast(FakeUserBackend, runtime.backend)
@@ -474,6 +479,9 @@ class TestUnifiedSSEIntegration:
             bearer = auth.json()["bearer_token"]
             stream = await _open_sse_stream(app, bearer=bearer)
             try:
+                # Skip retry hint
+                await stream.read_message()
+
                 backend = FakeBotBackend.instances["123:ABC"]
                 await backend.push_live_updates(_make_bot_update(11, "live update"))
                 message = await stream.read_message()
@@ -521,6 +529,10 @@ class TestUnifiedSSEIntegration:
             stream_a = await _open_sse_stream(app, bearer=bearer_a)
             stream_b = await _open_sse_stream(app, bearer=bearer_b)
             try:
+                # Skip retry hints
+                await stream_a.read_message()
+                await stream_b.read_message()
+
                 await FakeBotBackend.instances["token-a"].push_live_updates(
                     _make_bot_update(20, "only for A")
                 )
@@ -559,6 +571,9 @@ class TestUnifiedSSEIntegration:
 
             stream = await _open_sse_stream(app, bearer=bearer)
             try:
+                # Skip retry hint
+                await stream.read_message()
+
                 revoked = await provider.revoke_session(bearer)
                 message = await stream.read_message()
             finally:
@@ -595,6 +610,9 @@ class TestUnifiedSSEIntegration:
 
             stream = await _open_sse_stream(app, bearer=bearer)
             try:
+                # Skip retry hint
+                await stream.read_message()
+
                 await provider.shutdown()
                 message = await stream.read_message()
             finally:
@@ -664,6 +682,9 @@ class TestUnifiedSSEIntegration:
             restored = await provider.restore_sessions()
             stream = await _open_sse_stream(app, bearer="restored-bearer")
             try:
+                # Skip retry hint
+                await stream.read_message()
+
                 backend = FakeBotBackend.instances["token-restored"]
                 await backend.push_live_updates(
                     _make_bot_update(41, "old"),

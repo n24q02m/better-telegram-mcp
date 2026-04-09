@@ -36,6 +36,7 @@ _rate_limits: dict[str, list[float]] = defaultdict(list)
 _RATE_LIMIT_WINDOW = 60  # seconds
 _RATE_LIMIT_AUTH = 20  # requests per window for auth endpoints
 _RATE_LIMIT_MCP = 120  # requests per window for MCP endpoint
+_MAX_RATE_LIMIT_KEYS = 10_000
 
 
 def _check_rate_limit(ip: str, limit: int) -> bool:
@@ -51,6 +52,15 @@ def _check_rate_limit(ip: str, limit: int) -> bool:
         return False
 
     _rate_limits[ip].append(now)
+
+    # Periodic eviction: remove stale keys when dict grows too large
+    if len(_rate_limits) > _MAX_RATE_LIMIT_KEYS:
+        stale_keys = [
+            key for key, ts in _rate_limits.items() if not ts or ts[-1] <= window_start
+        ]
+        for key in stale_keys:
+            del _rate_limits[key]
+
     return True
 
 
@@ -349,6 +359,15 @@ def create_app(
         )
 
     async def telegram_events(request: Request) -> StreamingResponse | JSONResponse:
+        """Bearer-authenticated SSE stream for real-time Telegram events.
+
+        Contract:
+        - Events carry ``id:`` fields (SHA256 event_id from the envelope).
+        - ``Last-Event-ID`` on reconnect is acknowledged but NOT replayed.
+          The server does not maintain a replay buffer. Clients that require
+          exactly-once delivery must track ``event_id`` externally.
+        - A ``retry:`` hint is sent at stream start.
+        """
         bearer = _extract_bearer(request)
         if not bearer:
             return _error_response(401, "unauthorized", "Bearer token required")
@@ -357,6 +376,13 @@ def create_app(
         if runtime is None:
             return _error_response(
                 401, "unauthorized", "Invalid or expired bearer token"
+            )
+
+        last_event_id = request.headers.get("last-event-id")
+        if last_event_id is not None:
+            logger.debug(
+                "SSE reconnect with Last-Event-ID={} (replay not supported, ignored)",
+                last_event_id,
             )
 
         subscriber = runtime.hub.subscribe()
@@ -368,6 +394,7 @@ def create_app(
 
         async def event_stream():
             try:
+                yield f"retry: {heartbeat_seconds * 1000}\n\n".encode()
                 while True:
                     try:
                         item = await asyncio.wait_for(

@@ -18,6 +18,7 @@ from better_telegram_mcp.auth.telegram_auth_provider import (
     TelegramBearerRuntime,
     _RuntimeEventSink,
 )
+from better_telegram_mcp.backends.bot_backend import BotBackend
 from better_telegram_mcp.config import Settings
 from better_telegram_mcp.events.sse_fanout_hub import SSEFanoutHub
 
@@ -106,7 +107,7 @@ class TestRegisterBot:
     async def test_register_bot_starts_polling_producer(
         self, provider: TelegramAuthProvider
     ) -> None:
-        mock_backend = AsyncMock()
+        mock_backend = AsyncMock(spec=BotBackend)
         mock_backend.connect = AsyncMock()
         mock_backend.disconnect = AsyncMock()
         mock_backend._bot_info = {"id": 1, "username": "testbot"}
@@ -137,7 +138,7 @@ class TestRegisterBot:
     async def test_register_bot_rolls_back_when_producer_start_fails(
         self, provider: TelegramAuthProvider
     ) -> None:
-        mock_backend = AsyncMock()
+        mock_backend = AsyncMock(spec=BotBackend)
         mock_backend.connect = AsyncMock()
         mock_backend.disconnect = AsyncMock()
         mock_backend._bot_info = {"id": 1, "username": "testbot"}
@@ -165,10 +166,10 @@ class TestRegisterBot:
     async def test_register_bot_rejects_duplicate_token_under_concurrency(
         self, provider: TelegramAuthProvider
     ) -> None:
-        first_backend = AsyncMock()
+        first_backend = AsyncMock(spec=BotBackend)
         first_backend.disconnect = AsyncMock()
         first_backend._bot_info = {"id": 1, "username": "testbot"}
-        second_backend = AsyncMock()
+        second_backend = AsyncMock(spec=BotBackend)
         second_backend.disconnect = AsyncMock()
         second_backend._bot_info = {"id": 1, "username": "testbot"}
         producer_one = AsyncMock()
@@ -637,7 +638,7 @@ class TestRestoreSessions:
             ),
         )
 
-        mock_backend = AsyncMock()
+        mock_backend = AsyncMock(spec=BotBackend)
         mock_backend.connect = AsyncMock()
         mock_backend.disconnect = AsyncMock()
         mock_backend._bot_info = {"id": 1, "username": "testbot"}
@@ -676,7 +677,7 @@ class TestRestoreSessions:
             ),
         )
 
-        mock_backend = AsyncMock()
+        mock_backend = AsyncMock(spec=BotBackend)
         mock_backend.connect = AsyncMock()
         mock_backend.disconnect = AsyncMock()
         mock_backend._bot_info = {"id": 1, "username": "testbot"}
@@ -974,3 +975,43 @@ class TestShutdown:
             "hub:two",
             "backend:two",
         ]
+
+
+class TestPollingBackendResolution:
+    def test_as_bot_polling_backend_returns_none_for_non_bot(
+        self, provider: TelegramAuthProvider
+    ) -> None:
+        mock_user_backend = MagicMock()
+        result = TelegramAuthProvider._as_bot_polling_backend(mock_user_backend)
+        assert result is None
+
+    def test_as_bot_polling_backend_returns_cast_for_bot_backend(
+        self, provider: TelegramAuthProvider
+    ) -> None:
+        mock_bot = AsyncMock(spec=BotBackend)
+        result = TelegramAuthProvider._as_bot_polling_backend(mock_bot)
+        assert result is mock_bot
+
+    async def test_start_bot_producer_warns_when_backend_not_polling(
+        self, provider: TelegramAuthProvider
+    ) -> None:
+        non_bot_backend = MagicMock()
+        hub = SSEFanoutHub(subscriber_queue_size=1)
+        runtime = TelegramBearerRuntime(
+            backend=non_bot_backend,
+            hub=hub,
+            mode="bot",
+            session_name="test",
+            bot_token="123:ABC",
+        )
+        provider._runtimes["bearer-warn"] = runtime
+        provider.active_clients["bearer-warn"] = non_bot_backend
+
+        with patch(
+            "better_telegram_mcp.auth.telegram_auth_provider.logger"
+        ) as mock_logger:
+            await provider._start_bot_producer("bearer-warn", runtime)
+
+        assert runtime.bot_producer is None
+        mock_logger.warning.assert_called_once()
+        assert "does not support polling" in str(mock_logger.warning.call_args)

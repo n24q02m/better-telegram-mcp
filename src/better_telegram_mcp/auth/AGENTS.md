@@ -24,7 +24,7 @@ stateless_client_store.py     # HMAC-based OAuth client registration (DCR)
 - `restore_sessions()`: Parallel session restoration on startup (asyncio.gather)
 - `revoke_session()`: Stop producer, close hub, disconnect backend, delete session
 - `cleanup_expired()`: Remove sessions older than 30 days
-- `_start_bot_producer()`: Verifies backend satisfies `BotPollingBackend` protocol before creating producer
+- `_start_bot_producer()`: Verifies backend is `BotBackend` via `isinstance` (local import) before creating producer; logs warning if check fails
 - `_stop_bot_producer()`: Direct `await producer.stop()` (typed field, no getattr)
 
 ### per_user_session_store.py
@@ -80,4 +80,5 @@ stateless_client_store.py     # HMAC-based OAuth client registration (DCR)
 - **Don't** persist OAuth client metadata in database (use HMAC derivation for stateless DCR)
 - **Don't** hardcode salt (migrated to random 16-byte on first write for forward security)
 - **Don't** use `getattr`/duck-typing for `bot_producer` — field is typed `BotUpdateProducer | None`, call `.stop()` directly
-- **Don't** check `unittest.mock` module in production code — protocol checks on the backend are sufficient
+- **Don't** use duck-typing/inspect for bot polling backend check — use `isinstance(backend, BotBackend)` via local import to avoid test patch interference
+- **Don't** silently skip producer startup on backend mismatch — always log a warning so missing SSE events are diagnosable

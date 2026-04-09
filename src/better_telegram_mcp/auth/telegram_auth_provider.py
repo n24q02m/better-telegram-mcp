@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import inspect
 import secrets
 import time
 from dataclasses import dataclass
@@ -265,6 +264,11 @@ class TelegramAuthProvider:
 
         polling_backend = self._as_bot_polling_backend(runtime.backend)
         if polling_backend is None:
+            logger.warning(
+                "Bot backend for bearer {} does not support polling; "
+                "SSE events will not be produced",
+                bearer[:8],
+            )
             return
 
         producer = BotUpdateProducer(
@@ -281,16 +285,10 @@ class TelegramAuthProvider:
 
     @staticmethod
     def _as_bot_polling_backend(backend: TelegramBackend) -> BotPollingBackend | None:
-        call_method = getattr(backend, "_call", None)
-        get_updates = getattr(backend, "get_updates", None)
-        bot_info = getattr(backend, "_bot_info", None)
-        if (
-            call_method is not None
-            and get_updates is not None
-            and inspect.iscoroutinefunction(call_method)
-            and inspect.iscoroutinefunction(get_updates)
-            and isinstance(bot_info, dict)
-        ):
+        # Import from the canonical module to avoid test patches replacing the class
+        from ..backends.bot_backend import BotBackend as _BotBackend
+
+        if isinstance(backend, _BotBackend):
             return cast(BotPollingBackend, backend)
         return None
 
@@ -367,7 +365,7 @@ class TelegramAuthProvider:
                 self._store.delete(bearer)
                 await backend.disconnect()
                 raise
-        logger.info("Registered bot session: {}", session_name[:8])
+            logger.info("Registered bot session: {}", session_name[:8])
         return bearer
 
     async def start_user_auth(self, bearer: str, phone: str) -> dict:

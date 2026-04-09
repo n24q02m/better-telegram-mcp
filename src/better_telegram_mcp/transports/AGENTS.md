@@ -28,7 +28,7 @@ transports/
 ## Conventions
 
 - `http.py` owns transport startup and mode selection, not the detailed route behavior.
-- `http_multi_user.py` owns Starlette routes, auth JSON responses, rate limiting, health checks, and SSE stream behavior.
+- `http_multi_user.py` owns Starlette routes, auth JSON responses, rate limiting (with bounded eviction at 10K keys), health checks, and SSE stream behavior.
 - `_current_backend` is the only supported bridge for per-request backend injection into MCP handlers.
 - `credential_store.py` persists single-user HTTP credentials under `data_dir`; it is not the multi-user auth/session store.
 - Multi-user runtime ownership lives in `auth/telegram_auth_provider.py`; transport consumes that provider instead of duplicating session rules here.
@@ -37,7 +37,7 @@ transports/
 
 - SSE endpoint is `GET /events/telegram`.
 - Authentication is bearer-only via `Authorization: Bearer ...`.
-- Stream is live-only in v1: no replay buffer, no resume semantics, `Last-Event-ID` ignored.
+- Stream is live-only in v1: no replay buffer, no resume semantics. `Last-Event-ID` is logged at debug level but ignored. `retry:` hint sent at stream start.
 - Heartbeats are explicit SSE events, not comment frames.
 - Per-bearer isolation is required; a bearer must only receive its own Telegram events.
 - Current v1 behavior allows one active SSE connection per bearer; replacement closes the older stream with an error event.

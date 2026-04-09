@@ -112,6 +112,36 @@ def test_build_event_envelope_changes_event_id_for_different_session_name() -> N
     assert first["event_id"] != second["event_id"]
 
 
+def test_build_event_envelope_includes_top_level_update_id_for_bot_update() -> None:
+    envelope = build_event_envelope(
+        {
+            "telegram_id": 200,
+            "session_name": "bot-session",
+            "mode": "bot",
+        },
+        {
+            "_": "UpdateNewMessage",
+            "update_id": 42,
+            "message": {"id": 1, "message": "hello"},
+        },
+    )
+
+    assert envelope["update_id"] == 42
+
+
+def test_build_event_envelope_omits_update_id_for_user_update() -> None:
+    envelope = build_event_envelope(
+        {
+            "telegram_id": 100,
+            "session_name": "user-session",
+            "mode": "user",
+        },
+        _make_update(),
+    )
+
+    assert "update_id" not in envelope
+
+
 def test_build_event_envelope_excludes_sensitive_fields_and_replay_metadata() -> None:
     envelope = build_event_envelope(
         {

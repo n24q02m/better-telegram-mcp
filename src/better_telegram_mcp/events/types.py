@@ -53,7 +53,7 @@ def build_event_envelope(
 ) -> dict[str, Any]:
     account_payload = _normalized_account(account)
 
-    return {
+    envelope: dict[str, Any] = {
         "event_id": _event_id(account, update),
         "event_type": update.get("_", "UnknownUpdate"),
         "occurred_at": datetime.now(UTC).isoformat(),
@@ -61,3 +61,7 @@ def build_event_envelope(
         "account": account_payload,
         "update": update,
     }
+    raw_update_id = update.get("update_id")
+    if raw_update_id is not None:
+        envelope["update_id"] = int(raw_update_id)
+    return envelope

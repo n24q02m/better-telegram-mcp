@@ -26,7 +26,7 @@
 - `_ensure_client()`: Runtime check that `connect()` was called
 
 **bot_update_producer.py**
-- `BotPollingBackend`: Protocol requiring `_call`, `get_updates`, `_bot_info`
+- `BotPollingBackend`: Protocol type for `_call`, `get_updates`, `_bot_info`; auth provider resolves via `isinstance(backend, BotBackend)` not duck-typing
 - `BotUpdateProducer`: Long-polls Bot API `getUpdates`, publishes normalized event envelopes
 - Offset persistence: debounced via `_persist_offset()` (default 5s interval), final flush on `stop()`
 - `_drain_backlog_to_live_boundary()`: Skips existing updates on first start (no replay)
