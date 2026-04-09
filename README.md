@@ -69,6 +69,97 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 - **Session File Security** -- 600 permissions, 2FA via web UI only (never stored in env vars)
 - **Error Sanitization** -- Credentials never leaked in error messages
 
+## Shared HTTP Event Relay
+
+The server can optionally forward **all inbound raw Telegram updates from all authenticated user sessions** to **one shared external HTTP endpoint**.
+
+This relay is:
+- **optional** -- existing MCP behavior stays unchanged when it is not configured
+- **env-only in v1** -- there is no runtime API for changing relay settings
+- **multi-user aware** -- every payload includes the account that received the event
+- **user-mode only** -- bot-mode inbound event capture is not part of this feature
+
+### When it works
+
+The shared relay is used in **HTTP multi-user mode**.
+
+Multi-user HTTP mode requires:
+- `TRANSPORT_MODE=http`
+- `PUBLIC_URL`
+- `DCR_SERVER_SECRET`
+- `TELEGRAM_API_ID`
+- `TELEGRAM_API_HASH`
+
+Relay delivery is enabled only when `TELEGRAM_RELAY_ENDPOINT_URL` is also set.
+
+### Relay Environment Variables
+
+| Variable | Default | Description |
+|:--|:--|:--|
+| `TELEGRAM_RELAY_ENDPOINT_URL` | unset | Shared external HTTP endpoint that receives JSON event payloads |
+| `TELEGRAM_RELAY_QUEUE_SIZE` | `10000` | Max in-memory queued events before new events are dropped |
+| `TELEGRAM_RELAY_TIMEOUT_SECONDS` | `10` | HTTP request timeout per delivery attempt |
+| `TELEGRAM_RELAY_MAX_RETRIES` | `5` | Max retry attempts for transient failures |
+| `TELEGRAM_RELAY_BACKOFF_INITIAL_MS` | `500` | Initial retry backoff in milliseconds |
+| `TELEGRAM_RELAY_BACKOFF_MAX_MS` | `30000` | Max retry backoff in milliseconds |
+
+`TELEGRAM_RELAY_ENDPOINT_URL` is validated with the same SSRF protections used elsewhere in the project. Internal/private/localhost targets are rejected.
+
+### Delivery Behavior
+
+- **Payload format:** JSON
+- **Scope:** all raw Telethon updates from authorized user sessions
+- **Destination:** one shared process-wide endpoint
+- **Guarantee:** **at-least-once**
+- **Duplicates:** possible during retries or reconnect catch-up; dedupe downstream by `event_id`
+- **Retry policy:** retries only on timeout/network failures, HTTP `429`, and `5xx`
+- **No retry:** other `4xx` responses are treated as terminal failures
+- **Backpressure:** queue overflow drops new events instead of blocking Telegram update processing
+- **Durability:** **in-memory only in v1**; queued events can be lost on process crash or prolonged outage
+- **Outbound auth:** none in v1
+
+### Payload Shape
+
+Each event contains:
+- `event_id` -- deterministic SHA-256 hash derived from `account.telegram_user_id` and the canonical raw update JSON
+- `event_type` -- raw Telegram update type from the update `_` field, e.g. `UpdateNewMessage`
+- `occurred_at` -- server-side ISO 8601 timestamp when the envelope was created
+- `account.telegram_user_id` -- stable Telegram account ID
+- `account.session_name` -- local session name used by this server
+- `account.username` -- included when Telegram provides it
+- `update` -- raw `update.to_dict()` payload
+
+The payload intentionally does **not** include bearer tokens or phone numbers.
+
+### Example Payload
+
+```json
+{
+  "event_id": "8c85b6dcf7b6ef2d7d4f0d5536f8b2aa8520bc0bcf5d3eaa541d5f5bc9d5db8a",
+  "event_type": "UpdateNewMessage",
+  "occurred_at": "2026-04-09T09:15:30.123456+00:00",
+  "account": {
+    "telegram_user_id": 123456789,
+    "session_name": "default",
+    "username": "example_user"
+  },
+  "update": {
+    "_": "UpdateNewMessage",
+    "message": {
+      "_": "Message",
+      "id": 42,
+      "message": "hello"
+    }
+  }
+}
+```
+
+### Operator Notes
+
+- Pending OTP sessions do **not** emit relay events until authentication is completed.
+- Relay delivery is intentionally isolated from MCP tools/resources; events are pushed externally, not exposed as MCP subscriptions.
+- `/health` in multi-user HTTP mode exposes only `relay_enabled: true|false` and does not leak the relay URL.
+
 ## Build from Source
 
 ```bash

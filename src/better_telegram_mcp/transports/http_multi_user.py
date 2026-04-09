@@ -27,6 +27,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from ..auth.stateless_client_store import StatelessClientStore
 from ..auth.telegram_auth_provider import TelegramAuthProvider
+from ..config import Settings
 from .http import _current_backend
 
 # Rate limiting: simple in-memory token bucket per IP
@@ -95,11 +96,17 @@ def create_app(
     dcr_secret: str,
     api_id: int,
     api_hash: str,
+    relay_settings: Settings | None = None,
 ) -> Starlette:
     """Create the multi-user Starlette ASGI application."""
 
     client_store = StatelessClientStore(dcr_secret)
-    auth_provider = TelegramAuthProvider(data_dir, api_id, api_hash)
+    auth_provider = TelegramAuthProvider(
+        data_dir,
+        api_id,
+        api_hash,
+        relay_settings=relay_settings,
+    )
 
     # Create MCP server and session manager for streamable-http
     from ..server import create_http_mcp_server
@@ -311,6 +318,8 @@ def create_app(
                 "status": "ok",
                 "mode": "multi-user",
                 "active_sessions": active,
+                "relay_enabled": auth_provider._relay_settings is not None
+                and auth_provider._relay_settings.relay_endpoint_url is not None,
                 "timestamp": time.time(),
             }
         )

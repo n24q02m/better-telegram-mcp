@@ -146,6 +146,7 @@ def _start_multi_user_http(settings: Settings) -> None:
         dcr_secret=dcr_secret,
         api_id=api_id,
         api_hash=api_hash,
+        relay_settings=settings,
     )
 
     logger.info("Starting multi-user HTTP server on port {}", port)

@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from starlette.testclient import TestClient
 
+from better_telegram_mcp.config import Settings
 from better_telegram_mcp.transports.http_multi_user import create_app
 
 
@@ -43,7 +44,29 @@ class TestHealthEndpoint:
         assert body["status"] == "ok"
         assert body["mode"] == "multi-user"
         assert "active_sessions" in body
+        assert body["relay_enabled"] is False
         assert "timestamp" in body
+
+    def test_health_reports_relay_enabled_without_leaking_url(
+        self, data_dir: Path
+    ) -> None:
+        app = create_app(
+            data_dir=data_dir,
+            public_url="https://test.example.com",
+            dcr_secret="test-dcr-secret",
+            api_id=12345,
+            api_hash="test_api_hash",
+            relay_settings=Settings(relay_endpoint_url="https://example.com/events"),
+        )
+        client = TestClient(app)
+
+        resp = client.get("/health")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["relay_enabled"] is True
+        assert "relay_endpoint_url" not in body
+        assert "example.com" not in resp.text
 
 
 class TestDCREndpoint:
