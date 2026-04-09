@@ -5,7 +5,8 @@ from __future__ import annotations
 import asyncio
 import time
 from pathlib import Path
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -31,6 +32,16 @@ def data_dir(tmp_path: Path) -> Path:
 @pytest.fixture
 def provider(data_dir: Path) -> TelegramAuthProvider:
     return TelegramAuthProvider(data_dir, api_id=12345, api_hash="test_hash")
+
+
+def _runtime_settings() -> SimpleNamespace:
+    return SimpleNamespace(
+        sse_subscriber_queue_size=100,
+        sse_heartbeat_seconds=15,
+        bot_poll_timeout_seconds=30,
+        bot_poll_backoff_initial_ms=1000,
+        bot_poll_backoff_max_ms=60000,
+    )
 
 
 class TestRegisterBot:
@@ -297,15 +308,15 @@ class TestStartUserAuth:
         assert "bearer" in result
         assert result["phone_code_hash"] == "hash123"
 
-    async def test_start_user_auth_does_not_inject_relay_into_pending_backend(
+    async def test_start_user_auth_does_not_inject_runtime_sink_into_pending_backend(
         self, data_dir: Path
     ) -> None:
-        relay_settings = Settings(relay_endpoint_url="https://example.com/events")
+        runtime_settings = cast(Settings, _runtime_settings())
         provider = TelegramAuthProvider(
             data_dir,
             api_id=12345,
             api_hash="test_hash",
-            relay_settings=relay_settings,
+            runtime_settings=runtime_settings,
         )
 
         mock_telethon_client = MagicMock()
@@ -385,15 +396,15 @@ class TestCompleteUserAuth:
         assert auth_result["authenticated_as"] == "Test"
         assert bearer in provider.active_clients
 
-    async def test_complete_user_auth_injects_shared_relay(
+    async def test_complete_user_auth_injects_runtime_sink(
         self, data_dir: Path
     ) -> None:
-        relay_settings = Settings(relay_endpoint_url="https://example.com/events")
+        runtime_settings = _runtime_settings()
         provider = TelegramAuthProvider(
             data_dir,
             api_id=12345,
             api_hash="test_hash",
-            relay_settings=relay_settings,
+            runtime_settings=cast(Settings, runtime_settings),
         )
 
         mock_telethon_client = MagicMock()
@@ -424,12 +435,10 @@ class TestCompleteUserAuth:
         final_dispatcher = mock_backend.set_event_dispatcher.call_args.args[0]
 
         assert isinstance(final_dispatcher, _RuntimeEventSink)
-        assert final_dispatcher.relay_dispatcher is provider._event_dispatcher
         runtime = provider.resolve_runtime(bearer)
         assert runtime is not None
         assert final_dispatcher.hub is runtime.hub
         mock_backend.enable_event_capture.assert_awaited_once()
-        assert provider._event_dispatcher is not None
 
     async def test_complete_user_auth_no_pending(
         self, provider: TelegramAuthProvider
@@ -689,12 +698,12 @@ class TestRestoreSessions:
     async def test_restore_user_sessions_publish_to_sse_hub_after_restore_sse(
         self, data_dir: Path
     ) -> None:
-        relay_settings = Settings(relay_endpoint_url="https://example.com/events")
+        runtime_settings = _runtime_settings()
         provider = TelegramAuthProvider(
             data_dir,
             api_id=12345,
             api_hash="test_hash",
-            relay_settings=relay_settings,
+            runtime_settings=cast(Settings, runtime_settings),
         )
         provider._store.store(
             "stored-user",
@@ -748,7 +757,6 @@ class TestRestoreSessions:
 
         assert restored_backend is not None
         assert restored == 1
-        assert provider._event_dispatcher is not None
         assert MockUserBackend.call_args.kwargs["event_dispatcher"] is None
 
         runtime = provider.resolve_runtime("stored-user")
@@ -758,7 +766,6 @@ class TestRestoreSessions:
         installed_sink = restored_backend.set_event_dispatcher.call_args.args[0]
         assert isinstance(installed_sink, _RuntimeEventSink)
         assert installed_sink.hub is runtime.hub
-        assert installed_sink.relay_dispatcher is provider._event_dispatcher
         restored_backend.enable_event_capture.assert_awaited_once()
 
         subscriber = runtime.hub.subscribe()
@@ -780,25 +787,6 @@ class TestRestoreSessions:
         item = await subscriber.next_item()
         assert item.kind == "event"
         assert item.event == event
-
-
-class TestRelayShutdown:
-    async def test_shutdown_stops_shared_relay_dispatcher(self, data_dir: Path) -> None:
-        relay_settings = Settings(relay_endpoint_url="https://example.com/events")
-        provider = TelegramAuthProvider(
-            data_dir,
-            api_id=12345,
-            api_hash="test_hash",
-            relay_settings=relay_settings,
-        )
-
-        dispatcher = AsyncMock()
-        provider._event_dispatcher = dispatcher
-        provider.active_clients["bearer"] = AsyncMock(disconnect=AsyncMock())
-
-        await provider.shutdown()
-
-        dispatcher.stop.assert_awaited_once()
 
     async def test_restore_expired_sessions_removed(
         self, provider: TelegramAuthProvider

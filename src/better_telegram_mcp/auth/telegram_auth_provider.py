@@ -24,7 +24,6 @@ from ..backends.bot_backend import BotBackend
 from ..backends.bot_update_producer import BotPollingBackend, BotUpdateProducer
 from ..backends.user_backend import UserBackend
 from ..config import Settings
-from ..events import HTTPEventDispatcher
 from ..events.sse_fanout_hub import SSEFanoutHub
 from .per_user_session_store import PerUserSessionStore, SessionInfo
 
@@ -37,19 +36,12 @@ _PendingOTP = dict  # {bearer, backend, phone, phone_code_hash, created_at}
 
 @dataclass(slots=True)
 class _RuntimeEventSink:
-    """Fan out user events to the bearer hub and optional relay."""
+    """Fan out user events to the bearer hub."""
 
     hub: SSEFanoutHub
-    relay_dispatcher: HTTPEventDispatcher | None = None
 
     def publish(self, event: dict[str, object]) -> bool:
-        delivered = self.hub.publish(event)
-
-        if self.relay_dispatcher is None:
-            return delivered
-
-        relay_delivered = self.relay_dispatcher.enqueue(event)
-        return delivered or relay_delivered
+        return self.hub.publish(event)
 
 
 @dataclass(slots=True)
@@ -77,17 +69,16 @@ class TelegramAuthProvider:
         data_dir: Path,
         api_id: int,
         api_hash: str,
-        relay_settings: Settings | None = None,
+        runtime_settings: Settings | None = None,
     ) -> None:
         self._data_dir = data_dir
         self._api_id = api_id
         self._api_hash = api_hash
         self._store = PerUserSessionStore(data_dir)
-        self._relay_settings = relay_settings
-        self._event_dispatcher: HTTPEventDispatcher | None = None
+        self.runtime_settings = runtime_settings
         self._sse_subscriber_queue_size = (
-            relay_settings.sse_subscriber_queue_size
-            if relay_settings is not None
+            runtime_settings.sse_subscriber_queue_size
+            if runtime_settings is not None
             else 100
         )
 
@@ -203,19 +194,6 @@ class TelegramAuthProvider:
             await backend.connect()
             return backend
 
-    async def _get_event_dispatcher(self) -> HTTPEventDispatcher | None:
-        if (
-            self._relay_settings is None
-            or self._relay_settings.relay_endpoint_url is None
-        ):
-            return None
-
-        if self._event_dispatcher is None:
-            self._event_dispatcher = HTTPEventDispatcher(self._relay_settings)
-            await self._event_dispatcher.start()
-
-        return self._event_dispatcher
-
     def _ensure_bot_token_available(
         self, bot_token: str | None, bearer: str | None = None
     ) -> None:
@@ -247,8 +225,7 @@ class TelegramAuthProvider:
         if runtime.mode != "user":
             return
 
-        relay_dispatcher = await self._get_event_dispatcher()
-        event_sink = _RuntimeEventSink(runtime.hub, relay_dispatcher)
+        event_sink = _RuntimeEventSink(runtime.hub)
         backend = runtime.backend
 
         set_event_dispatcher = getattr(backend, "set_event_dispatcher", None)
@@ -271,18 +248,18 @@ class TelegramAuthProvider:
         ):
             return
         poll_timeout_seconds = (
-            self._relay_settings.bot_poll_timeout_seconds
-            if self._relay_settings is not None
+            self.runtime_settings.bot_poll_timeout_seconds
+            if self.runtime_settings is not None
             else 30
         )
         backoff_initial_ms = (
-            self._relay_settings.bot_poll_backoff_initial_ms
-            if self._relay_settings is not None
+            self.runtime_settings.bot_poll_backoff_initial_ms
+            if self.runtime_settings is not None
             else 1000
         )
         backoff_max_ms = (
-            self._relay_settings.bot_poll_backoff_max_ms
-            if self._relay_settings is not None
+            self.runtime_settings.bot_poll_backoff_max_ms
+            if self.runtime_settings is not None
             else 60000
         )
 
@@ -607,7 +584,3 @@ class TelegramAuthProvider:
             except Exception:
                 pass
         self._pending_otps.clear()
-
-        if self._event_dispatcher is not None:
-            await self._event_dispatcher.stop()
-            self._event_dispatcher = None
