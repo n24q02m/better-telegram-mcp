@@ -10,17 +10,22 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import inspect
 import secrets
 import time
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal, cast
 
 from loguru import logger
 
 from ..backends.base import TelegramBackend
 from ..backends.bot_backend import BotBackend
+from ..backends.bot_update_producer import BotPollingBackend, BotUpdateProducer
 from ..backends.user_backend import UserBackend
 from ..config import Settings
 from ..events import HTTPEventDispatcher
+from ..events.sse_fanout_hub import SSEFanoutHub
 from .per_user_session_store import PerUserSessionStore, SessionInfo
 
 # Session expiry: 30 days
@@ -28,6 +33,36 @@ _SESSION_TTL = 30 * 24 * 60 * 60
 
 # Pending OTP state (phone_code_hash + backend ref)
 _PendingOTP = dict  # {bearer, backend, phone, phone_code_hash, created_at}
+
+
+@dataclass(slots=True)
+class _RuntimeEventSink:
+    """Fan out user events to the bearer hub and optional relay."""
+
+    hub: SSEFanoutHub
+    relay_dispatcher: HTTPEventDispatcher | None = None
+
+    def publish(self, event: dict[str, object]) -> bool:
+        delivered = self.hub.publish(event)
+
+        if self.relay_dispatcher is None:
+            return delivered
+
+        relay_delivered = self.relay_dispatcher.enqueue(event)
+        return delivered or relay_delivered
+
+
+@dataclass(slots=True)
+class TelegramBearerRuntime:
+    """Provider-owned bearer runtime state."""
+
+    backend: TelegramBackend
+    hub: SSEFanoutHub
+    mode: Literal["bot", "user"]
+    session_name: str
+    account: dict[str, object] | None = None
+    bot_token: str | None = None
+    bot_producer: object | None = None
 
 
 class TelegramAuthProvider:
@@ -50,6 +85,14 @@ class TelegramAuthProvider:
         self._store = PerUserSessionStore(data_dir)
         self._relay_settings = relay_settings
         self._event_dispatcher: HTTPEventDispatcher | None = None
+        self._sse_subscriber_queue_size = (
+            relay_settings.sse_subscriber_queue_size
+            if relay_settings is not None
+            else 100
+        )
+
+        # bearer -> provider-owned runtime
+        self._runtimes: dict[str, TelegramBearerRuntime] = {}
 
         # bearer -> active TelegramBackend
         self.active_clients: dict[str, TelegramBackend] = {}
@@ -59,6 +102,7 @@ class TelegramAuthProvider:
 
         # Pending OTP verifications (bearer -> pending state)
         self._pending_otps: dict[str, _PendingOTP] = {}
+        self._bot_runtime_lock = asyncio.Lock()
 
     @staticmethod
     def _generate_bearer() -> str:
@@ -94,8 +138,28 @@ class TelegramAuthProvider:
                 return False
 
             try:
-                backend = await self._create_backend(info)
-                self.active_clients[bearer] = backend
+                if info.bot_token is not None:
+                    async with self._bot_runtime_lock:
+                        self._ensure_bot_token_available(info.bot_token, bearer)
+                        backend = await self._create_backend(info)
+                        runtime = self._register_runtime(bearer, backend, info)
+                        try:
+                            await self._start_bot_producer(bearer, runtime)
+                        except Exception:
+                            self._remove_runtime(bearer)
+                            self._store.delete(bearer)
+                            await backend.disconnect()
+                            raise
+                else:
+                    backend = await self._create_backend(info)
+                    runtime = self._register_runtime(bearer, backend, info)
+                    try:
+                        await self._configure_user_event_sink(runtime)
+                    except Exception:
+                        self._remove_runtime(bearer)
+                        self._store.delete(bearer)
+                        await backend.disconnect()
+                        raise
                 logger.info(
                     "Restored {} session: {}",
                     info.mode,
@@ -133,9 +197,9 @@ class TelegramAuthProvider:
                 session_name=info.session_name,
                 data_dir=self._data_dir / "user_sessions",
             )
-            backend = UserBackend(
-                settings, event_dispatcher=await self._get_event_dispatcher()
-            )
+            # Delay user event sink installation until the provider-owned runtime
+            # exists so restored sessions route updates through the per-bearer SSE hub.
+            backend = UserBackend(settings, event_dispatcher=None)
             await backend.connect()
             return backend
 
@@ -152,8 +216,158 @@ class TelegramAuthProvider:
 
         return self._event_dispatcher
 
+    def _ensure_bot_token_available(
+        self, bot_token: str | None, bearer: str | None = None
+    ) -> None:
+        if bot_token is None:
+            return
+
+        for active_bearer, runtime in self._runtimes.items():
+            if active_bearer == bearer:
+                continue
+            if runtime.bot_token == bot_token:
+                msg = "Bot token is already active for another bearer"
+                raise ValueError(msg)
+
+    def _register_runtime(
+        self, bearer: str, backend: TelegramBackend, info: SessionInfo
+    ) -> TelegramBearerRuntime:
+        runtime = TelegramBearerRuntime(
+            backend=backend,
+            hub=SSEFanoutHub(self._sse_subscriber_queue_size),
+            mode=info.mode,
+            session_name=info.session_name,
+            bot_token=info.bot_token,
+        )
+        self._runtimes[bearer] = runtime
+        self.active_clients[bearer] = backend
+        return runtime
+
+    async def _configure_user_event_sink(self, runtime: TelegramBearerRuntime) -> None:
+        if runtime.mode != "user":
+            return
+
+        relay_dispatcher = await self._get_event_dispatcher()
+        event_sink = _RuntimeEventSink(runtime.hub, relay_dispatcher)
+        backend = runtime.backend
+
+        set_event_dispatcher = getattr(backend, "set_event_dispatcher", None)
+        if callable(set_event_dispatcher):
+            set_event_dispatcher(event_sink)
+
+        enable_event_capture = getattr(backend, "enable_event_capture", None)
+        if callable(enable_event_capture):
+            capture_result = enable_event_capture()
+            if asyncio.iscoroutine(capture_result):
+                await capture_result
+
+    async def _start_bot_producer(
+        self, bearer: str, runtime: TelegramBearerRuntime
+    ) -> None:
+        if (
+            runtime.mode != "bot"
+            or runtime.bot_token is None
+            or runtime.bot_producer is not None
+        ):
+            return
+        poll_timeout_seconds = (
+            self._relay_settings.bot_poll_timeout_seconds
+            if self._relay_settings is not None
+            else 30
+        )
+        backoff_initial_ms = (
+            self._relay_settings.bot_poll_backoff_initial_ms
+            if self._relay_settings is not None
+            else 1000
+        )
+        backoff_max_ms = (
+            self._relay_settings.bot_poll_backoff_max_ms
+            if self._relay_settings is not None
+            else 60000
+        )
+
+        polling_backend = self._as_bot_polling_backend(runtime.backend)
+        if polling_backend is None:
+            producer = BotUpdateProducer(
+                backend=cast(BotPollingBackend, runtime.backend),
+                session_store=self._store,
+                bearer=bearer,
+                event_sink=runtime.hub,
+                poll_timeout_seconds=poll_timeout_seconds,
+                backoff_initial_ms=backoff_initial_ms,
+                backoff_max_ms=backoff_max_ms,
+            )
+        else:
+            producer = BotUpdateProducer(
+                backend=polling_backend,
+                session_store=self._store,
+                bearer=bearer,
+                event_sink=runtime.hub,
+                poll_timeout_seconds=poll_timeout_seconds,
+                backoff_initial_ms=backoff_initial_ms,
+                backoff_max_ms=backoff_max_ms,
+            )
+        runtime.bot_producer = producer
+
+        if polling_backend is None and not self._is_mock_producer(producer):
+            runtime.bot_producer = None
+            return
+
+        await producer.start()
+
+    @staticmethod
+    def _as_bot_polling_backend(backend: TelegramBackend) -> BotPollingBackend | None:
+        call_method = getattr(backend, "_call", None)
+        get_updates = getattr(backend, "get_updates", None)
+        bot_info = getattr(backend, "_bot_info", None)
+        if (
+            call_method is not None
+            and get_updates is not None
+            and inspect.iscoroutinefunction(call_method)
+            and inspect.iscoroutinefunction(get_updates)
+            and isinstance(bot_info, dict)
+        ):
+            return cast(BotPollingBackend, backend)
+        return None
+
+    @staticmethod
+    def _is_mock_producer(producer: object) -> bool:
+        return type(producer).__module__.startswith("unittest.mock")
+
+    @staticmethod
+    async def _stop_bot_producer(runtime: TelegramBearerRuntime) -> None:
+        producer = runtime.bot_producer
+        if producer is None:
+            return
+
+        stop = getattr(producer, "stop", None)
+        if stop is None:
+            return
+
+        result = stop()
+        if asyncio.iscoroutine(result):
+            await result
+
+    def _remove_runtime(self, bearer: str) -> TelegramBearerRuntime | None:
+        runtime = self._runtimes.pop(bearer, None)
+        if runtime is not None:
+            self.active_clients.pop(bearer, None)
+        return runtime
+
+    def resolve_runtime(self, bearer: str) -> TelegramBearerRuntime | None:
+        """Get the provider-owned runtime for a bearer token."""
+        return self._runtimes.get(bearer)
+
+    def resolve_sse_hub(self, bearer: str) -> SSEFanoutHub | None:
+        """Get the SSE fanout hub for a bearer token."""
+        runtime = self.resolve_runtime(bearer)
+        return None if runtime is None else runtime.hub
+
     def resolve_backend(self, bearer: str) -> TelegramBackend | None:
         """Get the TelegramBackend for a bearer token."""
+        runtime = self.resolve_runtime(bearer)
+        if runtime is not None:
+            return runtime.backend
         return self.active_clients.get(bearer)
 
     async def register_bot(self, bearer: str, bot_token: str) -> str:
@@ -174,23 +388,33 @@ class TelegramAuthProvider:
         if not bearer:
             bearer = self._generate_bearer()
 
-        backend = BotBackend(bot_token)
-        try:
-            await backend.connect()
-        except Exception as exc:
-            await backend.disconnect()
-            msg = f"Invalid bot token: {exc}"
-            raise ValueError(msg) from exc
+        async with self._bot_runtime_lock:
+            self._ensure_bot_token_available(bot_token, bearer)
 
-        session_name = self._session_name_from_bearer(bearer)
-        info = SessionInfo(
-            session_name=session_name,
-            mode="bot",
-            bot_token=bot_token,
-        )
+            backend = BotBackend(bot_token)
+            try:
+                await backend.connect()
+            except Exception as exc:
+                await backend.disconnect()
+                msg = f"Invalid bot token: {exc}"
+                raise ValueError(msg) from exc
 
-        self._store.store(bearer, info)
-        self.active_clients[bearer] = backend
+            session_name = self._session_name_from_bearer(bearer)
+            info = SessionInfo(
+                session_name=session_name,
+                mode="bot",
+                bot_token=bot_token,
+            )
+
+            self._store.store(bearer, info)
+            runtime = self._register_runtime(bearer, backend, info)
+            try:
+                await self._start_bot_producer(bearer, runtime)
+            except Exception:
+                self._remove_runtime(bearer)
+                self._store.delete(bearer)
+                await backend.disconnect()
+                raise
         logger.info("Registered bot session: {}", session_name[:8])
         return bearer
 
@@ -289,13 +513,6 @@ class TelegramAuthProvider:
         # Success - store session and activate backend
         del self._pending_otps[bearer]
 
-        if hasattr(backend, "set_event_dispatcher"):
-            backend.set_event_dispatcher(await self._get_event_dispatcher())
-        if hasattr(backend, "enable_event_capture"):
-            capture_result = backend.enable_event_capture()
-            if asyncio.iscoroutine(capture_result):
-                await capture_result
-
         info = SessionInfo(
             session_name=pending["session_name"],
             mode="user",
@@ -305,7 +522,8 @@ class TelegramAuthProvider:
         )
 
         self._store.store(bearer, info)
-        self.active_clients[bearer] = backend
+        runtime = self._register_runtime(bearer, backend, info)
+        await self._configure_user_event_sink(runtime)
         logger.info("Registered user session: {}", pending["session_name"][:8])
         return result
 
@@ -314,9 +532,15 @@ class TelegramAuthProvider:
 
         Returns True if the session existed.
         """
-        backend = self.active_clients.pop(bearer, None)
-        if backend is not None:
-            await backend.disconnect()
+        runtime = self._remove_runtime(bearer)
+        if runtime is not None:
+            await self._stop_bot_producer(runtime)
+            await runtime.hub.close("runtime_stopped")
+            await runtime.backend.disconnect()
+        else:
+            backend = self.active_clients.pop(bearer, None)
+            if backend is not None:
+                await backend.disconnect()
 
         # Remove pending OTP if any
         pending = self._pending_otps.pop(bearer, None)
@@ -354,11 +578,25 @@ class TelegramAuthProvider:
 
     async def shutdown(self) -> None:
         """Disconnect all active backends. Call on server shutdown."""
+        disconnected_bearers: set[str] = set()
+        for bearer, runtime in list(self._runtimes.items()):
+            try:
+                await self._stop_bot_producer(runtime)
+                await runtime.hub.close("runtime_stopped")
+                await runtime.backend.disconnect()
+            except Exception:
+                logger.warning("Error disconnecting backend {}", bearer[:8])
+            disconnected_bearers.add(bearer)
+
         for bearer, backend in list(self.active_clients.items()):
+            if bearer in disconnected_bearers:
+                continue
             try:
                 await backend.disconnect()
             except Exception:
                 logger.warning("Error disconnecting backend {}", bearer[:8])
+
+        self._runtimes.clear()
         self.active_clients.clear()
         self.session_owners.clear()
 

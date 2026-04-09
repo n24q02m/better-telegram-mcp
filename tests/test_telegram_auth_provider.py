@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -12,8 +14,11 @@ from better_telegram_mcp.auth.per_user_session_store import SessionInfo
 from better_telegram_mcp.auth.telegram_auth_provider import (
     _SESSION_TTL,
     TelegramAuthProvider,
+    TelegramBearerRuntime,
+    _RuntimeEventSink,
 )
 from better_telegram_mcp.config import Settings
+from better_telegram_mcp.events.sse_fanout_hub import SSEFanoutHub
 
 
 @pytest.fixture
@@ -87,6 +92,111 @@ class TestRegisterBot:
         assert info.mode == "bot"
         assert info.bot_token == "123:ABC"
 
+    async def test_register_bot_starts_polling_producer(
+        self, provider: TelegramAuthProvider
+    ) -> None:
+        mock_backend = AsyncMock()
+        mock_backend.connect = AsyncMock()
+        mock_backend.disconnect = AsyncMock()
+        mock_producer = AsyncMock()
+
+        with (
+            patch(
+                "better_telegram_mcp.auth.telegram_auth_provider.BotBackend",
+                return_value=mock_backend,
+            ),
+            patch(
+                "better_telegram_mcp.auth.telegram_auth_provider.BotUpdateProducer",
+                return_value=mock_producer,
+            ) as MockProducer,
+        ):
+            bearer = await provider.register_bot("bearer-1", "123:ABC")
+
+        runtime = provider.resolve_runtime(bearer)
+        assert runtime is not None
+        assert runtime.bot_producer is mock_producer
+        MockProducer.assert_called_once()
+        assert MockProducer.call_args.kwargs["backend"] is mock_backend
+        assert MockProducer.call_args.kwargs["session_store"] is provider._store
+        assert MockProducer.call_args.kwargs["bearer"] == bearer
+        assert MockProducer.call_args.kwargs["event_sink"] is runtime.hub
+        mock_producer.start.assert_awaited_once()
+
+    async def test_register_bot_rolls_back_when_producer_start_fails(
+        self, provider: TelegramAuthProvider
+    ) -> None:
+        mock_backend = AsyncMock()
+        mock_backend.connect = AsyncMock()
+        mock_backend.disconnect = AsyncMock()
+        mock_producer = AsyncMock()
+        mock_producer.start = AsyncMock(side_effect=ValueError("webhook configured"))
+
+        with (
+            patch(
+                "better_telegram_mcp.auth.telegram_auth_provider.BotBackend",
+                return_value=mock_backend,
+            ),
+            patch(
+                "better_telegram_mcp.auth.telegram_auth_provider.BotUpdateProducer",
+                return_value=mock_producer,
+            ),
+        ):
+            with pytest.raises(ValueError, match="webhook configured"):
+                await provider.register_bot("bearer-1", "123:ABC")
+
+        assert provider.resolve_runtime("bearer-1") is None
+        assert provider.resolve_backend("bearer-1") is None
+        assert provider._store.load("bearer-1") is None
+        mock_backend.disconnect.assert_awaited_once()
+
+    async def test_register_bot_rejects_duplicate_token_under_concurrency(
+        self, provider: TelegramAuthProvider
+    ) -> None:
+        first_backend = AsyncMock()
+        first_backend.disconnect = AsyncMock()
+        second_backend = AsyncMock()
+        second_backend.disconnect = AsyncMock()
+        producer_one = AsyncMock()
+        producer_one.start = AsyncMock()
+        producer_two = AsyncMock()
+        producer_two.start = AsyncMock()
+
+        async def slow_connect() -> None:
+            await asyncio.sleep(0.05)
+
+        first_backend.connect = AsyncMock(side_effect=slow_connect)
+        second_backend.connect = AsyncMock(side_effect=slow_connect)
+
+        with (
+            patch(
+                "better_telegram_mcp.auth.telegram_auth_provider.BotBackend",
+                side_effect=[first_backend, second_backend],
+            ),
+            patch(
+                "better_telegram_mcp.auth.telegram_auth_provider.BotUpdateProducer",
+                side_effect=[producer_one, producer_two],
+            ),
+        ):
+            results = await asyncio.gather(
+                provider.register_bot("bearer-1", "shared-token"),
+                provider.register_bot("bearer-2", "shared-token"),
+                return_exceptions=True,
+            )
+
+        successes = [result for result in results if isinstance(result, str)]
+        failures = [result for result in results if isinstance(result, Exception)]
+
+        assert successes == ["bearer-1"]
+        assert len(failures) == 1
+        assert isinstance(failures[0], ValueError)
+        assert "already active" in str(failures[0])
+        assert provider.resolve_runtime("bearer-1") is not None
+        assert provider.resolve_runtime("bearer-2") is None
+        assert provider._store.load("bearer-1") is not None
+        assert provider._store.load("bearer-2") is None
+        second_backend.connect.assert_not_awaited()
+        second_backend.disconnect.assert_not_awaited()
+
 
 class TestResolveBackend:
     async def test_resolve_existing_backend(
@@ -107,6 +217,59 @@ class TestResolveBackend:
     def test_resolve_unknown_bearer(self, provider: TelegramAuthProvider) -> None:
         """Should return None for unknown bearer."""
         assert provider.resolve_backend("unknown-bearer") is None
+
+
+class TestBearerRuntimes:
+    async def test_register_bot_creates_isolated_runtime_per_bearer(
+        self, provider: TelegramAuthProvider
+    ) -> None:
+        first_backend = AsyncMock()
+        first_backend.connect = AsyncMock()
+        first_backend.disconnect = AsyncMock()
+
+        second_backend = AsyncMock()
+        second_backend.connect = AsyncMock()
+        second_backend.disconnect = AsyncMock()
+
+        with patch(
+            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend",
+            side_effect=[first_backend, second_backend],
+        ):
+            first_bearer = await provider.register_bot("bearer-1", "token-1")
+            second_bearer = await provider.register_bot("bearer-2", "token-2")
+
+        first_runtime = provider.resolve_runtime(first_bearer)
+        second_runtime = provider.resolve_runtime(second_bearer)
+
+        assert first_runtime is not None
+        assert second_runtime is not None
+        assert first_runtime is not second_runtime
+        assert first_runtime.backend is first_backend
+        assert second_runtime.backend is second_backend
+        assert first_runtime.hub is not second_runtime.hub
+        assert provider.resolve_sse_hub(first_bearer) is first_runtime.hub
+        assert provider.resolve_sse_hub(second_bearer) is second_runtime.hub
+        assert provider.resolve_backend(first_bearer) is first_backend
+        assert provider.resolve_backend(second_bearer) is second_backend
+
+    async def test_register_bot_rejects_duplicate_active_bot_token(
+        self, provider: TelegramAuthProvider
+    ) -> None:
+        first_backend = AsyncMock()
+        first_backend.connect = AsyncMock()
+        first_backend.disconnect = AsyncMock()
+
+        with patch(
+            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend",
+            return_value=first_backend,
+        ):
+            await provider.register_bot("bearer-1", "shared-token")
+
+            with pytest.raises(ValueError, match="already active"):
+                await provider.register_bot("bearer-2", "shared-token")
+
+        assert provider.resolve_runtime("bearer-1") is not None
+        assert provider.resolve_runtime("bearer-2") is None
 
 
 class TestStartUserAuth:
@@ -257,9 +420,14 @@ class TestCompleteUserAuth:
 
             await provider.complete_user_auth(bearer, "12345")
 
-        mock_backend.set_event_dispatcher.assert_called_once_with(
-            provider._event_dispatcher
-        )
+        mock_backend.set_event_dispatcher.assert_called_once()
+        final_dispatcher = mock_backend.set_event_dispatcher.call_args.args[0]
+
+        assert isinstance(final_dispatcher, _RuntimeEventSink)
+        assert final_dispatcher.relay_dispatcher is provider._event_dispatcher
+        runtime = provider.resolve_runtime(bearer)
+        assert runtime is not None
+        assert final_dispatcher.hub is runtime.hub
         mock_backend.enable_event_capture.assert_awaited_once()
         assert provider._event_dispatcher is not None
 
@@ -349,6 +517,46 @@ class TestRevokeSession:
         assert "session-2" not in provider.session_owners
         assert "session-3" in provider.session_owners
 
+    async def test_revoke_stops_producer_before_hub_and_backend(
+        self, provider: TelegramAuthProvider
+    ) -> None:
+        order: list[str] = []
+
+        class RecordingProducer:
+            async def stop(self) -> None:
+                order.append("producer")
+
+        backend = AsyncMock()
+
+        async def disconnect() -> None:
+            order.append("backend")
+
+        backend.disconnect = AsyncMock(side_effect=disconnect)
+        hub = SSEFanoutHub(subscriber_queue_size=1)
+
+        async def close(reason: str) -> None:
+            assert reason == "runtime_stopped"
+            order.append("hub")
+
+        hub.close = close  # type: ignore[method-assign]
+        provider._store.store(
+            "bearer-1",
+            SessionInfo(session_name="bot", mode="bot", bot_token="123:ABC"),
+        )
+        provider._runtimes["bearer-1"] = TelegramBearerRuntime(
+            backend=backend,
+            hub=hub,
+            mode="bot",
+            session_name="bot",
+            bot_token="123:ABC",
+            bot_producer=RecordingProducer(),
+        )
+        provider.active_clients["bearer-1"] = backend
+
+        await provider.revoke_session("bearer-1")
+
+        assert order == ["producer", "hub", "backend"]
+
 
 class TestSessionOwnership:
     async def test_cross_user_hijack_prevention(
@@ -402,7 +610,83 @@ class TestRestoreSessions:
         assert restored == 1
         assert "stored-bearer" in provider.active_clients
 
-    async def test_restore_user_sessions_inject_shared_relay(
+    async def test_restore_bot_sessions_start_polling_from_persisted_offset(
+        self, provider: TelegramAuthProvider
+    ) -> None:
+        provider._store.store(
+            "stored-bearer",
+            SessionInfo(
+                session_name="test",
+                mode="bot",
+                bot_token="123:ABC",
+                bot_offset=41,
+                created_at=time.time(),
+            ),
+        )
+
+        mock_backend = AsyncMock()
+        mock_backend.connect = AsyncMock()
+        mock_backend.disconnect = AsyncMock()
+        mock_producer = AsyncMock()
+
+        with (
+            patch(
+                "better_telegram_mcp.auth.telegram_auth_provider.BotBackend",
+                return_value=mock_backend,
+            ),
+            patch(
+                "better_telegram_mcp.auth.telegram_auth_provider.BotUpdateProducer",
+                return_value=mock_producer,
+            ) as MockProducer,
+        ):
+            restored = await provider.restore_sessions()
+
+        runtime = provider.resolve_runtime("stored-bearer")
+        assert restored == 1
+        assert runtime is not None
+        assert runtime.bot_producer is mock_producer
+        assert MockProducer.call_args.kwargs["bearer"] == "stored-bearer"
+        assert MockProducer.call_args.kwargs["event_sink"] is runtime.hub
+        mock_producer.start.assert_awaited_once()
+
+    async def test_restore_bot_session_rolls_back_when_producer_start_fails(
+        self, provider: TelegramAuthProvider
+    ) -> None:
+        provider._store.store(
+            "stored-bearer",
+            SessionInfo(
+                session_name="test",
+                mode="bot",
+                bot_token="123:ABC",
+                created_at=time.time(),
+            ),
+        )
+
+        mock_backend = AsyncMock()
+        mock_backend.connect = AsyncMock()
+        mock_backend.disconnect = AsyncMock()
+        mock_producer = AsyncMock()
+        mock_producer.start = AsyncMock(side_effect=ValueError("webhook configured"))
+
+        with (
+            patch(
+                "better_telegram_mcp.auth.telegram_auth_provider.BotBackend",
+                return_value=mock_backend,
+            ),
+            patch(
+                "better_telegram_mcp.auth.telegram_auth_provider.BotUpdateProducer",
+                return_value=mock_producer,
+            ),
+        ):
+            restored = await provider.restore_sessions()
+
+        assert restored == 0
+        assert provider.resolve_runtime("stored-bearer") is None
+        assert provider.resolve_backend("stored-bearer") is None
+        assert provider._store.load("stored-bearer") is None
+        mock_backend.disconnect.assert_awaited_once()
+
+    async def test_restore_user_sessions_publish_to_sse_hub_after_restore_sse(
         self, data_dir: Path
     ) -> None:
         relay_settings = Settings(relay_endpoint_url="https://example.com/events")
@@ -424,20 +708,78 @@ class TestRestoreSessions:
             ),
         )
 
+        class RestoredUserBackend:
+            def __init__(
+                self, settings: Settings, event_dispatcher: Any | None = None
+            ) -> None:
+                self.settings = settings
+                self.event_dispatcher = event_dispatcher
+                self.enable_event_capture = AsyncMock(side_effect=self._enable_capture)
+                self.set_event_dispatcher = MagicMock(side_effect=self._set_dispatcher)
+                self.connect = AsyncMock()
+
+            def _set_dispatcher(self, event_dispatcher: Any | None) -> None:
+                self.event_dispatcher = event_dispatcher
+
+            async def _enable_capture(self) -> None:
+                return None
+
+            def emit_event(self, event: dict[str, object]) -> bool:
+                assert self.event_dispatcher is not None
+                publish = getattr(self.event_dispatcher, "publish", None)
+                assert callable(publish)
+                return bool(publish(event))
+
+        restored_backend: RestoredUserBackend | None = None
+
+        def build_backend(
+            settings: Settings, event_dispatcher: Any | None = None
+        ) -> RestoredUserBackend:
+            nonlocal restored_backend
+            restored_backend = RestoredUserBackend(settings, event_dispatcher)
+            return restored_backend
+
         with patch(
             "better_telegram_mcp.auth.telegram_auth_provider.UserBackend"
         ) as MockUserBackend:
-            mock_backend = MockUserBackend.return_value
-            mock_backend.connect = AsyncMock()
+            MockUserBackend.side_effect = build_backend
 
             restored = await provider.restore_sessions()
 
+        assert restored_backend is not None
         assert restored == 1
         assert provider._event_dispatcher is not None
-        assert (
-            MockUserBackend.call_args.kwargs["event_dispatcher"]
-            is provider._event_dispatcher
-        )
+        assert MockUserBackend.call_args.kwargs["event_dispatcher"] is None
+
+        runtime = provider.resolve_runtime("stored-user")
+        assert runtime is not None
+
+        restored_backend.set_event_dispatcher.assert_called_once()
+        installed_sink = restored_backend.set_event_dispatcher.call_args.args[0]
+        assert isinstance(installed_sink, _RuntimeEventSink)
+        assert installed_sink.hub is runtime.hub
+        assert installed_sink.relay_dispatcher is provider._event_dispatcher
+        restored_backend.enable_event_capture.assert_awaited_once()
+
+        subscriber = runtime.hub.subscribe()
+        event = {
+            "event_id": "restore-event",
+            "event_type": "UpdateNewMessage",
+            "occurred_at": "2026-04-09T00:00:00+00:00",
+            "mode": "user",
+            "account": {
+                "telegram_id": 123,
+                "session_name": "user-session",
+                "username": "restored-user",
+                "mode": "user",
+            },
+            "update": {"_": "UpdateNewMessage", "message": {"id": 1}},
+        }
+
+        assert restored_backend.emit_event(event) is True
+        item = await subscriber.next_item()
+        assert item.kind == "event"
+        assert item.event == event
 
 
 class TestRelayShutdown:
@@ -574,3 +916,67 @@ class TestShutdown:
 
         assert len(provider.active_clients) == 0
         assert len(provider.session_owners) == 0
+
+    async def test_shutdown_stops_producers_before_hubs_and_backends(
+        self, provider: TelegramAuthProvider
+    ) -> None:
+        order: list[str] = []
+
+        class RecordingProducer:
+            def __init__(self, name: str) -> None:
+                self.name = name
+
+            async def stop(self) -> None:
+                order.append(f"producer:{self.name}")
+
+        def make_backend(name: str) -> AsyncMock:
+            backend = AsyncMock()
+
+            async def disconnect() -> None:
+                order.append(f"backend:{name}")
+
+            backend.disconnect = AsyncMock(side_effect=disconnect)
+            return backend
+
+        def make_hub(name: str) -> SSEFanoutHub:
+            hub = SSEFanoutHub(subscriber_queue_size=1)
+
+            async def close(reason: str) -> None:
+                assert reason == "runtime_stopped"
+                order.append(f"hub:{name}")
+
+            hub.close = close  # type: ignore[method-assign]
+            return hub
+
+        first_backend = make_backend("one")
+        second_backend = make_backend("two")
+
+        provider._runtimes["b1"] = TelegramBearerRuntime(
+            backend=first_backend,
+            hub=make_hub("one"),
+            mode="bot",
+            session_name="one",
+            bot_token="token-1",
+            bot_producer=RecordingProducer("one"),
+        )
+        provider._runtimes["b2"] = TelegramBearerRuntime(
+            backend=second_backend,
+            hub=make_hub("two"),
+            mode="bot",
+            session_name="two",
+            bot_token="token-2",
+            bot_producer=RecordingProducer("two"),
+        )
+        provider.active_clients["b1"] = first_backend
+        provider.active_clients["b2"] = second_backend
+
+        await provider.shutdown()
+
+        assert order == [
+            "producer:one",
+            "hub:one",
+            "backend:one",
+            "producer:two",
+            "hub:two",
+            "backend:two",
+        ]
