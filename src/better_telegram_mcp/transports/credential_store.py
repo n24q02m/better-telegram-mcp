@@ -6,6 +6,7 @@ Key derived from server secret (CREDENTIAL_SECRET env var or auto-generated).
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import stat
@@ -36,6 +37,7 @@ class CredentialStore:
         self._salt = self._resolve_salt()
         # Cache derived key to avoid repeated 100k iteration PBKDF2 (~60ms) overhead
         self._cached_key: bytes | None = None
+        self._cached_credentials: dict[str, str] | None = None
 
     def _resolve_salt(self) -> bytes:
         """Load persisted salt, fallback to legacy, or generate new one."""
@@ -103,6 +105,7 @@ class CredentialStore:
         nonce = os.urandom(_NONCE_SIZE)
         plaintext = json.dumps(credentials).encode()
         ciphertext = aesgcm.encrypt(nonce, plaintext, None)
+        self._cached_credentials = copy.deepcopy(credentials)
         self._path.write_bytes(nonce + ciphertext)
         try:
             self._path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
@@ -111,6 +114,8 @@ class CredentialStore:
 
     def load(self) -> dict[str, str] | None:
         """Load and decrypt credentials. Returns None if not found."""
+        if self._cached_credentials is not None:
+            return copy.deepcopy(self._cached_credentials)
         if not self._path.exists():
             return None
         key = self._derive_key()
@@ -118,9 +123,11 @@ class CredentialStore:
         nonce, ciphertext = data[:_NONCE_SIZE], data[_NONCE_SIZE:]
         aesgcm = AESGCM(key)
         plaintext = aesgcm.decrypt(nonce, ciphertext, None)
-        return json.loads(plaintext)
+        self._cached_credentials = json.loads(plaintext)
+        return copy.deepcopy(self._cached_credentials)
 
     def delete(self) -> None:
         """Delete stored credentials."""
+        self._cached_credentials = None
         if self._path.exists():
             self._path.unlink()
