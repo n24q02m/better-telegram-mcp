@@ -34,6 +34,7 @@ class SessionInfo:
     api_hash: str | None = None
     phone: str | None = None
     bot_token: str | None = None
+    bot_offset: int | None = None
     created_at: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict:

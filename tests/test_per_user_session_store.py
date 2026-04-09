@@ -43,6 +43,7 @@ class TestSessionInfo:
         assert restored.created_at == 1000.0
         assert restored.api_id is None
         assert restored.phone is None
+        assert restored.bot_offset is None
 
     def test_user_mode_fields(self) -> None:
         """User mode SessionInfo should preserve all fields."""
@@ -61,6 +62,32 @@ class TestSessionInfo:
         assert restored.api_hash == "abcdef"
         assert restored.phone == "+84912345678"
         assert restored.bot_token is None
+
+    def test_bot_offset_roundtrip(self) -> None:
+        """Bot mode SessionInfo should preserve persisted polling offset."""
+        info = SessionInfo(
+            session_name="bot-session",
+            mode="bot",
+            bot_token="123:ABC",
+            bot_offset=42,
+        )
+
+        restored = SessionInfo.from_dict(info.to_dict())
+
+        assert restored.bot_offset == 42
+
+    def test_from_dict_without_bot_offset_defaults_to_none(self) -> None:
+        """Older persisted records should load without bot_offset data."""
+        restored = SessionInfo.from_dict(
+            {
+                "session_name": "legacy-bot",
+                "mode": "bot",
+                "bot_token": "123:ABC",
+                "created_at": 1000.0,
+            }
+        )
+
+        assert restored.bot_offset is None
 
     def test_created_at_default(self) -> None:
         """created_at should default to current time."""
