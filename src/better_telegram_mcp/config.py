@@ -32,8 +32,17 @@ class Settings(BaseSettings):
     # Data
     data_dir: Path = Path.home() / ".better-telegram-mcp"
 
+    # Security
+    trusted_proxies: str | None = None
+
     # Runtime (derived)
     mode: Literal["bot", "user"] = "bot"
+
+    @property
+    def trusted_proxy_list(self) -> list[str]:
+        if not self.trusted_proxies:
+            return []
+        return [p.strip() for p in self.trusted_proxies.split(",") if p.strip()]
 
     @model_validator(mode="after")
     def _detect_mode(self) -> Settings:
