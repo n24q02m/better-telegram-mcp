@@ -90,19 +90,19 @@ def _is_multi_user_mode() -> bool:
     )
 
 
-def start_http(settings: Settings) -> None:
+def start_http(runtime_settings: Settings) -> None:
     """Start MCP server in HTTP mode.
 
     Detects multi-user mode (DCR_SERVER_SECRET + PUBLIC_URL set)
     or falls back to single-user relay mode.
     """
     if _is_multi_user_mode():
-        _start_multi_user_http(settings)
+        _start_multi_user_http(runtime_settings)
     else:
-        _start_single_user_http(settings)
+        _start_single_user_http(runtime_settings)
 
 
-def _start_single_user_http(settings: Settings) -> None:
+def _start_single_user_http(runtime_settings: Settings) -> None:
     """Single-user HTTP mode: env vars > stored creds > relay setup.
 
     Backward compatible with the original HTTP transport.
@@ -112,12 +112,12 @@ def _start_single_user_http(settings: Settings) -> None:
     from ..server import mcp
 
     # If env vars already have credentials, skip CredentialStore/relay
-    if not settings.is_configured:
-        store = CredentialStore(settings.data_dir)
+    if not runtime_settings.is_configured:
+        store = CredentialStore(runtime_settings.data_dir)
         creds = store.load()
 
         if creds is None:
-            creds = asyncio.run(setup_credentials(settings))
+            creds = asyncio.run(setup_credentials(runtime_settings))
 
         # Apply credentials to environment so lifespan picks them up
         for key, value in creds.items():
@@ -127,7 +127,7 @@ def _start_single_user_http(settings: Settings) -> None:
     mcp.run(transport="streamable-http")
 
 
-def _start_multi_user_http(settings: Settings) -> None:
+def _start_multi_user_http(runtime_settings: Settings) -> None:
     """Multi-user HTTP mode: per-user auth with DCR."""
 
     import uvicorn
@@ -141,12 +141,12 @@ def _start_multi_user_http(settings: Settings) -> None:
     api_hash = os.environ["TELEGRAM_API_HASH"]
 
     app = create_app(
-        data_dir=settings.data_dir,
+        data_dir=runtime_settings.data_dir,
         public_url=public_url,
         dcr_secret=dcr_secret,
         api_id=api_id,
         api_hash=api_hash,
-        relay_settings=settings,
+        runtime_settings=runtime_settings,
     )
 
     logger.info("Starting multi-user HTTP server on port {}", port)

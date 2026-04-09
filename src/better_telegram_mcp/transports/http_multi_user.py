@@ -109,7 +109,7 @@ def create_app(
     dcr_secret: str,
     api_id: int,
     api_hash: str,
-    relay_settings: Settings | None = None,
+    runtime_settings: Settings | None = None,
 ) -> Starlette:
     """Create the multi-user Starlette ASGI application."""
 
@@ -120,7 +120,7 @@ def create_app(
         data_dir,
         api_id,
         api_hash,
-        relay_settings=relay_settings,
+        runtime_settings=runtime_settings,
     )
 
     # Create MCP server and session manager for streamable-http
@@ -344,8 +344,6 @@ def create_app(
                 "status": "ok",
                 "mode": "multi-user",
                 "active_sessions": active,
-                "relay_enabled": auth_provider._relay_settings is not None
-                and auth_provider._relay_settings.relay_endpoint_url is not None,
                 "timestamp": time.time(),
             }
         )
@@ -363,8 +361,8 @@ def create_app(
 
         subscriber = runtime.hub.subscribe()
         heartbeat_seconds = (
-            auth_provider._relay_settings.sse_heartbeat_seconds
-            if auth_provider._relay_settings is not None
+            auth_provider.runtime_settings.sse_heartbeat_seconds
+            if auth_provider.runtime_settings is not None
             else 15
         )
 

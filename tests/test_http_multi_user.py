@@ -6,6 +6,7 @@ import asyncio
 import json
 from contextlib import suppress
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -41,14 +42,25 @@ def client(app) -> TestClient:
     return TestClient(app)
 
 
-def _make_app(data_dir: Path, relay_settings: Settings | None = None):
+def _make_app(data_dir: Path, runtime_settings: Settings | None = None):
     return create_app(
         data_dir=data_dir,
         public_url="https://test.example.com",
         dcr_secret="test-dcr-secret",
         api_id=12345,
         api_hash="test_api_hash",
-        relay_settings=relay_settings,
+        runtime_settings=runtime_settings,
+    )
+
+
+def _runtime_settings_with_relay(url: str) -> SimpleNamespace:
+    return SimpleNamespace(
+        relay_endpoint_url=url,
+        sse_subscriber_queue_size=100,
+        sse_heartbeat_seconds=15,
+        bot_poll_timeout_seconds=30,
+        bot_poll_backoff_initial_ms=1000,
+        bot_poll_backoff_max_ms=60000,
     )
 
 
@@ -211,10 +223,10 @@ class TestHealthEndpoint:
         assert body["status"] == "ok"
         assert body["mode"] == "multi-user"
         assert "active_sessions" in body
-        assert body["relay_enabled"] is False
+        assert "relay_enabled" not in body
         assert "timestamp" in body
 
-    def test_health_reports_relay_enabled_without_leaking_url(
+    def test_health_omits_relay_enabled_without_leaking_url(
         self, data_dir: Path
     ) -> None:
         app = create_app(
@@ -223,7 +235,10 @@ class TestHealthEndpoint:
             dcr_secret="test-dcr-secret",
             api_id=12345,
             api_hash="test_api_hash",
-            relay_settings=Settings(relay_endpoint_url="https://example.com/events"),
+            runtime_settings=cast(
+                Settings,
+                _runtime_settings_with_relay("https://example.com/events"),
+            ),
         )
         client = TestClient(app)
 
@@ -231,7 +246,7 @@ class TestHealthEndpoint:
 
         assert resp.status_code == 200
         body = resp.json()
-        assert body["relay_enabled"] is True
+        assert "relay_enabled" not in body
         assert "relay_endpoint_url" not in body
         assert "example.com" not in resp.text
 
@@ -503,7 +518,7 @@ class TestTelegramSSEEndpoint:
         assert json.loads(message[2].removeprefix("data: ")) == _make_event("evt-1")
 
     async def test_events_telegram_sends_heartbeat_event(self, data_dir: Path) -> None:
-        app = _make_app(data_dir, relay_settings=Settings(sse_heartbeat_seconds=1))
+        app = _make_app(data_dir, runtime_settings=Settings(sse_heartbeat_seconds=1))
         _provider, _runtime = _register_runtime(app)
 
         stream = await _open_sse_stream(app, bearer="test-bearer")
@@ -540,7 +555,9 @@ class TestTelegramSSEEndpoint:
         assert second_message[1] == "event: UpdateNewMessage"
 
     async def test_overflow_emits_error_and_closes(self, data_dir: Path) -> None:
-        app = _make_app(data_dir, relay_settings=Settings(sse_subscriber_queue_size=1))
+        app = _make_app(
+            data_dir, runtime_settings=Settings(sse_subscriber_queue_size=1)
+        )
         _provider, runtime = _register_runtime(app)
 
         stream = await _open_sse_stream(app, bearer="test-bearer")

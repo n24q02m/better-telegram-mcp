@@ -26,14 +26,14 @@ def data_dir(tmp_path: Path) -> Path:
     return directory
 
 
-def _make_app(data_dir: Path, relay_settings: Settings | None = None):
+def _make_app(data_dir: Path, runtime_settings: Settings | None = None):
     return create_app(
         data_dir=data_dir,
         public_url="https://test.example.com",
         dcr_secret="test-dcr-secret",
         api_id=12345,
         api_hash="test_api_hash",
-        relay_settings=relay_settings,
+        runtime_settings=runtime_settings,
     )
 
 
@@ -451,7 +451,7 @@ class TestUnifiedSSEIntegration:
             bot_poll_backoff_initial_ms=10,
             bot_poll_backoff_max_ms=20,
         )
-        app = _make_app(data_dir, relay_settings=settings)
+        app = _make_app(data_dir, runtime_settings=settings)
         provider = cast(TelegramAuthProvider, app.state.auth_provider)
         FakeBotBackend.reset()
         FakeBotBackend.configure(
@@ -493,7 +493,7 @@ class TestUnifiedSSEIntegration:
         self, data_dir: Path
     ) -> None:
         settings = Settings(bot_poll_timeout_seconds=1)
-        app = _make_app(data_dir, relay_settings=settings)
+        app = _make_app(data_dir, runtime_settings=settings)
         provider = cast(TelegramAuthProvider, app.state.auth_provider)
         FakeBotBackend.reset()
         FakeBotBackend.configure("token-a", bot_id=201, username="bota")
@@ -540,7 +540,7 @@ class TestUnifiedSSEIntegration:
         self, data_dir: Path
     ) -> None:
         settings = Settings(bot_poll_timeout_seconds=1)
-        app = _make_app(data_dir, relay_settings=settings)
+        app = _make_app(data_dir, runtime_settings=settings)
         provider = cast(TelegramAuthProvider, app.state.auth_provider)
         FakeBotBackend.reset()
         FakeBotBackend.configure("token-revoke", bot_id=210, username="revoker")
@@ -576,7 +576,7 @@ class TestUnifiedSSEIntegration:
         self, data_dir: Path
     ) -> None:
         settings = Settings(bot_poll_timeout_seconds=1)
-        app = _make_app(data_dir, relay_settings=settings)
+        app = _make_app(data_dir, runtime_settings=settings)
         provider = cast(TelegramAuthProvider, app.state.auth_provider)
         FakeBotBackend.reset()
         FakeBotBackend.configure("token-shutdown", bot_id=211, username="shutdown")
@@ -609,7 +609,7 @@ class TestUnifiedSSEIntegration:
     async def test_duplicate_bot_token_rejected_end_to_end(
         self, data_dir: Path
     ) -> None:
-        app = _make_app(data_dir, relay_settings=Settings(bot_poll_timeout_seconds=1))
+        app = _make_app(data_dir, runtime_settings=Settings(bot_poll_timeout_seconds=1))
         provider = cast(TelegramAuthProvider, app.state.auth_provider)
         FakeBotBackend.reset()
         FakeBotBackend.configure("token-dup", bot_id=212, username="dupbot")
@@ -642,7 +642,7 @@ class TestUnifiedSSEIntegration:
         self, data_dir: Path
     ) -> None:
         settings = Settings(bot_poll_timeout_seconds=1)
-        app = _make_app(data_dir, relay_settings=settings)
+        app = _make_app(data_dir, runtime_settings=settings)
         provider = cast(TelegramAuthProvider, app.state.auth_provider)
         provider._store.store(
             "restored-bearer",
