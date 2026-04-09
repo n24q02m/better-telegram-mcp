@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from telethon import events
 
 from better_telegram_mcp.config import Settings
 
@@ -98,6 +99,67 @@ class TestConnect:
         mock_client.is_user_authorized.assert_awaited_once()
         assert await backend.is_connected() is True
 
+    async def test_connect_authorized_registers_event_handler(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        dispatcher = MagicMock()
+        dispatcher.enqueue = MagicMock(return_value=True)
+        mock_client.get_me = AsyncMock(return_value=_mock_user())
+        mock_client.add_event_handler = MagicMock()
+        mock_client.remove_event_handler = MagicMock()
+        mock_client.catch_up = AsyncMock()
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings, event_dispatcher=dispatcher)
+
+        await backend.connect()
+
+        mock_client.add_event_handler.assert_called_once()
+        args = mock_client.add_event_handler.call_args.args
+        assert len(args) == 2
+        assert args[1].__class__ is events.Raw
+        mock_client.catch_up.assert_awaited_once()
+        assert backend._event_handler is not None
+        assert backend._account_metadata == {
+            "telegram_user_id": 100,
+            "session_name": "test_session",
+            "username": "testuser",
+        }
+
+    async def test_connect_authorized_event_handler_enqueues_envelope(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        dispatcher = MagicMock()
+        dispatcher.enqueue = MagicMock(return_value=True)
+        update = MagicMock()
+        update.to_dict.return_value = {
+            "_": "UpdateNewMessage",
+            "message": {"id": 1, "message": "hello"},
+        }
+        mock_client.get_me = AsyncMock(return_value=_mock_user())
+        mock_client.add_event_handler = MagicMock()
+        mock_client.remove_event_handler = MagicMock()
+        mock_client.catch_up = AsyncMock()
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings, event_dispatcher=dispatcher)
+
+        await backend.connect()
+        assert backend._event_handler is not None
+
+        await backend._event_handler(update)
+
+        dispatcher.enqueue.assert_called_once()
+        envelope = dispatcher.enqueue.call_args.args[0]
+        assert envelope["event_type"] == "UpdateNewMessage"
+        assert envelope["account"]["telegram_user_id"] == 100
+        assert envelope["account"]["session_name"] == "test_session"
+        assert envelope["update"] == update.to_dict.return_value
+
     async def test_connect_unauthorized_stays_connected(
         self, tmp_path, mock_client, mock_client_class
     ):
@@ -114,6 +176,26 @@ class TestConnect:
         assert backend._client is not None
         mock_client.connect.assert_awaited_once()
 
+    async def test_connect_unauthorized_does_not_register_event_handler(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        dispatcher = MagicMock()
+        dispatcher.enqueue = MagicMock(return_value=True)
+        mock_client.is_user_authorized = AsyncMock(return_value=False)
+        mock_client.add_event_handler = MagicMock()
+        mock_client.catch_up = AsyncMock()
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings, event_dispatcher=dispatcher)
+
+        await backend.connect()
+
+        mock_client.add_event_handler.assert_not_called()
+        mock_client.catch_up.assert_not_awaited()
+        assert backend._event_handler is None
+
 
 class TestDisconnect:
     async def test_disconnect(self, tmp_path, mock_client, mock_client_class):
@@ -127,6 +209,31 @@ class TestDisconnect:
 
         mock_client.disconnect.assert_awaited()
         assert backend._client is None
+
+    async def test_disconnect_removes_event_handler(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        dispatcher = MagicMock()
+        dispatcher.enqueue = MagicMock(return_value=True)
+        mock_client.get_me = AsyncMock(return_value=_mock_user())
+        mock_client.add_event_handler = MagicMock()
+        mock_client.remove_event_handler = MagicMock()
+        mock_client.catch_up = AsyncMock()
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings, event_dispatcher=dispatcher)
+        await backend.connect()
+
+        handler = backend._event_handler
+        assert handler is not None
+
+        await backend.disconnect()
+
+        mock_client.remove_event_handler.assert_called_once_with(handler)
+        assert backend._event_handler is None
+        assert backend._account_metadata is None
 
     async def test_disconnect_exception_is_ignored(
         self, tmp_path, mock_client, mock_client_class
@@ -153,6 +260,36 @@ class TestDisconnect:
 
         # Should not raise
         await backend.disconnect()
+
+
+class TestRelayActivation:
+    async def test_set_event_dispatcher_then_enable_event_capture_registers_handler(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        dispatcher = MagicMock()
+        dispatcher.enqueue = MagicMock(return_value=True)
+        mock_client.get_me = AsyncMock(return_value=_mock_user())
+        mock_client.add_event_handler = MagicMock()
+        mock_client.remove_event_handler = MagicMock()
+        mock_client.catch_up = AsyncMock()
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings, event_dispatcher=None)
+
+        await backend.connect()
+        mock_client.add_event_handler.assert_not_called()
+
+        backend.set_event_dispatcher(dispatcher)
+        await backend.enable_event_capture()
+
+        mock_client.add_event_handler.assert_called_once()
+        args = mock_client.add_event_handler.call_args.args
+        assert len(args) == 2
+        assert args[1].__class__ is events.Raw
+        mock_client.catch_up.assert_awaited_once()
+        assert backend._event_handler is not None
 
 
 class TestIsConnected:

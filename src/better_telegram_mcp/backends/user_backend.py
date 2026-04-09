@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from loguru import logger
-from telethon import TelegramClient
+from telethon import TelegramClient, events
 from telethon.tl.functions.contacts import (
     AddContactRequest,
     BlockRequest,
@@ -15,15 +15,25 @@ from telethon.tl.functions.contacts import (
 from telethon.tl.types import Channel, Chat, InputPhoneContact, User
 
 from ..config import Settings
+from ..events import build_event_envelope
 from .base import TelegramBackend
 from .security import validate_file_path, validate_output_dir, validate_url
 
 
 class UserBackend(TelegramBackend):
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, event_dispatcher: Any | None = None):
         super().__init__("user")
         self._settings = settings
         self._client: TelegramClient | None = None
+        self._event_dispatcher = event_dispatcher
+        self._event_handler: Any | None = None
+        self._account_metadata: dict[str, Any] | None = None
+
+    def set_event_dispatcher(self, event_dispatcher: Any | None) -> None:
+        self._event_dispatcher = event_dispatcher
+
+    async def enable_event_capture(self) -> None:
+        await self._enable_event_capture()
 
     def _ensure_client(self) -> TelegramClient:
         if self._client is None:
@@ -87,14 +97,54 @@ class UserBackend(TelegramBackend):
 
         if not await self._client.is_user_authorized():
             logger.warning("Session not authorized. Auth required via config tool.")
+            return
+
+        await self._enable_event_capture()
 
     async def disconnect(self) -> None:
         if self._client is not None:
             try:
+                if self._event_handler is not None:
+                    self._client.remove_event_handler(self._event_handler)
+                    self._event_handler = None
+                    self._account_metadata = None
                 await self._client.disconnect()
             except Exception:
                 pass  # Ignore errors during disconnect cleanup
             self._client = None
+
+    async def _enable_event_capture(self) -> None:
+        client = self._ensure_client()
+
+        if self._event_dispatcher is None or self._event_handler is not None:
+            return
+
+        me = await client.get_me()
+        self._account_metadata = {
+            "telegram_user_id": me.id,
+            "session_name": self._settings.session_name,
+            "username": getattr(me, "username", None),
+        }
+
+        async def _handle_raw_event(update: Any) -> None:
+            if self._event_dispatcher is None or self._account_metadata is None:
+                return
+
+            try:
+                update_dict = update.to_dict()
+                envelope = build_event_envelope(self._account_metadata, update_dict)
+            except Exception as exc:
+                logger.warning("Failed to serialize raw Telegram update: {}", exc)
+                return
+
+            try:
+                self._event_dispatcher.enqueue(envelope)
+            except Exception as exc:
+                logger.warning("Failed to enqueue raw Telegram update: {}", exc)
+
+        self._event_handler = _handle_raw_event
+        client.add_event_handler(self._event_handler, events.Raw())
+        await client.catch_up()
 
     async def is_connected(self) -> bool:
         if self._client is None:
