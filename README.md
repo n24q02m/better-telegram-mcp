@@ -92,6 +92,25 @@ Multi-user HTTP mode requires:
 
 Relay delivery is enabled only when `TELEGRAM_RELAY_ENDPOINT_URL` is also set.
 
+### Quick setup
+
+To enable delivery, set **all** of the following env vars and start the server in HTTP multi-user mode:
+
+```bash
+export TRANSPORT_MODE=http
+export PUBLIC_URL="https://your-public-host.example.com"
+export DCR_SERVER_SECRET="replace-with-a-random-secret"
+export TELEGRAM_API_ID="123456"
+export TELEGRAM_API_HASH="your_api_hash"
+export TELEGRAM_RELAY_ENDPOINT_URL="https://your-endpoint.example.com/telegram-events"
+
+uv run better-telegram-mcp
+```
+
+Setting these env vars enables the relay, but events are sent only for **user accounts that have actually been authenticated and connected** through the HTTP multi-user flow.
+
+Once a user account is authenticated and connected, the server starts POSTing JSON events for that account to `TELEGRAM_RELAY_ENDPOINT_URL`.
+
 ### Relay Environment Variables
 
 | Variable | Default | Description |
@@ -131,7 +150,11 @@ Each event contains:
 
 The payload intentionally does **not** include bearer tokens or phone numbers.
 
+Your endpoint should expect a JSON envelope with account metadata plus raw Telegram update data. The `update` field can contain different Telegram update types, not only `UpdateNewMessage`.
+
 ### Example Payload
+
+The JSON below is **one `UpdateNewMessage` example**. The nested shape inside `update` varies by Telegram update type.
 
 ```json
 {
