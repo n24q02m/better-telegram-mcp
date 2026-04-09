@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
+from contextlib import suppress
 from pathlib import Path
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from starlette.testclient import TestClient
 
+from better_telegram_mcp.auth.telegram_auth_provider import TelegramBearerRuntime
 from better_telegram_mcp.config import Settings
+from better_telegram_mcp.events.sse_fanout_hub import SSEFanoutHub
 from better_telegram_mcp.transports.http_multi_user import create_app
 
 
@@ -33,6 +39,167 @@ def app(data_dir: Path):
 @pytest.fixture
 def client(app) -> TestClient:
     return TestClient(app)
+
+
+def _make_app(data_dir: Path, relay_settings: Settings | None = None):
+    return create_app(
+        data_dir=data_dir,
+        public_url="https://test.example.com",
+        dcr_secret="test-dcr-secret",
+        api_id=12345,
+        api_hash="test_api_hash",
+        relay_settings=relay_settings,
+    )
+
+
+def _register_runtime(app, bearer: str = "test-bearer"):
+    provider = app.state.auth_provider
+    backend = MagicMock()
+    runtime = TelegramBearerRuntime(
+        backend=backend,
+        hub=SSEFanoutHub(provider._sse_subscriber_queue_size),
+        mode="user",
+        session_name="user-session",
+    )
+    provider._runtimes[bearer] = runtime
+    provider.active_clients[bearer] = backend
+    return provider, runtime
+
+
+def _make_event(event_id: str) -> dict[str, object]:
+    return {
+        "event_id": event_id,
+        "event_type": "UpdateNewMessage",
+        "mode": "user",
+        "account": {
+            "telegram_id": 100,
+            "session_name": "user-session",
+            "mode": "user",
+        },
+        "update": {
+            "_": "UpdateNewMessage",
+            "message": {"id": 1, "message": "hello"},
+        },
+    }
+
+
+def _read_sse_message(lines) -> list[str]:
+    message: list[str] = []
+    for line in lines:
+        if line == "":
+            if message:
+                return message
+            continue
+        message.append(line)
+    return message
+
+
+async def _publish_when_connected(hub: SSEFanoutHub, event: dict[str, object]) -> bool:
+    for _ in range(50):
+        if hub.publish(event):
+            return True
+        await asyncio.sleep(0.01)
+    return False
+
+
+class _ASGIStreamHandle:
+    def __init__(
+        self,
+        *,
+        response_start: dict[str, object],
+        messages: asyncio.Queue[dict[str, object]],
+        task: asyncio.Task[None],
+        disconnect: asyncio.Event,
+    ) -> None:
+        self.status_code = int(cast(int, response_start["status"]))
+        headers = cast(list[tuple[bytes, bytes]], response_start.get("headers", []))
+        self.headers = {
+            key.decode("utf-8").lower(): value.decode("utf-8") for key, value in headers
+        }
+        self._messages = messages
+        self._task = task
+        self._disconnect = disconnect
+        self._buffer = bytearray()
+
+    async def read_message(self) -> list[str]:
+        while True:
+            if b"\n\n" in self._buffer:
+                raw_message, remainder = self._buffer.split(b"\n\n", 1)
+                self._buffer = bytearray(remainder)
+                text = raw_message.decode("utf-8")
+                return [line for line in text.split("\n") if line]
+
+            message = await asyncio.wait_for(self._messages.get(), timeout=2)
+            if message["type"] != "http.response.body":
+                continue
+
+            self._buffer.extend(cast(bytes, message.get("body", b"")))
+
+            if not message.get("more_body", False) and not self._buffer:
+                return []
+
+    async def close(self) -> None:
+        self._disconnect.set()
+        self._task.cancel()
+        with suppress(asyncio.CancelledError):
+            await self._task
+
+
+async def _open_sse_stream(
+    app,
+    *,
+    bearer: str,
+    extra_headers: dict[str, str] | None = None,
+) -> _ASGIStreamHandle:
+    messages: asyncio.Queue[dict[str, object]] = asyncio.Queue()
+    disconnect = asyncio.Event()
+    request_sent = False
+
+    headers = [(b"authorization", f"Bearer {bearer}".encode())]
+    if extra_headers is not None:
+        headers.extend(
+            (key.lower().encode("utf-8"), value.encode("utf-8"))
+            for key, value in extra_headers.items()
+        )
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0", "spec_version": "2.3"},
+        "http_version": "1.1",
+        "method": "GET",
+        "scheme": "http",
+        "path": "/events/telegram",
+        "raw_path": b"/events/telegram",
+        "query_string": b"",
+        "headers": headers,
+        "client": ("testclient", 50000),
+        "server": ("testserver", 80),
+        "state": {},
+        "app": app,
+        "extensions": {},
+    }
+
+    async def receive() -> dict[str, object]:
+        nonlocal request_sent
+        if not request_sent:
+            request_sent = True
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        await disconnect.wait()
+        return {"type": "http.disconnect"}
+
+    async def send(message: dict[str, object]) -> None:
+        await messages.put(message)
+
+    task = asyncio.create_task(app(scope, receive, send))
+    response_start = await asyncio.wait_for(messages.get(), timeout=2)
+    assert response_start["type"] == "http.response.start"
+    return _ASGIStreamHandle(
+        response_start=response_start,
+        messages=messages,
+        task=task,
+        disconnect=disconnect,
+    )
 
 
 class TestHealthEndpoint:
@@ -290,6 +457,151 @@ class TestMCPEndpoint:
             headers={"Authorization": "Bearer invalid-token"},
         )
         assert resp.status_code == 403
+
+    def test_mcp_rejects_get_and_delete(self, client: TestClient) -> None:
+        """/mcp should remain the action endpoint, not a stream endpoint."""
+        get_resp = client.get("/mcp")
+        delete_resp = client.delete("/mcp")
+
+        assert get_resp.status_code == 405
+        assert delete_resp.status_code == 405
+
+
+class TestTelegramSSEEndpoint:
+    def test_events_telegram_requires_bearer(self, client: TestClient) -> None:
+        resp = client.get("/events/telegram")
+
+        assert resp.status_code == 401
+
+    def test_events_telegram_invalid_bearer(self, client: TestClient) -> None:
+        resp = client.get(
+            "/events/telegram",
+            headers={"Authorization": "Bearer invalid-token"},
+        )
+
+        assert resp.status_code == 401
+
+    async def test_events_telegram_streams_framed_event(self, data_dir: Path) -> None:
+        app = _make_app(data_dir)
+        _provider, runtime = _register_runtime(app)
+
+        stream = await _open_sse_stream(app, bearer="test-bearer")
+        try:
+            assert stream.status_code == 200
+            assert stream.headers["content-type"].startswith("text/event-stream")
+
+            assert (
+                await _publish_when_connected(runtime.hub, _make_event("evt-1")) is True
+            )
+
+            message = await stream.read_message()
+        finally:
+            await stream.close()
+
+        assert message[0] == "id: evt-1"
+        assert message[1] == "event: UpdateNewMessage"
+        assert json.loads(message[2].removeprefix("data: ")) == _make_event("evt-1")
+
+    async def test_events_telegram_sends_heartbeat_event(self, data_dir: Path) -> None:
+        app = _make_app(data_dir, relay_settings=Settings(sse_heartbeat_seconds=1))
+        _provider, _runtime = _register_runtime(app)
+
+        stream = await _open_sse_stream(app, bearer="test-bearer")
+        try:
+            message = await stream.read_message()
+        finally:
+            await stream.close()
+
+        assert message[0] == "event: heartbeat"
+        assert json.loads(message[1].removeprefix("data: ")) == {}
+
+    async def test_second_connection_replaces_first(self, data_dir: Path) -> None:
+        app = _make_app(data_dir)
+        _provider, runtime = _register_runtime(app)
+
+        first_stream = await _open_sse_stream(app, bearer="test-bearer")
+        second_stream = await _open_sse_stream(app, bearer="test-bearer")
+        try:
+            first_message = await first_stream.read_message()
+            assert first_message[0] == "event: error"
+            assert json.loads(first_message[1].removeprefix("data: ")) == {
+                "reason": "connection_replaced"
+            }
+
+            assert (
+                await _publish_when_connected(runtime.hub, _make_event("evt-2")) is True
+            )
+            second_message = await second_stream.read_message()
+        finally:
+            await first_stream.close()
+            await second_stream.close()
+
+        assert second_message[0] == "id: evt-2"
+        assert second_message[1] == "event: UpdateNewMessage"
+
+    async def test_overflow_emits_error_and_closes(self, data_dir: Path) -> None:
+        app = _make_app(data_dir, relay_settings=Settings(sse_subscriber_queue_size=1))
+        _provider, runtime = _register_runtime(app)
+
+        stream = await _open_sse_stream(app, bearer="test-bearer")
+        try:
+            assert (
+                await _publish_when_connected(runtime.hub, _make_event("evt-1")) is True
+            )
+            assert runtime.hub.publish(_make_event("evt-2")) is False
+
+            message = await stream.read_message()
+        finally:
+            await stream.close()
+
+        assert message[0] == "event: error"
+        assert json.loads(message[1].removeprefix("data: ")) == {"reason": "overflow"}
+
+    async def test_runtime_stop_emits_error_and_closes(self, data_dir: Path) -> None:
+        app = _make_app(data_dir)
+        _provider, runtime = _register_runtime(app)
+
+        stream = await _open_sse_stream(app, bearer="test-bearer")
+        try:
+            await runtime.hub.close("runtime_stopped")
+            message = await stream.read_message()
+        finally:
+            await stream.close()
+
+        assert message[0] == "event: error"
+        assert json.loads(message[1].removeprefix("data: ")) == {
+            "reason": "runtime_stopped"
+        }
+
+    async def test_last_event_id_is_ignored(self, data_dir: Path) -> None:
+        app = _make_app(data_dir)
+        _provider, runtime = _register_runtime(app)
+
+        stream = await _open_sse_stream(
+            app,
+            bearer="test-bearer",
+            extra_headers={"Last-Event-ID": "evt-old"},
+        )
+        try:
+            assert (
+                await _publish_when_connected(runtime.hub, _make_event("evt-live"))
+                is True
+            )
+            message = await stream.read_message()
+        finally:
+            await stream.close()
+
+        assert message[0] == "id: evt-live"
+
+    async def test_disconnect_clears_active_subscriber(self, data_dir: Path) -> None:
+        app = _make_app(data_dir)
+        _provider, runtime = _register_runtime(app)
+
+        stream = await _open_sse_stream(app, bearer="test-bearer")
+        assert await _publish_when_connected(runtime.hub, _make_event("evt-1")) is True
+        await stream.close()
+
+        assert runtime.hub.publish(_make_event("evt-2")) is False
 
 
 class TestBackwardCompatibility:

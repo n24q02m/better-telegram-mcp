@@ -5,14 +5,15 @@ Provides:
 - POST /auth/bot - Bot token authentication -> bearer
 - POST /auth/user/send-code - Start user OTP flow -> bearer + phone_code_hash
 - POST /auth/user/verify - Complete OTP verification -> bearer
-- POST /mcp - MCP endpoint with Bearer auth -> per-user backend
-- GET /mcp - SSE streaming for existing sessions
-- DELETE /mcp - Close MCP session
+- POST /mcp - MCP action endpoint with Bearer auth -> per-user backend
+- GET /events/telegram - Unified bearer-authenticated SSE stream
 - GET /health - Health check
 """
 
 from __future__ import annotations
 
+import asyncio
+import json
 import time
 from collections import defaultdict
 from contextlib import asynccontextmanager
@@ -21,7 +22,7 @@ from pathlib import Path
 from loguru import logger
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, StreamingResponse
 from starlette.routing import Route
 from starlette.types import ASGIApp, Receive, Scope, Send
 
@@ -89,6 +90,18 @@ def _jsonrpc_error(code: int, message: str) -> JSONResponse:
     )
 
 
+def _format_sse_event(
+    *, event: str, data: dict[str, object], event_id: str | None = None
+) -> bytes:
+    lines: list[str] = []
+    if event_id is not None:
+        lines.append(f"id: {event_id}")
+    lines.append(f"event: {event}")
+    lines.append(f"data: {json.dumps(data, separators=(',', ':'))}")
+    lines.append("")
+    return "\n".join(lines).encode("utf-8") + b"\n"
+
+
 def create_app(
     *,
     data_dir: Path,
@@ -99,6 +112,8 @@ def create_app(
     relay_settings: Settings | None = None,
 ) -> Starlette:
     """Create the multi-user Starlette ASGI application."""
+
+    _rate_limits.clear()
 
     client_store = StatelessClientStore(dcr_secret)
     auth_provider = TelegramAuthProvider(
@@ -278,6 +293,17 @@ def create_app(
                 await self.inner(scope, receive, send)
                 return
 
+            if scope.get("method") != "POST":
+                resp = JSONResponse(
+                    {
+                        "error": "method_not_allowed",
+                        "error_description": "/mcp supports POST only",
+                    },
+                    status_code=405,
+                )
+                await resp(scope, receive, send)
+                return
+
             # Extract bearer from headers
             bearer = None
             for key, value in scope.get("headers", []):
@@ -324,16 +350,74 @@ def create_app(
             }
         )
 
+    async def telegram_events(request: Request) -> StreamingResponse | JSONResponse:
+        bearer = _extract_bearer(request)
+        if not bearer:
+            return _error_response(401, "unauthorized", "Bearer token required")
+
+        runtime = auth_provider.resolve_runtime(bearer)
+        if runtime is None:
+            return _error_response(
+                401, "unauthorized", "Invalid or expired bearer token"
+            )
+
+        subscriber = runtime.hub.subscribe()
+        heartbeat_seconds = (
+            auth_provider._relay_settings.sse_heartbeat_seconds
+            if auth_provider._relay_settings is not None
+            else 15
+        )
+
+        async def event_stream():
+            try:
+                while True:
+                    try:
+                        item = await asyncio.wait_for(
+                            subscriber.next_item(), timeout=heartbeat_seconds
+                        )
+                    except TimeoutError:
+                        yield b"event: heartbeat\ndata: {}\n\n"
+                        continue
+
+                    if item.kind == "event":
+                        event = item.event or {}
+                        event_id = event.get("event_id")
+                        event_type = str(event.get("event_type", "message"))
+                        yield _format_sse_event(
+                            event=event_type,
+                            data=event,
+                            event_id=None if event_id is None else str(event_id),
+                        )
+                        continue
+
+                    reason = item.reason or "runtime_stopped"
+                    yield _format_sse_event(event="error", data={"reason": reason})
+                    break
+            finally:
+                runtime.hub.unsubscribe(subscriber)
+
+        return StreamingResponse(
+            event_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            },
+        )
+
     routes = [
         Route("/auth/register", register, methods=["POST"]),
         Route("/auth/bot", auth_bot, methods=["POST"]),
         Route("/auth/user/send-code", auth_user_send_code, methods=["POST"]),
         Route("/auth/user/verify", auth_user_verify, methods=["POST"]),
+        Route("/events/telegram", telegram_events, methods=["GET"]),
         Route("/mcp", endpoint=mcp_app),
         Route("/health", health, methods=["GET"]),
     ]
 
-    return Starlette(
+    app = Starlette(
         routes=routes,
         lifespan=lifespan,
     )
+    app.state.auth_provider = auth_provider
+    return app
