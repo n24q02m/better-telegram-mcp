@@ -2,6 +2,13 @@
 
 <!-- version list -->
 
+## Unreleased
+
+### Documentation
+
+- Clarify the shared HTTP event relay as the feedback channel for agent systems using one container for Telegram write access plus inbound event delivery.
+- Document relay setup in the user-facing setup guides so agent runtimes can configure one shared endpoint for events from connected user accounts.
+
 ## v4.3.0 (2026-04-07)
 
 ### Bug Fixes

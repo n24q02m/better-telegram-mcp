@@ -211,6 +211,30 @@ Instead of setting environment variables, you can use the web relay:
 | `TELEGRAM_SESSION_NAME` | No | `default` | Session file name |
 | `TELEGRAM_DATA_DIR` | No | `~/.better-telegram-mcp` | Data directory |
 
+### Optional Shared Event Relay
+
+If you are using this server as part of an agent or automation system, you can run it as a **single container with a feedback channel**:
+- MCP tools let the agent write to Telegram
+- the shared event relay sends inbound Telegram events back to your external system
+
+Use the same deployment when you want one service that both executes Telegram actions and reports new Telegram events from the connected user accounts.
+
+Required env vars for that setup:
+
+```bash
+export TRANSPORT_MODE=http
+export PUBLIC_URL="https://your-public-host.example.com"
+export DCR_SERVER_SECRET="replace-with-a-random-secret"
+export TELEGRAM_API_ID="123456"
+export TELEGRAM_API_HASH="your_api_hash"
+export TELEGRAM_RELAY_ENDPOINT_URL="https://your-endpoint.example.com/telegram-events"
+```
+
+Notes:
+- events are sent only for **authenticated and connected user accounts** in HTTP multi-user mode
+- the relay sends JSON payloads to one shared external endpoint
+- if `TELEGRAM_RELAY_ENDPOINT_URL` is unset, the server continues working normally but no feedback events are delivered externally
+
 ### Mode Detection
 
 - `TELEGRAM_API_ID` + `TELEGRAM_API_HASH` set: **User mode**

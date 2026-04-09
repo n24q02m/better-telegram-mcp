@@ -102,6 +102,12 @@ Or as an MCP server config:
 
 For shared/multi-user deployments, the server can run as an HTTP endpoint with bearer token authentication and Dynamic Client Registration (DCR).
 
+This is the deployment mode to use when you want **one container** to act as the Telegram boundary for an agent system:
+- MCP tools provide the **write path** from the agent into Telegram
+- the shared HTTP event relay provides the **feedback path** from Telegram back into your agent runtime
+
+In other words, this mode lets an orchestrator treat `better-telegram-mcp` as one bidirectional integration point instead of splitting outbound actions and inbound event collection across separate services.
+
 ```json
 {
   "mcpServers": {
@@ -116,6 +122,26 @@ For shared/multi-user deployments, the server can run as an HTTP endpoint with b
 ```
 
 HTTP mode requires a separate deployment. See the [HTTP transport source](../src/better_telegram_mcp/transports/) for details.
+
+### Optional Feedback Channel for Agent Systems
+
+If your agent runtime also needs to receive Telegram events from the connected user accounts, set these additional env vars on the same container:
+
+```bash
+export TRANSPORT_MODE=http
+export PUBLIC_URL="https://your-public-host.example.com"
+export DCR_SERVER_SECRET="replace-with-a-random-secret"
+export TELEGRAM_API_ID="123456"
+export TELEGRAM_API_HASH="your_api_hash"
+export TELEGRAM_RELAY_ENDPOINT_URL="https://your-endpoint.example.com/telegram-events"
+```
+
+With that configuration:
+- the container still exposes MCP over HTTP for agent actions
+- the same container also POSTs JSON Telegram events to `TELEGRAM_RELAY_ENDPOINT_URL`
+- events are emitted only for **authenticated and connected user accounts** in the HTTP multi-user flow
+
+If `TELEGRAM_RELAY_ENDPOINT_URL` is not set, the server still works as an MCP server, but no external feedback events are sent.
 
 ## Environment Variables
 
