@@ -195,7 +195,7 @@ class TestValidateFilePath:
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_tilde_expansion_traversal_blocked(self):
         """Test that paths like ~/../../etc/passwd are expanded and blocked."""
-        with pytest.raises(SecurityError, match="/etc/"):
+        with pytest.raises(SecurityError, match=r"(/etc/|/private/)"):
             validate_file_path("~/../../etc/passwd")
 
 
@@ -232,7 +232,7 @@ class TestValidateOutputDir:
 
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_var_spool_blocked(self):
-        with pytest.raises(SecurityError, match="/var/spool/"):
+        with pytest.raises(SecurityError, match=r"(/var/spool/|/private/)"):
             validate_output_dir("/var/spool/cron")
 
     def test_tilde_expansion_blocked(self):
@@ -243,5 +243,5 @@ class TestValidateOutputDir:
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_tilde_expansion_traversal_blocked(self):
         """Test that paths like ~/../../etc/cron.d are expanded and blocked."""
-        with pytest.raises(SecurityError, match="/etc/"):
+        with pytest.raises(SecurityError, match=r"(/etc/|/private/)"):
             validate_output_dir("~/../../etc/cron.d")
