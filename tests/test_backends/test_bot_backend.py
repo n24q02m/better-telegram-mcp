@@ -349,6 +349,59 @@ async def test_connect_non_unauthorized_error():
         await bot.connect()
 
 
+async def test_get_updates_returns_update_list():
+    updates = [
+        {"update_id": 100, "message": {"message_id": 1, "text": "hello"}},
+        {"update_id": 101, "message": {"message_id": 2, "text": "world"}},
+    ]
+    bot = _make_bot(updates)
+
+    result = await bot.get_updates(offset=100, timeout=30)
+
+    assert len(result) == 2
+    assert result[0]["update_id"] == 100
+
+
+async def test_get_updates_passes_offset_and_timeout():
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"ok": True, "result": []})
+
+    bot = BotBackend("123456:ABC-DEF")
+    bot._client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url=bot._base_url,
+    )
+
+    result = await bot.get_updates(offset=42, timeout=20)
+
+    assert result == []
+    assert captured["body"] == {"offset": 42, "timeout": 20}
+
+
+async def test_get_updates_includes_allowed_updates():
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"ok": True, "result": []})
+
+    bot = BotBackend("123456:ABC-DEF")
+    bot._client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url=bot._base_url,
+    )
+
+    await bot.get_updates(allowed_updates=["message", "callback_query"])
+
+    assert captured["body"] == {
+        "timeout": 30,
+        "allowed_updates": ["message", "callback_query"],
+    }
+
+
 async def test_call_form_error():
     """_call_form should raise TelegramAPIError on non-ok response."""
     body = {"ok": False, "description": "Bad Request: file too big"}

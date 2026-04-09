@@ -157,6 +157,20 @@ class BotBackend(TelegramBackend):
     ) -> list[dict[str, Any]]:
         return []  # Bot API cannot read arbitrary chat history
 
+    async def get_updates(
+        self,
+        offset: int | None = None,
+        timeout: int = 30,
+        allowed_updates: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        result = await self._call(
+            "getUpdates",
+            offset=offset,
+            timeout=timeout,
+            allowed_updates=allowed_updates,
+        )
+        return result if isinstance(result, list) else []
+
     # --- Chats ---
     async def list_chats(self, *, limit: int = 50) -> list[dict[str, Any]]:
         self.ensure_mode("user")
