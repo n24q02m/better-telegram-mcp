@@ -25,6 +25,14 @@
 - Auth flow: `send_code()` -> `sign_in(phone, code, password=None)`
 - `_ensure_client()`: Runtime check that `connect()` was called
 
+**bot_update_producer.py**
+- `BotPollingBackend`: Protocol requiring `_call`, `get_updates`, `_bot_info`
+- `BotUpdateProducer`: Long-polls Bot API `getUpdates`, publishes normalized event envelopes
+- Offset persistence: debounced via `_persist_offset()` (default 5s interval), final flush on `stop()`
+- `_drain_backlog_to_live_boundary()`: Skips existing updates on first start (no replay)
+- Exponential backoff on transient errors, immediate stop on auth errors (401/403)
+- `offset_persist_interval_seconds` constructor param controls I/O frequency
+
 **security.py** (140 lines)
 - `validate_url(url)`: SSRF protection (blocks private IPs, metadata endpoints, DNS rebinding)
 - `validate_file_path(file_path)`: Path traversal prevention (blocks `/etc`, `/proc`, dotfiles, sensitive dirs)
@@ -63,3 +71,4 @@
 - **DON'T** create session files without secure permissions. Use `os.open()` with 0o600 before Telethon writes.
 - **DON'T** raise exceptions for mode mismatches in backend methods. Use `ensure_mode()` or return empty results.
 - **DON'T** use `path.read_bytes()` directly. Wrap in `asyncio.to_thread()` to prevent blocking.
+- **DON'T** persist bot polling offset on every poll batch — use debounced `_persist_offset()` and rely on `stop()` for final flush.

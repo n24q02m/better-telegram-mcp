@@ -17,12 +17,15 @@ stateless_client_store.py     # HMAC-based OAuth client registration (DCR)
 ### telegram_auth_provider.py
 
 - `TelegramAuthProvider`: Manages bearer -> `TelegramBackend` lifecycle
-- `register_bot()`: Instant bot registration (validates token via getMe)
+- `TelegramBearerRuntime`: Per-bearer state (backend, SSE hub, bot_producer typed `BotUpdateProducer | None`)
+- `register_bot()`: Instant bot registration (validates token via getMe), starts polling producer
 - `start_user_auth()`: Sends OTP code, stores pending state
-- `complete_user_auth()`: Verifies OTP, persists session
+- `complete_user_auth()`: Verifies OTP, persists session, installs event sink
 - `restore_sessions()`: Parallel session restoration on startup (asyncio.gather)
-- `revoke_session()`: Disconnect backend, delete session file
+- `revoke_session()`: Stop producer, close hub, disconnect backend, delete session
 - `cleanup_expired()`: Remove sessions older than 30 days
+- `_start_bot_producer()`: Verifies backend satisfies `BotPollingBackend` protocol before creating producer
+- `_stop_bot_producer()`: Direct `await producer.stop()` (typed field, no getattr)
 
 ### per_user_session_store.py
 
@@ -76,3 +79,5 @@ stateless_client_store.py     # HMAC-based OAuth client registration (DCR)
 - **Don't** use sequential restoration (kills startup time with many users)
 - **Don't** persist OAuth client metadata in database (use HMAC derivation for stateless DCR)
 - **Don't** hardcode salt (migrated to random 16-byte on first write for forward security)
+- **Don't** use `getattr`/duck-typing for `bot_producer` — field is typed `BotUpdateProducer | None`, call `.stop()` directly
+- **Don't** check `unittest.mock` module in production code — protocol checks on the backend are sufficient

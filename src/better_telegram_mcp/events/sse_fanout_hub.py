@@ -137,6 +137,12 @@ class SSEFanoutHub:
 
     @staticmethod
     def _call_in_loop(loop: asyncio.AbstractEventLoop, func: Callable[[], T]) -> T:
+        """Schedule func in the subscriber's event loop and block until complete.
+
+        Called only from a different thread/loop (the producer side).
+        Same-loop callers take the fast path in publish()/unsubscribe()
+        and never reach here.
+        """
         result: Future[T] = Future()
 
         def runner() -> None:

@@ -109,6 +109,7 @@ class TestRegisterBot:
         mock_backend = AsyncMock()
         mock_backend.connect = AsyncMock()
         mock_backend.disconnect = AsyncMock()
+        mock_backend._bot_info = {"id": 1, "username": "testbot"}
         mock_producer = AsyncMock()
 
         with (
@@ -139,6 +140,7 @@ class TestRegisterBot:
         mock_backend = AsyncMock()
         mock_backend.connect = AsyncMock()
         mock_backend.disconnect = AsyncMock()
+        mock_backend._bot_info = {"id": 1, "username": "testbot"}
         mock_producer = AsyncMock()
         mock_producer.start = AsyncMock(side_effect=ValueError("webhook configured"))
 
@@ -165,8 +167,10 @@ class TestRegisterBot:
     ) -> None:
         first_backend = AsyncMock()
         first_backend.disconnect = AsyncMock()
+        first_backend._bot_info = {"id": 1, "username": "testbot"}
         second_backend = AsyncMock()
         second_backend.disconnect = AsyncMock()
+        second_backend._bot_info = {"id": 1, "username": "testbot"}
         producer_one = AsyncMock()
         producer_one.start = AsyncMock()
         producer_two = AsyncMock()
@@ -636,6 +640,7 @@ class TestRestoreSessions:
         mock_backend = AsyncMock()
         mock_backend.connect = AsyncMock()
         mock_backend.disconnect = AsyncMock()
+        mock_backend._bot_info = {"id": 1, "username": "testbot"}
         mock_producer = AsyncMock()
 
         with (
@@ -674,6 +679,7 @@ class TestRestoreSessions:
         mock_backend = AsyncMock()
         mock_backend.connect = AsyncMock()
         mock_backend.disconnect = AsyncMock()
+        mock_backend._bot_info = {"id": 1, "username": "testbot"}
         mock_producer = AsyncMock()
         mock_producer.start = AsyncMock(side_effect=ValueError("webhook configured"))
 

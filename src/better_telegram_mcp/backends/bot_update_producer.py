@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from typing import Any, Protocol
@@ -39,6 +40,7 @@ class BotUpdateProducer:
         max_retries: int = 10,
         allowed_updates: list[str] | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        offset_persist_interval_seconds: float = 5.0,
     ) -> None:
         self._backend = backend
         self._session_store = session_store
@@ -50,6 +52,10 @@ class BotUpdateProducer:
         self._max_retries = max_retries
         self._allowed_updates = allowed_updates
         self._sleep = sleep
+
+        self._offset_persist_interval = offset_persist_interval_seconds
+        self._dirty_offset: int | None = None
+        self._last_persist_time: float = float("-inf")
 
         self._account: dict[str, object] | None = None
         self._next_offset: int | None = None
@@ -135,6 +141,7 @@ class BotUpdateProducer:
     async def stop(self) -> None:
         self._stop_event.set()
         if self._task is None:
+            self._flush_offset()
             return
         if not self._task.done():
             try:
@@ -146,6 +153,7 @@ class BotUpdateProducer:
                 self._task.cancel()
         with suppress(asyncio.CancelledError):
             await self._task
+        self._flush_offset()
         self._task = None
 
     async def _run(self) -> None:
@@ -221,9 +229,19 @@ class BotUpdateProducer:
         self._next_offset = last_update_id + 1
 
     def _persist_offset(self, bot_offset: int) -> None:
+        self._dirty_offset = bot_offset
+        now = time.monotonic()
+        if now - self._last_persist_time >= self._offset_persist_interval:
+            self._flush_offset()
+
+    def _flush_offset(self) -> None:
+        if self._dirty_offset is None:
+            return
         session_info = self._load_session_info()
-        session_info.bot_offset = bot_offset
+        session_info.bot_offset = self._dirty_offset
         self._session_store.store(self._bearer, session_info)
+        self._last_persist_time = time.monotonic()
+        self._dirty_offset = None
 
     @staticmethod
     def _update_id(update: dict[str, Any]) -> int:

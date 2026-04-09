@@ -54,7 +54,7 @@ class TelegramBearerRuntime:
     session_name: str
     account: dict[str, object] | None = None
     bot_token: str | None = None
-    bot_producer: object | None = None
+    bot_producer: BotUpdateProducer | None = None
 
 
 class TelegramAuthProvider:
@@ -265,31 +265,18 @@ class TelegramAuthProvider:
 
         polling_backend = self._as_bot_polling_backend(runtime.backend)
         if polling_backend is None:
-            producer = BotUpdateProducer(
-                backend=cast(BotPollingBackend, runtime.backend),
-                session_store=self._store,
-                bearer=bearer,
-                event_sink=runtime.hub,
-                poll_timeout_seconds=poll_timeout_seconds,
-                backoff_initial_ms=backoff_initial_ms,
-                backoff_max_ms=backoff_max_ms,
-            )
-        else:
-            producer = BotUpdateProducer(
-                backend=polling_backend,
-                session_store=self._store,
-                bearer=bearer,
-                event_sink=runtime.hub,
-                poll_timeout_seconds=poll_timeout_seconds,
-                backoff_initial_ms=backoff_initial_ms,
-                backoff_max_ms=backoff_max_ms,
-            )
-        runtime.bot_producer = producer
-
-        if polling_backend is None and not self._is_mock_producer(producer):
-            runtime.bot_producer = None
             return
 
+        producer = BotUpdateProducer(
+            backend=polling_backend,
+            session_store=self._store,
+            bearer=bearer,
+            event_sink=runtime.hub,
+            poll_timeout_seconds=poll_timeout_seconds,
+            backoff_initial_ms=backoff_initial_ms,
+            backoff_max_ms=backoff_max_ms,
+        )
+        runtime.bot_producer = producer
         await producer.start()
 
     @staticmethod
@@ -308,22 +295,10 @@ class TelegramAuthProvider:
         return None
 
     @staticmethod
-    def _is_mock_producer(producer: object) -> bool:
-        return type(producer).__module__.startswith("unittest.mock")
-
-    @staticmethod
     async def _stop_bot_producer(runtime: TelegramBearerRuntime) -> None:
         producer = runtime.bot_producer
-        if producer is None:
-            return
-
-        stop = getattr(producer, "stop", None)
-        if stop is None:
-            return
-
-        result = stop()
-        if asyncio.iscoroutine(result):
-            await result
+        if producer is not None:
+            await producer.stop()
 
     def _remove_runtime(self, bearer: str) -> TelegramBearerRuntime | None:
         runtime = self._runtimes.pop(bearer, None)

@@ -84,22 +84,16 @@ class Settings(BaseSettings):
         Returns:
             A configured Settings instance.
         """
-        api_id = (
-            int(config["TELEGRAM_API_ID"])
-            if config.get("TELEGRAM_API_ID")
-            else 37984984
-        )
-        api_hash = (
-            config["TELEGRAM_API_HASH"]
-            if config.get("TELEGRAM_API_HASH")
-            else "2f5f4c76c4de7c07302380c788390100"
-        )
-        return cls(
-            bot_token=config.get("TELEGRAM_BOT_TOKEN"),
-            phone=config.get("TELEGRAM_PHONE"),
-            api_id=api_id,
-            api_hash=api_hash,
-        )
+        kwargs: dict[str, object] = {
+            "bot_token": config.get("TELEGRAM_BOT_TOKEN"),
+            "phone": config.get("TELEGRAM_PHONE"),
+        }
+        # Only override defaults if relay explicitly provides values
+        if config.get("TELEGRAM_API_ID"):
+            kwargs["api_id"] = int(config["TELEGRAM_API_ID"])
+        if config.get("TELEGRAM_API_HASH"):
+            kwargs["api_hash"] = config["TELEGRAM_API_HASH"]
+        return cls(**kwargs)
 
     @property
     def session_path(self) -> Path:
