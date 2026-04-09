@@ -8,6 +8,7 @@ Manages the lifecycle of per-user TelegramBackend instances:
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import secrets
 import time
@@ -19,6 +20,7 @@ from ..backends.base import TelegramBackend
 from ..backends.bot_backend import BotBackend
 from ..backends.user_backend import UserBackend
 from ..config import Settings
+from ..events import HTTPEventDispatcher
 from .per_user_session_store import PerUserSessionStore, SessionInfo
 
 # Session expiry: 30 days
@@ -35,11 +37,19 @@ class TelegramAuthProvider:
     Supports both bot mode (instant) and user mode (OTP flow).
     """
 
-    def __init__(self, data_dir: Path, api_id: int, api_hash: str) -> None:
+    def __init__(
+        self,
+        data_dir: Path,
+        api_id: int,
+        api_hash: str,
+        relay_settings: Settings | None = None,
+    ) -> None:
         self._data_dir = data_dir
         self._api_id = api_id
         self._api_hash = api_hash
         self._store = PerUserSessionStore(data_dir)
+        self._relay_settings = relay_settings
+        self._event_dispatcher: HTTPEventDispatcher | None = None
 
         # bearer -> active TelegramBackend
         self.active_clients: dict[str, TelegramBackend] = {}
@@ -123,9 +133,24 @@ class TelegramAuthProvider:
                 session_name=info.session_name,
                 data_dir=self._data_dir / "user_sessions",
             )
-            backend = UserBackend(settings)
+            backend = UserBackend(
+                settings, event_dispatcher=await self._get_event_dispatcher()
+            )
             await backend.connect()
             return backend
+
+    async def _get_event_dispatcher(self) -> HTTPEventDispatcher | None:
+        if (
+            self._relay_settings is None
+            or self._relay_settings.relay_endpoint_url is None
+        ):
+            return None
+
+        if self._event_dispatcher is None:
+            self._event_dispatcher = HTTPEventDispatcher(self._relay_settings)
+            await self._event_dispatcher.start()
+
+        return self._event_dispatcher
 
     def resolve_backend(self, bearer: str) -> TelegramBackend | None:
         """Get the TelegramBackend for a bearer token."""
@@ -198,7 +223,7 @@ class TelegramAuthProvider:
             session_name=session_name,
             data_dir=self._data_dir / "user_sessions",
         )
-        backend = UserBackend(settings)
+        backend = UserBackend(settings, event_dispatcher=None)
         await backend.connect()
 
         try:
@@ -263,6 +288,13 @@ class TelegramAuthProvider:
 
         # Success - store session and activate backend
         del self._pending_otps[bearer]
+
+        if hasattr(backend, "set_event_dispatcher"):
+            backend.set_event_dispatcher(await self._get_event_dispatcher())
+        if hasattr(backend, "enable_event_capture"):
+            capture_result = backend.enable_event_capture()
+            if asyncio.iscoroutine(capture_result):
+                await capture_result
 
         info = SessionInfo(
             session_name=pending["session_name"],
@@ -337,3 +369,7 @@ class TelegramAuthProvider:
             except Exception:
                 pass
         self._pending_otps.clear()
+
+        if self._event_dispatcher is not None:
+            await self._event_dispatcher.stop()
+            self._event_dispatcher = None

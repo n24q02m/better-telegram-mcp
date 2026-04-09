@@ -13,6 +13,7 @@ from better_telegram_mcp.auth.telegram_auth_provider import (
     _SESSION_TTL,
     TelegramAuthProvider,
 )
+from better_telegram_mcp.config import Settings
 
 
 @pytest.fixture
@@ -133,6 +134,36 @@ class TestStartUserAuth:
         assert "bearer" in result
         assert result["phone_code_hash"] == "hash123"
 
+    async def test_start_user_auth_does_not_inject_relay_into_pending_backend(
+        self, data_dir: Path
+    ) -> None:
+        relay_settings = Settings(relay_endpoint_url="https://example.com/events")
+        provider = TelegramAuthProvider(
+            data_dir,
+            api_id=12345,
+            api_hash="test_hash",
+            relay_settings=relay_settings,
+        )
+
+        mock_telethon_client = MagicMock()
+        mock_sent_code = MagicMock()
+        mock_sent_code.phone_code_hash = "hash123"
+        mock_telethon_client.send_code_request = AsyncMock(return_value=mock_sent_code)
+
+        mock_backend = MagicMock()
+        mock_backend.connect = AsyncMock()
+        mock_backend.disconnect = AsyncMock()
+        mock_backend._ensure_client = MagicMock(return_value=mock_telethon_client)
+        mock_backend._client = mock_telethon_client
+
+        with patch(
+            "better_telegram_mcp.auth.telegram_auth_provider.UserBackend",
+            return_value=mock_backend,
+        ) as MockUserBackend:
+            await provider.start_user_auth("", "+84912345678")
+
+        assert MockUserBackend.call_args.kwargs["event_dispatcher"] is None
+
     async def test_start_user_auth_no_api_creds(self, data_dir: Path) -> None:
         """Should raise ValueError when api_id/api_hash not set."""
         provider = TelegramAuthProvider(data_dir, api_id=0, api_hash="")
@@ -190,6 +221,47 @@ class TestCompleteUserAuth:
 
         assert auth_result["authenticated_as"] == "Test"
         assert bearer in provider.active_clients
+
+    async def test_complete_user_auth_injects_shared_relay(
+        self, data_dir: Path
+    ) -> None:
+        relay_settings = Settings(relay_endpoint_url="https://example.com/events")
+        provider = TelegramAuthProvider(
+            data_dir,
+            api_id=12345,
+            api_hash="test_hash",
+            relay_settings=relay_settings,
+        )
+
+        mock_telethon_client = MagicMock()
+        mock_sent_code = MagicMock()
+        mock_sent_code.phone_code_hash = "hash123"
+        mock_telethon_client.send_code_request = AsyncMock(return_value=mock_sent_code)
+
+        mock_backend = MagicMock()
+        mock_backend.connect = AsyncMock()
+        mock_backend.disconnect = AsyncMock()
+        mock_backend._ensure_client = MagicMock(return_value=mock_telethon_client)
+        mock_backend.sign_in = AsyncMock(
+            return_value={"authenticated_as": "Test", "username": "test"}
+        )
+        mock_backend.set_event_dispatcher = MagicMock()
+        mock_backend.enable_event_capture = AsyncMock()
+
+        with patch(
+            "better_telegram_mcp.auth.telegram_auth_provider.UserBackend",
+            return_value=mock_backend,
+        ):
+            result = await provider.start_user_auth("", "+84912345678")
+            bearer = result["bearer"]
+
+            await provider.complete_user_auth(bearer, "12345")
+
+        mock_backend.set_event_dispatcher.assert_called_once_with(
+            provider._event_dispatcher
+        )
+        mock_backend.enable_event_capture.assert_awaited_once()
+        assert provider._event_dispatcher is not None
 
     async def test_complete_user_auth_no_pending(
         self, provider: TelegramAuthProvider
@@ -329,6 +401,62 @@ class TestRestoreSessions:
 
         assert restored == 1
         assert "stored-bearer" in provider.active_clients
+
+    async def test_restore_user_sessions_inject_shared_relay(
+        self, data_dir: Path
+    ) -> None:
+        relay_settings = Settings(relay_endpoint_url="https://example.com/events")
+        provider = TelegramAuthProvider(
+            data_dir,
+            api_id=12345,
+            api_hash="test_hash",
+            relay_settings=relay_settings,
+        )
+        provider._store.store(
+            "stored-user",
+            SessionInfo(
+                session_name="user-session",
+                mode="user",
+                api_id=12345,
+                api_hash="test_hash",
+                phone="+84912345678",
+                created_at=time.time(),
+            ),
+        )
+
+        with patch(
+            "better_telegram_mcp.auth.telegram_auth_provider.UserBackend"
+        ) as MockUserBackend:
+            mock_backend = MockUserBackend.return_value
+            mock_backend.connect = AsyncMock()
+
+            restored = await provider.restore_sessions()
+
+        assert restored == 1
+        assert provider._event_dispatcher is not None
+        assert (
+            MockUserBackend.call_args.kwargs["event_dispatcher"]
+            is provider._event_dispatcher
+        )
+
+
+class TestRelayShutdown:
+    async def test_shutdown_stops_shared_relay_dispatcher(self, data_dir: Path) -> None:
+        relay_settings = Settings(relay_endpoint_url="https://example.com/events")
+        provider = TelegramAuthProvider(
+            data_dir,
+            api_id=12345,
+            api_hash="test_hash",
+            relay_settings=relay_settings,
+        )
+
+        dispatcher = AsyncMock()
+        provider._event_dispatcher = dispatcher
+        provider.active_clients["bearer"] = AsyncMock(disconnect=AsyncMock())
+
+        await provider.shutdown()
+
+        dispatcher.stop.assert_awaited_once()
 
     async def test_restore_expired_sessions_removed(
         self, provider: TelegramAuthProvider
