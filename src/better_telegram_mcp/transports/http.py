@@ -128,27 +128,23 @@ def _start_single_user_http(settings: Settings) -> None:
 
 
 def _start_multi_user_http(settings: Settings) -> None:
-    """Multi-user HTTP mode: per-user auth with DCR."""
+    """Multi-user HTTP mode: per-user auth with standard OAuth 2.1."""
 
     import uvicorn
 
-    from .http_multi_user import create_app
+    from .oauth_server import create_app
 
     port = int(os.environ.get("PORT", "8080"))
     public_url = os.environ["PUBLIC_URL"]
-    dcr_secret = os.environ["DCR_SERVER_SECRET"]
-    api_id = int(os.environ["TELEGRAM_API_ID"])
-    api_hash = os.environ["TELEGRAM_API_HASH"]
+    master_secret = os.environ.get("DCR_SERVER_SECRET", os.environ.get("MASTER_SECRET", "default-dev-secret"))
 
     app = create_app(
         data_dir=settings.data_dir,
         public_url=public_url,
-        dcr_secret=dcr_secret,
-        api_id=api_id,
-        api_hash=api_hash,
+        master_secret=master_secret,
     )
 
-    logger.info("Starting multi-user HTTP server on port {}", port)
+    logger.info("Starting multi-user OAuth HTTP server on port {}", port)
     logger.info("Public URL: {}", public_url)
 
     # Default to 127.0.0.1 for safety; override via HOST env var (e.g. Docker sets HOST=0.0.0.0)

@@ -127,3 +127,6 @@ changelog_file = "CHANGELOG.md"
 
 [tool.semantic_release.remote]
 type = "github"
+
+[tool.uv.sources]
+mcp-relay-core = { path = "../mcp-relay-core/packages/core-py", editable = true }
