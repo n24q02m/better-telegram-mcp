@@ -16,6 +16,7 @@ from __future__ import annotations
 import os
 from collections.abc import Awaitable, Callable
 from enum import Enum
+from typing import Any
 
 from loguru import logger
 
@@ -188,7 +189,7 @@ async def trigger_relay_setup(
 
 
 async def _poll_relay_background(
-    relay_base: str, session: object, timeout: float | None
+    relay_base: str, session: Any, timeout: float | None
 ) -> None:
     """Background task that polls relay and applies config when user submits.
 
@@ -259,7 +260,7 @@ async def _poll_relay_background(
 
 
 async def _handle_user_mode_auth(
-    relay_base: str, session: object, config: dict[str, str]
+    relay_base: str, session: Any, config: dict[str, str]
 ) -> None:
     """Handle Telethon OTP/2FA auth after user-mode relay config is submitted."""
     from .config import Settings
