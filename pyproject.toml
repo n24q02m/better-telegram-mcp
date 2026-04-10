@@ -34,7 +34,6 @@ dependencies = [
     "uvicorn>=0.44.0",
     "cryptg>=0.6.0",
 ]
-
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
@@ -46,25 +45,19 @@ dev = [
     "ty>=0.0.31",
     "pre-commit>=4.5.1",
 ]
-
 [project.scripts]
 better-telegram-mcp = "better_telegram_mcp.__main__:_cli"
-
 [project.urls]
 Homepage = "https://github.com/n24q02m/better-telegram-mcp"
 Repository = "https://github.com/n24q02m/better-telegram-mcp"
 Issues = "https://github.com/n24q02m/better-telegram-mcp/issues"
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
 [tool.hatch.build.targets.wheel]
 packages = ["src/better_telegram_mcp"]
-
 [tool.hatch.build.targets.wheel.sources]
 "src" = ""
-
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
@@ -78,21 +71,16 @@ markers = [
     "e2e: end-to-end tests via MCP protocol (requires credentials + setup mode)",
 ]
 addopts = "-m 'not integration and not live and not full and not e2e'"
-
 [tool.ruff]
 target-version = "py313"
 line-length = 88
-
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "C4"]
 ignore = ["E501"]
-
 [tool.ruff.format]
 quote-style = "double"
-
 [tool.ty.environment]
 python-version = "3.13"
-
 [tool.ty.rules]
 unresolved-import = "ignore"
 possibly-unresolved-reference = "ignore"
@@ -103,7 +91,6 @@ not-iterable = "ignore"
 invalid-assignment = "ignore"
 invalid-method-override = "ignore"
 empty-body = "ignore"
-
 [tool.coverage.run]
 source = ["better_telegram_mcp"]
 omit = [
@@ -111,19 +98,15 @@ omit = [
     "*/transports/http_multi_user.py",
     "*/transports/oauth_server.py",
 ]
-
 [tool.coverage.report]
 fail_under = 95
-
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]
 version_variables = [".claude-plugin/plugin.json:version", "server.json:version"]
 tag_format = "v{version}"
 commit_message = "chore(release): v{version}"
 major_on_zero = false
-
 [tool.semantic_release.changelog]
 changelog_file = "CHANGELOG.md"
-
 [tool.semantic_release.remote]
 type = "github"
