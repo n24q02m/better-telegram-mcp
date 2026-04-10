@@ -4,6 +4,8 @@ import pytest
 
 from better_telegram_mcp.events.sse_subscriber_hub import SSESubscriberHub
 
+pytestmark = pytest.mark.timeout(30)
+
 
 def _make_event(event_id: str) -> dict[str, object]:
     return {
@@ -98,11 +100,13 @@ async def test_push_error_bounded_on_full_queue() -> None:
     hub.publish(_make_event("fill-2"))
 
     # Directly call _push_error on the internal queue — must not hang
-    hub._push_error(hub._subscriber.queue, "overflow")
+    subscriber_state = hub._subscriber
+    assert subscriber_state is not None
+    hub._push_error(subscriber_state.queue, "overflow")
 
-    # The error sentinel should be in the queue (after draining one item)
+    # The error sentinel should remain in the queue after overflow handling.
     items = []
-    while not hub._subscriber.queue.empty():
-        items.append(hub._subscriber.queue.get_nowait())
+    while not subscriber_state.queue.empty():
+        items.append(subscriber_state.queue.get_nowait())
 
     assert any(item.kind == "error" and item.reason == "overflow" for item in items)
