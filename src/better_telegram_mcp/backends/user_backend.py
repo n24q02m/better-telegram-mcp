@@ -44,7 +44,16 @@ class UserBackend(TelegramBackend):
         }
 
     @staticmethod
+    def _pre_create_session(path: Path) -> None:
+        try:
+            fd = os.open(str(path), os.O_CREAT | os.O_WRONLY, 0o600)
+            os.close(fd)
+        except OSError:
+            pass
+
+    @staticmethod
     def _serialize_dialog(d: Any) -> dict[str, Any]:
+
         title = getattr(d, "title", None) or getattr(d, "name", None) or ""
         return {
             "id": d.id,
@@ -67,17 +76,14 @@ class UserBackend(TelegramBackend):
         s = self._settings
         # Telethon auto-appends .session, so pass path without extension
         session_path = s.data_dir / s.session_name
-        s.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        await asyncio.to_thread(
+            s.data_dir.mkdir, parents=True, exist_ok=True, mode=0o700
+        )
 
         # Pre-create session file with secure permissions to avoid TOCTOU
         # where Telethon creates it with default (insecure) permissions
         actual_session_path = session_path.with_suffix(".session")
-        try:
-            fd = os.open(str(actual_session_path), os.O_CREAT | os.O_WRONLY, 0o600)
-            os.close(fd)
-        except OSError:
-            pass  # Windows may not support this or file already exists
-
+        await asyncio.to_thread(self._pre_create_session, actual_session_path)
         self._client = TelegramClient(
             str(session_path),
             s.api_id,
@@ -109,7 +115,7 @@ class UserBackend(TelegramBackend):
         if self._client is not None and self._client.session:
             # Clear Telethon's entity cache by deleting cached entities
             try:
-                self._client.session.save()
+                await asyncio.to_thread(self._client.session.save)
             except Exception:
                 pass
 
@@ -141,7 +147,7 @@ class UserBackend(TelegramBackend):
         session_file = (s.data_dir / s.session_name).with_suffix(".session")
         if session_file.exists():
             try:
-                os.chmod(session_file, 0o600)
+                await asyncio.to_thread(os.chmod, session_file, 0o600)
             except OSError:
                 pass
 
@@ -466,7 +472,7 @@ class UserBackend(TelegramBackend):
         download_path: Path | str | None = None
         if output_dir:
             safe_dir = validate_output_dir(output_dir)
-            safe_dir.mkdir(parents=True, exist_ok=True)
+            await asyncio.to_thread(safe_dir.mkdir, parents=True, exist_ok=True)
             download_path = await client.download_media(msg, file=str(safe_dir))
         else:
             download_path = await client.download_media(msg)
