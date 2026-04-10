@@ -1361,6 +1361,33 @@ class TestSignIn:
 
         assert session_file.stat().st_mode & 0o777 == 0o600
 
+    async def test_sign_in_chmod_handles_oserror(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        # Create a fake session file
+        session_file = tmp_path / "test_session.session"
+        session_file.write_text("fake")
+
+        mock_me = MagicMock()
+        mock_me.first_name = "Test"
+        mock_me.username = "testuser"
+        mock_client.sign_in = AsyncMock()
+        mock_client.get_me = AsyncMock(return_value=mock_me)
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        with patch(
+            "better_telegram_mcp.backends.user_backend.os.chmod", side_effect=OSError
+        ):
+            result = await backend.sign_in("+84912345678", "12345")
+
+        assert result["authenticated_as"] == "Test"
+        assert result["username"] == "testuser"
+
 
 class TestSerializeMessage:
     def test_serialize_message_null_sender(self):
