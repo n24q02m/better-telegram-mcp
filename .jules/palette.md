@@ -1,3 +1,0 @@
-## 2026-04-10 - Native Semantic Form Submission for Inline UI
-**Learning:** For simple inline HTML UIs (like the local web server UI in `auth_server.py`), custom JS `keydown` event listeners for the 'Enter' key can create accessibility gaps and ignore native form submission behaviors. Furthermore, relying on arbitrary div wrappers doesn't effectively encapsulate button loading states or input-disabling behavior.
-**Action:** Always wrap logical input sections in semantic `<form>` tags. This provides native 'Enter' key submission, improves screen reader parsing, and simplifies script logic (e.g. disabling all inputs using `form.querySelectorAll('input')`). Use `onsubmit="event.preventDefault(); function()"` to handle async API calls.
