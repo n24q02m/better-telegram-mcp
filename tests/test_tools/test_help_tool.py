@@ -1,10 +1,17 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import MagicMock
 
 import pytest
 
-from better_telegram_mcp.tools.help_tool import handle_help
+from better_telegram_mcp.tools.help_tool import _read_doc_sync, handle_help
+
+
+@pytest.fixture(autouse=True)
+def clear_help_cache():
+    """Clear the LRU cache for help tool to prevent cross-test leakage."""
+    _read_doc_sync.cache_clear()
 
 
 @pytest.mark.asyncio
@@ -102,3 +109,38 @@ async def test_help_all_no_docs(monkeypatch):
     result = await handle_help("all")
     parsed = json.loads(result)
     assert "error" in parsed
+
+
+@pytest.mark.asyncio
+async def test_help_docs_are_cached(monkeypatch):
+    """Test that reading the same doc multiple times only triggers one disk read."""
+    from pathlib import Path
+
+    import better_telegram_mcp.tools.help_tool
+
+    # Create mock path that says it exists
+    mock_path = MagicMock(spec=Path)
+    mock_path.exists.return_value = True
+    mock_path.read_text.return_value = "Mocked content"
+
+    # We need to ensure that f"{topic}.md" on the mocked _DOCS_DIR returns our mock_path
+    mock_docs_dir = MagicMock(spec=Path)
+    mock_docs_dir.__truediv__.return_value = mock_path
+
+    monkeypatch.setattr(better_telegram_mcp.tools.help_tool, "_DOCS_DIR", mock_docs_dir)
+
+    # First read (should read from disk)
+    result1 = await handle_help("messages")
+    assert "Mocked content" in result1
+
+    # Second read (should hit cache)
+    result2 = await handle_help("messages")
+    assert "Mocked content" in result2
+
+    # Third read (should hit cache)
+    result3 = await handle_help("messages")
+    assert "Mocked content" in result3
+
+    # read_text should only be called once
+    assert mock_path.read_text.call_count == 1
+    assert mock_path.exists.call_count == 1

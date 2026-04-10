@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 from pathlib import Path
 
 from ..utils.formatting import err
@@ -38,10 +39,16 @@ async def handle_help(topic: str | None = None) -> str:
     return err(f"Documentation for '{topic}' not found.")
 
 
+@functools.cache
+def _read_doc_sync(path: Path) -> str | None:
+    """Read documentation synchronously with caching to prevent repeated disk I/O."""
+    if path.exists():
+        return path.read_text(encoding="utf-8").strip()
+    return None
+
+
 async def _load_doc(topic: str) -> str | None:
     path = _DOCS_DIR / f"{topic}.md"
-    if path.exists():
-        # Bolt: Read file asynchronously to prevent blocking the event loop
-        content = await asyncio.to_thread(path.read_text, encoding="utf-8")
-        return content.strip()
-    return None
+    # Bolt: Read file asynchronously with caching to prevent blocking the event loop
+    # and to prevent redundant disk I/O on repeated reads.
+    return await asyncio.to_thread(_read_doc_sync, path)
