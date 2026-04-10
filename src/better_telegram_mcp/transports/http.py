@@ -43,7 +43,7 @@ async def setup_credentials(settings: Settings) -> dict[str, str]:
     Raises:
         RuntimeError: If relay setup fails or times out.
     """
-    store = CredentialStore(settings.data_dir)
+    store = CredentialStore(settings.data_dir, secret=settings.secret)
     creds = store.load()
 
     if creds is not None:
@@ -113,7 +113,7 @@ def _start_single_user_http(settings: Settings) -> None:
 
     # If env vars already have credentials, skip CredentialStore/relay
     if not settings.is_configured:
-        store = CredentialStore(settings.data_dir)
+        store = CredentialStore(settings.data_dir, secret=settings.secret)
         creds = store.load()
 
         if creds is None:
@@ -146,6 +146,7 @@ def _start_multi_user_http(settings: Settings) -> None:
         dcr_secret=dcr_secret,
         api_id=api_id,
         api_hash=api_hash,
+        secret=settings.secret,
     )
 
     logger.info("Starting multi-user HTTP server on port {}", port)

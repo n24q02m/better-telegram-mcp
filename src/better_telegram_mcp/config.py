@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import functools
+import os
 from pathlib import Path
 from typing import Literal
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings
+
+from .utils.secrets import resolve_or_generate_secret
 
 
 def _empty_to_none(v: str | None) -> str | None:
@@ -37,6 +41,14 @@ class Settings(BaseSettings):
 
     # Runtime (derived)
     mode: Literal["bot", "user"] = "bot"
+
+    @functools.cached_property
+    def secret(self) -> str:
+        """Cached secret for encryption, loaded from env or data_dir."""
+        env_secret = os.environ.get("CREDENTIAL_SECRET")
+        if env_secret:
+            return env_secret
+        return resolve_or_generate_secret(self.data_dir)
 
     @property
     def trusted_proxy_list(self) -> list[str]:

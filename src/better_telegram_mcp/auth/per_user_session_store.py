@@ -20,6 +20,8 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
+from ..utils.secrets import resolve_or_generate_secret
+
 _LEGACY_SALT = b"mcp-telegram-sessions"
 _KDF_ITERATIONS = 600_000
 _NONCE_SIZE = 12
@@ -81,17 +83,7 @@ class PerUserSessionStore:
     @staticmethod
     def _resolve_or_generate_secret(data_dir: Path) -> str:
         """Load persisted secret or generate a new one."""
-        secret_path = data_dir / ".secret"
-        if secret_path.exists():
-            return secret_path.read_text().strip()
-        data_dir.mkdir(parents=True, exist_ok=True)
-        secret = os.urandom(32).hex()
-        secret_path.write_text(secret)
-        try:
-            secret_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
-        except OSError:
-            pass  # Windows may not support chmod
-        return secret
+        return resolve_or_generate_secret(data_dir)
 
     def _derive_key(self) -> bytes:
         if self._cached_key is not None:

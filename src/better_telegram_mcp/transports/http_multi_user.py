@@ -103,11 +103,12 @@ def create_app(
     dcr_secret: str,
     api_id: int,
     api_hash: str,
+    secret: str | None = None,
 ) -> Starlette:
     """Create the multi-user Starlette ASGI application."""
 
     client_store = StatelessClientStore(dcr_secret)
-    auth_provider = TelegramAuthProvider(data_dir, api_id, api_hash)
+    auth_provider = TelegramAuthProvider(data_dir, api_id, api_hash, secret=secret)
 
     # Create MCP server and session manager for streamable-http
     from ..server import create_http_mcp_server
