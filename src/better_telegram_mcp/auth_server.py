@@ -47,6 +47,7 @@ input{width:100%;padding:.75rem 1rem;background:#111;border:1px solid #444;
   font-family:monospace;letter-spacing:.15em;text-align:center}
 input[type="password"]{letter-spacing:normal;text-align:left}
 input:focus{border-color:#3b82f6}
+input:focus-visible,button:focus-visible{outline:2px solid #3b82f6;outline-offset:2px}
 button{width:100%;padding:.75rem;background:#3b82f6;color:#fff;border:none;
   border-radius:8px;font-size:1rem;cursor:pointer;font-weight:500}
 button:hover{background:#2563eb}
@@ -111,8 +112,8 @@ function show(id){
 }
 function st(el,cls,msg){el.className='st '+cls;el.textContent=msg;el.style.display='block'}
 function clearSt(el){el.className='st';el.textContent='';el.style.display='none'}
-function btnLoading(btn,text){btn.disabled=true;btn.textContent=text}
-function btnReset(btn,text){btn.disabled=false;btn.textContent=text}
+function btnLoading(btn,text){btn.disabled=true;btn.textContent=text;btn.setAttribute('aria-busy','true')}
+function btnReset(btn,text){btn.disabled=false;btn.textContent=text;btn.removeAttribute('aria-busy')}
 function showPwd(){$('pwd-section').style.display='block';$('pwd').focus()}
 
 async function checkStatus(){
@@ -228,12 +229,16 @@ class AuthServer:
         self.url: str = ""
 
     def _get_client_ip(self, request: Request) -> str:
-        """Extract client IP, respecting reverse proxy headers."""
-        if "cf-connecting-ip" in request.headers:
-            return request.headers["cf-connecting-ip"]
-        if "x-forwarded-for" in request.headers:
-            return request.headers["x-forwarded-for"].split(",")[0].strip()
-        return request.client.host if request.client else "unknown"
+        """Extract actual client socket IP to prevent spoofing and rate limit bypass."""
+        client_ip = request.client.host if request.client else "unknown"
+        # 🛡️ Sentinel: Never trust x-forwarded-for or cf-connecting-ip headers for rate
+        # limiting unless explicitly behind a configured trusted proxy, as they can be easily spoofed.
+        if client_ip in self._settings.trusted_proxy_list:
+            if "cf-connecting-ip" in request.headers:
+                return request.headers["cf-connecting-ip"]
+            if "x-forwarded-for" in request.headers:
+                return request.headers["x-forwarded-for"].split(",")[0].strip()
+        return client_ip
 
     def _check_rate_limit(self, key: str) -> bool:
         """Check if key is within rate limit. Returns True if allowed."""
