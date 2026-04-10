@@ -170,3 +170,16 @@ def mock_webbrowser_open():
 
     with patch("webbrowser.open") as mock_browser:
         yield mock_browser
+
+
+@pytest.fixture(autouse=True)
+def clear_storage_caches():
+    """Clear class-level caches for storage components between tests."""
+    from better_telegram_mcp.auth.per_user_session_store import PerUserSessionStore
+    from better_telegram_mcp.transports.credential_store import CredentialStore
+
+    CredentialStore._salt_cache.clear()
+    CredentialStore._secret_cache.clear()
+    PerUserSessionStore._salt_cache.clear()
+    PerUserSessionStore._secret_cache.clear()
+    yield
