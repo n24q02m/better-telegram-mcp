@@ -4,11 +4,11 @@
 
 ## WHERE TO LOOK
 
-```
+```text
 tests/
   conftest.py              # MockBackend, shared fixtures, --backend CLI option
   conftest_e2e.py          # E2E fixtures: --setup (relay|env|plugin), --browser, StderrCapture, parse_result()
-  test_*.py                # Unit tests (21 files)
+  test_*.py                # Unit test modules
   test_backends/           # Backend tests: bot, user, security, base ABC
   test_tools/              # Tool tests: messages, chats, media, contacts, config, help
   test_utils/              # Utility tests (if present)
@@ -17,9 +17,9 @@ tests/
     test_user_live.py      # MTProto integration (@pytest.mark.integration)
   test_e2e.py              # Full MCP protocol E2E (3 setup modes x 2 backends)
   test_full_live.py        # Full live test (@pytest.mark.full, @pytest.mark.live)
-  test_relay_setup.py      # Relay auth flow (1094 lines)
-  test_server.py           # Server lifespan, tool registration (918 lines)
-  test_credential_state.py # Credential state machine (765 lines)
+  test_relay_setup.py      # Relay auth flow coverage
+  test_server.py           # Server lifespan and tool registration coverage
+  test_credential_state.py # Credential state machine coverage
 ```
 
 ## CONVENTIONS

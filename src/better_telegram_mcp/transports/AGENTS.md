@@ -6,7 +6,7 @@ HTTP transport bootstrap and request-layer behavior live here: single-user HTTP 
 
 ## Structure
 
-```
+```text
 transports/
   http.py               # Mode split, startup wiring, ContextVar bridge
   http_multi_user.py    # Starlette app, auth routes, /mcp, /events/telegram
@@ -54,5 +54,5 @@ transports/
 
 ## Verification Notes
 
-- Transport changes usually need targeted checks in `tests/test_http_multi_user.py` and, when SSE behavior changes, the SSE-focused tests (`tests/test_sse_integration.py`, `tests/test_sse_fanout_hub.py` (now `test_sse_fanout_hub.py` tests `SSESubscriberHub`), `tests/test_bot_update_producer.py`).
+- Transport changes usually need targeted checks in `tests/test_http_multi_user.py` and, when SSE behavior changes, the SSE-focused tests (`tests/test_sse_integration.py`, `tests/test_sse_fanout_hub.py`, `tests/test_bot_update_producer.py`).
 - When changing auth/runtime wiring, also inspect provider tests such as `tests/test_telegram_auth_provider.py` because the transport layer depends on provider-owned runtimes.

@@ -4,7 +4,7 @@
 
 ## WHERE TO LOOK
 
-```
+```text
 messages.py      send, edit, delete, forward, pin, react, search, history
 chats.py         list, info, create, join, leave, members, admin, settings, topics
 media.py         send_photo, send_file, send_voice, send_video, download
