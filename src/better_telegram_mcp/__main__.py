@@ -1,10 +1,13 @@
+"""Main entry point for better-telegram-mcp."""
+
 from __future__ import annotations
 
 
 def _cli() -> None:
-    from .server import main
+    """Run the Typer CLI."""
+    from .cli import app
 
-    main()
+    app()
 
 
 if __name__ == "__main__":
