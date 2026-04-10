@@ -26,6 +26,12 @@
 - Clean up producer wiring, debounce offset persistence
 - Align HTTP runtime settings and health contract
 
+### Breaking Changes
+
+- Remove callback-style inbound event delivery. Clients that previously expected `callback_url` delivery must now consume `GET /events/telegram` with bearer auth.
+- Remove callback delivery configuration from the server surface. Existing config payloads, env wiring, or docs that still reference callback delivery must be deleted because SSE is now the only supported path.
+- Remove HTTP credential defaults for `TELEGRAM_API_ID` and `TELEGRAM_API_HASH`. Multi-user HTTP deployments must now provide explicit Telegram app credentials before startup.
+
 ### Documentation
 
 - Document SSE endpoint, payload format, delivery behavior, and v1 restrictions in README
