@@ -67,15 +67,16 @@ class PerUserSessionStore:
 
     def _resolve_salt(self) -> bytes:
         """Load persisted salt, fallback to legacy, or generate new one."""
+        resolved_path = self._salt_path.resolve()
         if self._salt_path.exists():
-            if self._salt_path in self._salt_cache:
-                return self._salt_cache[self._salt_path]
+            if resolved_path in self._salt_cache:
+                return self._salt_cache[resolved_path]
             salt = self._salt_path.read_bytes()
-            self._salt_cache[self._salt_path] = salt
+            self._salt_cache[resolved_path] = salt
             return salt
 
         # If salt disappeared, invalidate cache
-        self._salt_cache.pop(self._salt_path, None)
+        self._salt_cache.pop(resolved_path, None)
 
         # Legacy: use hardcoded salt for backward compat on first read
         return _LEGACY_SALT
@@ -84,7 +85,7 @@ class PerUserSessionStore:
         """Save random salt to disk (called on first store)."""
         self._salt_path.parent.mkdir(parents=True, exist_ok=True)
         self._salt_path.write_bytes(salt)
-        self._salt_cache[self._salt_path] = salt
+        self._salt_cache[self._salt_path.resolve()] = salt
         try:
             self._salt_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
         except OSError:
@@ -94,20 +95,21 @@ class PerUserSessionStore:
     def _resolve_or_generate_secret(cls, data_dir: Path) -> str:
         """Load persisted secret or generate a new one."""
         secret_path = data_dir / ".secret"
+        resolved_path = secret_path.resolve()
         if secret_path.exists():
-            if secret_path in cls._secret_cache:
-                return cls._secret_cache[secret_path]
+            if resolved_path in cls._secret_cache:
+                return cls._secret_cache[resolved_path]
             secret = secret_path.read_text().strip()
-            cls._secret_cache[secret_path] = secret
+            cls._secret_cache[resolved_path] = secret
             return secret
 
         # If secret disappeared, invalidate cache
-        cls._secret_cache.pop(secret_path, None)
+        cls._secret_cache.pop(resolved_path, None)
 
         data_dir.mkdir(parents=True, exist_ok=True)
         secret = os.urandom(32).hex()
         secret_path.write_text(secret)
-        cls._secret_cache[secret_path] = secret
+        cls._secret_cache[resolved_path] = secret
         try:
             secret_path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
         except OSError:

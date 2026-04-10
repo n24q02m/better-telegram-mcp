@@ -342,7 +342,10 @@ async def test_trigger_relay_creates_new_session():
             new_callable=AsyncMock,
         ) as mock_write_lock,
         patch("mcp_relay_core.try_open_browser") as mock_browser,
-        patch("asyncio.create_task") as mock_create_task,
+        patch(
+            "asyncio.create_task",
+            side_effect=lambda coro: (coro.close(), MagicMock())[1],
+        ) as mock_create_task,
     ):
         result = await trigger_relay_setup()
 
@@ -370,7 +373,10 @@ async def test_trigger_relay_force_reconfigures():
             return_value=mock_session_info,
         ),
         patch("mcp_relay_core.try_open_browser"),
-        patch("asyncio.create_task", return_value=MagicMock()),
+        patch(
+            "asyncio.create_task",
+            side_effect=lambda coro: (coro.close(), MagicMock())[1],
+        ),
     ):
         result = await trigger_relay_setup(force=True)
 
@@ -387,7 +393,10 @@ async def test_trigger_relay_exception_returns_none():
             new_callable=AsyncMock,
             side_effect=Exception("network error"),
         ),
-        patch("asyncio.create_task", return_value=MagicMock()),
+        patch(
+            "asyncio.create_task",
+            side_effect=lambda coro: (coro.close(), MagicMock())[1],
+        ),
     ):
         result = await trigger_relay_setup()
 

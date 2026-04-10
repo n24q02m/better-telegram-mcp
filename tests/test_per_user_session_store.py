@@ -275,3 +275,37 @@ def test_session_store_salt_caching_multi_instance(data_dir: Path):
 
         # Should be exactly 1 read due to caching
         assert len(salt_reads) == 1
+
+
+def test_auto_generated_secret_flow(data_dir: Path):
+    """Test that PerUserSessionStore can auto-generate and persist a secret."""
+    # Clear caches
+    PerUserSessionStore._secret_cache.clear()
+
+    # Instantiate without secret
+    PerUserSessionStore(data_dir)
+    secret_path = data_dir / ".secret"
+    assert secret_path.exists()
+    secret1 = secret_path.read_text().strip()
+    assert len(secret1) == 64
+
+    # New instance should load the same secret
+    store2 = PerUserSessionStore(data_dir)
+    assert store2._secret == secret1
+
+
+def test_secret_cache_invalidation(data_dir: Path):
+    """Test that cache is invalidated if .secret file is deleted."""
+    # Setup
+    store1 = PerUserSessionStore(data_dir)
+    secret_path = data_dir / ".secret"
+    secret1 = store1._secret
+
+    # Delete file
+    secret_path.unlink()
+
+    # Next instantiation should generate a NEW secret, not use cached one
+    # Note: we must clear cache or use a method that detects missing file
+    store2 = PerUserSessionStore(data_dir)
+    assert store2._secret != secret1
+    assert secret_path.exists()
