@@ -309,3 +309,40 @@ def test_secret_cache_invalidation(data_dir: Path):
     store2 = PerUserSessionStore(data_dir)
     assert store2._secret != secret1
     assert secret_path.exists()
+
+
+def test_per_user_session_store_chmod_errors(
+    data_dir: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Test that OSError during chmod is silently ignored in PerUserSessionStore."""
+
+    def mock_chmod(*args, **kwargs):
+        raise OSError("chmod failed")
+
+    monkeypatch.setattr("os.chmod", mock_chmod)
+    # Also patch Path.chmod just in case
+    monkeypatch.setattr("pathlib.Path.chmod", mock_chmod)
+
+    store = PerUserSessionStore(data_dir)
+    # Triggers _persist_salt -> chmod
+    store._persist_salt(b"new-salt")
+    # Triggers _write_all -> chmod
+    store.store("bearer", SessionInfo("name", "bot", bot_token="token"))
+
+
+def test_per_user_session_store_load_existing_no_cache(data_dir: Path):
+    """Test loading existing salt/secret when they are not in cache."""
+    # 1. Create files
+    salt_path = data_dir / ".session-salt"
+    secret_path = data_dir / ".secret"
+    salt_path.write_bytes(b"existing-salt")
+    secret_path.write_text("existing-secret")
+
+    # 2. Ensure cache is clear
+    PerUserSessionStore._salt_cache.clear()
+    PerUserSessionStore._secret_cache.clear()
+
+    # 3. Instantiate - should read from disk (hitting lines 100-102 and salt equivalent)
+    store = PerUserSessionStore(data_dir)
+    assert store._secret == "existing-secret"
+    assert store._salt == b"existing-salt"
