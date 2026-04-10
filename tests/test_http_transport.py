@@ -256,7 +256,7 @@ def test_start_single_user_http_unconfigured(settings):
         patch("better_telegram_mcp.transports.http.CredentialStore") as mock_store_cls,
         patch(
             "better_telegram_mcp.transports.http.setup_credentials",
-            new_callable=AsyncMock,
+            new_callable=MagicMock,
         ),
         patch("better_telegram_mcp.server.mcp") as mock_mcp,
         patch("asyncio.run") as mock_asyncio_run,
