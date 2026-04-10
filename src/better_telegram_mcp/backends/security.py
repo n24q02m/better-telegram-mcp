@@ -73,11 +73,14 @@ def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Pa
     # Block known sensitive paths
     _blocked_prefixes = (
         "/etc/",
+        "/private/etc/",
         "/proc/",
         "/sys/",
         "/dev/",
         "/var/run/",
+        "/private/var/run/",
         "/var/log/",
+        "/private/var/log/",
         "/root/",
     )
     path_str = str(path) if str(path).endswith("/") else str(path) + "/"
@@ -109,12 +112,16 @@ def validate_output_dir(output_dir: str, *, base_dir: Path | None = None) -> Pat
     # Block writing to system directories
     _blocked_prefixes = (
         "/etc/",
+        "/private/etc/",
         "/proc/",
         "/sys/",
         "/dev/",
         "/var/run/",
+        "/private/var/run/",
         "/var/log/",
+        "/private/var/log/",
         "/var/spool/",
+        "/private/var/spool/",
         "/root/",
         "/usr/",
         "/bin/",
