@@ -4,7 +4,7 @@
 #   cp .env.example .env   # then fill in DCR_SERVER_SECRET
 #   docker compose -f docker-compose.yml -f docker-compose.http.yml up
 #
-# TELEGRAM_API_ID / TELEGRAM_API_HASH have built-in defaults and are optional.
+# TELEGRAM_API_ID / TELEGRAM_API_HASH are required for HTTP auth and user sessions.
 # DCR_SERVER_SECRET is required — any random string, used to sign client tokens.
 services:
   better-telegram-mcp:
@@ -12,6 +12,8 @@ services:
       - TRANSPORT_MODE=http
       - PUBLIC_URL=${PUBLIC_URL:-http://localhost:8080}
       - DCR_SERVER_SECRET=${DCR_SERVER_SECRET:?Set DCR_SERVER_SECRET in .env}
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID:?Set TELEGRAM_API_ID in .env}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH:?Set TELEGRAM_API_HASH in .env}
       - CREDENTIAL_SECRET=${CREDENTIAL_SECRET:-}
     ports:
       - "${PORT:-8080}:8080"

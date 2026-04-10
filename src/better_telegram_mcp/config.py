@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     # Bot mode
     bot_token: str | None = None
 
-    # User mode (from https://my.telegram.org/apps)
+    # User mode (explicit credentials from https://my.telegram.org/apps)
     api_id: int | None = None
     api_hash: str | None = None
     phone: str | None = None
@@ -59,7 +59,7 @@ class Settings(BaseSettings):
         self.phone = _empty_to_none(self.phone)
 
         has_bot = self.bot_token is not None
-        # User mode requires phone (api_id/api_hash have built-in defaults)
+        # User mode requires explicit API credentials plus phone.
         has_user = (
             self.api_id is not None
             and self.api_hash is not None
@@ -92,15 +92,14 @@ class Settings(BaseSettings):
         Returns:
             A configured Settings instance.
         """
-        kwargs: dict[str, object] = {
-            "bot_token": config.get("TELEGRAM_BOT_TOKEN"),
-            "phone": config.get("TELEGRAM_PHONE"),
-        }
-        if config.get("TELEGRAM_API_ID"):
-            kwargs["api_id"] = int(config["TELEGRAM_API_ID"])
-        if config.get("TELEGRAM_API_HASH"):
-            kwargs["api_hash"] = config["TELEGRAM_API_HASH"]
-        return cls(**kwargs)
+        api_id = config.get("TELEGRAM_API_ID")
+        api_hash = config.get("TELEGRAM_API_HASH")
+        return cls(
+            bot_token=config.get("TELEGRAM_BOT_TOKEN"),
+            api_id=int(api_id) if api_id else None,
+            api_hash=api_hash,
+            phone=config.get("TELEGRAM_PHONE"),
+        )
 
     @property
     def session_path(self) -> Path:
