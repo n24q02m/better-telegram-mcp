@@ -18,6 +18,13 @@ def data_dir(tmp_path: Path) -> Path:
     return d
 
 
+@pytest.fixture(autouse=True)
+def clear_credential_store_caches():
+    CredentialStore._salt_cache.clear()
+    CredentialStore._secret_cache.clear()
+    yield
+
+
 class TestCredentialStore:
     def test_store_load_roundtrip(self, data_dir: Path) -> None:
         """Credentials can be stored and loaded back correctly."""
@@ -226,3 +233,43 @@ class TestCredentialStore:
         store = CredentialStore(tmp_path)
         # Store writing triggers credential chmod
         store.store({"api_id": "123"})
+
+
+def test_credential_store_caching_multi_instance(data_dir: Path):
+    """Verify that multiple instances share the same salt/secret cache."""
+    # Ensure files exist
+    salt_path = data_dir / ".salt"
+    secret_path = data_dir / ".secret"
+    salt_path.write_bytes(b"some-salt")
+    secret_path.write_text("some-secret")
+
+    # Clear caches to ensure we start fresh for this test
+    CredentialStore._salt_cache.clear()
+    CredentialStore._secret_cache.clear()
+
+    original_read_bytes = Path.read_bytes
+    original_read_text = Path.read_text
+
+    with patch.object(Path, "read_bytes", autospec=True) as mock_read_bytes:
+        with patch.object(Path, "read_text", autospec=True) as mock_read_text:
+            mock_read_bytes.side_effect = lambda self: original_read_bytes(self)
+            mock_read_text.side_effect = lambda self: original_read_text(self)
+
+            # Instantiate 5 times
+            for _ in range(5):
+                CredentialStore(data_dir)
+
+            salt_reads = [
+                call
+                for call in mock_read_bytes.call_args_list
+                if call.args[0] == salt_path
+            ]
+            secret_reads = [
+                call
+                for call in mock_read_text.call_args_list
+                if call.args[0] == secret_path
+            ]
+
+            # Should be exactly 1 read for salt and 1 for secret due to caching
+            assert len(salt_reads) == 1
+            assert len(secret_reads) == 1

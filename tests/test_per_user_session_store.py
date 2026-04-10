@@ -21,6 +21,13 @@ def data_dir(tmp_path: Path) -> Path:
     return d
 
 
+@pytest.fixture(autouse=True)
+def clear_session_store_caches():
+    PerUserSessionStore._salt_cache.clear()
+    PerUserSessionStore._secret_cache.clear()
+    yield
+
+
 @pytest.fixture
 def store(data_dir: Path) -> PerUserSessionStore:
     return PerUserSessionStore(data_dir, secret="test-secret")
@@ -242,3 +249,29 @@ class TestPerUserSessionStore:
             all_s = store.load_all()
             assert "b1" in all_s
             assert mock_read.call_count == 1
+
+
+def test_session_store_salt_caching_multi_instance(data_dir: Path):
+    """Verify that multiple instances share the same salt cache."""
+    # Setup: ensure salt file exists
+    salt_path = data_dir / ".session-salt"
+    salt_path.write_bytes(b"session-salt")
+
+    # Clear caches
+    PerUserSessionStore._salt_cache.clear()
+
+    original_read_bytes = Path.read_bytes
+
+    with patch.object(Path, "read_bytes", autospec=True) as mock_read_bytes:
+        mock_read_bytes.side_effect = lambda self: original_read_bytes(self)
+
+        # Instantiate 5 times
+        for _ in range(5):
+            PerUserSessionStore(data_dir, secret="fixed-secret")
+
+        salt_reads = [
+            call for call in mock_read_bytes.call_args_list if call.args[0] == salt_path
+        ]
+
+        # Should be exactly 1 read due to caching
+        assert len(salt_reads) == 1

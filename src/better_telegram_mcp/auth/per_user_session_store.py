@@ -52,6 +52,9 @@ class PerUserSessionStore:
     Maps bearer_token (hashed) -> SessionInfo.
     """
 
+    _salt_cache: dict[Path, bytes] = {}
+    _secret_cache: dict[Path, str] = {}
+
     def __init__(self, data_dir: Path, secret: str | None = None) -> None:
         self._path = data_dir / "sessions.enc"
         self._secret = secret or os.environ.get("CREDENTIAL_SECRET", "")
@@ -65,7 +68,15 @@ class PerUserSessionStore:
     def _resolve_salt(self) -> bytes:
         """Load persisted salt, fallback to legacy, or generate new one."""
         if self._salt_path.exists():
-            return self._salt_path.read_bytes()
+            if self._salt_path in self._salt_cache:
+                return self._salt_cache[self._salt_path]
+            salt = self._salt_path.read_bytes()
+            self._salt_cache[self._salt_path] = salt
+            return salt
+
+        # If salt disappeared, invalidate cache
+        self._salt_cache.pop(self._salt_path, None)
+
         # Legacy: use hardcoded salt for backward compat on first read
         return _LEGACY_SALT
 
@@ -73,22 +84,32 @@ class PerUserSessionStore:
         """Save random salt to disk (called on first store)."""
         self._salt_path.parent.mkdir(parents=True, exist_ok=True)
         self._salt_path.write_bytes(salt)
+        self._salt_cache[self._salt_path] = salt
         try:
             self._salt_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
         except OSError:
             pass
 
-    @staticmethod
-    def _resolve_or_generate_secret(data_dir: Path) -> str:
+    @classmethod
+    def _resolve_or_generate_secret(cls, data_dir: Path) -> str:
         """Load persisted secret or generate a new one."""
         secret_path = data_dir / ".secret"
         if secret_path.exists():
-            return secret_path.read_text().strip()
+            if secret_path in cls._secret_cache:
+                return cls._secret_cache[secret_path]
+            secret = secret_path.read_text().strip()
+            cls._secret_cache[secret_path] = secret
+            return secret
+
+        # If secret disappeared, invalidate cache
+        cls._secret_cache.pop(secret_path, None)
+
         data_dir.mkdir(parents=True, exist_ok=True)
         secret = os.urandom(32).hex()
         secret_path.write_text(secret)
+        cls._secret_cache[secret_path] = secret
         try:
-            secret_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
+            secret_path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
         except OSError:
             pass  # Windows may not support chmod
         return secret
