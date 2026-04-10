@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -141,8 +142,6 @@ class TestStartHttp:
 
     def test_start_http_sets_env_vars(self, settings: Settings, data_dir: Path) -> None:
         """start_http should set TELEGRAM_ env vars from stored credentials."""
-        import os
-
         store = CredentialStore(data_dir, secret="test")
         creds = {
             "TELEGRAM_BOT_TOKEN": "env-token-123",
@@ -165,3 +164,153 @@ class TestStartHttp:
             # Assert inside the context manager before patch.dict restores env
             assert os.environ.get("TELEGRAM_BOT_TOKEN") == "env-token-123"
             assert os.environ.get("TELEGRAM_API_ID") == "99999"
+
+
+def test_get_current_backend():
+    """get_current_backend should return None by default and retrieve set values."""
+    from better_telegram_mcp.transports.http import (
+        _current_backend,
+        get_current_backend,
+    )
+
+    # Default is None
+    assert get_current_backend() is None
+
+    # After setting, it should return the value
+    token = _current_backend.set("test-backend")
+    try:
+        assert get_current_backend() == "test-backend"
+    finally:
+        _current_backend.reset(token)
+
+    # Back to None
+    assert get_current_backend() is None
+
+
+def test_is_multi_user_mode():
+    """_is_multi_user_mode should return True only when all required env vars are set."""
+    from better_telegram_mcp.transports.http import _is_multi_user_mode
+
+    required_vars = {
+        "DCR_SERVER_SECRET": "secret",
+        "PUBLIC_URL": "https://example.com",
+        "TELEGRAM_API_ID": "123",
+        "TELEGRAM_API_HASH": "hash",
+    }
+
+    # Missing all
+    with patch.dict("os.environ", {}, clear=True):
+        assert _is_multi_user_mode() is False
+
+    # Set all
+    with patch.dict("os.environ", required_vars, clear=True):
+        assert _is_multi_user_mode() is True
+
+    # Missing one by one
+    for var in required_vars:
+        subset = required_vars.copy()
+        del subset[var]
+        with patch.dict("os.environ", subset, clear=True):
+            assert _is_multi_user_mode() is False
+
+
+def test_start_http_dispatch(settings):
+    """start_http should dispatch to either multi or single user mode."""
+    from better_telegram_mcp.transports.http import start_http
+
+    with (
+        patch(
+            "better_telegram_mcp.transports.http._is_multi_user_mode"
+        ) as mock_is_multi,
+        patch(
+            "better_telegram_mcp.transports.http._start_multi_user_http"
+        ) as mock_multi,
+        patch(
+            "better_telegram_mcp.transports.http._start_single_user_http"
+        ) as mock_single,
+    ):
+        # Multi-user path
+        mock_is_multi.return_value = True
+        start_http(settings)
+        mock_multi.assert_called_once_with(settings)
+        mock_single.assert_not_called()
+
+        mock_multi.reset_mock()
+        mock_single.reset_mock()
+
+        # Single-user path
+        mock_is_multi.return_value = False
+        start_http(settings)
+        mock_single.assert_called_once_with(settings)
+        mock_multi.assert_not_called()
+
+
+def test_start_single_user_http_unconfigured(settings):
+    """_start_single_user_http should run setup if unconfigured."""
+    from better_telegram_mcp.transports.http import _start_single_user_http
+
+    settings.bot_token = None
+    settings.phone = None
+
+    with (
+        patch("better_telegram_mcp.transports.http.CredentialStore") as mock_store_cls,
+        patch(
+            "better_telegram_mcp.transports.http.setup_credentials",
+            new_callable=AsyncMock,
+        ),
+        patch("better_telegram_mcp.server.mcp") as mock_mcp,
+        patch("asyncio.run") as mock_asyncio_run,
+    ):
+        mock_store = mock_store_cls.return_value
+        mock_store.load.return_value = None
+        creds = {"TELEGRAM_BOT_TOKEN": "setup-token"}
+        mock_asyncio_run.return_value = creds
+
+        # Explicitly clear env var if exists
+        with patch.dict("os.environ", {}, clear=False):
+            if "TELEGRAM_BOT_TOKEN" in os.environ:
+                del os.environ["TELEGRAM_BOT_TOKEN"]
+
+            _start_single_user_http(settings)
+
+            assert os.environ.get("TELEGRAM_BOT_TOKEN") == "setup-token"
+
+        mock_asyncio_run.assert_called_once()
+        mock_mcp.run.assert_called_once_with(transport="streamable-http")
+
+
+def test_start_multi_user_http(settings):
+    """_start_multi_user_http should initialize and run uvicorn."""
+    from better_telegram_mcp.transports.http import _start_multi_user_http
+
+    env = {
+        "PORT": "9090",
+        "PUBLIC_URL": "https://pub.example.com",
+        "DCR_SERVER_SECRET": "dcr-secret",
+        "TELEGRAM_API_ID": "12345",
+        "TELEGRAM_API_HASH": "hash123",
+        "HOST": "0.0.0.0",
+    }
+
+    with (
+        patch.dict("os.environ", env, clear=True),
+        patch(
+            "better_telegram_mcp.transports.http_multi_user.create_app"
+        ) as mock_create_app,
+        patch("uvicorn.run") as mock_uvicorn_run,
+    ):
+        mock_app = MagicMock()
+        mock_create_app.return_value = mock_app
+
+        _start_multi_user_http(settings)
+
+        mock_create_app.assert_called_once_with(
+            data_dir=settings.data_dir,
+            public_url="https://pub.example.com",
+            dcr_secret="dcr-secret",
+            api_id=12345,
+            api_hash="hash123",
+        )
+        mock_uvicorn_run.assert_called_once_with(
+            mock_app, host="0.0.0.0", port=9090, log_level="info"
+        )
