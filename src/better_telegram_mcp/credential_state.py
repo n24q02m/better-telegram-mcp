@@ -16,6 +16,7 @@ from __future__ import annotations
 import os
 from collections.abc import Awaitable, Callable
 from enum import Enum
+from typing import Any
 
 from loguru import logger
 
@@ -149,7 +150,7 @@ async def trigger_relay_setup(
         from .relay_schema import RELAY_SCHEMA
 
         relay_base = os.environ.get("MCP_RELAY_URL", DEFAULT_RELAY_URL)
-        session = await create_session(relay_base, SERVER_NAME, RELAY_SCHEMA)  # ty: ignore[invalid-argument-type]
+        session = await create_session(relay_base, SERVER_NAME, RELAY_SCHEMA)
 
         # Save session lock for parallel processes
         import time
@@ -188,7 +189,7 @@ async def trigger_relay_setup(
 
 
 async def _poll_relay_background(
-    relay_base: str, session: object, timeout: float | None
+    relay_base: str, session: Any, timeout: float | None
 ) -> None:
     """Background task that polls relay and applies config when user submits.
 
@@ -201,7 +202,7 @@ async def _poll_relay_background(
         from mcp_relay_core.storage.config_file import write_config
 
         poll_timeout = timeout if timeout is not None else 300.0
-        config = await poll_for_result(relay_base, session, timeout_s=poll_timeout)  # ty: ignore[invalid-argument-type]
+        config = await poll_for_result(relay_base, session, timeout_s=poll_timeout)
 
         # Save config
         write_config(SERVER_NAME, config)
@@ -223,7 +224,7 @@ async def _poll_relay_background(
 
                 await send_message(
                     relay_base,
-                    session.session_id,  # ty: ignore[union-attr]
+                    session.session_id,
                     {
                         "type": "complete",
                         "text": "Telegram config saved. Setup complete!",
@@ -259,7 +260,7 @@ async def _poll_relay_background(
 
 
 async def _handle_user_mode_auth(
-    relay_base: str, session: object, config: dict[str, str]
+    relay_base: str, session: Any, config: dict[str, str]
 ) -> None:
     """Handle Telethon OTP/2FA auth after user-mode relay config is submitted."""
     from .config import Settings
@@ -278,7 +279,7 @@ async def _handle_user_mode_auth(
 
             await send_message(
                 relay_base,
-                session.session_id,  # ty: ignore[union-attr]
+                session.session_id,
                 {
                     "type": "info",
                     "text": "Credentials saved. Starting Telegram authentication...",
@@ -287,7 +288,7 @@ async def _handle_user_mode_auth(
 
             auth_ok = await _relay_telethon_auth(
                 relay_base,
-                session.session_id,  # ty: ignore[union-attr]
+                session.session_id,
                 backend,
                 settings,
             )
@@ -298,7 +299,7 @@ async def _handle_user_mode_auth(
 
             await send_message(
                 relay_base,
-                session.session_id,  # ty: ignore[union-attr]
+                session.session_id,
                 {
                     "type": "complete",
                     "text": "Existing Telethon session found — already authorized. No OTP needed. You can close this tab.",
