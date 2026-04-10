@@ -8,7 +8,15 @@ from typing import Any, Protocol, runtime_checkable
 
 @runtime_checkable
 class EventSink(Protocol):
-    """Protocol for publishing event envelopes."""
+    """Protocol for publishing event envelopes.
+
+    ``publish()`` returns ``True`` when the sink accepted the event for delivery.
+    It returns ``False`` for non-exceptional skipped-delivery cases such as the
+    live SSE fanout having no active subscriber or dropping an event on overflow.
+    Callers should treat ``False`` as a handled best-effort miss: log or account
+    for it, but do not assume it represents an exception or durable retry
+    request.
+    """
 
     def publish(self, event: dict[str, Any]) -> bool: ...
 

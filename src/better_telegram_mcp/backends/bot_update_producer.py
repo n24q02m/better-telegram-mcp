@@ -1,3 +1,18 @@
+"""Bot update producer for live HTTP SSE delivery.
+
+This module long-polls Bot API updates through ``BotBackend``, normalizes them
+with ``build_event_envelope()``, and publishes them into an ``EventSink`` while
+persisting Bot API offsets through ``PerUserSessionStore``.
+
+Key responsibilities:
+- restore and persist per-bearer bot offsets via ``PerUserSessionStore``
+- convert raw Bot API updates into shared event envelopes for SSE consumers
+- treat ``EventSink`` delivery as best-effort live fanout rather than durable
+  queueing
+- stop on auth failures surfaced as ``TelegramAPIError`` while retrying
+  transient polling errors
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -112,6 +127,11 @@ class BotUpdateProducer:
 
             seen_update_ids.add(update_id)
             if not self._event_sink.publish(build_event_envelope(account, update)):
+                # EventSink False is a non-fatal live-delivery skip, not a retry
+                # request. With SSESubscriberHub this means no subscriber is
+                # attached or the subscriber overflowed, and the transport
+                # contract is still live-only/no-replay, so highest_seen and the
+                # persisted offset advance to avoid redelivering dropped events.
                 logger.debug("Event sink dropped update_id={}", update_id)
                 highest_seen = update_id
                 continue
