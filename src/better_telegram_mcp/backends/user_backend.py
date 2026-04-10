@@ -73,7 +73,9 @@ class UserBackend(TelegramBackend):
         # where Telethon creates it with default (insecure) permissions
         actual_session_path = session_path.with_suffix(".session")
         try:
-            fd = os.open(str(actual_session_path), os.O_CREAT | os.O_WRONLY, 0o600)
+            fd = os.open(
+                str(actual_session_path), os.O_CREAT | os.O_WRONLY | os.O_EXCL, 0o600
+            )
             os.close(fd)
         except OSError:
             pass  # Windows may not support this or file already exists

@@ -114,6 +114,41 @@ class TestConnect:
         assert backend._client is not None
         mock_client.connect.assert_awaited_once()
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Windows does not support symlinks without special privileges",
+    )
+    async def test_connect_symlink_vulnerability(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        """
+        Verify that connect() does not follow symlinks when pre-creating the session file.
+        This prevents an attacker from creating a symlink at the session path pointing
+        to a sensitive file and having the server truncate/overwrite it.
+        """
+        import os
+
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        # 1. Setup a "sensitive" target file
+        target_file = tmp_path / "sensitive_file"
+        original_content = "sensitive information"
+        target_file.write_text(original_content)
+
+        # 2. Create a symlink at the session path pointing to the target
+        settings = _make_settings(tmp_path)
+        session_file = (tmp_path / settings.session_name).with_suffix(".session")
+        os.symlink(str(target_file), str(session_file))
+
+        # 3. Initialize backend and call connect()
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        # 4. Assert the target file content remains unchanged
+        # (os.open with O_CREAT | O_WRONLY | O_EXCL should fail on the symlink
+        # and not truncate the target file)
+        assert target_file.read_text() == original_content
+
 
 class TestDisconnect:
     async def test_disconnect(self, tmp_path, mock_client, mock_client_class):
