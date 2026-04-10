@@ -60,8 +60,6 @@ button:disabled{background:#333;color:#666;cursor:not-allowed}
 #pwd-section{display:none;margin-top:.5rem}
 .pwd-hint{font-size:.8rem;color:#888;margin-bottom:.5rem}
 .divider{border:0;border-top:1px solid #333;margin:1.25rem 0}
-@keyframes spin{to{transform:rotate(360deg)}}
-.spin{display:inline-block;width:1em;height:1em;border:2px solid rgba(255,255,255,.3);border-radius:50%;border-top-color:#fff;animation:spin 1s linear infinite;vertical-align:-0.125em;margin-right:0.5em}
 </style>
 </head>
 <body>
@@ -70,33 +68,29 @@ button:disabled{background:#333;color:#666;cursor:not-allowed}
   <p class="sub">MCP Server -- <span class="phone">PHONE</span></p>
 
   <div id="step0" class="step">
-    <form onsubmit="event.preventDefault(); sendCode()">
-      <p style="margin-bottom:1rem;color:#aaa">
-        Step 1: Send a login code to your Telegram app.
-      </p>
-      <button id="btn-send" type="submit">Send OTP Code</button>
-      <div id="s0" class="st" role="status" aria-live="polite"></div>
-    </form>
+    <p style="margin-bottom:1rem;color:#aaa">
+      Step 1: Send a login code to your Telegram app.
+    </p>
+    <button id="btn-send" onclick="sendCode()">Send OTP Code</button>
+    <div id="s0" class="st" role="status" aria-live="polite"></div>
 
     <hr class="divider">
 
-    <form onsubmit="event.preventDefault(); verify()">
-      <p style="margin-bottom:.75rem;color:#aaa">
-        Step 2: Enter the code you received.
-      </p>
-      <label for="otp">OTP Code</label>
-      <input id="otp" type="text" placeholder="Enter code" autofocus
-             inputmode="numeric" pattern="[0-9]*"
-             autocomplete="one-time-code">
-      <div id="pwd-section">
-        <label for="pwd">2FA Password</label>
-        <input id="pwd" type="password" placeholder="Enter your 2FA password"
-               autocomplete="current-password">
-        <p class="pwd-hint">Your account has two-factor authentication enabled.</p>
-      </div>
-      <button id="btn-verify" type="submit">Verify Code</button>
-      <div id="s1" class="st" role="status" aria-live="polite"></div>
-    </form>
+    <p style="margin-bottom:.75rem;color:#aaa">
+      Step 2: Enter the code you received.
+    </p>
+    <label for="otp">OTP Code</label>
+    <input id="otp" type="text" placeholder="Enter code" autofocus
+           inputmode="numeric" pattern="[0-9]*"
+           autocomplete="one-time-code">
+    <div id="pwd-section">
+      <label for="pwd">2FA Password</label>
+      <input id="pwd" type="password" placeholder="Enter your 2FA password"
+             autocomplete="current-password">
+      <p class="pwd-hint">Your account has two-factor authentication enabled.</p>
+    </div>
+    <button id="btn-verify" onclick="verify()">Verify Code</button>
+    <div id="s1" class="st" role="status" aria-live="polite"></div>
   </div>
 
   <div id="step2" class="step">
@@ -118,14 +112,8 @@ function show(id){
 }
 function st(el,cls,msg){el.className='st '+cls;el.textContent=msg;el.style.display='block'}
 function clearSt(el){el.className='st';el.textContent='';el.style.display='none'}
-function btnLoading(btn,text){
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span>'+text;btn.setAttribute('aria-busy','true');
-  const f=btn.closest('form');if(f)f.querySelectorAll('input').forEach(i=>i.disabled=true);
-}
-function btnReset(btn,text){
-  btn.disabled=false;btn.textContent=text;btn.removeAttribute('aria-busy');
-  const f=btn.closest('form');if(f)f.querySelectorAll('input').forEach(i=>i.disabled=false);
-}
+function btnLoading(btn,text){btn.disabled=true;btn.textContent=text;btn.setAttribute('aria-busy','true')}
+function btnReset(btn,text){btn.disabled=false;btn.textContent=text;btn.removeAttribute('aria-busy')}
 function showPwd(){$('pwd-section').style.display='block';$('pwd').focus()}
 
 async function checkStatus(){
@@ -161,6 +149,10 @@ async function verify(){
   }catch(e){st(s,'error','Network error. Check your connection.');btnReset(btn,'Verify Code')}
 }
 
+$('otp').addEventListener('keydown',e=>{if(e.key==='Enter')verify()});
+document.addEventListener('DOMContentLoaded',()=>{
+  const p=$('pwd');if(p)p.addEventListener('keydown',e=>{if(e.key==='Enter')verify()});
+});
 checkStatus();
 </script>
 </body>
