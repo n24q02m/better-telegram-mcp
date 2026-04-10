@@ -38,18 +38,17 @@ def _normalized_account(account: dict[str, Any]) -> dict[str, Any]:
 
 
 def _canonical_event_source(
-    account: dict[str, Any], update: dict[str, Any], occurred_at: str
+    account: dict[str, Any], update: dict[str, Any]
 ) -> dict[str, Any]:
     return {
         "account": _normalized_account(account),
         "update": update,
-        "occurred_at": occurred_at,
     }
 
 
-def _event_id(account: dict[str, Any], update: dict[str, Any], occurred_at: str) -> str:
+def _event_id(account: dict[str, Any], update: dict[str, Any]) -> str:
     payload = json.dumps(
-        _canonical_event_source(account, update, occurred_at),
+        _canonical_event_source(account, update),
         sort_keys=True,
         separators=(",", ":"),
     )
@@ -63,7 +62,7 @@ def build_event_envelope(
     occurred_at = datetime.now(UTC).isoformat()
 
     envelope: dict[str, Any] = {
-        "event_id": _event_id(account, update, occurred_at),
+        "event_id": _event_id(account, update),
         "event_type": update.get("_", "UnknownUpdate"),
         "occurred_at": occurred_at,
         "mode": account_payload["mode"],
@@ -71,6 +70,6 @@ def build_event_envelope(
         "update": update,
     }
     raw_update_id = update.get("update_id")
-    if raw_update_id is not None:
+    if account_payload["mode"] == "bot" and raw_update_id is not None:
         envelope["update_id"] = int(raw_update_id)
     return envelope

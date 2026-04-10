@@ -49,8 +49,8 @@ def test_build_event_envelope_for_bot_mode_uses_unified_identity() -> None:
     }
 
 
-def test_build_event_envelope_event_id_includes_timestamp() -> None:
-    """Same account+update at different times must produce different event_ids."""
+def test_build_event_envelope_event_id_ignores_timestamp() -> None:
+    """Same account+update should keep the same event_id across envelope timestamps."""
     account = {
         "telegram_user_id": 100,
         "session_name": "user-session",
@@ -62,7 +62,9 @@ def test_build_event_envelope_event_id_includes_timestamp() -> None:
     first = build_event_envelope(account, update)
     second = build_event_envelope(account, update)
 
-    assert first["event_id"] != second["event_id"]
+    assert first["event_id"] == second["event_id"]
+    assert "occurred_at" in first
+    assert "occurred_at" in second
 
 
 def test_build_event_envelope_changes_event_id_for_different_unified_identity() -> None:
@@ -135,7 +137,11 @@ def test_build_event_envelope_omits_update_id_for_user_update() -> None:
             "session_name": "user-session",
             "mode": "user",
         },
-        _make_update(),
+        {
+            "_": "UpdateNewMessage",
+            "update_id": 42,
+            "message": {"id": 1, "message": "hello"},
+        },
     )
 
     assert "update_id" not in envelope
