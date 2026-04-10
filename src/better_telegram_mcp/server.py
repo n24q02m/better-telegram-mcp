@@ -82,9 +82,9 @@ def _not_ready_response() -> str:
     )
 
 
-@asynccontextmanager
-async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
-    global _backend, _settings, _pending_auth, _unconfigured
+def _setup_config() -> None:
+    """Initialize settings and resolve credentials from file/relay if needed."""
+    global _settings
     _settings = Settings()
 
     # Non-blocking credential resolution (fast, <10ms)
@@ -97,7 +97,45 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
         if state.value == "configured":
             _settings = Settings()
 
-    if not _settings.is_configured:
+
+async def _init_backend() -> None:
+    """Initialize and connect the backend based on current settings."""
+    global _backend, _settings, _pending_auth, _unconfigured
+    if _settings is None or not _settings.is_configured:
+        return
+
+    if _settings.mode == "bot":
+        from .backends.bot_backend import BotBackend
+
+        assert _settings.bot_token is not None
+        _backend = BotBackend(_settings.bot_token)
+    else:
+        from .backends.user_backend import UserBackend
+
+        assert _settings.api_id is not None
+        assert _settings.api_hash is not None
+        _backend = UserBackend(_settings)
+
+    await _backend.connect()
+    _unconfigured = False
+    _pending_auth = False
+    logger.info("Connected to Telegram ({})", _settings.mode)
+
+    if _settings.mode == "user" and not await _backend.is_authorized():
+        _pending_auth = True
+        logger.warning(
+            "Session not authorized. "
+            "Remove credential env vars and restart to trigger relay setup "
+            "(relay handles OTP/2FA via bidirectional messaging)."
+        )
+
+
+@asynccontextmanager
+async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
+    global _backend, _settings, _pending_auth, _unconfigured
+    _setup_config()
+
+    if _settings is None or not _settings.is_configured:
         if _multi_user_mode:
             # Multi-user HTTP mode: per-user backends injected via ContextVar.
             # No global backend needed — skip unconfigured state.
@@ -119,26 +157,10 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
         from .credential_state import set_on_configured
 
         async def _reinit_backend_from_relay() -> None:
-            global _backend, _settings, _pending_auth, _unconfigured
-            _settings = Settings()
-            if not _settings.is_configured:
-                return
-            logger.info("Hot-reloading backend from relay config ({})", _settings.mode)
-            if _settings.mode == "bot":
-                from .backends.bot_backend import BotBackend
-
-                assert _settings.bot_token is not None
-                _backend = BotBackend(_settings.bot_token)
-            else:
-                from .backends.user_backend import UserBackend
-
-                assert _settings.api_id is not None
-                assert _settings.api_hash is not None
-                _backend = UserBackend(_settings)
-            await _backend.connect()
-            _unconfigured = False
-            _pending_auth = False
-            logger.info("Backend hot-reloaded successfully ({})", _settings.mode)
+            _setup_config()
+            await _init_backend()
+            if _backend:
+                logger.info("Backend hot-reloaded successfully")
 
         set_on_configured(_reinit_backend_from_relay)
 
@@ -152,36 +174,14 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
                 logger.info("Disconnected from Telegram")
         return
 
-    logger.info("Mode: {}", _settings.mode)
-
-    if _settings.mode == "bot":
-        from .backends.bot_backend import BotBackend
-
-        assert _settings.bot_token is not None
-        _backend = BotBackend(_settings.bot_token)
-    else:
-        from .backends.user_backend import UserBackend
-
-        assert _settings.api_id is not None
-        assert _settings.api_hash is not None
-        _backend = UserBackend(_settings)
-
-    await _backend.connect()
-    logger.info("Connected to Telegram ({})", _settings.mode)
-
-    if _settings.mode == "user" and not await _backend.is_authorized():
-        _pending_auth = True
-        logger.warning(
-            "Session not authorized. "
-            "Remove credential env vars and restart to trigger relay setup "
-            "(relay handles OTP/2FA via bidirectional messaging)."
-        )
+    await _init_backend()
 
     try:
         yield
     finally:
-        await _backend.disconnect()
-        logger.info("Disconnected from Telegram")
+        if _backend is not None:
+            await _backend.disconnect()
+            logger.info("Disconnected from Telegram")
 
 
 mcp = FastMCP(
