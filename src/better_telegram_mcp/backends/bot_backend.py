@@ -26,6 +26,13 @@ class BotBackend(TelegramBackend):
         self._connected = False
         self._bot_info: dict[str, Any] = {}
 
+    @property
+    def bot_info(self) -> dict[str, Any]:
+        return self._bot_info
+
+    async def call_api(self, method: str, **params: Any) -> Any:
+        return await self._call(method, **params)
+
     async def _call(self, method: str, **params: Any) -> Any:
         data = {k: v for k, v in params.items() if v is not None}
         resp = await self._client.post(method, json=data)

@@ -129,13 +129,13 @@ class TestConnect:
             "mode": "user",
         }
 
-    async def test_connect_authorized_event_handler_enqueues_envelope(
+    async def test_connect_authorized_event_handler_publishes_envelope(
         self, tmp_path, mock_client, mock_client_class
     ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         dispatcher = MagicMock()
-        dispatcher.enqueue = MagicMock(return_value=True)
+        dispatcher.publish = MagicMock(return_value=True)
         update = MagicMock()
         update.to_dict.return_value = {
             "_": "UpdateNewMessage",
@@ -154,8 +154,8 @@ class TestConnect:
 
         await backend._event_handler(update)
 
-        dispatcher.enqueue.assert_called_once()
-        envelope = dispatcher.enqueue.call_args.args[0]
+        dispatcher.publish.assert_called_once()
+        envelope = dispatcher.publish.call_args.args[0]
         assert envelope["mode"] == "user"
         assert envelope["event_type"] == "UpdateNewMessage"
         assert envelope["account"]["telegram_id"] == 100
@@ -360,14 +360,14 @@ class TestRelayActivation:
 
         sink.publish.assert_not_called()
 
-    async def test_event_sink_enqueue_receives_normalized_envelope(
+    async def test_event_sink_publish_receives_normalized_envelope(
         self, tmp_path, mock_client, mock_client_class
     ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         class _Sink:
             def __init__(self) -> None:
-                self.enqueue = MagicMock(return_value=True)
+                self.publish = MagicMock(return_value=True)
 
         sink = _Sink()
         mock_client.get_me = AsyncMock(return_value=_mock_user())
@@ -388,8 +388,8 @@ class TestRelayActivation:
 
         await backend._event_handler(update)
 
-        sink.enqueue.assert_called_once()
-        envelope = sink.enqueue.call_args.args[0]
+        sink.publish.assert_called_once()
+        envelope = sink.publish.call_args.args[0]
         assert envelope["event_type"] == "UpdateNewMessage"
         assert envelope["mode"] == "user"
         assert envelope["account"] == {

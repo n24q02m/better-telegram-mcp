@@ -20,7 +20,7 @@ from better_telegram_mcp.auth.telegram_auth_provider import (
 )
 from better_telegram_mcp.backends.bot_backend import BotBackend
 from better_telegram_mcp.config import Settings
-from better_telegram_mcp.events.sse_fanout_hub import SSEFanoutHub
+from better_telegram_mcp.events.sse_subscriber_hub import SSESubscriberHub
 
 
 @pytest.fixture
@@ -546,7 +546,7 @@ class TestRevokeSession:
             order.append("backend")
 
         backend.disconnect = AsyncMock(side_effect=disconnect)
-        hub = SSEFanoutHub(subscriber_queue_size=1)
+        hub = SSESubscriberHub(subscriber_queue_size=1)
 
         async def close(reason: str) -> None:
             assert reason == "runtime_stopped"
@@ -875,14 +875,16 @@ class TestCleanupExpired:
     async def test_cleanup_stale_otps(self, provider: TelegramAuthProvider) -> None:
         """Should clean up pending OTPs older than 5 minutes."""
         mock_backend = AsyncMock()
-        provider._pending_otps["stale"] = {
-            "bearer": "stale",
-            "backend": mock_backend,
-            "phone": "+84912345678",
-            "phone_code_hash": "hash",
-            "session_name": "s1",
-            "created_at": time.time() - 301,
-        }
+        from better_telegram_mcp.auth.telegram_auth_provider import _PendingOTP
+
+        provider._pending_otps["stale"] = _PendingOTP(
+            bearer="stale",
+            backend=mock_backend,
+            phone="+84912345678",
+            phone_code_hash="hash",
+            session_name="s1",
+            created_at=time.time() - 301,
+        )
 
         removed = await provider.cleanup_expired()
         assert removed == 1
@@ -933,8 +935,8 @@ class TestShutdown:
             backend.disconnect = AsyncMock(side_effect=disconnect)
             return backend
 
-        def make_hub(name: str) -> SSEFanoutHub:
-            hub = SSEFanoutHub(subscriber_queue_size=1)
+        def make_hub(name: str) -> SSESubscriberHub:
+            hub = SSESubscriberHub(subscriber_queue_size=1)
 
             async def close(reason: str) -> None:
                 assert reason == "runtime_stopped"
@@ -996,7 +998,7 @@ class TestPollingBackendResolution:
         self, provider: TelegramAuthProvider
     ) -> None:
         non_bot_backend = MagicMock()
-        hub = SSEFanoutHub(subscriber_queue_size=1)
+        hub = SSESubscriberHub(subscriber_queue_size=1)
         runtime = TelegramBearerRuntime(
             backend=non_bot_backend,
             hub=hub,

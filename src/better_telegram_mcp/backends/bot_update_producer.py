@@ -4,24 +4,16 @@ import asyncio
 import time
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any
+
+from loguru import logger
 
 from ..auth.per_user_session_store import PerUserSessionStore
-from ..events.types import build_event_envelope
+from ..events.types import EventSink, build_event_envelope
 from .bot_backend import TelegramAPIError
 
-
-class BotPollingBackend(Protocol):
-    _bot_info: dict[str, Any]
-
-    async def _call(self, method: str, **params: Any) -> Any: ...
-
-    async def get_updates(
-        self,
-        offset: int | None = None,
-        timeout: int = 30,
-        allowed_updates: list[str] | None = None,
-    ) -> list[dict[str, Any]]: ...
+if TYPE_CHECKING:
+    from .bot_backend import BotBackend
 
 
 class BotUpdateProducer:
@@ -30,10 +22,10 @@ class BotUpdateProducer:
     def __init__(
         self,
         *,
-        backend: BotPollingBackend,
+        backend: BotBackend,
         session_store: PerUserSessionStore,
         bearer: str,
-        event_sink: Any,
+        event_sink: EventSink,
         poll_timeout_seconds: int = 30,
         backoff_initial_ms: int = 1000,
         backoff_max_ms: int = 60000,
@@ -82,7 +74,7 @@ class BotUpdateProducer:
             return
 
         session_info = self._load_session_info()
-        webhook_info = await self._backend._call("getWebhookInfo")
+        webhook_info = await self._backend.call_api("getWebhookInfo")
         if isinstance(webhook_info, dict) and webhook_info.get("url"):
             msg = "Bot long polling cannot start while a webhook is configured"
             raise ValueError(msg)
@@ -119,12 +111,13 @@ class BotUpdateProducer:
                 continue
 
             seen_update_ids.add(update_id)
-            self._event_sink.publish(build_event_envelope(account, update))
+            if not self._event_sink.publish(build_event_envelope(account, update)):
+                logger.debug("Event sink rejected update_id={}", update_id)
             published += 1
             highest_seen = update_id
 
         if highest_seen is not None and highest_seen != self._last_persisted_offset:
-            self._persist_offset(highest_seen)
+            await self._persist_offset(highest_seen)
             self._last_persisted_offset = highest_seen
             self._next_offset = highest_seen + 1
 
@@ -141,7 +134,7 @@ class BotUpdateProducer:
     async def stop(self) -> None:
         self._stop_event.set()
         if self._task is None:
-            self._flush_offset()
+            await self._flush_offset()
             return
         if not self._task.done():
             try:
@@ -153,7 +146,7 @@ class BotUpdateProducer:
                 self._task.cancel()
         with suppress(asyncio.CancelledError):
             await self._task
-        self._flush_offset()
+        await self._flush_offset()
         self._task = None
 
     async def _run(self) -> None:
@@ -197,7 +190,7 @@ class BotUpdateProducer:
         return session_info
 
     def _build_account(self, session_name: str) -> dict[str, object]:
-        bot_info = self._backend._bot_info
+        bot_info = self._backend.bot_info
         account: dict[str, object] = {
             "telegram_id": int(bot_info["id"]),
             "session_name": session_name,
@@ -224,22 +217,31 @@ class BotUpdateProducer:
             return
 
         last_update_id = max(self._update_id(update) for update in backlog)
-        self._persist_offset(last_update_id)
+        await self._persist_offset(last_update_id)
+        await self._flush_offset()
         self._last_persisted_offset = last_update_id
         self._next_offset = last_update_id + 1
 
-    def _persist_offset(self, bot_offset: int) -> None:
+    async def _persist_offset(self, bot_offset: int) -> None:
         self._dirty_offset = bot_offset
         now = time.monotonic()
         if now - self._last_persist_time >= self._offset_persist_interval:
-            self._flush_offset()
+            await self._flush_offset()
 
-    def _flush_offset(self) -> None:
+    async def _flush_offset(self) -> None:
         if self._dirty_offset is None:
             return
-        session_info = self._load_session_info()
-        session_info.bot_offset = self._dirty_offset
-        self._session_store.store(self._bearer, session_info)
+        offset = self._dirty_offset
+        bearer = self._bearer
+
+        def _write() -> None:
+            session_info = self._session_store.load(bearer)
+            if session_info is None:
+                return
+            session_info.bot_offset = offset
+            self._session_store.store(bearer, session_info)
+
+        await asyncio.to_thread(_write)
         self._last_persist_time = time.monotonic()
         self._dirty_offset = None
 

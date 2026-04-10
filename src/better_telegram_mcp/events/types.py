@@ -3,7 +3,14 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
+
+
+@runtime_checkable
+class EventSink(Protocol):
+    """Protocol for publishing event envelopes."""
+
+    def publish(self, event: dict[str, Any]) -> bool: ...
 
 
 def _account_mode(account: dict[str, Any]) -> str:
@@ -31,17 +38,18 @@ def _normalized_account(account: dict[str, Any]) -> dict[str, Any]:
 
 
 def _canonical_event_source(
-    account: dict[str, Any], update: dict[str, Any]
+    account: dict[str, Any], update: dict[str, Any], occurred_at: str
 ) -> dict[str, Any]:
     return {
         "account": _normalized_account(account),
         "update": update,
+        "occurred_at": occurred_at,
     }
 
 
-def _event_id(account: dict[str, Any], update: dict[str, Any]) -> str:
+def _event_id(account: dict[str, Any], update: dict[str, Any], occurred_at: str) -> str:
     payload = json.dumps(
-        _canonical_event_source(account, update),
+        _canonical_event_source(account, update, occurred_at),
         sort_keys=True,
         separators=(",", ":"),
     )
@@ -52,11 +60,12 @@ def build_event_envelope(
     account: dict[str, Any], update: dict[str, Any]
 ) -> dict[str, Any]:
     account_payload = _normalized_account(account)
+    occurred_at = datetime.now(UTC).isoformat()
 
     envelope: dict[str, Any] = {
-        "event_id": _event_id(account, update),
+        "event_id": _event_id(account, update, occurred_at),
         "event_type": update.get("_", "UnknownUpdate"),
-        "occurred_at": datetime.now(UTC).isoformat(),
+        "occurred_at": occurred_at,
         "mode": account_payload["mode"],
         "account": account_payload,
         "update": update,

@@ -49,9 +49,8 @@ def test_build_event_envelope_for_bot_mode_uses_unified_identity() -> None:
     }
 
 
-def test_build_event_envelope_event_id_stays_deterministic_for_unified_identity() -> (
-    None
-):
+def test_build_event_envelope_event_id_includes_timestamp() -> None:
+    """Same account+update at different times must produce different event_ids."""
     account = {
         "telegram_user_id": 100,
         "session_name": "user-session",
@@ -63,7 +62,7 @@ def test_build_event_envelope_event_id_stays_deterministic_for_unified_identity(
     first = build_event_envelope(account, update)
     second = build_event_envelope(account, update)
 
-    assert first["event_id"] == second["event_id"]
+    assert first["event_id"] != second["event_id"]
 
 
 def test_build_event_envelope_changes_event_id_for_different_unified_identity() -> None:

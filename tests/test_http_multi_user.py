@@ -16,7 +16,7 @@ from starlette.testclient import TestClient
 
 from better_telegram_mcp.auth.telegram_auth_provider import TelegramBearerRuntime
 from better_telegram_mcp.config import Settings
-from better_telegram_mcp.events.sse_fanout_hub import SSEFanoutHub
+from better_telegram_mcp.events.sse_subscriber_hub import SSESubscriberHub
 from better_telegram_mcp.transports.http_multi_user import create_app
 
 
@@ -70,7 +70,7 @@ def _register_runtime(app, bearer: str = "test-bearer"):
     backend = MagicMock()
     runtime = TelegramBearerRuntime(
         backend=backend,
-        hub=SSEFanoutHub(provider._sse_subscriber_queue_size),
+        hub=SSESubscriberHub(provider._sse_subscriber_queue_size),
         mode="user",
         session_name="user-session",
     )
@@ -107,7 +107,9 @@ def _read_sse_message(lines) -> list[str]:
     return message
 
 
-async def _publish_when_connected(hub: SSEFanoutHub, event: dict[str, object]) -> bool:
+async def _publish_when_connected(
+    hub: SSESubscriberHub, event: dict[str, object]
+) -> bool:
     for _ in range(50):
         if hub.publish(event):
             return True

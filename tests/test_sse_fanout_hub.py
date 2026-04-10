@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from better_telegram_mcp.events.sse_fanout_hub import SSEFanoutHub
+from better_telegram_mcp.events.sse_subscriber_hub import SSESubscriberHub
 
 
 def _make_event(event_id: str) -> dict[str, object]:
@@ -20,7 +20,7 @@ def _make_event(event_id: str) -> dict[str, object]:
 
 
 async def test_publish_delivers_event_to_active_subscriber() -> None:
-    hub = SSEFanoutHub(subscriber_queue_size=2)
+    hub = SSESubscriberHub(subscriber_queue_size=2)
     subscriber = hub.subscribe()
 
     assert hub.publish(_make_event("evt-1")) is True
@@ -32,7 +32,7 @@ async def test_publish_delivers_event_to_active_subscriber() -> None:
 
 
 async def test_second_subscribe_replaces_existing_connection() -> None:
-    hub = SSEFanoutHub(subscriber_queue_size=2)
+    hub = SSESubscriberHub(subscriber_queue_size=2)
     first = hub.subscribe()
     second = hub.subscribe()
 
@@ -47,7 +47,7 @@ async def test_second_subscribe_replaces_existing_connection() -> None:
 
 
 async def test_overflow_closes_subscriber_without_blocking_publish() -> None:
-    hub = SSEFanoutHub(subscriber_queue_size=1)
+    hub = SSESubscriberHub(subscriber_queue_size=1)
     subscriber = hub.subscribe()
 
     assert hub.publish(_make_event("evt-1")) is True
@@ -59,7 +59,7 @@ async def test_overflow_closes_subscriber_without_blocking_publish() -> None:
 
 
 async def test_close_notifies_subscriber_and_stops_future_delivery() -> None:
-    hub = SSEFanoutHub(subscriber_queue_size=2)
+    hub = SSESubscriberHub(subscriber_queue_size=2)
     subscriber = hub.subscribe()
 
     await hub.close("runtime_stopped")
@@ -71,7 +71,7 @@ async def test_close_notifies_subscriber_and_stops_future_delivery() -> None:
 
 
 async def test_publish_without_subscriber_is_dropped() -> None:
-    hub = SSEFanoutHub(subscriber_queue_size=2)
+    hub = SSESubscriberHub(subscriber_queue_size=2)
 
     assert hub.publish(_make_event("evt-4")) is False
 
@@ -81,7 +81,7 @@ async def test_call_in_loop_asserts_on_same_loop() -> None:
     import asyncio
 
     loop = asyncio.get_running_loop()
-    hub = SSEFanoutHub(subscriber_queue_size=2)
+    hub = SSESubscriberHub(subscriber_queue_size=2)
     hub.subscribe()
 
     with pytest.raises(AssertionError, match="must not be called from"):
@@ -90,7 +90,7 @@ async def test_call_in_loop_asserts_on_same_loop() -> None:
 
 async def test_push_error_bounded_on_full_queue() -> None:
     """_push_error must complete even when queue is full, without infinite loop."""
-    hub = SSEFanoutHub(subscriber_queue_size=2)
+    hub = SSESubscriberHub(subscriber_queue_size=2)
     hub.subscribe()
 
     # Fill queue to capacity

@@ -38,7 +38,7 @@ class _SubscriberState:
     token: object
 
 
-class SSEFanoutHub:
+class SSESubscriberHub:
     def __init__(self, subscriber_queue_size: int) -> None:
         self._queue_size = subscriber_queue_size
         self._subscriber: _SubscriberState | None = None
@@ -146,7 +146,7 @@ class SSEFanoutHub:
         and never reach here. Raises TimeoutError if the subscriber loop
         does not execute the callback within 5 seconds.
         """
-        assert not SSEFanoutHub._in_subscriber_loop(loop), (
+        assert not SSESubscriberHub._in_subscriber_loop(loop), (
             "_call_in_loop must not be called from the subscriber's event loop"
         )
         result: Future[T] = Future()

@@ -38,13 +38,20 @@ class FakeBotBackend:
         webhook_info: dict[str, Any] | None = None,
         update_results: list[list[dict[str, Any]] | Exception] | None = None,
     ) -> None:
-        bot_info: dict[str, Any] = {"id": bot_id}
-        self._bot_info = bot_info
+        info: dict[str, Any] = {"id": bot_id}
+        self._bot_info = info
         if username is not None:
             self._bot_info["username"] = username
         self._webhook_info = webhook_info or {"url": ""}
         self._update_results = deque(update_results or [])
         self.calls: list[tuple[str, dict[str, Any]]] = []
+
+    @property
+    def bot_info(self) -> dict[str, Any]:
+        return self._bot_info
+
+    async def call_api(self, method: str, **params: Any) -> Any:
+        return await self._call(method, **params)
 
     async def _call(self, method: str, **params: Any) -> Any:
         self.calls.append((method, params))

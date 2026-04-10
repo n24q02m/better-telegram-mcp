@@ -17,13 +17,13 @@ stateless_client_store.py     # HMAC-based OAuth client registration (DCR)
 ### telegram_auth_provider.py
 
 - `TelegramAuthProvider`: Manages bearer -> `TelegramBackend` lifecycle
-- `TelegramBearerRuntime`: Per-bearer state (backend, SSE hub, bot_producer typed `BotUpdateProducer | None`)
+- `TelegramBearerRuntime`: Per-bearer state (backend, `SSESubscriberHub`, bot_producer typed `BotUpdateProducer | None`)
 - `register_bot()`: Instant bot registration (validates token via getMe), starts polling producer
 - `start_user_auth()`: Sends OTP code, stores pending state
-- `complete_user_auth()`: Verifies OTP, persists session, installs event sink
+- `complete_user_auth()`: Atomic pop from pending, verifies OTP, persists session, installs event sink; restores pending on sign-in failure
 - `restore_sessions()`: Parallel session restoration on startup (asyncio.gather)
 - `revoke_session()`: Stop producer, close hub, disconnect backend, delete session
-- `cleanup_expired()`: Remove sessions older than 30 days
+- `cleanup_expired()`: Remove sessions older than 30 days + stale pending OTPs (>5 min); called periodically by lifespan task
 - `_start_bot_producer()`: Verifies backend is `BotBackend` via `isinstance` (local import) before creating producer; logs warning if check fails
 - `_stop_bot_producer()`: Direct `await producer.stop()` (typed field, no getattr)
 
@@ -61,7 +61,7 @@ stateless_client_store.py     # HMAC-based OAuth client registration (DCR)
 ### OTP Flow
 
 1. `start_user_auth(bearer, phone)` -> sends code, returns `phone_code_hash`
-2. Store pending state: `_pending_otps[bearer] = {backend, phone, phone_code_hash, ...}`
+2. Store pending state: `_pending_otps[bearer] = _PendingOTP(bearer, backend, phone, ...)`
 3. `complete_user_auth(bearer, code, password?)` -> sign in, persist session
 4. Pending OTP TTL: 5 minutes (cleaned up in `cleanup_expired()`)
 

@@ -107,7 +107,7 @@ src/better_telegram_mcp/
   auth_client.py              # Remote relay polling auth client
   auth/                       # Per-bearer auth/session lifecycle
   backends/                   # Bot/User backend implementations and producers
-  events/                     # Shared event envelope + fanout primitives
+  events/                     # Shared event envelope, EventSink protocol, SSESubscriberHub
   tools/                      # MCP tool handlers
   transports/                 # HTTP bootstrap, multi-user app, credential storage
 tests/                        # Unit/integration/E2E coverage
@@ -140,7 +140,7 @@ docs/                         # User-facing setup and flow documentation
 - **Two HTTP modes**: `transports/http.py` chooses between single-user HTTP fallback and multi-user HTTP mode via `_is_multi_user_mode()`.
 - **Single-user HTTP fallback**: environment variables win; otherwise encrypted credentials from `CredentialStore`; otherwise relay-assisted setup populates local credentials.
 - **Multi-user HTTP mode**: `transports/http_multi_user.py` exposes auth endpoints, bearer-authenticated `/mcp`, `GET /events/telegram`, and per-request backend injection via `_current_backend`.
-- **Provider-owned runtimes**: `TelegramAuthProvider` owns per-bearer bot/user backends plus per-bearer SSE fanout hubs; restored sessions must attach sinks after runtime creation.
+- **Provider-owned runtimes**: `TelegramAuthProvider` owns per-bearer bot/user backends plus per-bearer `SSESubscriberHub` instances; restored sessions must attach sinks after runtime creation. Periodic cleanup task runs in lifespan to expire stale sessions and pending OTPs.
 - **Unified SSE**: one live-only `GET /events/telegram` stream for both bot and user sessions. Bearer auth required. No replay buffer; `Last-Event-ID` is logged but ignored. `retry:` hint sent at stream start.
 - **Inbound delivery is SSE-only**: `GET /events/telegram` is the only supported path for inbound Telegram events in HTTP multi-user mode. Callback-style delivery is not supported.
 - **Duplicate active bot tokens rejected**: multi-user auth forbids the same live bot token under different bearers.

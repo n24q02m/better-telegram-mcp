@@ -15,13 +15,13 @@ from telethon.tl.functions.contacts import (
 from telethon.tl.types import Channel, Chat, InputPhoneContact, User
 
 from ..config import Settings
-from ..events import build_event_envelope
+from ..events import EventSink, build_event_envelope
 from .base import TelegramBackend
 from .security import validate_file_path, validate_output_dir, validate_url
 
 
 class UserBackend(TelegramBackend):
-    def __init__(self, settings: Settings, event_dispatcher: Any | None = None):
+    def __init__(self, settings: Settings, event_dispatcher: EventSink | None = None):
         super().__init__("user")
         self._settings = settings
         self._client: TelegramClient | None = None
@@ -29,19 +29,14 @@ class UserBackend(TelegramBackend):
         self._event_handler: Any | None = None
         self._account_metadata: dict[str, Any] | None = None
 
-    def set_event_dispatcher(self, event_dispatcher: Any | None) -> None:
+    def set_event_dispatcher(self, event_dispatcher: EventSink | None) -> None:
         self._event_dispatcher = event_dispatcher
 
     def _publish_event(self, envelope: dict[str, Any]) -> None:
         if self._event_dispatcher is None:
             return
 
-        if hasattr(self._event_dispatcher, "enqueue"):
-            self._event_dispatcher.enqueue(envelope)
-            return
-
-        if hasattr(self._event_dispatcher, "publish"):
-            self._event_dispatcher.publish(envelope)
+        self._event_dispatcher.publish(envelope)
 
     async def enable_event_capture(self) -> None:
         await self._enable_event_capture()
@@ -156,6 +151,8 @@ class UserBackend(TelegramBackend):
 
         self._event_handler = _handle_raw_event
         client.add_event_handler(self._event_handler, events.Raw())
+        # catch_up() replays missed updates since last disconnect.
+        # This may produce a burst of events on first connect after a long gap.
         await client.catch_up()
 
     async def is_connected(self) -> bool:

@@ -16,7 +16,7 @@ import asyncio
 import json
 import time
 from collections import defaultdict
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from loguru import logger
@@ -65,7 +65,11 @@ def _check_rate_limit(ip: str, limit: int) -> bool:
 
 
 def _get_client_ip(request: Request) -> str:
-    """Safely extract client IP, respecting reverse proxies if headers are present."""
+    """Extract client IP from proxy headers or connection info.
+
+    NOTE: trusts cf-connecting-ip / x-forwarded-for unconditionally.
+    Deploy behind a trusted reverse proxy that strips/overwrites these headers.
+    """
     if "cf-connecting-ip" in request.headers:
         return request.headers["cf-connecting-ip"]
     if "x-forwarded-for" in request.headers:
@@ -75,9 +79,9 @@ def _get_client_ip(request: Request) -> str:
 
 
 def _extract_bearer(request: Request) -> str | None:
-    """Extract bearer token from Authorization header."""
+    """Extract bearer token from Authorization header (case-insensitive)."""
     auth_header = request.headers.get("authorization", "")
-    if auth_header.startswith("Bearer "):
+    if auth_header[:7].lower() == "bearer " and len(auth_header) > 7:
         return auth_header[7:].strip()
     return None
 
@@ -147,9 +151,26 @@ def create_app(
         """Restore sessions on startup, start MCP session manager, cleanup on shutdown."""
         restored = await auth_provider.restore_sessions()
         logger.info("Restored {} active sessions", restored)
-        async with session_manager.run():
-            yield
-        await auth_provider.shutdown()
+
+        async def _periodic_cleanup() -> None:
+            while True:
+                await asyncio.sleep(60)
+                try:
+                    removed = await auth_provider.cleanup_expired()
+                    if removed:
+                        logger.info("Periodic cleanup removed {} sessions", removed)
+                except Exception:
+                    logger.warning("Periodic session cleanup failed")
+
+        cleanup_task = asyncio.create_task(_periodic_cleanup())
+        try:
+            async with session_manager.run():
+                yield
+        finally:
+            cleanup_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await cleanup_task
+            await auth_provider.shutdown()
 
     # --- Auth endpoints ---
 
@@ -207,7 +228,8 @@ def create_app(
         try:
             bearer = await auth_provider.register_bot("", bot_token)
         except ValueError as exc:
-            return _error_response(401, "invalid_token", str(exc))
+            logger.warning("Bot registration failed: {}", exc)
+            return _error_response(401, "invalid_token", "Invalid bot token")
 
         return JSONResponse(
             {
@@ -237,7 +259,10 @@ def create_app(
         try:
             result = await auth_provider.start_user_auth("", phone)
         except ValueError as exc:
-            return _error_response(400, "auth_error", str(exc))
+            logger.warning("User auth start failed: {}", exc)
+            return _error_response(
+                400, "auth_error", "Failed to send authentication code"
+            )
 
         return JSONResponse(
             {
@@ -275,7 +300,8 @@ def create_app(
                 bearer, code, password=password
             )
         except ValueError as exc:
-            return _error_response(400, "auth_error", str(exc))
+            logger.warning("User auth verification failed: {}", exc)
+            return _error_response(400, "auth_error", "Authentication failed")
 
         return JSONResponse(
             {
@@ -314,12 +340,12 @@ def create_app(
                 await resp(scope, receive, send)
                 return
 
-            # Extract bearer from headers
+            # Extract bearer from headers (case-insensitive)
             bearer = None
             for key, value in scope.get("headers", []):
                 if key == b"authorization":
                     auth_str = value.decode("utf-8", errors="ignore")
-                    if auth_str.startswith("Bearer "):
+                    if auth_str[:7].lower() == "bearer " and len(auth_str) > 7:
                         bearer = auth_str[7:].strip()
                     break
 
@@ -348,7 +374,7 @@ def create_app(
 
     async def health(request: Request) -> JSONResponse:
         """Health check endpoint."""
-        active = len(auth_provider.active_clients)
+        active = auth_provider.active_runtime_count
         return JSONResponse(
             {
                 "status": "ok",
@@ -405,14 +431,17 @@ def create_app(
                         continue
 
                     if item.kind == "event":
-                        event = item.event or {}
-                        event_id = event.get("event_id")
-                        event_type = str(event.get("event_type", "message"))
-                        yield _format_sse_event(
-                            event=event_type,
-                            data=event,
-                            event_id=None if event_id is None else str(event_id),
-                        )
+                        try:
+                            event = item.event or {}
+                            event_id = event.get("event_id")
+                            event_type = str(event.get("event_type", "message"))
+                            yield _format_sse_event(
+                                event=event_type,
+                                data=event,
+                                event_id=None if event_id is None else str(event_id),
+                            )
+                        except Exception:
+                            logger.warning("Failed to format SSE event, skipping")
                         continue
 
                     reason = item.reason or "runtime_stopped"

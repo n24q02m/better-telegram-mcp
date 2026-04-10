@@ -26,10 +26,10 @@
 - `_ensure_client()`: Runtime check that `connect()` was called
 
 **bot_update_producer.py**
-- `BotPollingBackend`: Protocol type for `_call`, `get_updates`, `_bot_info`; auth provider resolves via `isinstance(backend, BotBackend)` not duck-typing
-- `BotUpdateProducer`: Long-polls Bot API `getUpdates`, publishes normalized event envelopes
-- Offset persistence: debounced via `_persist_offset()` (default 5s interval), final flush on `stop()`
-- `_drain_backlog_to_live_boundary()`: Skips existing updates on first start (no replay)
+- `BotUpdateProducer`: Long-polls Bot API `getUpdates`, publishes normalized event envelopes via `EventSink` protocol
+- Takes `BotBackend` directly (not a Protocol); uses public `bot_info` property and `call_api()` method
+- Offset persistence: debounced via async `_persist_offset()` (default 5s interval), final flush on `stop()`; file I/O runs in `asyncio.to_thread`
+- `_drain_backlog_to_live_boundary()`: Skips existing updates on first start (no replay), force-flushes offset
 - Exponential backoff on transient errors, immediate stop on auth errors (401/403)
 - `offset_persist_interval_seconds` constructor param controls I/O frequency
 

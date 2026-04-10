@@ -14,30 +14,37 @@ import secrets
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, cast
+from typing import Literal
 
 from loguru import logger
 
 from ..backends.base import TelegramBackend
 from ..backends.bot_backend import BotBackend
-from ..backends.bot_update_producer import BotPollingBackend, BotUpdateProducer
+from ..backends.bot_update_producer import BotUpdateProducer
 from ..backends.user_backend import UserBackend
 from ..config import Settings
-from ..events.sse_fanout_hub import SSEFanoutHub
+from ..events.sse_subscriber_hub import SSESubscriberHub
 from .per_user_session_store import PerUserSessionStore, SessionInfo
 
 # Session expiry: 30 days
 _SESSION_TTL = 30 * 24 * 60 * 60
 
-# Pending OTP state (phone_code_hash + backend ref)
-_PendingOTP = dict  # {bearer, backend, phone, phone_code_hash, created_at}
+
+@dataclass(slots=True)
+class _PendingOTP:
+    bearer: str
+    backend: UserBackend
+    phone: str
+    phone_code_hash: str
+    session_name: str
+    created_at: float
 
 
 @dataclass(slots=True)
 class _RuntimeEventSink:
     """Fan out user events to the bearer hub."""
 
-    hub: SSEFanoutHub
+    hub: SSESubscriberHub
 
     def publish(self, event: dict[str, object]) -> bool:
         return self.hub.publish(event)
@@ -48,7 +55,7 @@ class TelegramBearerRuntime:
     """Provider-owned bearer runtime state."""
 
     backend: TelegramBackend
-    hub: SSEFanoutHub
+    hub: SSESubscriberHub
     mode: Literal["bot", "user"]
     session_name: str
     account: dict[str, object] | None = None
@@ -211,7 +218,7 @@ class TelegramAuthProvider:
     ) -> TelegramBearerRuntime:
         runtime = TelegramBearerRuntime(
             backend=backend,
-            hub=SSEFanoutHub(self._sse_subscriber_queue_size),
+            hub=SSESubscriberHub(self._sse_subscriber_queue_size),
             mode=info.mode,
             session_name=info.session_name,
             bot_token=info.bot_token,
@@ -284,12 +291,12 @@ class TelegramAuthProvider:
         await producer.start()
 
     @staticmethod
-    def _as_bot_polling_backend(backend: TelegramBackend) -> BotPollingBackend | None:
+    def _as_bot_polling_backend(backend: TelegramBackend) -> BotBackend | None:
         # Import from the canonical module to avoid test patches replacing the class
         from ..backends.bot_backend import BotBackend as _BotBackend
 
         if isinstance(backend, _BotBackend):
-            return cast(BotPollingBackend, backend)
+            return backend
         return None
 
     @staticmethod
@@ -304,11 +311,16 @@ class TelegramAuthProvider:
             self.active_clients.pop(bearer, None)
         return runtime
 
+    @property
+    def active_runtime_count(self) -> int:
+        """Number of fully initialized runtimes."""
+        return len(self._runtimes)
+
     def resolve_runtime(self, bearer: str) -> TelegramBearerRuntime | None:
         """Get the provider-owned runtime for a bearer token."""
         return self._runtimes.get(bearer)
 
-    def resolve_sse_hub(self, bearer: str) -> SSEFanoutHub | None:
+    def resolve_sse_hub(self, bearer: str) -> SSESubscriberHub | None:
         """Get the SSE fanout hub for a bearer token."""
         runtime = self.resolve_runtime(bearer)
         return None if runtime is None else runtime.hub
@@ -411,14 +423,14 @@ class TelegramAuthProvider:
             raise ValueError(msg) from exc
 
         # Store pending OTP state
-        self._pending_otps[bearer] = {
-            "bearer": bearer,
-            "backend": backend,
-            "phone": phone,
-            "phone_code_hash": phone_code_hash,
-            "session_name": session_name,
-            "created_at": time.time(),
-        }
+        self._pending_otps[bearer] = _PendingOTP(
+            bearer=bearer,
+            backend=backend,
+            phone=phone,
+            phone_code_hash=phone_code_hash,
+            session_name=session_name,
+            created_at=time.time(),
+        )
 
         return {
             "bearer": bearer,
@@ -445,36 +457,41 @@ class TelegramAuthProvider:
         Raises:
             ValueError: If bearer not found in pending OTPs or sign-in fails.
         """
-        pending = self._pending_otps.get(bearer)
+        pending = self._pending_otps.pop(bearer, None)
         if pending is None:
             msg = "No pending authentication for this bearer token"
             raise ValueError(msg)
 
-        backend = pending["backend"]
-        phone = pending["phone"]
+        backend = pending.backend
+        phone = pending.phone
 
         try:
             result = await backend.sign_in(phone, code, password=password)
         except Exception as exc:
-            # Don't clean up pending - allow retry with different code
+            # Restore pending - allow retry with different code
+            self._pending_otps[bearer] = pending
             msg = f"Sign-in failed: {exc}"
             raise ValueError(msg) from exc
 
         # Success - store session and activate backend
-        del self._pending_otps[bearer]
-
         info = SessionInfo(
-            session_name=pending["session_name"],
+            session_name=pending.session_name,
             mode="user",
             api_id=self._api_id,
             api_hash=self._api_hash,
             phone=phone,
         )
 
-        self._store.store(bearer, info)
-        runtime = self._register_runtime(bearer, backend, info)
-        await self._configure_user_event_sink(runtime)
-        logger.info("Registered user session: {}", pending["session_name"][:8])
+        try:
+            self._store.store(bearer, info)
+            runtime = self._register_runtime(bearer, backend, info)
+            await self._configure_user_event_sink(runtime)
+        except Exception:
+            self._remove_runtime(bearer)
+            self._store.delete(bearer)
+            await backend.disconnect()
+            raise
+        logger.info("Registered user session: {}", pending.session_name[:8])
         return result
 
     async def revoke_session(self, bearer: str) -> bool:
@@ -495,7 +512,7 @@ class TelegramAuthProvider:
         # Remove pending OTP if any
         pending = self._pending_otps.pop(bearer, None)
         if pending is not None:
-            await pending["backend"].disconnect()
+            await pending.backend.disconnect()
 
         # Remove from ownership map
         to_remove = [sid for sid, b in self.session_owners.items() if b == bearer]
@@ -517,17 +534,27 @@ class TelegramAuthProvider:
 
         # Also clean up stale pending OTPs (5 min TTL)
         stale_otps = [
-            b for b, p in self._pending_otps.items() if now - p["created_at"] > 300
+            b for b, p in self._pending_otps.items() if now - p.created_at > 300
         ]
         for bearer in stale_otps:
             pending = self._pending_otps.pop(bearer)
-            await pending["backend"].disconnect()
+            await pending.backend.disconnect()
             removed += 1
 
         return removed
 
     async def shutdown(self) -> None:
         """Disconnect all active backends. Call on server shutdown."""
+        try:
+            await asyncio.wait_for(self._shutdown_impl(), timeout=30.0)
+        except TimeoutError:
+            logger.warning("Shutdown timed out after 30s, forcing cleanup")
+        self._runtimes.clear()
+        self.active_clients.clear()
+        self.session_owners.clear()
+        self._pending_otps.clear()
+
+    async def _shutdown_impl(self) -> None:
         disconnected_bearers: set[str] = set()
         for bearer, runtime in list(self._runtimes.items()):
             try:
@@ -546,14 +573,8 @@ class TelegramAuthProvider:
             except Exception:
                 logger.warning("Error disconnecting backend {}", bearer[:8])
 
-        self._runtimes.clear()
-        self.active_clients.clear()
-        self.session_owners.clear()
-
-        # Disconnect pending OTP backends
         for _bearer, pending in list(self._pending_otps.items()):
             try:
-                await pending["backend"].disconnect()
+                await pending.backend.disconnect()
             except Exception:
                 pass
-        self._pending_otps.clear()

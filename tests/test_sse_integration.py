@@ -345,6 +345,13 @@ class FakeBotBackend(BotBackend):
     async def disconnect(self) -> None:
         self._connected = False
 
+    @property
+    def bot_info(self) -> dict[str, Any]:
+        return self._bot_info
+
+    async def call_api(self, method: str, **params: Any) -> Any:
+        return await self._call(method, **params)
+
     async def _call(self, method: str, **params: Any) -> Any:
         self.calls.append((method, params))
         if method == "getWebhookInfo":
@@ -654,7 +661,7 @@ class TestUnifiedSSEIntegration:
         assert first.status_code == 200
         assert second.status_code == 401
         assert second.json()["error"] == "invalid_token"
-        assert "already active" in second.json()["error_description"]
+        assert second.json()["error_description"] == "Invalid bot token"
 
     async def test_restored_bot_resumes_from_persisted_offset(
         self, data_dir: Path
@@ -691,6 +698,8 @@ class TestUnifiedSSEIntegration:
                     _make_bot_update(42, "new"),
                 )
                 message = await stream.read_message()
+                # Allow async offset flush to complete
+                await asyncio.sleep(0.1)
                 stored = provider._store.load("restored-bearer")
             finally:
                 await stream.close()
