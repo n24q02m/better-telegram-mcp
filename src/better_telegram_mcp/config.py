@@ -20,9 +20,9 @@ class Settings(BaseSettings):
     # Bot mode
     bot_token: str | None = None
 
-    # User mode (app-level credentials with built-in defaults, like Google Drive client_id/secret)
-    api_id: int | None = 37984984
-    api_hash: str | None = "2f5f4c76c4de7c07302380c788390100"
+    # User mode (from https://my.telegram.org/apps)
+    api_id: int | None = None
+    api_hash: str | None = None
     phone: str | None = None
     session_name: str = "default"
 
@@ -79,7 +79,6 @@ class Settings(BaseSettings):
 
         Args:
             config: Dict with keys like TELEGRAM_BOT_TOKEN, TELEGRAM_API_ID, etc.
-            API_ID and API_HASH use built-in defaults if not provided.
 
         Returns:
             A configured Settings instance.
@@ -88,7 +87,6 @@ class Settings(BaseSettings):
             "bot_token": config.get("TELEGRAM_BOT_TOKEN"),
             "phone": config.get("TELEGRAM_PHONE"),
         }
-        # Only override defaults if relay explicitly provides values
         if config.get("TELEGRAM_API_ID"):
             kwargs["api_id"] = int(config["TELEGRAM_API_ID"])
         if config.get("TELEGRAM_API_HASH"):

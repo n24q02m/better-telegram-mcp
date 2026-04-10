@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,21 @@ from ..config import Settings
 from ..events import EventSink, build_event_envelope
 from .base import TelegramBackend
 from .security import validate_file_path, validate_output_dir, validate_url
+
+
+def _sanitize_for_json(obj: Any) -> Any:
+    """Recursively convert non-JSON-serializable types (datetime, bytes, etc.)."""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, date):
+        return obj.isoformat()
+    if isinstance(obj, bytes):
+        return obj.hex()
+    if isinstance(obj, dict):
+        return {k: _sanitize_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sanitize_for_json(item) for item in obj]
+    return obj
 
 
 class UserBackend(TelegramBackend):
@@ -138,7 +154,7 @@ class UserBackend(TelegramBackend):
                 return
 
             try:
-                update_dict = update.to_dict()
+                update_dict = _sanitize_for_json(update.to_dict())
                 envelope = build_event_envelope(self._account_metadata, update_dict)
             except Exception as exc:
                 logger.warning("Failed to serialize raw Telegram update: {}", exc)

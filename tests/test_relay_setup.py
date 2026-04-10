@@ -131,12 +131,12 @@ def test_from_relay_config_empty_values():
 
 
 def test_from_relay_config_missing_keys():
-    """Missing keys should use built-in defaults for api_id/api_hash."""
+    """Missing keys should leave api_id/api_hash as None."""
     config = {}
     s = Settings.from_relay_config(config)
     assert s.bot_token is None
-    assert s.api_id == 37984984  # built-in default
-    assert s.api_hash == "2f5f4c76c4de7c07302380c788390100"  # built-in default
+    assert s.api_id is None
+    assert s.api_hash is None
     assert s.is_configured is False  # no phone, no bot_token
 
 

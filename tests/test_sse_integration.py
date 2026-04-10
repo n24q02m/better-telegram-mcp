@@ -631,7 +631,7 @@ class TestUnifiedSSEIntegration:
             "reason": "runtime_stopped"
         }
 
-    async def test_duplicate_bot_token_rejected_end_to_end(
+    async def test_duplicate_bot_token_replaces_session_end_to_end(
         self, data_dir: Path
     ) -> None:
         app = _make_app(data_dir, runtime_settings=Settings(bot_poll_timeout_seconds=1))
@@ -659,9 +659,9 @@ class TestUnifiedSSEIntegration:
             FakeBotBackend.reset()
 
         assert first.status_code == 200
-        assert second.status_code == 401
-        assert second.json()["error"] == "invalid_token"
-        assert second.json()["error_description"] == "Invalid bot token"
+        assert second.status_code == 200
+        # Second registration got a new bearer (old one was revoked)
+        assert first.json()["bearer_token"] != second.json()["bearer_token"]
 
     async def test_restored_bot_resumes_from_persisted_offset(
         self, data_dir: Path

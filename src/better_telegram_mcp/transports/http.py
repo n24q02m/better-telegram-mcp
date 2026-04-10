@@ -18,9 +18,8 @@ from mcp_relay_core.relay.client import create_session, poll_for_result
 
 from ..config import Settings
 from ..relay_schema import RELAY_SCHEMA
+from ..relay_setup import DEFAULT_RELAY_URL, _warn_third_party_relay
 from .credential_store import CredentialStore
-
-DEFAULT_RELAY_URL = "https://better-telegram-mcp.n24q02m.com"
 
 # ContextVar for per-user backend injection in multi-user HTTP mode
 _current_backend: ContextVar = ContextVar("current_backend")
@@ -53,6 +52,7 @@ async def setup_credentials(settings: Settings) -> dict[str, str]:
     # Need relay setup
     logger.info("No stored credentials found. Starting relay setup...")
     relay_url = DEFAULT_RELAY_URL
+    _warn_third_party_relay(relay_url)
 
     try:
         session = await create_session(relay_url, "better-telegram-mcp", RELAY_SCHEMA)
@@ -82,12 +82,7 @@ async def setup_credentials(settings: Settings) -> dict[str, str]:
 
 def _is_multi_user_mode() -> bool:
     """Check if multi-user HTTP mode is configured."""
-    return bool(
-        os.environ.get("DCR_SERVER_SECRET")
-        and os.environ.get("PUBLIC_URL")
-        and os.environ.get("TELEGRAM_API_ID")
-        and os.environ.get("TELEGRAM_API_HASH")
-    )
+    return bool(os.environ.get("DCR_SERVER_SECRET") and os.environ.get("PUBLIC_URL"))
 
 
 def start_http(runtime_settings: Settings) -> None:
@@ -137,8 +132,8 @@ def _start_multi_user_http(runtime_settings: Settings) -> None:
     port = int(os.environ.get("PORT", "8080"))
     public_url = os.environ["PUBLIC_URL"]
     dcr_secret = os.environ["DCR_SERVER_SECRET"]
-    api_id = int(os.environ["TELEGRAM_API_ID"])
-    api_hash = os.environ["TELEGRAM_API_HASH"]
+    api_id = runtime_settings.api_id or int(os.environ.get("TELEGRAM_API_ID", "0"))
+    api_hash = runtime_settings.api_hash or os.environ.get("TELEGRAM_API_HASH", "")
 
     app = create_app(
         data_dir=runtime_settings.data_dir,

@@ -163,9 +163,10 @@ class TestRegisterBot:
         assert provider._store.load("bearer-1") is None
         mock_backend.disconnect.assert_awaited_once()
 
-    async def test_register_bot_rejects_duplicate_token_under_concurrency(
+    async def test_register_bot_replaces_duplicate_token_under_concurrency(
         self, provider: TelegramAuthProvider
     ) -> None:
+        """Concurrent registration of the same bot_token: second wins, first is revoked."""
         first_backend = AsyncMock(spec=BotBackend)
         first_backend.disconnect = AsyncMock()
         first_backend._bot_info = {"id": 1, "username": "testbot"}
@@ -174,6 +175,7 @@ class TestRegisterBot:
         second_backend._bot_info = {"id": 1, "username": "testbot"}
         producer_one = AsyncMock()
         producer_one.start = AsyncMock()
+        producer_one.stop = AsyncMock()
         producer_two = AsyncMock()
         producer_two.start = AsyncMock()
 
@@ -200,18 +202,15 @@ class TestRegisterBot:
             )
 
         successes = [result for result in results if isinstance(result, str)]
-        failures = [result for result in results if isinstance(result, Exception)]
 
-        assert successes == ["bearer-1"]
-        assert len(failures) == 1
-        assert isinstance(failures[0], ValueError)
-        assert "already active" in str(failures[0])
-        assert provider.resolve_runtime("bearer-1") is not None
-        assert provider.resolve_runtime("bearer-2") is None
-        assert provider._store.load("bearer-1") is not None
-        assert provider._store.load("bearer-2") is None
-        second_backend.connect.assert_not_awaited()
-        second_backend.disconnect.assert_not_awaited()
+        # Both succeed (serialized by lock), second replaces first
+        assert len(successes) == 2
+        # First bearer was revoked
+        assert provider.resolve_runtime("bearer-1") is None
+        assert provider.resolve_runtime("bearer-2") is not None
+        assert provider._store.load("bearer-1") is None
+        assert provider._store.load("bearer-2") is not None
+        first_backend.disconnect.assert_awaited_once()
 
 
 class TestResolveBackend:
@@ -268,24 +267,27 @@ class TestBearerRuntimes:
         assert provider.resolve_backend(first_bearer) is first_backend
         assert provider.resolve_backend(second_bearer) is second_backend
 
-    async def test_register_bot_rejects_duplicate_active_bot_token(
+    async def test_register_bot_replaces_duplicate_active_bot_token(
         self, provider: TelegramAuthProvider
     ) -> None:
         first_backend = AsyncMock()
         first_backend.connect = AsyncMock()
         first_backend.disconnect = AsyncMock()
+        second_backend = AsyncMock()
+        second_backend.connect = AsyncMock()
+        second_backend.disconnect = AsyncMock()
 
         with patch(
             "better_telegram_mcp.auth.telegram_auth_provider.BotBackend",
-            return_value=first_backend,
+            side_effect=[first_backend, second_backend],
         ):
             await provider.register_bot("bearer-1", "shared-token")
+            await provider.register_bot("bearer-2", "shared-token")
 
-            with pytest.raises(ValueError, match="already active"):
-                await provider.register_bot("bearer-2", "shared-token")
-
-        assert provider.resolve_runtime("bearer-1") is not None
-        assert provider.resolve_runtime("bearer-2") is None
+        # Old session revoked, new one active
+        assert provider.resolve_runtime("bearer-1") is None
+        assert provider.resolve_runtime("bearer-2") is not None
+        first_backend.disconnect.assert_awaited_once()
 
 
 class TestStartUserAuth:

@@ -24,6 +24,7 @@ from .relay_setup import (
     REQUIRED_FIELDS_BOT,
     REQUIRED_FIELDS_USER,
     SERVER_NAME,
+    _warn_third_party_relay,
     check_saved_sessions,
 )
 
@@ -149,6 +150,7 @@ async def trigger_relay_setup(
         from .relay_schema import RELAY_SCHEMA
 
         relay_base = os.environ.get("MCP_RELAY_URL", DEFAULT_RELAY_URL)
+        _warn_third_party_relay(relay_base)
         session = await create_session(relay_base, SERVER_NAME, RELAY_SCHEMA)  # ty: ignore[invalid-argument-type]
 
         # Save session lock for parallel processes

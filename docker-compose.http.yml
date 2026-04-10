@@ -1,13 +1,17 @@
-# HTTP mode overlay — use with:
-# docker compose -f docker-compose.yml -f docker-compose.http.yml up
+# HTTP multi-user mode overlay.
+#
+# Usage:
+#   cp .env.example .env   # then fill in DCR_SERVER_SECRET
+#   docker compose -f docker-compose.yml -f docker-compose.http.yml up
+#
+# TELEGRAM_API_ID / TELEGRAM_API_HASH have built-in defaults and are optional.
+# DCR_SERVER_SECRET is required — any random string, used to sign client tokens.
 services:
   better-telegram-mcp:
     environment:
       - TRANSPORT_MODE=http
-      - CREDENTIAL_SECRET=${CREDENTIAL_SECRET}
+      - PUBLIC_URL=${PUBLIC_URL:-http://localhost:8080}
+      - DCR_SERVER_SECRET=${DCR_SERVER_SECRET:?Set DCR_SERVER_SECRET in .env}
+      - CREDENTIAL_SECRET=${CREDENTIAL_SECRET:-}
     ports:
-      - "8081:8080"
-    volumes:
-      - telegram-data:/data
-volumes:
-  telegram-data:
+      - "${PORT:-8080}:8080"

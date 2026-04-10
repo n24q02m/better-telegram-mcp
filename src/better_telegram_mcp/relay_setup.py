@@ -32,6 +32,40 @@ ALL_POSSIBLE_FIELDS = [
     "TELEGRAM_PHONE",
 ]
 
+_RELAY_WARNING_SHOWN = False
+
+
+def _warn_third_party_relay(relay_url: str) -> None:
+    """Print a visible warning when credentials will pass through a third-party relay."""
+    global _RELAY_WARNING_SHOWN  # noqa: PLW0603
+    if _RELAY_WARNING_SHOWN:
+        return
+    _RELAY_WARNING_SHOWN = True
+    print(
+        "\n"
+        "!!! WARNING — THIRD-PARTY RELAY !!!\n"
+        "\n"
+        f"  Your Telegram credentials (bot token, phone, OTP code, 2FA password)\n"
+        f"  will be sent through an external server:\n"
+        f"    {relay_url}\n"
+        "\n"
+        "  The operator of this server can intercept your credentials\n"
+        "  and gain full access to your Telegram account.\n"
+        "\n"
+        "  To avoid this, set credentials via environment variables:\n"
+        "    export TELEGRAM_BOT_TOKEN=...        # bot mode\n"
+        "    export TELEGRAM_API_ID=...           # user mode\n"
+        "    export TELEGRAM_API_HASH=...         # user mode\n"
+        "    export TELEGRAM_PHONE=...            # user mode\n"
+        "\n"
+        "  Or use a local auth server:\n"
+        "    export TELEGRAM_AUTH_URL=local\n"
+        "\n",
+        file=sys.stderr,
+        flush=True,
+    )
+
+
 # Error sanitization patterns (same as auth_server.py for consistency)
 _CAUSED_BY_RE = re.compile(r"\s*\(caused by \w+\)\s*$", re.IGNORECASE)
 _ERROR_SIMPLIFICATIONS: list[tuple[re.Pattern[str], str]] = [
@@ -312,6 +346,7 @@ async def ensure_config() -> dict[str, str] | None:
     logger.info("No credentials found. Starting relay setup...")
 
     relay_url = DEFAULT_RELAY_URL
+    _warn_third_party_relay(relay_url)
     try:
         from mcp_relay_core.relay.client import create_session
 

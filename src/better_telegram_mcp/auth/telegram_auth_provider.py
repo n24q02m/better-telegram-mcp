@@ -200,6 +200,17 @@ class TelegramAuthProvider:
             await backend.connect()
             return backend
 
+    def _find_bearer_by_bot_token(
+        self, bot_token: str, exclude_bearer: str | None = None
+    ) -> str | None:
+        """Find an existing bearer that uses this bot_token, if any."""
+        for active_bearer, runtime in self._runtimes.items():
+            if active_bearer == exclude_bearer:
+                continue
+            if runtime.bot_token == bot_token:
+                return active_bearer
+        return None
+
     def _ensure_bot_token_available(
         self, bot_token: str | None, bearer: str | None = None
     ) -> None:
@@ -335,6 +346,9 @@ class TelegramAuthProvider:
     async def register_bot(self, bearer: str, bot_token: str) -> str:
         """Register a bot backend for the given bearer token.
 
+        If the same bot_token is already active under a different bearer,
+        the old session is revoked first (supports client restarts).
+
         Validates the bot_token by calling getMe, then stores the session.
 
         Args:
@@ -351,7 +365,16 @@ class TelegramAuthProvider:
             bearer = self._generate_bearer()
 
         async with self._bot_runtime_lock:
-            self._ensure_bot_token_available(bot_token, bearer)
+            # Revoke old session for the same bot_token (client restart scenario)
+            existing = self._find_bearer_by_bot_token(bot_token, exclude_bearer=bearer)
+            if existing is not None:
+                logger.info("Revoking previous session for re-registered bot token")
+                old_runtime = self._remove_runtime(existing)
+                if old_runtime is not None:
+                    await self._stop_bot_producer(old_runtime)
+                    await old_runtime.hub.close("runtime_stopped")
+                    await old_runtime.backend.disconnect()
+                self._store.delete(existing)
 
             backend = BotBackend(bot_token)
             try:

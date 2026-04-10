@@ -4,10 +4,33 @@
 
 ## Unreleased
 
+### Features
+
+- Add bearer-authenticated SSE endpoint (`GET /events/telegram`) for inbound Telegram events in HTTP multi-user mode
+- Add SSE fanout hub with per-bearer isolation and overflow/replace semantics
+- Add bot update polling producer with durable offset persistence
+- Add unified event envelope with deterministic `event_id` (SHA-256) and account metadata
+- Add shared relay bootstrap: auto-activate relay after user authentication
+- Add SSE tuning settings (`sse_subscriber_queue_size`, `sse_heartbeat_seconds`, `bot_poll_*`)
+
+### Bug Fixes
+
+- Harden SSE fanout, auth provider, and transport layer (connection lifecycle, error propagation)
+- Normalize user event publishing in user backend
+- Restore bearer-owned SSE runtimes on provider init
+
+### Refactoring
+
+- Make inbound delivery SSE-only (remove callback dispatcher)
+- Drop callback delivery settings from config
+- Clean up producer wiring, debounce offset persistence
+- Align HTTP runtime settings and health contract
+
 ### Documentation
 
-- Clarify the shared HTTP event relay as the feedback channel for agent systems using one container for Telegram write access plus inbound event delivery.
-- Document relay setup in the user-facing setup guides so agent runtimes can configure one shared endpoint for events from connected user accounts.
+- Document SSE endpoint, payload format, delivery behavior, and v1 restrictions in README
+- Add scoped AGENTS.md guides for auth, backends, transports, tools, and tests
+- Update setup guides with relay env setup and payload examples
 
 ## v4.3.0 (2026-04-07)
 
