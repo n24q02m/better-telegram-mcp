@@ -112,7 +112,9 @@ class BotUpdateProducer:
 
             seen_update_ids.add(update_id)
             if not self._event_sink.publish(build_event_envelope(account, update)):
-                logger.debug("Event sink rejected update_id={}", update_id)
+                logger.debug("Event sink dropped update_id={}", update_id)
+                highest_seen = update_id
+                continue
             published += 1
             highest_seen = update_id
 

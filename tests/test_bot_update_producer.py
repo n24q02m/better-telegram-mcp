@@ -11,8 +11,9 @@ from better_telegram_mcp.auth.per_user_session_store import (
     PerUserSessionStore,
     SessionInfo,
 )
-from better_telegram_mcp.backends.bot_backend import TelegramAPIError
+from better_telegram_mcp.backends.bot_backend import BotBackend, TelegramAPIError
 from better_telegram_mcp.backends.bot_update_producer import BotUpdateProducer
+from better_telegram_mcp.events.sse_subscriber_hub import SSESubscriberHub
 
 
 @pytest.fixture
@@ -21,11 +22,14 @@ def session_store(tmp_path: Path) -> PerUserSessionStore:
 
 
 class FakeEventSink:
-    def __init__(self) -> None:
+    def __init__(self, publish_results: list[bool] | None = None) -> None:
         self.events: list[dict[str, Any]] = []
+        self._publish_results = deque(publish_results or [])
 
-    def publish(self, envelope: dict[str, Any]) -> bool:
-        self.events.append(envelope)
+    def publish(self, event: dict[str, Any]) -> bool:
+        self.events.append(event)
+        if self._publish_results:
+            return self._publish_results.popleft()
         return True
 
 
@@ -107,7 +111,7 @@ async def test_initialize_skips_existing_backlog_and_persists_offset(
     backend = FakeBotBackend(update_results=[[_make_update(5), _make_update(6)]])
     sink = FakeEventSink()
     producer = BotUpdateProducer(
-        backend=backend,
+        backend=cast(BotBackend, backend),
         session_store=session_store,
         bearer=bearer,
         event_sink=sink,
@@ -145,7 +149,7 @@ async def test_poll_once_resumes_from_stored_offset_and_publishes_normalized_eve
     backend = FakeBotBackend(update_results=[[_make_update(11, text="live")]])
     sink = FakeEventSink()
     producer = BotUpdateProducer(
-        backend=backend,
+        backend=cast(BotBackend, backend),
         session_store=session_store,
         bearer=bearer,
         event_sink=sink,
@@ -191,7 +195,7 @@ async def test_poll_once_skips_duplicate_update_ids(
     )
     sink = FakeEventSink()
     producer = BotUpdateProducer(
-        backend=backend,
+        backend=cast(BotBackend, backend),
         session_store=session_store,
         bearer=bearer,
         event_sink=sink,
@@ -207,6 +211,71 @@ async def test_poll_once_skips_duplicate_update_ids(
     assert loaded.bot_offset == 12
 
 
+async def test_poll_once_drops_unaccepted_updates_without_counting_them(
+    session_store: PerUserSessionStore,
+) -> None:
+    bearer = "bearer-3b"
+    session_store.store(
+        bearer,
+        SessionInfo(
+            session_name="bot-session",
+            mode="bot",
+            bot_token="123:ABC",
+            bot_offset=10,
+        ),
+    )
+    backend = FakeBotBackend(
+        update_results=[[_make_update(11), _make_update(12, text="next")]]
+    )
+    sink = FakeEventSink(publish_results=[False, False])
+    producer = BotUpdateProducer(
+        backend=cast(BotBackend, backend),
+        session_store=session_store,
+        bearer=bearer,
+        event_sink=sink,
+    )
+
+    published = await producer.poll_once()
+
+    assert published == 0
+    assert [event["update"]["update_id"] for event in sink.events] == [11, 12]
+    assert producer.next_offset == 13
+    loaded = session_store.load(bearer)
+    assert loaded is not None
+    assert loaded.bot_offset == 12
+
+
+async def test_poll_once_advances_offset_when_hub_has_no_subscriber(
+    session_store: PerUserSessionStore,
+) -> None:
+    bearer = "bearer-3c"
+    session_store.store(
+        bearer,
+        SessionInfo(
+            session_name="bot-session",
+            mode="bot",
+            bot_token="123:ABC",
+            bot_offset=10,
+        ),
+    )
+    backend = FakeBotBackend(update_results=[[_make_update(11)]])
+    hub = SSESubscriberHub(subscriber_queue_size=1)
+    producer = BotUpdateProducer(
+        backend=cast(BotBackend, backend),
+        session_store=session_store,
+        bearer=bearer,
+        event_sink=hub,
+    )
+
+    published = await producer.poll_once()
+
+    assert published == 0
+    assert producer.next_offset == 12
+    loaded = session_store.load(bearer)
+    assert loaded is not None
+    assert loaded.bot_offset == 11
+
+
 async def test_initialize_rejects_active_webhook(
     session_store: PerUserSessionStore,
 ) -> None:
@@ -217,7 +286,7 @@ async def test_initialize_rejects_active_webhook(
     )
     backend = FakeBotBackend(webhook_info={"url": "https://example.com/webhook"})
     producer = BotUpdateProducer(
-        backend=backend,
+        backend=cast(BotBackend, backend),
         session_store=session_store,
         bearer=bearer,
         event_sink=FakeEventSink(),
@@ -256,15 +325,15 @@ async def test_start_retries_after_transient_failure_with_backoff(
 
     original_publish = sink.publish
 
-    def publish_and_signal(envelope: dict[str, Any]) -> bool:
-        result = original_publish(envelope)
+    def publish_and_signal(event: dict[str, Any]) -> bool:
+        result = original_publish(event)
         recovered.set()
         return result
 
     sink.publish = publish_and_signal
 
     producer = BotUpdateProducer(
-        backend=backend,
+        backend=cast(BotBackend, backend),
         session_store=session_store,
         bearer=bearer,
         event_sink=sink,
@@ -304,7 +373,7 @@ async def test_start_stops_on_auth_failure_without_retry(
         sleep_calls.append(delay)
 
     producer = BotUpdateProducer(
-        backend=backend,
+        backend=cast(BotBackend, backend),
         session_store=session_store,
         bearer=bearer,
         event_sink=FakeEventSink(),
@@ -349,7 +418,7 @@ async def test_start_stops_after_max_retries(
         sleep_calls.append(delay)
 
     producer = BotUpdateProducer(
-        backend=backend,
+        backend=cast(BotBackend, backend),
         session_store=session_store,
         bearer=bearer,
         event_sink=FakeEventSink(),
@@ -411,7 +480,7 @@ async def test_stop_waits_for_in_flight_batch_to_persist_offset(
     backend = BlockingBotBackend()
     sink = FakeEventSink()
     producer = BotUpdateProducer(
-        backend=backend,
+        backend=cast(BotBackend, backend),
         session_store=session_store,
         bearer=bearer,
         event_sink=sink,
