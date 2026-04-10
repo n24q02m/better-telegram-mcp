@@ -79,6 +79,9 @@ def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Pa
         "/var/run/",
         "/var/log/",
         "/root/",
+        "/private/etc/",
+        "/private/var/run/",
+        "/private/var/log/",
     )
     path_str = str(path) if str(path).endswith("/") else str(path) + "/"
     for prefix in _blocked_prefixes:
@@ -121,6 +124,10 @@ def validate_output_dir(output_dir: str, *, base_dir: Path | None = None) -> Pat
         "/sbin/",
         "/boot/",
         "/lib/",
+        "/private/etc/",
+        "/private/var/run/",
+        "/private/var/log/",
+        "/private/var/spool/",
     )
     path_str = str(path) if str(path).endswith("/") else str(path) + "/"
     for prefix in _blocked_prefixes:
