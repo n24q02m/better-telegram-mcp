@@ -7,6 +7,14 @@ import pytest
 from better_telegram_mcp.tools.help_tool import handle_help
 
 
+@pytest.fixture(autouse=True)
+def clear_doc_cache():
+    import better_telegram_mcp.tools.help_tool
+
+    better_telegram_mcp.tools.help_tool._DOC_CACHE.clear()
+    yield
+
+
 @pytest.mark.asyncio
 async def test_help_messages():
     result = await handle_help("messages")

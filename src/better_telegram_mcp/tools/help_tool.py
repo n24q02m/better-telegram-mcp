@@ -8,6 +8,7 @@ from ..utils.formatting import err
 _DOCS_DIR = Path(__file__).resolve().parent.parent / "docs"
 
 _VALID_TOPICS = {"messages", "chats", "media", "contacts"}
+_DOC_CACHE: dict[str, str] = {}
 
 
 async def handle_help(topic: str | None = None) -> str:
@@ -39,9 +40,14 @@ async def handle_help(topic: str | None = None) -> str:
 
 
 async def _load_doc(topic: str) -> str | None:
+    # Bolt: Return cached content immediately if available to avoid thread dispatch overhead
+    if topic in _DOC_CACHE:
+        return _DOC_CACHE[topic]
+
     path = _DOCS_DIR / f"{topic}.md"
     if path.exists():
-        # Bolt: Read file asynchronously to prevent blocking the event loop
         content = await asyncio.to_thread(path.read_text, encoding="utf-8")
-        return content.strip()
+        content = content.strip()
+        _DOC_CACHE[topic] = content
+        return content
     return None
