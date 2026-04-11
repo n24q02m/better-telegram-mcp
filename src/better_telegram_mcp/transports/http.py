@@ -136,7 +136,9 @@ def _start_multi_user_http(settings: Settings) -> None:
 
     port = int(os.environ.get("PORT", "8080"))
     public_url = os.environ["PUBLIC_URL"]
-    master_secret = os.environ.get("DCR_SERVER_SECRET", os.environ.get("MASTER_SECRET", "default-dev-secret"))
+    master_secret = os.environ.get(
+        "DCR_SERVER_SECRET", os.environ.get("MASTER_SECRET", "default-dev-secret")
+    )
 
     app = create_app(
         data_dir=settings.data_dir,
