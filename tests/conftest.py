@@ -152,3 +152,21 @@ def mock_backend():
 @pytest.fixture
 def mock_user_backend():
     return MockBackend("user")
+
+
+@pytest.fixture(autouse=True)
+def mock_try_open_browser():
+    """Globally mock try_open_browser to prevent orphan processes in CI."""
+    from unittest.mock import patch
+
+    with patch("mcp_relay_core.try_open_browser") as mock_browser:
+        yield mock_browser
+
+
+@pytest.fixture(autouse=True)
+def mock_webbrowser_open():
+    """Globally mock webbrowser.open to prevent orphan processes in CI."""
+    from unittest.mock import patch
+
+    with patch("webbrowser.open") as mock_browser:
+        yield mock_browser

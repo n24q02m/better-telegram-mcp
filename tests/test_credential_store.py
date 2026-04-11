@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from cryptography.exceptions import InvalidTag
@@ -74,6 +75,29 @@ class TestCredentialStore:
         """Delete should not raise when no file exists."""
         store = CredentialStore(data_dir, secret="test-secret")
         store.delete()  # Should not raise
+
+    def test_caching_behavior(self, data_dir: Path) -> None:
+        """Repeated reads should use cache and avoid disk I/O."""
+        store = CredentialStore(data_dir, secret="test-secret")
+        store.store({"TELEGRAM_BOT_TOKEN": "123:ABC"})
+
+        # Invalidate the in-memory cache to force the next read from disk
+        store._cached_credentials = None
+
+        original_read_bytes = Path.read_bytes
+        with patch.object(Path, "read_bytes", autospec=True) as mock_read:
+            # First load reads from disk
+            mock_read.side_effect = lambda self: original_read_bytes(self)
+            creds1 = store.load()
+            assert creds1 is not None
+            assert creds1["TELEGRAM_BOT_TOKEN"] == "123:ABC"
+            assert mock_read.call_count == 1
+
+            # Second load uses cache
+            creds2 = store.load()
+            assert creds2 is not None
+            assert creds2["TELEGRAM_BOT_TOKEN"] == "123:ABC"
+            assert mock_read.call_count == 1
 
     def test_auto_generated_secret_persists(self, data_dir: Path) -> None:
         """Auto-generated secret should be saved and reused across instances."""

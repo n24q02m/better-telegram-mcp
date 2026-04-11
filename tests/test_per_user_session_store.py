@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from cryptography.exceptions import InvalidTag
@@ -216,3 +217,28 @@ class TestPerUserSessionStore:
         store3 = PerUserSessionStore(data_dir)
         with pytest.raises(InvalidTag):
             store3.load_all()
+
+    def test_caching_behavior(self, store: PerUserSessionStore) -> None:
+        """Repeated reads should use cache and avoid disk I/O."""
+        store.store("b1", SessionInfo(session_name="s1", mode="bot", bot_token="t1"))
+
+        # Invalidate the in-memory cache to force the next read from disk
+        store._cached_sessions = None
+
+        original_read_bytes = Path.read_bytes
+        with patch.object(Path, "read_bytes", autospec=True) as mock_read:
+            # First load reads from disk
+            mock_read.side_effect = lambda self: original_read_bytes(self)
+            s1 = store.load("b1")
+            assert s1 is not None
+            assert mock_read.call_count == 1
+
+            # Second load uses cache
+            s2 = store.load("b1")
+            assert s2 is not None
+            assert mock_read.call_count == 1
+
+            # Third load (all) uses cache
+            all_s = store.load_all()
+            assert "b1" in all_s
+            assert mock_read.call_count == 1
