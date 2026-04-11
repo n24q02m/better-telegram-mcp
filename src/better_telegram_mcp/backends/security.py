@@ -64,6 +64,20 @@ def validate_url(url: str) -> None:
         raise SecurityError(msg) from e
 
 
+def _normalize_for_prefix_check(path: Path) -> str:
+    """Return a forward-slash path string suitable for blocked-prefix matching.
+
+    Handles the macOS firmlink quirk where `/etc`, `/var`, `/tmp` resolve to
+    `/private/etc`, `/private/var`, `/private/tmp`. We strip a leading `/private`
+    so the same blocklist works identically on Linux and macOS.
+    """
+    path_str = str(path).replace("\\", "/")
+    if path_str.startswith("/private/"):
+        # /private/etc -> /etc, /private/var -> /var, /private/tmp -> /tmp
+        path_str = path_str[len("/private") :]
+    return path_str if path_str.endswith("/") else path_str + "/"
+
+
 def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Path:
     """Validate local file path is safe (no traversal to sensitive files)."""
     # Sentinel: Expand user (`~`) before resolving to prevent TOCTOU bypasses where
@@ -80,9 +94,14 @@ def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Pa
         "/var/log/",
         "/root/",
     )
-    path_str = str(path) if str(path).endswith("/") else str(path) + "/"
+    # Check BOTH the lexical (pre-resolve) and resolved paths. On macOS
+    # `/etc` resolves to `/private/etc` via firmlinks, so we must check the
+    # raw input as well, and normalize `/private/*` in the resolved path.
+    lexical_str = Path(file_path).expanduser().as_posix()
+    lexical_check = lexical_str if lexical_str.endswith("/") else lexical_str + "/"
+    resolved_check = _normalize_for_prefix_check(path)
     for prefix in _blocked_prefixes:
-        if path_str.startswith(prefix):
+        if lexical_check.startswith(prefix) or resolved_check.startswith(prefix):
             msg = f"Access to {prefix} is blocked for security"
             raise SecurityError(msg)
     # Block dotfiles in home directories (SSH keys, secrets, etc.)
@@ -122,9 +141,14 @@ def validate_output_dir(output_dir: str, *, base_dir: Path | None = None) -> Pat
         "/boot/",
         "/lib/",
     )
-    path_str = str(path) if str(path).endswith("/") else str(path) + "/"
+    # Check BOTH the lexical (pre-resolve) and resolved paths. On macOS
+    # `/etc` resolves to `/private/etc` via firmlinks, so we must check the
+    # raw input as well, and normalize `/private/*` in the resolved path.
+    lexical_str = Path(output_dir).expanduser().as_posix()
+    lexical_check = lexical_str if lexical_str.endswith("/") else lexical_str + "/"
+    resolved_check = _normalize_for_prefix_check(path)
     for prefix in _blocked_prefixes:
-        if path_str.startswith(prefix):
+        if lexical_check.startswith(prefix) or resolved_check.startswith(prefix):
             msg = f"Writing to {prefix} is blocked for security"
             raise SecurityError(msg)
     # Block hidden directories
