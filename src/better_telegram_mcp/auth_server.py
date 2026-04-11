@@ -52,6 +52,10 @@ button{width:100%;padding:.75rem;background:#3b82f6;color:#fff;border:none;
   border-radius:8px;font-size:1rem;cursor:pointer;font-weight:500}
 button:hover{background:#2563eb}
 button:disabled{background:#333;color:#666;cursor:not-allowed}
+fieldset{border:none;padding:0;margin:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+button[aria-busy="true"]{display:flex;justify-content:center;align-items:center;gap:.5rem}
+button[aria-busy="true"]::before{content:"";display:block;width:1rem;height:1rem;border:2px solid #888;border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
 .st{margin-top:1rem;padding:.75rem;border-radius:8px;font-size:.875rem;display:none}
 .st.error{display:block;background:#2d1111;border:1px solid #dc2626;color:#f87171}
 .st.success{display:block;background:#0d2818;border:1px solid #16a34a;color:#4ade80}
@@ -68,29 +72,37 @@ button:disabled{background:#333;color:#666;cursor:not-allowed}
   <p class="sub">MCP Server -- <span class="phone">PHONE</span></p>
 
   <div id="step0" class="step">
-    <p style="margin-bottom:1rem;color:#aaa">
-      Step 1: Send a login code to your Telegram app.
-    </p>
-    <button id="btn-send" onclick="sendCode()">Send OTP Code</button>
-    <div id="s0" class="st" role="status" aria-live="polite"></div>
+    <form onsubmit="event.preventDefault(); sendCode()">
+      <fieldset id="fs-send">
+        <p style="margin-bottom:1rem;color:#aaa">
+          Step 1: Send a login code to your Telegram app.
+        </p>
+        <button id="btn-send" type="submit">Send OTP Code</button>
+        <div id="s0" class="st" role="status" aria-live="polite"></div>
+      </fieldset>
+    </form>
 
     <hr class="divider">
 
-    <p style="margin-bottom:.75rem;color:#aaa">
-      Step 2: Enter the code you received.
-    </p>
-    <label for="otp">OTP Code</label>
-    <input id="otp" type="text" placeholder="Enter code" autofocus
-           inputmode="numeric" pattern="[0-9]*"
-           autocomplete="one-time-code">
-    <div id="pwd-section">
-      <label for="pwd">2FA Password</label>
-      <input id="pwd" type="password" placeholder="Enter your 2FA password"
-             autocomplete="current-password">
-      <p class="pwd-hint">Your account has two-factor authentication enabled.</p>
-    </div>
-    <button id="btn-verify" onclick="verify()">Verify Code</button>
-    <div id="s1" class="st" role="status" aria-live="polite"></div>
+    <form onsubmit="event.preventDefault(); verify()">
+      <fieldset id="fs-verify">
+        <p style="margin-bottom:.75rem;color:#aaa">
+          Step 2: Enter the code you received.
+        </p>
+        <label for="otp">OTP Code</label>
+        <input id="otp" type="text" placeholder="Enter code" autofocus
+               inputmode="numeric" pattern="[0-9]*"
+               autocomplete="one-time-code">
+        <div id="pwd-section">
+          <label for="pwd">2FA Password</label>
+          <input id="pwd" type="password" placeholder="Enter your 2FA password"
+                 autocomplete="current-password">
+          <p class="pwd-hint">Your account has two-factor authentication enabled.</p>
+        </div>
+        <button id="btn-verify" type="submit">Verify Code</button>
+        <div id="s1" class="st" role="status" aria-live="polite"></div>
+      </fieldset>
+    </form>
   </div>
 
   <div id="step2" class="step">
@@ -112,8 +124,8 @@ function show(id){
 }
 function st(el,cls,msg){el.className='st '+cls;el.textContent=msg;el.style.display='block'}
 function clearSt(el){el.className='st';el.textContent='';el.style.display='none'}
-function btnLoading(btn,text){btn.disabled=true;btn.textContent=text;btn.setAttribute('aria-busy','true')}
-function btnReset(btn,text){btn.disabled=false;btn.textContent=text;btn.removeAttribute('aria-busy')}
+function btnLoading(btn,text,fs){if(fs)fs.disabled=true;btn.textContent=text;btn.setAttribute('aria-busy','true')}
+function btnReset(btn,text,fs){if(fs)fs.disabled=false;btn.textContent=text;btn.removeAttribute('aria-busy')}
 function showPwd(){$('pwd-section').style.display='block';$('pwd').focus()}
 
 async function checkStatus(){
@@ -124,19 +136,19 @@ async function checkStatus(){
 }
 
 async function sendCode(){
-  const btn=$('btn-send'),s=$('s0');
-  btnLoading(btn,'Sending...');clearSt($('s1'));
+  const btn=$('btn-send'),s=$('s0'),fs=$('fs-send');
+  btnLoading(btn,'Sending...',fs);clearSt($('s1'));
   try{const r=await fetch('/send-code',{method:'POST',headers:{'X-Auth-Token':_t}});const d=await r.json();
-    if(d.ok){st(s,'info','Code sent! Check your Telegram app.');btnReset(btn,'Resend Code');$('otp').focus()}
-    else{st(s,'error',d.error||'Failed to send code');btnReset(btn,'Retry')}
-  }catch(e){st(s,'error','Network error. Check your connection.');btnReset(btn,'Retry')}
+    if(d.ok){st(s,'info','Code sent! Check your Telegram app.');btnReset(btn,'Resend Code',fs);$('otp').focus()}
+    else{st(s,'error',d.error||'Failed to send code');btnReset(btn,'Retry',fs)}
+  }catch(e){st(s,'error','Network error. Check your connection.');btnReset(btn,'Retry',fs)}
 }
 
 async function verify(){
-  const btn=$('btn-verify'),s=$('s1');
+  const btn=$('btn-verify'),s=$('s1'),fs=$('fs-verify');
   const code=$('otp').value.trim();
   if(!code){st(s,'error','Please enter the OTP code first.');return}
-  btnLoading(btn,'Verifying...');
+  btnLoading(btn,'Verifying...',fs);
   try{const body={code};const pwd=$('pwd').value.trim();if(pwd)body.password=pwd;
     const r=await fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json','X-Auth-Token':_t},body:JSON.stringify(body)});
     const d=await r.json();
@@ -144,15 +156,11 @@ async function verify(){
     else{
       if(d.needs_password){showPwd();st(s,'error','2FA password is required. Please enter it above.')}
       else{st(s,'error',d.error||'Verification failed')}
-      btnReset(btn,'Verify Code');
+      btnReset(btn,'Verify Code',fs);
     }
-  }catch(e){st(s,'error','Network error. Check your connection.');btnReset(btn,'Verify Code')}
+  }catch(e){st(s,'error','Network error. Check your connection.');btnReset(btn,'Verify Code',fs)}
 }
 
-$('otp').addEventListener('keydown',e=>{if(e.key==='Enter')verify()});
-document.addEventListener('DOMContentLoaded',()=>{
-  const p=$('pwd');if(p)p.addEventListener('keydown',e=>{if(e.key==='Enter')verify()});
-});
 checkStatus();
 </script>
 </body>
