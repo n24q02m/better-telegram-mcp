@@ -308,6 +308,41 @@ async def _handle_user_mode_auth(
         await backend.disconnect()
 
 
+def save_credentials(config: dict[str, str]) -> dict | None:
+    """Save credentials from OAuth form to config.enc and apply to environment.
+
+    Called by the local OAuth AS when the user submits credentials via the
+    browser form. Handles both bot mode and user mode.
+    """
+    global _state
+
+    from mcp_core.storage.config_file import write_config
+
+    write_config(SERVER_NAME, config)
+
+    for key, value in config.items():
+        if value and key not in os.environ:
+            os.environ[key] = value
+
+    _state = CredentialState.CONFIGURED
+    logger.info("Credentials saved via local OAuth form")
+
+    # Hot-reload backend
+    if _on_configured_callback:
+        import asyncio
+
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.ensure_future(_on_configured_callback())
+            else:
+                loop.run_until_complete(_on_configured_callback())
+        except Exception as e:
+            logger.warning("Backend reinit after save failed: {}", e)
+
+    return None
+
+
 def set_on_configured(callback: Callable[[], Awaitable[None]]) -> None:
     """Register callback invoked after relay credentials are applied.
 

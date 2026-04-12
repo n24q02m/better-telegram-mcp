@@ -545,8 +545,24 @@ def create_http_mcp_server() -> FastMCP:
     return mcp
 
 
+async def run_http(port: int = 0) -> None:
+    """Run as HTTP server with local OAuth 2.1 AS via mcp-core."""
+    from mcp_core.transport.local_server import run_local_server
+
+    from .credential_state import save_credentials
+    from .relay_schema import RELAY_SCHEMA
+
+    await run_local_server(
+        mcp,  # ty: ignore[invalid-argument-type]
+        server_name="better-telegram-mcp",
+        relay_schema=RELAY_SCHEMA,
+        port=port,
+        on_credentials_saved=save_credentials,
+    )
+
+
 def main() -> None:
-    import os
+    import asyncio
     import sys
 
     if "--stdio" in sys.argv or os.environ.get("MCP_TRANSPORT") == "stdio":
@@ -554,6 +570,4 @@ def main() -> None:
     elif os.environ.get("TRANSPORT_MODE") == "stdio":
         mcp.run(transport="stdio")
     else:
-        from .transports.http import start_http
-
-        start_http(Settings())
+        asyncio.run(run_http())
