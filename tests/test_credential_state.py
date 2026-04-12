@@ -138,7 +138,9 @@ def test_resolve_from_config_file_bot():
         os.environ.pop("TELEGRAM_BOT_TOKEN", None)
         os.environ.pop("TELEGRAM_PHONE", None)
 
-        with patch("mcp_core.storage.config_file.read_config", return_value=saved):
+        with patch(
+            "mcp_core.storage.config_file.read_config", return_value=saved
+        ):
             state = resolve_credential_state()
 
         assert state == CredentialState.CONFIGURED
@@ -156,7 +158,9 @@ def test_resolve_from_config_file_user():
         os.environ.pop("TELEGRAM_BOT_TOKEN", None)
         os.environ.pop("TELEGRAM_PHONE", None)
 
-        with patch("mcp_core.storage.config_file.read_config", return_value=saved):
+        with patch(
+            "mcp_core.storage.config_file.read_config", return_value=saved
+        ):
             state = resolve_credential_state()
 
         assert state == CredentialState.CONFIGURED
