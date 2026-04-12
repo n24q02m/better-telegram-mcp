@@ -117,6 +117,7 @@ omit = [
 fail_under = 95
 
 [tool.uv.sources]
+n24q02m-mcp-core = { path = "../mcp-core/packages/core-py", editable = true }
 
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]
