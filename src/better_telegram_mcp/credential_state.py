@@ -313,6 +313,10 @@ def save_credentials(config: dict[str, str]) -> dict | None:
 
     Called by the local OAuth AS when the user submits credentials via the
     browser form. Handles both bot mode and user mode.
+
+    Bot mode: saves token, marks configured, returns None (complete).
+    User mode: saves phone, returns next_step with OTP instructions.
+    OTP verification happens via separate /otp endpoint (not yet implemented).
     """
     global _state
 
@@ -324,8 +328,30 @@ def save_credentials(config: dict[str, str]) -> dict | None:
         if value and key not in os.environ:
             os.environ[key] = value
 
-    _state = CredentialState.CONFIGURED
     logger.info("Credentials saved via local OAuth form")
+
+    # Detect mode
+    is_user_mode = bool(config.get("TELEGRAM_PHONE")) and not config.get(
+        "TELEGRAM_BOT_TOKEN"
+    )
+
+    if is_user_mode:
+        # User mode: NOT complete yet — needs OTP verification
+        _state = CredentialState.SETUP_IN_PROGRESS
+        logger.info(
+            "User mode: OTP verification required for {}", config.get("TELEGRAM_PHONE")
+        )
+        return {
+            "type": "info",
+            "message": (
+                "Phone number saved. User mode requires OTP verification.\n"
+                "Run the server with --stdio mode and use the config tool's "
+                "setup_start action to complete Telethon authentication."
+            ),
+        }
+
+    # Bot mode: complete immediately
+    _state = CredentialState.CONFIGURED
 
     # Hot-reload backend
     if _on_configured_callback:
