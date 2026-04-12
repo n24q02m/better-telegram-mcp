@@ -547,11 +547,13 @@ def create_http_mcp_server() -> FastMCP:
 
 def main() -> None:
     import os
+    import sys
 
-    transport = os.environ.get("TRANSPORT_MODE", "stdio")
-    if transport == "http":
+    if "--stdio" in sys.argv or os.environ.get("MCP_TRANSPORT") == "stdio":
+        mcp.run(transport="stdio")
+    elif os.environ.get("TRANSPORT_MODE") == "stdio":
+        mcp.run(transport="stdio")
+    else:
         from .transports.http import start_http
 
         start_http(Settings())
-    else:
-        mcp.run(transport="stdio")

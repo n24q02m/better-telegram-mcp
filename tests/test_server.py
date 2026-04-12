@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -348,7 +349,10 @@ async def test_help_works_during_pending_auth():
 
 
 def test_main_calls_run():
-    with patch.object(mcp, "run") as mock_run:
+    with (
+        patch.object(mcp, "run") as mock_run,
+        patch.dict(os.environ, {"MCP_TRANSPORT": "stdio"}),
+    ):
         main()
         mock_run.assert_called_once_with(transport="stdio")
 
