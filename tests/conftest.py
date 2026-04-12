@@ -159,7 +159,7 @@ def mock_try_open_browser():
     """Globally mock try_open_browser to prevent orphan processes in CI."""
     from unittest.mock import patch
 
-    with patch("mcp_relay_core.try_open_browser") as mock_browser:
+    with patch("mcp_core.try_open_browser") as mock_browser:
         yield mock_browser
 
 

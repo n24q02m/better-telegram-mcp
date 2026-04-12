@@ -1,6 +1,6 @@
 """Config schema for relay page setup."""
 
-from mcp_relay_core.schema.types import RelayConfigSchema
+from mcp_core.schema.types import RelayConfigSchema
 
 RELAY_SCHEMA: RelayConfigSchema = {
     "server": "better-telegram-mcp",

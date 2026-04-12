@@ -120,7 +120,7 @@ async def _relay_telethon_auth(
     Returns:
         True if authentication succeeded, False otherwise.
     """
-    from mcp_relay_core.relay.client import poll_for_responses, send_message
+    from mcp_core.relay.client import poll_for_responses, send_message
 
     phone = settings.phone
     if not phone:
@@ -285,7 +285,7 @@ async def ensure_config() -> dict[str, str] | None:
     Returns:
         Config dict with credential keys, or None if setup fails/skipped.
     """
-    from mcp_relay_core.storage.resolver import resolve_config
+    from mcp_core.storage.resolver import resolve_config
 
     # 1. Check saved relay config file (bot mode)
     result = resolve_config(SERVER_NAME, REQUIRED_FIELDS_BOT)
@@ -313,7 +313,7 @@ async def ensure_config() -> dict[str, str] | None:
 
     relay_url = DEFAULT_RELAY_URL
     try:
-        from mcp_relay_core.relay.client import create_session
+        from mcp_core.relay.client import create_session
 
         session = await create_session(relay_url, SERVER_NAME, RELAY_SCHEMA)
     except Exception:
@@ -341,8 +341,8 @@ async def ensure_config() -> dict[str, str] | None:
 
     # Poll for result
     try:
-        from mcp_relay_core.relay.client import poll_for_result
-        from mcp_relay_core.storage.config_file import write_config
+        from mcp_core.relay.client import poll_for_result
+        from mcp_core.storage.config_file import write_config
 
         config = await poll_for_result(relay_url, session)
 
@@ -363,7 +363,7 @@ async def ensure_config() -> dict[str, str] | None:
 
             try:
                 if not await backend.is_authorized():
-                    from mcp_relay_core.relay.client import send_message
+                    from mcp_core.relay.client import send_message
 
                     await send_message(
                         relay_url,
@@ -386,7 +386,7 @@ async def ensure_config() -> dict[str, str] | None:
                         )
                 else:
                     # Already authorized (existing session file)
-                    from mcp_relay_core.relay.client import send_message
+                    from mcp_core.relay.client import send_message
 
                     await send_message(
                         relay_url,
@@ -401,7 +401,7 @@ async def ensure_config() -> dict[str, str] | None:
         else:
             # Bot mode: just notify completion
             try:
-                from mcp_relay_core.relay.client import send_message
+                from mcp_core.relay.client import send_message
 
                 await send_message(
                     relay_url,

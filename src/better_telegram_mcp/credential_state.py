@@ -82,7 +82,7 @@ def resolve_credential_state() -> CredentialState:
 
     # 2. Check config file (bot mode fields)
     try:
-        from mcp_relay_core.storage.config_file import read_config
+        from mcp_core.storage.config_file import read_config
 
         saved = read_config(SERVER_NAME)
         if saved:
@@ -135,7 +135,7 @@ async def trigger_relay_setup(
 
     try:
         # Check for existing session via lock
-        from mcp_relay_core import acquire_session_lock
+        from mcp_core import acquire_session_lock
 
         existing = await acquire_session_lock(SERVER_NAME)
         if existing:
@@ -144,7 +144,7 @@ async def trigger_relay_setup(
             return _setup_url
 
         # Create new session
-        from mcp_relay_core.relay.client import create_session
+        from mcp_core.relay.client import create_session
 
         from .relay_schema import RELAY_SCHEMA
 
@@ -154,7 +154,7 @@ async def trigger_relay_setup(
         # Save session lock for parallel processes
         import time
 
-        from mcp_relay_core import SessionInfo, write_session_lock
+        from mcp_core import SessionInfo, write_session_lock
 
         await write_session_lock(
             SERVER_NAME,
@@ -168,7 +168,7 @@ async def trigger_relay_setup(
         _setup_url = session.relay_url
 
         # Try to open browser (best-effort)
-        from mcp_relay_core import try_open_browser
+        from mcp_core import try_open_browser
 
         try_open_browser(session.relay_url)
 
@@ -197,8 +197,8 @@ async def _poll_relay_background(
     """
     global _state
     try:
-        from mcp_relay_core.relay.client import poll_for_result
-        from mcp_relay_core.storage.config_file import write_config
+        from mcp_core.relay.client import poll_for_result
+        from mcp_core.storage.config_file import write_config
 
         poll_timeout = timeout if timeout is not None else 300.0
         config = await poll_for_result(relay_base, session, timeout_s=poll_timeout)  # ty: ignore[invalid-argument-type]
@@ -219,7 +219,7 @@ async def _poll_relay_background(
         else:
             # Bot mode: notify completion
             try:
-                from mcp_relay_core.relay.client import send_message
+                from mcp_core.relay.client import send_message
 
                 await send_message(
                     relay_base,
@@ -243,7 +243,7 @@ async def _poll_relay_background(
                 logger.warning("Backend reinit after relay failed: {}", e)
 
         # Release session lock
-        from mcp_relay_core import release_session_lock
+        from mcp_core import release_session_lock
 
         await release_session_lock(SERVER_NAME)
 
@@ -274,7 +274,7 @@ async def _handle_user_mode_auth(
 
     try:
         if not await backend.is_authorized():
-            from mcp_relay_core.relay.client import send_message
+            from mcp_core.relay.client import send_message
 
             await send_message(
                 relay_base,
@@ -294,7 +294,7 @@ async def _handle_user_mode_auth(
             if not auth_ok:
                 logger.warning("Relay Telethon auth failed. User can retry later.")
         else:
-            from mcp_relay_core.relay.client import send_message
+            from mcp_core.relay.client import send_message
 
             await send_message(
                 relay_base,
@@ -330,7 +330,7 @@ def reset_state() -> None:
     _state = CredentialState.AWAITING_SETUP
     _setup_url = None
     try:
-        from mcp_relay_core.storage.config_file import delete_config
+        from mcp_core.storage.config_file import delete_config
 
         delete_config(SERVER_NAME)
     except Exception:

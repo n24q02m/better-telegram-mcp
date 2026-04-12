@@ -14,7 +14,7 @@ import sys
 from contextvars import ContextVar
 
 from loguru import logger
-from mcp_relay_core.relay.client import create_session, poll_for_result
+from mcp_core.relay.client import create_session, poll_for_result
 
 from ..config import Settings
 from ..relay_schema import RELAY_SCHEMA

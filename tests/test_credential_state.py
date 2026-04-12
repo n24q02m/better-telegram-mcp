@@ -76,7 +76,7 @@ def test_reset_state():
     cs._state = CredentialState.CONFIGURED
     cs._setup_url = "https://example.com/setup"
 
-    with patch("mcp_relay_core.storage.config_file.delete_config") as mock_delete:
+    with patch("mcp_core.storage.config_file.delete_config") as mock_delete:
         reset_state()
 
     assert get_state() == CredentialState.AWAITING_SETUP
@@ -92,7 +92,7 @@ def test_reset_state_delete_config_error():
     cs._setup_url = "https://example.com/setup"
 
     with patch(
-        "mcp_relay_core.storage.config_file.delete_config",
+        "mcp_core.storage.config_file.delete_config",
         side_effect=Exception("disk error"),
     ):
         reset_state()
@@ -139,7 +139,7 @@ def test_resolve_from_config_file_bot():
         os.environ.pop("TELEGRAM_PHONE", None)
 
         with patch(
-            "mcp_relay_core.storage.config_file.read_config", return_value=saved
+            "mcp_core.storage.config_file.read_config", return_value=saved
         ):
             state = resolve_credential_state()
 
@@ -159,7 +159,7 @@ def test_resolve_from_config_file_user():
         os.environ.pop("TELEGRAM_PHONE", None)
 
         with patch(
-            "mcp_relay_core.storage.config_file.read_config", return_value=saved
+            "mcp_core.storage.config_file.read_config", return_value=saved
         ):
             state = resolve_credential_state()
 
@@ -186,7 +186,7 @@ def test_resolve_config_file_empty():
         os.environ.pop("TELEGRAM_PHONE", None)
 
         with (
-            patch("mcp_relay_core.storage.config_file.read_config", return_value=saved),
+            patch("mcp_core.storage.config_file.read_config", return_value=saved),
             patch(
                 "better_telegram_mcp.credential_state.check_saved_sessions",
                 return_value=False,
@@ -204,7 +204,7 @@ def test_resolve_config_file_none():
         os.environ.pop("TELEGRAM_PHONE", None)
 
         with (
-            patch("mcp_relay_core.storage.config_file.read_config", return_value=None),
+            patch("mcp_core.storage.config_file.read_config", return_value=None),
             patch(
                 "better_telegram_mcp.credential_state.check_saved_sessions",
                 return_value=False,
@@ -223,7 +223,7 @@ def test_resolve_config_file_read_error():
 
         with (
             patch(
-                "mcp_relay_core.storage.config_file.read_config",
+                "mcp_core.storage.config_file.read_config",
                 side_effect=Exception("decryption failed"),
             ),
             patch(
@@ -243,7 +243,7 @@ def test_resolve_saved_sessions_found():
         os.environ.pop("TELEGRAM_PHONE", None)
 
         with (
-            patch("mcp_relay_core.storage.config_file.read_config", return_value=None),
+            patch("mcp_core.storage.config_file.read_config", return_value=None),
             patch(
                 "better_telegram_mcp.credential_state.check_saved_sessions",
                 return_value=True,
@@ -261,7 +261,7 @@ def test_resolve_nothing_found():
         os.environ.pop("TELEGRAM_PHONE", None)
 
         with (
-            patch("mcp_relay_core.storage.config_file.read_config", return_value=None),
+            patch("mcp_core.storage.config_file.read_config", return_value=None),
             patch(
                 "better_telegram_mcp.credential_state.check_saved_sessions",
                 return_value=False,
@@ -309,7 +309,7 @@ async def test_trigger_relay_reuses_existing_session():
     mock_session_info.relay_url = "https://relay.example.com/reused"
 
     with patch(
-        "mcp_relay_core.acquire_session_lock",
+        "mcp_core.acquire_session_lock",
         new_callable=AsyncMock,
         return_value=mock_session_info,
     ):
@@ -328,20 +328,20 @@ async def test_trigger_relay_creates_new_session():
 
     with (
         patch(
-            "mcp_relay_core.acquire_session_lock",
+            "mcp_core.acquire_session_lock",
             new_callable=AsyncMock,
             return_value=None,
         ),
         patch(
-            "mcp_relay_core.relay.client.create_session",
+            "mcp_core.relay.client.create_session",
             new_callable=AsyncMock,
             return_value=mock_session,
         ),
         patch(
-            "mcp_relay_core.write_session_lock",
+            "mcp_core.write_session_lock",
             new_callable=AsyncMock,
         ) as mock_write_lock,
-        patch("mcp_relay_core.try_open_browser") as mock_browser,
+        patch("mcp_core.try_open_browser") as mock_browser,
         patch("asyncio.create_task") as mock_create_task,
     ):
         result = await trigger_relay_setup()
@@ -365,11 +365,11 @@ async def test_trigger_relay_force_reconfigures():
 
     with (
         patch(
-            "mcp_relay_core.acquire_session_lock",
+            "mcp_core.acquire_session_lock",
             new_callable=AsyncMock,
             return_value=mock_session_info,
         ),
-        patch("mcp_relay_core.try_open_browser"),
+        patch("mcp_core.try_open_browser"),
         patch("asyncio.create_task", return_value=MagicMock()),
     ):
         result = await trigger_relay_setup(force=True)
@@ -383,7 +383,7 @@ async def test_trigger_relay_exception_returns_none():
     """Relay setup failure -> returns None, state back to AWAITING_SETUP."""
     with (
         patch(
-            "mcp_relay_core.acquire_session_lock",
+            "mcp_core.acquire_session_lock",
             new_callable=AsyncMock,
             side_effect=Exception("network error"),
         ),
@@ -415,21 +415,21 @@ async def test_poll_relay_background_bot_mode():
     with (
         patch.dict(os.environ, {}, clear=False),
         patch(
-            "mcp_relay_core.relay.client.poll_for_result",
+            "mcp_core.relay.client.poll_for_result",
             new_callable=AsyncMock,
             return_value=config,
         ),
-        patch("mcp_relay_core.storage.config_file.write_config") as mock_write,
+        patch("mcp_core.storage.config_file.write_config") as mock_write,
         patch(
             "better_telegram_mcp.relay_setup._is_user_mode_config",
             return_value=False,
         ),
         patch(
-            "mcp_relay_core.relay.client.send_message",
+            "mcp_core.relay.client.send_message",
             new_callable=AsyncMock,
         ) as mock_send,
         patch(
-            "mcp_relay_core.release_session_lock",
+            "mcp_core.release_session_lock",
             new_callable=AsyncMock,
         ) as mock_release,
     ):
@@ -458,11 +458,11 @@ async def test_poll_relay_background_user_mode():
     with (
         patch.dict(os.environ, {}, clear=False),
         patch(
-            "mcp_relay_core.relay.client.poll_for_result",
+            "mcp_core.relay.client.poll_for_result",
             new_callable=AsyncMock,
             return_value=config,
         ),
-        patch("mcp_relay_core.storage.config_file.write_config"),
+        patch("mcp_core.storage.config_file.write_config"),
         patch(
             "better_telegram_mcp.relay_setup._is_user_mode_config",
             return_value=True,
@@ -472,7 +472,7 @@ async def test_poll_relay_background_user_mode():
             new_callable=AsyncMock,
         ) as mock_auth,
         patch(
-            "mcp_relay_core.release_session_lock",
+            "mcp_core.release_session_lock",
             new_callable=AsyncMock,
         ),
     ):
@@ -497,7 +497,7 @@ async def test_poll_relay_background_relay_skipped():
     mock_session = MagicMock()
 
     with patch(
-        "mcp_relay_core.relay.client.poll_for_result",
+        "mcp_core.relay.client.poll_for_result",
         new_callable=AsyncMock,
         side_effect=RuntimeError("RELAY_SKIPPED by user"),
     ):
@@ -517,7 +517,7 @@ async def test_poll_relay_background_runtime_error():
     mock_session = MagicMock()
 
     with patch(
-        "mcp_relay_core.relay.client.poll_for_result",
+        "mcp_core.relay.client.poll_for_result",
         new_callable=AsyncMock,
         side_effect=RuntimeError("connection reset"),
     ):
@@ -537,7 +537,7 @@ async def test_poll_relay_background_generic_exception():
     mock_session = MagicMock()
 
     with patch(
-        "mcp_relay_core.relay.client.poll_for_result",
+        "mcp_core.relay.client.poll_for_result",
         new_callable=AsyncMock,
         side_effect=ValueError("bad data"),
     ):
@@ -561,22 +561,22 @@ async def test_poll_relay_background_bot_send_message_error():
     with (
         patch.dict(os.environ, {}, clear=False),
         patch(
-            "mcp_relay_core.relay.client.poll_for_result",
+            "mcp_core.relay.client.poll_for_result",
             new_callable=AsyncMock,
             return_value=config,
         ),
-        patch("mcp_relay_core.storage.config_file.write_config"),
+        patch("mcp_core.storage.config_file.write_config"),
         patch(
             "better_telegram_mcp.relay_setup._is_user_mode_config",
             return_value=False,
         ),
         patch(
-            "mcp_relay_core.relay.client.send_message",
+            "mcp_core.relay.client.send_message",
             new_callable=AsyncMock,
             side_effect=Exception("send failed"),
         ),
         patch(
-            "mcp_relay_core.release_session_lock",
+            "mcp_core.release_session_lock",
             new_callable=AsyncMock,
         ),
     ):
@@ -604,21 +604,21 @@ async def test_poll_relay_background_custom_timeout():
     with (
         patch.dict(os.environ, {}, clear=False),
         patch(
-            "mcp_relay_core.relay.client.poll_for_result",
+            "mcp_core.relay.client.poll_for_result",
             new_callable=AsyncMock,
             return_value=config,
         ) as mock_poll,
-        patch("mcp_relay_core.storage.config_file.write_config"),
+        patch("mcp_core.storage.config_file.write_config"),
         patch(
             "better_telegram_mcp.relay_setup._is_user_mode_config",
             return_value=False,
         ),
         patch(
-            "mcp_relay_core.relay.client.send_message",
+            "mcp_core.relay.client.send_message",
             new_callable=AsyncMock,
         ),
         patch(
-            "mcp_relay_core.release_session_lock",
+            "mcp_core.release_session_lock",
             new_callable=AsyncMock,
         ),
     ):
@@ -663,7 +663,7 @@ async def test_handle_user_mode_auth_already_authorized():
             return_value=mock_backend,
         ),
         patch(
-            "mcp_relay_core.relay.client.send_message",
+            "mcp_core.relay.client.send_message",
             new_callable=AsyncMock,
         ) as mock_send,
     ):
@@ -702,7 +702,7 @@ async def test_handle_user_mode_auth_needs_auth():
             return_value=mock_backend,
         ),
         patch(
-            "mcp_relay_core.relay.client.send_message",
+            "mcp_core.relay.client.send_message",
             new_callable=AsyncMock,
         ),
         patch(
@@ -742,7 +742,7 @@ async def test_handle_user_mode_auth_auth_fails():
             return_value=mock_backend,
         ),
         patch(
-            "mcp_relay_core.relay.client.send_message",
+            "mcp_core.relay.client.send_message",
             new_callable=AsyncMock,
         ),
         patch(

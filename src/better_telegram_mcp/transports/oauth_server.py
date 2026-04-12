@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import cast
 
 from loguru import logger
-from mcp_relay_core.oauth import (
+from mcp_core.oauth import (
     JWTIssuer,
     OAuthProvider,
     SqliteUserStore,

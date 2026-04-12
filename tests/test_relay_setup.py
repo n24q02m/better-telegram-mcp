@@ -26,9 +26,9 @@ async def test_relay_telethon_auth_success():
     mock_settings.phone = "+1234567890"
 
     with (
-        patch("mcp_relay_core.relay.client.send_message", new_callable=AsyncMock),
+        patch("mcp_core.relay.client.send_message", new_callable=AsyncMock),
         patch(
-            "mcp_relay_core.relay.client.poll_for_responses", new_callable=AsyncMock
+            "mcp_core.relay.client.poll_for_responses", new_callable=AsyncMock
         ) as mock_poll,
     ):
         # User provides code
@@ -53,9 +53,9 @@ async def test_relay_telethon_auth_2fa():
     mock_settings.phone = "+1234567890"
 
     with (
-        patch("mcp_relay_core.relay.client.send_message", new_callable=AsyncMock),
+        patch("mcp_core.relay.client.send_message", new_callable=AsyncMock),
         patch(
-            "mcp_relay_core.relay.client.poll_for_responses", new_callable=AsyncMock
+            "mcp_core.relay.client.poll_for_responses", new_callable=AsyncMock
         ) as mock_poll,
     ):
         # 1st response: code. 2nd response: 2FA password
@@ -89,7 +89,7 @@ async def test_relay_telethon_auth_no_phone():
     mock_settings.phone = None
 
     with patch(
-        "mcp_relay_core.relay.client.send_message", new_callable=AsyncMock
+        "mcp_core.relay.client.send_message", new_callable=AsyncMock
     ) as mock_send:
         result = await _relay_telethon_auth(
             "http://relay", "123", mock_backend, mock_settings
@@ -196,7 +196,7 @@ async def test_ensure_config_returns_config_file_data():
     mock_result.source = "file"
 
     with patch(
-        "mcp_relay_core.storage.resolver.resolve_config",
+        "mcp_core.storage.resolver.resolve_config",
         return_value=mock_result,
     ):
         result = await ensure_config()
@@ -223,7 +223,7 @@ async def test_ensure_config_checks_user_mode_fields():
     mock_result_user.source = "file"
 
     with patch(
-        "mcp_relay_core.storage.resolver.resolve_config",
+        "mcp_core.storage.resolver.resolve_config",
         side_effect=[mock_result_none, mock_result_user],
     ):
         result = await ensure_config()
@@ -243,7 +243,7 @@ async def test_ensure_config_returns_none_on_saved_sessions():
 
     with (
         patch(
-            "mcp_relay_core.storage.resolver.resolve_config",
+            "mcp_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
         ),
         patch(
@@ -273,7 +273,7 @@ async def test_ensure_config_triggers_relay_when_nothing_found():
 
     with (
         patch(
-            "mcp_relay_core.storage.resolver.resolve_config",
+            "mcp_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
         ),
         patch(
@@ -281,17 +281,17 @@ async def test_ensure_config_triggers_relay_when_nothing_found():
             return_value=False,
         ),
         patch(
-            "mcp_relay_core.relay.client.create_session",
+            "mcp_core.relay.client.create_session",
             new_callable=AsyncMock,
             return_value=mock_session,
         ),
         patch(
-            "mcp_relay_core.relay.client.poll_for_result",
+            "mcp_core.relay.client.poll_for_result",
             new_callable=AsyncMock,
             return_value=expected_config,
         ),
         patch(
-            "mcp_relay_core.storage.config_file.write_config",
+            "mcp_core.storage.config_file.write_config",
         ) as mock_write,
     ):
         result = await ensure_config()
@@ -312,7 +312,7 @@ async def test_ensure_config_returns_none_when_relay_unreachable():
 
     with (
         patch(
-            "mcp_relay_core.storage.resolver.resolve_config",
+            "mcp_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
         ),
         patch(
@@ -320,7 +320,7 @@ async def test_ensure_config_returns_none_when_relay_unreachable():
             return_value=False,
         ),
         patch(
-            "mcp_relay_core.relay.client.create_session",
+            "mcp_core.relay.client.create_session",
             new_callable=AsyncMock,
             side_effect=ConnectionError("Cannot connect"),
         ),
@@ -344,7 +344,7 @@ async def test_ensure_config_returns_none_on_poll_timeout():
 
     with (
         patch(
-            "mcp_relay_core.storage.resolver.resolve_config",
+            "mcp_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
         ),
         patch(
@@ -352,12 +352,12 @@ async def test_ensure_config_returns_none_on_poll_timeout():
             return_value=False,
         ),
         patch(
-            "mcp_relay_core.relay.client.create_session",
+            "mcp_core.relay.client.create_session",
             new_callable=AsyncMock,
             return_value=mock_session,
         ),
         patch(
-            "mcp_relay_core.relay.client.poll_for_result",
+            "mcp_core.relay.client.poll_for_result",
             new_callable=AsyncMock,
             side_effect=RuntimeError("Relay setup timed out"),
         ),
@@ -381,7 +381,7 @@ async def test_ensure_config_returns_none_on_relay_skipped():
 
     with (
         patch(
-            "mcp_relay_core.storage.resolver.resolve_config",
+            "mcp_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
         ),
         patch(
@@ -389,12 +389,12 @@ async def test_ensure_config_returns_none_on_relay_skipped():
             return_value=False,
         ),
         patch(
-            "mcp_relay_core.relay.client.create_session",
+            "mcp_core.relay.client.create_session",
             new_callable=AsyncMock,
             return_value=mock_session,
         ),
         patch(
-            "mcp_relay_core.relay.client.poll_for_result",
+            "mcp_core.relay.client.poll_for_result",
             new_callable=AsyncMock,
             side_effect=RuntimeError("RELAY_SKIPPED by user"),
         ),
@@ -418,7 +418,7 @@ async def test_ensure_config_returns_none_on_relay_error():
 
     with (
         patch(
-            "mcp_relay_core.storage.resolver.resolve_config",
+            "mcp_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
         ),
         patch(
@@ -426,12 +426,12 @@ async def test_ensure_config_returns_none_on_relay_error():
             return_value=False,
         ),
         patch(
-            "mcp_relay_core.relay.client.create_session",
+            "mcp_core.relay.client.create_session",
             new_callable=AsyncMock,
             return_value=mock_session,
         ),
         patch(
-            "mcp_relay_core.relay.client.poll_for_result",
+            "mcp_core.relay.client.poll_for_result",
             new_callable=AsyncMock,
             side_effect=RuntimeError("Some other relay error"),
         ),
@@ -649,7 +649,7 @@ async def test_relay_auth_no_phone():
     settings.phone = None
 
     with patch(
-        "mcp_relay_core.relay.client.send_message",
+        "mcp_core.relay.client.send_message",
         new_callable=AsyncMock,
     ) as mock_send:
         result = await _relay_telethon_auth(
@@ -672,7 +672,7 @@ async def test_relay_auth_send_code_fails():
     settings.phone = "+84912345678"
 
     with patch(
-        "mcp_relay_core.relay.client.send_message",
+        "mcp_core.relay.client.send_message",
         new_callable=AsyncMock,
     ) as mock_send:
         result = await _relay_telethon_auth(
@@ -693,12 +693,12 @@ async def test_relay_auth_otp_timeout():
 
     with (
         patch(
-            "mcp_relay_core.relay.client.send_message",
+            "mcp_core.relay.client.send_message",
             new_callable=AsyncMock,
             return_value="msg-1",
         ),
         patch(
-            "mcp_relay_core.relay.client.poll_for_responses",
+            "mcp_core.relay.client.poll_for_responses",
             new_callable=AsyncMock,
             side_effect=RuntimeError("Timed out"),
         ),
@@ -720,12 +720,12 @@ async def test_relay_auth_sign_in_success():
 
     with (
         patch(
-            "mcp_relay_core.relay.client.send_message",
+            "mcp_core.relay.client.send_message",
             new_callable=AsyncMock,
             return_value="msg-1",
         ),
         patch(
-            "mcp_relay_core.relay.client.poll_for_responses",
+            "mcp_core.relay.client.poll_for_responses",
             new_callable=AsyncMock,
             return_value="12345",
         ),
@@ -748,12 +748,12 @@ async def test_relay_auth_sign_in_non_2fa_error():
 
     with (
         patch(
-            "mcp_relay_core.relay.client.send_message",
+            "mcp_core.relay.client.send_message",
             new_callable=AsyncMock,
             return_value="msg-1",
         ),
         patch(
-            "mcp_relay_core.relay.client.poll_for_responses",
+            "mcp_core.relay.client.poll_for_responses",
             new_callable=AsyncMock,
             return_value="12345",
         ),
@@ -779,12 +779,12 @@ async def test_relay_auth_2fa_success():
 
     with (
         patch(
-            "mcp_relay_core.relay.client.send_message",
+            "mcp_core.relay.client.send_message",
             new_callable=AsyncMock,
             return_value="msg-1",
         ),
         patch(
-            "mcp_relay_core.relay.client.poll_for_responses",
+            "mcp_core.relay.client.poll_for_responses",
             new_callable=AsyncMock,
             side_effect=["12345", "my2fapassword"],
         ),
@@ -807,12 +807,12 @@ async def test_relay_auth_2fa_timeout():
 
     with (
         patch(
-            "mcp_relay_core.relay.client.send_message",
+            "mcp_core.relay.client.send_message",
             new_callable=AsyncMock,
             return_value="msg-1",
         ),
         patch(
-            "mcp_relay_core.relay.client.poll_for_responses",
+            "mcp_core.relay.client.poll_for_responses",
             new_callable=AsyncMock,
             side_effect=["12345", RuntimeError("Timed out")],
         ),
@@ -837,12 +837,12 @@ async def test_relay_auth_2fa_sign_in_fails():
 
     with (
         patch(
-            "mcp_relay_core.relay.client.send_message",
+            "mcp_core.relay.client.send_message",
             new_callable=AsyncMock,
             return_value="msg-1",
         ),
         patch(
-            "mcp_relay_core.relay.client.poll_for_responses",
+            "mcp_core.relay.client.poll_for_responses",
             new_callable=AsyncMock,
             side_effect=["12345", "wrongpassword"],
         ),
@@ -881,7 +881,7 @@ async def test_ensure_config_user_mode_triggers_telethon_auth():
 
     with (
         patch(
-            "mcp_relay_core.storage.resolver.resolve_config",
+            "mcp_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
         ),
         patch(
@@ -889,18 +889,18 @@ async def test_ensure_config_user_mode_triggers_telethon_auth():
             return_value=False,
         ),
         patch(
-            "mcp_relay_core.relay.client.create_session",
+            "mcp_core.relay.client.create_session",
             new_callable=AsyncMock,
             return_value=mock_session,
         ),
         patch(
-            "mcp_relay_core.relay.client.poll_for_result",
+            "mcp_core.relay.client.poll_for_result",
             new_callable=AsyncMock,
             return_value=user_config,
         ),
-        patch("mcp_relay_core.storage.config_file.write_config"),
+        patch("mcp_core.storage.config_file.write_config"),
         patch(
-            "mcp_relay_core.relay.client.send_message",
+            "mcp_core.relay.client.send_message",
             new_callable=AsyncMock,
             return_value="msg-1",
         ),
@@ -945,7 +945,7 @@ async def test_ensure_config_user_mode_already_authorized():
 
     with (
         patch(
-            "mcp_relay_core.storage.resolver.resolve_config",
+            "mcp_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
         ),
         patch(
@@ -953,18 +953,18 @@ async def test_ensure_config_user_mode_already_authorized():
             return_value=False,
         ),
         patch(
-            "mcp_relay_core.relay.client.create_session",
+            "mcp_core.relay.client.create_session",
             new_callable=AsyncMock,
             return_value=mock_session,
         ),
         patch(
-            "mcp_relay_core.relay.client.poll_for_result",
+            "mcp_core.relay.client.poll_for_result",
             new_callable=AsyncMock,
             return_value=user_config,
         ),
-        patch("mcp_relay_core.storage.config_file.write_config"),
+        patch("mcp_core.storage.config_file.write_config"),
         patch(
-            "mcp_relay_core.relay.client.send_message",
+            "mcp_core.relay.client.send_message",
             new_callable=AsyncMock,
         ) as mock_send,
         patch(
@@ -999,7 +999,7 @@ async def test_ensure_config_bot_mode_sends_complete():
 
     with (
         patch(
-            "mcp_relay_core.storage.resolver.resolve_config",
+            "mcp_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
         ),
         patch(
@@ -1007,18 +1007,18 @@ async def test_ensure_config_bot_mode_sends_complete():
             return_value=False,
         ),
         patch(
-            "mcp_relay_core.relay.client.create_session",
+            "mcp_core.relay.client.create_session",
             new_callable=AsyncMock,
             return_value=mock_session,
         ),
         patch(
-            "mcp_relay_core.relay.client.poll_for_result",
+            "mcp_core.relay.client.poll_for_result",
             new_callable=AsyncMock,
             return_value=bot_config,
         ),
-        patch("mcp_relay_core.storage.config_file.write_config"),
+        patch("mcp_core.storage.config_file.write_config"),
         patch(
-            "mcp_relay_core.relay.client.send_message",
+            "mcp_core.relay.client.send_message",
             new_callable=AsyncMock,
         ) as mock_send,
     ):
@@ -1055,7 +1055,7 @@ async def test_ensure_config_user_mode_auth_fails():
 
     with (
         patch(
-            "mcp_relay_core.storage.resolver.resolve_config",
+            "mcp_core.storage.resolver.resolve_config",
             return_value=mock_result_none,
         ),
         patch(
@@ -1063,18 +1063,18 @@ async def test_ensure_config_user_mode_auth_fails():
             return_value=False,
         ),
         patch(
-            "mcp_relay_core.relay.client.create_session",
+            "mcp_core.relay.client.create_session",
             new_callable=AsyncMock,
             return_value=mock_session,
         ),
         patch(
-            "mcp_relay_core.relay.client.poll_for_result",
+            "mcp_core.relay.client.poll_for_result",
             new_callable=AsyncMock,
             return_value=user_config,
         ),
-        patch("mcp_relay_core.storage.config_file.write_config"),
+        patch("mcp_core.storage.config_file.write_config"),
         patch(
-            "mcp_relay_core.relay.client.send_message",
+            "mcp_core.relay.client.send_message",
             new_callable=AsyncMock,
             return_value="msg-1",
         ),
