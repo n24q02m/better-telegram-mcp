@@ -521,25 +521,20 @@ async def test_lifespan_falls_back_to_unconfigured_when_no_credentials():
 
 
 def test_relay_schema_structure():
-    """Verify relay schema has correct structure."""
-    from better_telegram_mcp.relay_schema import RELAY_SCHEMA
+    """Verify relay schema has correct structure (flat fields for local OAuth form)."""
+    from better_telegram_mcp.relay_schema import RELAY_SCHEMA, RELAY_SCHEMA_MODES
 
+    # Flat schema for local OAuth form
     assert RELAY_SCHEMA["server"] == "better-telegram-mcp"
     assert RELAY_SCHEMA["displayName"] == "Telegram MCP"
-    assert len(RELAY_SCHEMA["modes"]) == 2
+    keys = [f["key"] for f in RELAY_SCHEMA["fields"]]
+    assert "TELEGRAM_BOT_TOKEN" in keys
+    assert "TELEGRAM_PHONE" in keys
 
-    bot_mode = RELAY_SCHEMA["modes"][0]
-    assert bot_mode["id"] == "bot"
-    assert len(bot_mode["fields"]) == 1
-    assert bot_mode["fields"][0]["key"] == "TELEGRAM_BOT_TOKEN"
-
-    user_mode = RELAY_SCHEMA["modes"][1]
-    assert user_mode["id"] == "user"
-    assert (
-        len(user_mode["fields"]) == 1
-    )  # Only phone (API_ID/HASH have built-in defaults)
-    keys = [f["key"] for f in user_mode["fields"]]
-    assert keys == ["TELEGRAM_PHONE"]
+    # Modes schema for relay page (backward compat)
+    assert len(RELAY_SCHEMA_MODES["modes"]) == 2
+    assert RELAY_SCHEMA_MODES["modes"][0]["id"] == "bot"
+    assert RELAY_SCHEMA_MODES["modes"][1]["id"] == "user"
 
 
 # --- _sanitize_error ---
