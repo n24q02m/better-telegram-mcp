@@ -553,7 +553,7 @@ async def run_http(port: int = 0) -> None:
     from .relay_schema import RELAY_SCHEMA
 
     await run_local_server(
-        mcp,  # ty: ignore[invalid-argument-type]
+        mcp,
         server_name="better-telegram-mcp",
         relay_schema=RELAY_SCHEMA,
         port=port,
