@@ -4,7 +4,13 @@ import json
 
 import pytest
 
+import better_telegram_mcp.tools.help_tool
 from better_telegram_mcp.tools.help_tool import handle_help
+
+
+@pytest.fixture(autouse=True)
+def clear_cache():
+    better_telegram_mcp.tools.help_tool._DOC_CACHE.clear()
 
 
 @pytest.mark.asyncio

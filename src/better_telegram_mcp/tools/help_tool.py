@@ -9,6 +9,8 @@ _DOCS_DIR = Path(__file__).resolve().parent.parent / "docs"
 
 _VALID_TOPICS = {"messages", "chats", "media", "contacts"}
 
+_DOC_CACHE: dict[str, str] = {}
+
 
 async def handle_help(topic: str | None = None) -> str:
     if topic is None or topic in ("all", "telegram"):
@@ -39,9 +41,15 @@ async def handle_help(topic: str | None = None) -> str:
 
 
 async def _load_doc(topic: str) -> str | None:
+    # ⚡ Bolt: Check in-memory cache first to bypass thread pool overhead
+    if topic in _DOC_CACHE:
+        return _DOC_CACHE[topic]
+
     path = _DOCS_DIR / f"{topic}.md"
     if path.exists():
         # Bolt: Read file asynchronously to prevent blocking the event loop
         content = await asyncio.to_thread(path.read_text, encoding="utf-8")
-        return content.strip()
+        stripped = content.strip()
+        _DOC_CACHE[topic] = stripped
+        return stripped
     return None
