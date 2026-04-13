@@ -24,6 +24,8 @@ from .relay_setup import (
     REQUIRED_FIELDS_BOT,
     REQUIRED_FIELDS_USER,
     SERVER_NAME,
+    _needs_2fa_password,
+    _sanitize_error,
     check_saved_sessions,
 )
 
@@ -42,6 +44,17 @@ class CredentialState(Enum):
 _state = CredentialState.AWAITING_SETUP
 _setup_url: str | None = None
 _on_configured_callback: Callable[[], Awaitable[None]] | None = None
+
+# Multi-step auth state (single-user local mode)
+_step_backend: object | None = None  # UserBackend instance held during OTP flow
+_step_phone: str = ""
+_step_otp_code: str | None = None  # OTP code remembered for 2FA signin retry
+
+
+async def _connect_and_send_code(backend, phone: str) -> None:
+    """Connect Telethon backend and send OTP code to the user's Telegram app."""
+    await backend.connect()
+    await backend.send_code(phone)
 
 
 def get_state() -> CredentialState:
@@ -336,18 +349,45 @@ def save_credentials(config: dict[str, str]) -> dict | None:
     )
 
     if is_user_mode:
-        # User mode: NOT complete yet — needs OTP verification
+        # User mode: start Telethon auth, send OTP code to Telegram app
         _state = CredentialState.SETUP_IN_PROGRESS
-        logger.info(
-            "User mode: OTP verification required for {}", config.get("TELEGRAM_PHONE")
-        )
+        phone = config.get("TELEGRAM_PHONE", "")
+        logger.info("User mode: sending OTP to {}", phone)
+
+        try:
+            from .backends.user_backend import UserBackend
+            from .config import Settings
+
+            settings = Settings.from_relay_config(config)
+            global _step_backend, _step_phone, _step_otp_code
+            _step_backend = UserBackend(settings)
+            _step_phone = phone
+            _step_otp_code = None
+
+            import asyncio
+
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+            if loop.is_running():
+                asyncio.ensure_future(_connect_and_send_code(_step_backend, phone))
+            else:
+                loop.run_until_complete(_connect_and_send_code(_step_backend, phone))
+        except Exception as e:
+            logger.error("Failed to start Telethon auth: {}", e)
+            return {
+                "type": "error",
+                "text": f"Failed to send OTP: {_sanitize_error(str(e))}",
+            }
+
         return {
-            "type": "info",
-            "message": (
-                "Phone number saved. User mode requires OTP verification.\n"
-                "Run the server with --stdio mode and use the config tool's "
-                "setup_start action to complete Telethon authentication."
-            ),
+            "type": "otp_required",
+            "text": "Enter the OTP code sent to your Telegram app",
+            "field": "otp_code",
+            "input_type": "text",
         }
 
     # Bot mode: complete immediately
@@ -396,3 +436,108 @@ def reset_state() -> None:
         delete_config(SERVER_NAME)
     except Exception:
         pass
+
+
+def on_step_submitted(step_data: dict[str, str]) -> dict | None:
+    """Handle multi-step auth input from /otp endpoint.
+
+    Called by mcp-core when user submits OTP code or 2FA password via the
+    credential form's step input. Returns None on success (complete),
+    {"type": "password_required", ...} if 2FA is needed, or
+    {"type": "error", ...} on failure (allows retry).
+    """
+    global _step_backend, _step_phone, _step_otp_code
+
+    if _step_backend is None:
+        return {"type": "error", "text": "No active authentication session."}
+
+    import asyncio
+
+    def _get_loop() -> asyncio.AbstractEventLoop:
+        try:
+            return asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            return loop
+
+    # OTP code submission
+    if "otp_code" in step_data:
+        otp_code = step_data["otp_code"].strip()
+        _step_otp_code = otp_code
+
+        try:
+            loop = _get_loop()
+            loop.run_until_complete(_step_backend.sign_in(_step_phone, otp_code))
+            _finalize_auth()
+            return None
+        except Exception as e:
+            error_msg = str(e)
+            if _needs_2fa_password(error_msg):
+                return {
+                    "type": "password_required",
+                    "text": (
+                        "Your account has two-factor authentication. "
+                        "Enter your 2FA password."
+                    ),
+                    "field": "password",
+                    "input_type": "password",
+                }
+            return {
+                "type": "error",
+                "text": f"Authentication failed: {_sanitize_error(error_msg)}",
+            }
+
+    # 2FA password submission
+    if "password" in step_data:
+        password = step_data["password"]
+        if _step_otp_code is None:
+            return {
+                "type": "error",
+                "text": "OTP code missing. Please restart setup.",
+            }
+
+        try:
+            loop = _get_loop()
+            loop.run_until_complete(
+                _step_backend.sign_in(_step_phone, _step_otp_code, password=password)
+            )
+            _finalize_auth()
+            return None
+        except Exception as e:
+            return {
+                "type": "error",
+                "text": f"2FA failed: {_sanitize_error(str(e))}",
+            }
+
+    return {"type": "error", "text": "Unexpected input."}
+
+
+def _finalize_auth() -> None:
+    """Mark configured and clean up multi-step state."""
+    global _state, _step_backend, _step_phone, _step_otp_code
+    import asyncio
+
+    _state = CredentialState.CONFIGURED
+
+    if _step_backend is not None:
+        try:
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(_step_backend.disconnect())
+        except Exception:
+            pass
+
+    _step_backend = None
+    _step_phone = ""
+    _step_otp_code = None
+
+    # Hot-reload via existing callback
+    if _on_configured_callback:
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.ensure_future(_on_configured_callback())
+            else:
+                loop.run_until_complete(_on_configured_callback())
+        except Exception as e:
+            logger.warning("Backend reinit after OTP auth failed: {}", e)
