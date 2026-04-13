@@ -446,8 +446,8 @@ async def test_poll_relay_background_bot_mode():
 
 
 @pytest.mark.asyncio
-async def test_poll_relay_background_user_mode():
-    """User mode config -> calls _handle_user_mode_auth."""
+async def test_poll_relay_background_user_mode_sends_complete():
+    """User mode config -> sends 'complete' notification (OTP now via /otp endpoint)."""
     import better_telegram_mcp.credential_state as cs
     from better_telegram_mcp.credential_state import _poll_relay_background
 
@@ -466,13 +466,9 @@ async def test_poll_relay_background_user_mode():
         ),
         patch("mcp_core.storage.config_file.write_config"),
         patch(
-            "better_telegram_mcp.relay_setup._is_user_mode_config",
-            return_value=True,
-        ),
-        patch(
-            "better_telegram_mcp.credential_state._handle_user_mode_auth",
+            "mcp_core.relay.client.send_message",
             new_callable=AsyncMock,
-        ) as mock_auth,
+        ) as mock_send,
         patch(
             "mcp_core.release_session_lock",
             new_callable=AsyncMock,
@@ -482,8 +478,7 @@ async def test_poll_relay_background_user_mode():
         await _poll_relay_background("https://relay", mock_session, 60.0)
 
     assert cs._state == CredentialState.CONFIGURED
-    mock_auth.assert_awaited_once()
-
+    mock_send.assert_awaited_once()
     # Cleanup
     os.environ.pop("TELEGRAM_PHONE", None)
 
@@ -633,130 +628,6 @@ async def test_poll_relay_background_custom_timeout():
 
     # Cleanup
     os.environ.pop("TELEGRAM_BOT_TOKEN", None)
-
-
-# ---------------------------------------------------------------------------
-# _handle_user_mode_auth
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_handle_user_mode_auth_already_authorized():
-    """User is already authorized -> send complete message."""
-    from better_telegram_mcp.credential_state import _handle_user_mode_auth
-
-    config = {"TELEGRAM_PHONE": "+84912345678"}
-
-    mock_backend = AsyncMock()
-    mock_backend.is_authorized = AsyncMock(return_value=True)
-
-    mock_session = MagicMock()
-    mock_session.session_id = "sess-auth"
-
-    mock_settings = MagicMock()
-
-    with (
-        patch(
-            "better_telegram_mcp.config.Settings.from_relay_config",
-            return_value=mock_settings,
-        ),
-        patch(
-            "better_telegram_mcp.backends.user_backend.UserBackend",
-            return_value=mock_backend,
-        ),
-        patch(
-            "mcp_core.relay.client.send_message",
-            new_callable=AsyncMock,
-        ) as mock_send,
-    ):
-        await _handle_user_mode_auth("https://relay", mock_session, config)
-
-    mock_backend.connect.assert_awaited_once()
-    mock_backend.disconnect.assert_awaited_once()
-    # Should send "already authorized" complete message
-    mock_send.assert_awaited()
-    last_call = mock_send.call_args
-    assert last_call.args[2]["type"] == "complete"
-
-
-@pytest.mark.asyncio
-async def test_handle_user_mode_auth_needs_auth():
-    """User not authorized -> calls _relay_telethon_auth."""
-    from better_telegram_mcp.credential_state import _handle_user_mode_auth
-
-    config = {"TELEGRAM_PHONE": "+84912345678"}
-
-    mock_backend = AsyncMock()
-    mock_backend.is_authorized = AsyncMock(return_value=False)
-
-    mock_session = MagicMock()
-    mock_session.session_id = "sess-unauth"
-
-    mock_settings = MagicMock()
-
-    with (
-        patch(
-            "better_telegram_mcp.config.Settings.from_relay_config",
-            return_value=mock_settings,
-        ),
-        patch(
-            "better_telegram_mcp.backends.user_backend.UserBackend",
-            return_value=mock_backend,
-        ),
-        patch(
-            "mcp_core.relay.client.send_message",
-            new_callable=AsyncMock,
-        ),
-        patch(
-            "better_telegram_mcp.relay_setup._relay_telethon_auth",
-            new_callable=AsyncMock,
-            return_value=True,
-        ) as mock_auth,
-    ):
-        await _handle_user_mode_auth("https://relay", mock_session, config)
-
-    mock_auth.assert_awaited_once()
-    mock_backend.disconnect.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_handle_user_mode_auth_auth_fails():
-    """User auth fails -> logs warning, disconnect still called."""
-    from better_telegram_mcp.credential_state import _handle_user_mode_auth
-
-    config = {"TELEGRAM_PHONE": "+84912345678"}
-
-    mock_backend = AsyncMock()
-    mock_backend.is_authorized = AsyncMock(return_value=False)
-
-    mock_session = MagicMock()
-    mock_session.session_id = "sess-fail"
-
-    mock_settings = MagicMock()
-
-    with (
-        patch(
-            "better_telegram_mcp.config.Settings.from_relay_config",
-            return_value=mock_settings,
-        ),
-        patch(
-            "better_telegram_mcp.backends.user_backend.UserBackend",
-            return_value=mock_backend,
-        ),
-        patch(
-            "mcp_core.relay.client.send_message",
-            new_callable=AsyncMock,
-        ),
-        patch(
-            "better_telegram_mcp.relay_setup._relay_telethon_auth",
-            new_callable=AsyncMock,
-            return_value=False,
-        ),
-    ):
-        await _handle_user_mode_auth("https://relay", mock_session, config)
-
-    # disconnect called even on failure (via finally)
-    mock_backend.disconnect.assert_awaited_once()
 
 
 # ---------------------------------------------------------------------------

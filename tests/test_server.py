@@ -528,14 +528,14 @@ async def test_config_set_blocked_when_unconfigured():
 async def test_lifespan_unconfigured_mode():
     """Lifespan should start successfully without credentials."""
     import better_telegram_mcp.server as srv
+    from better_telegram_mcp.credential_state import CredentialState
     from better_telegram_mcp.server import _lifespan
 
     with (
         patch.object(srv, "Settings") as mock_settings_cls,
         patch(
-            "better_telegram_mcp.relay_setup.ensure_config",
-            new_callable=AsyncMock,
-            return_value=None,
+            "better_telegram_mcp.credential_state.resolve_credential_state",
+            return_value=CredentialState.AWAITING_SETUP,
         ),
     ):
         mock_settings = mock_settings_cls.return_value

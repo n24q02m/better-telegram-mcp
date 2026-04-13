@@ -205,8 +205,9 @@ async def _poll_relay_background(
 ) -> None:
     """Background task that polls relay and applies config when user submits.
 
-    For telegram, this also handles Telethon OTP/2FA auth via relay messaging
-    when user-mode credentials are submitted.
+    User-mode OTP/2FA now runs through the local OAuth form + ``/otp`` endpoint
+    (``save_credentials`` + ``on_step_submitted``), so this background task only
+    persists credentials and notifies the relay session of completion.
     """
     global _state
     try:
@@ -224,26 +225,23 @@ async def _poll_relay_background(
             if value and key not in os.environ:
                 os.environ[key] = value
 
-        # For user mode: run Telethon OTP/2FA auth via relay messaging
-        from .relay_setup import _is_user_mode_config
+        # Notify relay completion (bot + user mode). For user mode the actual
+        # Telethon OTP/2FA exchange now happens via the OAuth form's /otp
+        # endpoint (see ``save_credentials`` + ``on_step_submitted``); no more
+        # relay-driven OTP prompts here.
+        try:
+            from mcp_core.relay.client import send_message
 
-        if _is_user_mode_config(config):
-            await _handle_user_mode_auth(relay_base, session, config)
-        else:
-            # Bot mode: notify completion
-            try:
-                from mcp_core.relay.client import send_message
-
-                await send_message(
-                    relay_base,
-                    session.session_id,  # ty: ignore[union-attr]
-                    {
-                        "type": "complete",
-                        "text": "Telegram config saved. Setup complete!",
-                    },
-                )
-            except Exception:
-                pass
+            await send_message(
+                relay_base,
+                session.session_id,  # ty: ignore[union-attr]
+                {
+                    "type": "complete",
+                    "text": "Telegram config saved. Setup complete!",
+                },
+            )
+        except Exception:
+            pass
 
         _state = CredentialState.CONFIGURED
         logger.info("Relay config applied successfully")
@@ -269,56 +267,6 @@ async def _poll_relay_background(
             _state = CredentialState.AWAITING_SETUP
     except Exception:
         _state = CredentialState.AWAITING_SETUP
-
-
-async def _handle_user_mode_auth(
-    relay_base: str, session: object, config: dict[str, str]
-) -> None:
-    """Handle Telethon OTP/2FA auth after user-mode relay config is submitted."""
-    from .config import Settings
-    from .relay_setup import _relay_telethon_auth
-
-    settings = Settings.from_relay_config(config)
-
-    from .backends.user_backend import UserBackend
-
-    backend = UserBackend(settings)
-    await backend.connect()
-
-    try:
-        if not await backend.is_authorized():
-            from mcp_core.relay.client import send_message
-
-            await send_message(
-                relay_base,
-                session.session_id,  # ty: ignore[union-attr]
-                {
-                    "type": "info",
-                    "text": "Credentials saved. Starting Telegram authentication...",
-                },
-            )
-
-            auth_ok = await _relay_telethon_auth(
-                relay_base,
-                session.session_id,  # ty: ignore[union-attr]
-                backend,
-                settings,
-            )
-            if not auth_ok:
-                logger.warning("Relay Telethon auth failed. User can retry later.")
-        else:
-            from mcp_core.relay.client import send_message
-
-            await send_message(
-                relay_base,
-                session.session_id,  # ty: ignore[union-attr]
-                {
-                    "type": "complete",
-                    "text": "Existing Telethon session found — already authorized. No OTP needed. You can close this tab.",
-                },
-            )
-    finally:
-        await backend.disconnect()
 
 
 async def save_credentials(config: dict[str, str]) -> dict | None:
