@@ -2,6 +2,113 @@
 
 <!-- version list -->
 
+## v4.4.0 (2026-04-13)
+
+### Bug Fixes
+
+- Add cryptg dependency for Telethon MTProto decryption
+  ([`884662c`](https://github.com/n24q02m/better-telegram-mcp/commit/884662cc34c7367ed013faa8d52751a399cc313d))
+
+- Add missing config setup actions to README
+  ([`a6c0f65`](https://github.com/n24q02m/better-telegram-mcp/commit/a6c0f6584c05299abbfaef38ab71f468aa583e03))
+
+- Add tests for UserBackend.sign_in chmod path
+  ([#270](https://github.com/n24q02m/better-telegram-mcp/pull/270),
+  [`fd019fa`](https://github.com/n24q02m/better-telegram-mcp/commit/fd019fadcffd4e596257ae455cab233ab2f2f58c))
+
+- Block sensitive paths on macOS firmlinks
+  ([`82ba023`](https://github.com/n24q02m/better-telegram-mcp/commit/82ba023f9eea829320891010e2f5a60ad725032d))
+
+- Bump n24q02m-mcp-core to >=1.0.0 stable
+  ([`1ac3c06`](https://github.com/n24q02m/better-telegram-mcp/commit/1ac3c06b1e3d3ed5464d5743a845c0da908fd752))
+
+- Cache static help docs in memory
+  ([`04f6954`](https://github.com/n24q02m/better-telegram-mcp/commit/04f695429ee7488df096536c4f06ca41b96024b1))
+
+- Drop local uv.sources override for n24q02m-mcp-core
+  ([`eccb4bd`](https://github.com/n24q02m/better-telegram-mcp/commit/eccb4bd8a6e8923281a732d599e7969f05cce386))
+
+- Flatten relay_schema for mcp-core credential form rendering
+  ([`33f9821`](https://github.com/n24q02m/better-telegram-mcp/commit/33f98211c9b1cc1ae41fa430145dac3342b6c9a1))
+
+- Improve relay UX when Telethon session already authorized
+  ([`0dc0fdb`](https://github.com/n24q02m/better-telegram-mcp/commit/0dc0fdbb5b43738f31faa6c24d441f12b61527eb))
+
+- Lock file maintenance
+  ([`91a089d`](https://github.com/n24q02m/better-telegram-mcp/commit/91a089df716dc5bc7b28bc2f559ef017a4510fa7))
+
+- Make credential callbacks async to avoid running-loop error
+  ([`bdb5a52`](https://github.com/n24q02m/better-telegram-mcp/commit/bdb5a5242f0a3a394c23c813857ecc7c917f9381))
+
+- Remove dead relay-based OTP flow replaced by /otp endpoint
+  ([`85d8204`](https://github.com/n24q02m/better-telegram-mcp/commit/85d8204bb1b526c4da6e40abf27ba42cde0f6a92))
+
+- Remove stale ty ignore directives after type inference improvements
+  ([`d290442`](https://github.com/n24q02m/better-telegram-mcp/commit/d2904420c25e8939d9596023fed7da90fd99b02a))
+
+- Unblock CI install by removing editable mcp-relay-core source
+  ([`8ace5bf`](https://github.com/n24q02m/better-telegram-mcp/commit/8ace5bfffebbee08852f442c6db6cebd8cf027a5))
+
+- Update non-major dependencies
+  ([`93f721b`](https://github.com/n24q02m/better-telegram-mcp/commit/93f721b2173a69f8fe5d54c9e85b2e592df21d1d))
+
+- Update python:3.13-slim-bookworm docker digest to 061b6e5
+  ([`9de3fcb`](https://github.com/n24q02m/better-telegram-mcp/commit/9de3fcb449d6c6915daa2429d834a290f9b2ee68))
+
+- Update step-security/harden-runner digest to f808768
+  ([`aba2946`](https://github.com/n24q02m/better-telegram-mcp/commit/aba2946a8cb4b79376bf338758b3d76399a935db))
+
+- User mode returns info next_step instead of immediate complete
+  ([`b14078d`](https://github.com/n24q02m/better-telegram-mcp/commit/b14078d6d28d613e59afae4861c0e11e32d67e43))
+
+- **deps**: Update non-major dependencies
+  ([#250](https://github.com/n24q02m/better-telegram-mcp/pull/250),
+  [`a97470e`](https://github.com/n24q02m/better-telegram-mcp/commit/a97470e20314ef233ba824666a96855f91ade079))
+
+### Chores
+
+- **deps**: Bump cryptography in the uv group across 1 directory
+  ([#254](https://github.com/n24q02m/better-telegram-mcp/pull/254),
+  [`36ec398`](https://github.com/n24q02m/better-telegram-mcp/commit/36ec398f477f09e86a9b13e68e64367305fdd6d6))
+
+- **deps**: Lock file maintenance ([#251](https://github.com/n24q02m/better-telegram-mcp/pull/251),
+  [`93cbd5a`](https://github.com/n24q02m/better-telegram-mcp/commit/93cbd5a6af44656ebbda5fbf959852295e70d9f4))
+
+- **deps**: Update dependency cryptography to v46.0.7 [security]
+  ([#256](https://github.com/n24q02m/better-telegram-mcp/pull/256),
+  [`c7ec0b3`](https://github.com/n24q02m/better-telegram-mcp/commit/c7ec0b324c89647cca86ec0a6819b2ecb0202315))
+
+### Features
+
+- Add cross-OS CI matrix (ubuntu/windows/macos)
+  ([`89d5534`](https://github.com/n24q02m/better-telegram-mcp/commit/89d5534f702a169d87d65587d10cceb0d28cfa14))
+
+- Add on_step_submitted for multi-step OTP via /otp endpoint
+  ([`79b0041`](https://github.com/n24q02m/better-telegram-mcp/commit/79b0041d1c0911f8eb2422ca570c96a18ad29d81))
+
+- Default to HTTP transport, --stdio for backward compat
+  ([`afe5973`](https://github.com/n24q02m/better-telegram-mcp/commit/afe5973eeedda6e9fc29779a6851705d7796bac1))
+
+- Hot-reload backend after relay credentials are configured
+  ([`c94314d`](https://github.com/n24q02m/better-telegram-mcp/commit/c94314d1b0eed69daef22fcb1f8efa1d48bea76a))
+
+- Migrate from mcp-relay-core to mcp-core
+  ([`a88004a`](https://github.com/n24q02m/better-telegram-mcp/commit/a88004a6d69be5a8018180f0d5e4da4c3706f12a))
+
+- Migrate to mcp-core Self-hosted AS for HTTP default
+  ([`cf1d209`](https://github.com/n24q02m/better-telegram-mcp/commit/cf1d209d4a12eeb430d902ce54534e8c8324f410))
+
+- Restore telegram credential form with Bot/User mode tabs
+  ([`eaac8a6`](https://github.com/n24q02m/better-telegram-mcp/commit/eaac8a65bff50ba421b4dd211b55052ada3d4f5b))
+
+- Sync local changes and implement OAuth hot-reload
+  ([`4861941`](https://github.com/n24q02m/better-telegram-mcp/commit/48619417af5a346c2bc7a91fd28f512314525224))
+
+- **auth**: Add aria-live regions to status messages
+  ([#170](https://github.com/n24q02m/better-telegram-mcp/pull/170),
+  [`1b150fc`](https://github.com/n24q02m/better-telegram-mcp/commit/1b150fc84534a47bab3a214b80c6a7d2ce2a72e4))
+
+
 ## v4.3.0 (2026-04-07)
 
 ### Bug Fixes
