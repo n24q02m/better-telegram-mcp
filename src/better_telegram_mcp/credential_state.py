@@ -321,7 +321,7 @@ async def _handle_user_mode_auth(
         await backend.disconnect()
 
 
-def save_credentials(config: dict[str, str]) -> dict | None:
+async def save_credentials(config: dict[str, str]) -> dict | None:
     """Save credentials from OAuth form to config.enc and apply to environment.
 
     Called by the local OAuth AS when the user submits credentials via the
@@ -329,7 +329,12 @@ def save_credentials(config: dict[str, str]) -> dict | None:
 
     Bot mode: saves token, marks configured, returns None (complete).
     User mode: saves phone, returns next_step with OTP instructions.
-    OTP verification happens via separate /otp endpoint (not yet implemented).
+    OTP verification happens via separate /otp endpoint.
+
+    This function is ``async def`` so we can await Telethon operations
+    directly; the OAuth handler awaits the returned coroutine. Calling
+    ``loop.run_until_complete()`` from the running Starlette event loop
+    raises ``RuntimeError: This event loop is already running``.
     """
     global _state
 
@@ -364,18 +369,7 @@ def save_credentials(config: dict[str, str]) -> dict | None:
             _step_phone = phone
             _step_otp_code = None
 
-            import asyncio
-
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-            if loop.is_running():
-                asyncio.ensure_future(_connect_and_send_code(_step_backend, phone))
-            else:
-                loop.run_until_complete(_connect_and_send_code(_step_backend, phone))
+            await _connect_and_send_code(_step_backend, phone)
         except Exception as e:
             logger.error("Failed to start Telethon auth: {}", e)
             return {
@@ -395,14 +389,8 @@ def save_credentials(config: dict[str, str]) -> dict | None:
 
     # Hot-reload backend
     if _on_configured_callback:
-        import asyncio
-
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                asyncio.ensure_future(_on_configured_callback())
-            else:
-                loop.run_until_complete(_on_configured_callback())
+            await _on_configured_callback()
         except Exception as e:
             logger.warning("Backend reinit after save failed: {}", e)
 
@@ -426,10 +414,24 @@ def set_state(state: CredentialState) -> None:
 
 
 def reset_state() -> None:
-    """Reset to awaiting_setup (used by setup reset action)."""
-    global _state, _setup_url
+    """Reset to awaiting_setup (used by setup reset action).
+
+    Synchronous: only clears in-memory references. Any Telethon ``_step_backend``
+    held is simply dropped -- the garbage collector will close its underlying
+    sockets. Attempting ``loop.run_until_complete(backend.disconnect())`` here
+    raises ``RuntimeError: loop is already running`` when invoked from an
+    async context (e.g. test fixtures or real handlers).
+    """
+    global _state, _setup_url, _step_backend, _step_phone, _step_otp_code
+
     _state = CredentialState.AWAITING_SETUP
     _setup_url = None
+
+    # Clean up multi-step OTP flow state (best-effort; let GC handle disconnect)
+    _step_backend = None
+    _step_phone = ""
+    _step_otp_code = None
+
     try:
         from mcp_core.storage.config_file import delete_config
 
@@ -438,28 +440,22 @@ def reset_state() -> None:
         pass
 
 
-def on_step_submitted(step_data: dict[str, str]) -> dict | None:
+async def on_step_submitted(step_data: dict[str, str]) -> dict | None:
     """Handle multi-step auth input from /otp endpoint.
 
     Called by mcp-core when user submits OTP code or 2FA password via the
     credential form's step input. Returns None on success (complete),
     {"type": "password_required", ...} if 2FA is needed, or
     {"type": "error", ...} on failure (allows retry).
+
+    Async: Telethon ``sign_in`` is a coroutine. The OAuth handler in
+    mcp-core awaits the returned coroutine, so we can await directly
+    instead of smuggling calls onto a running event loop.
     """
     global _step_backend, _step_phone, _step_otp_code
 
     if _step_backend is None:
         return {"type": "error", "text": "No active authentication session."}
-
-    import asyncio
-
-    def _get_loop() -> asyncio.AbstractEventLoop:
-        try:
-            return asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            return loop
 
     # OTP code submission
     if "otp_code" in step_data:
@@ -467,9 +463,8 @@ def on_step_submitted(step_data: dict[str, str]) -> dict | None:
         _step_otp_code = otp_code
 
         try:
-            loop = _get_loop()
-            loop.run_until_complete(_step_backend.sign_in(_step_phone, otp_code))
-            _finalize_auth()
+            await _step_backend.sign_in(_step_phone, otp_code)
+            await _finalize_auth()
             return None
         except Exception as e:
             error_msg = str(e)
@@ -483,6 +478,14 @@ def on_step_submitted(step_data: dict[str, str]) -> dict | None:
                     "field": "password",
                     "input_type": "password",
                 }
+            # Terminal failure (non-2FA) -- clean up so next attempt starts fresh.
+            try:
+                await _step_backend.disconnect()
+            except Exception:
+                pass
+            _step_backend = None
+            _step_phone = ""
+            _step_otp_code = None
             return {
                 "type": "error",
                 "text": f"Authentication failed: {_sanitize_error(error_msg)}",
@@ -498,13 +501,18 @@ def on_step_submitted(step_data: dict[str, str]) -> dict | None:
             }
 
         try:
-            loop = _get_loop()
-            loop.run_until_complete(
-                _step_backend.sign_in(_step_phone, _step_otp_code, password=password)
-            )
-            _finalize_auth()
+            await _step_backend.sign_in(_step_phone, _step_otp_code, password=password)
+            await _finalize_auth()
             return None
         except Exception as e:
+            # Terminal failure -- clean up so next attempt starts fresh.
+            try:
+                await _step_backend.disconnect()
+            except Exception:
+                pass
+            _step_backend = None
+            _step_phone = ""
+            _step_otp_code = None
             return {
                 "type": "error",
                 "text": f"2FA failed: {_sanitize_error(str(e))}",
@@ -513,17 +521,15 @@ def on_step_submitted(step_data: dict[str, str]) -> dict | None:
     return {"type": "error", "text": "Unexpected input."}
 
 
-def _finalize_auth() -> None:
-    """Mark configured and clean up multi-step state."""
+async def _finalize_auth() -> None:
+    """Mark configured and clean up multi-step state (async)."""
     global _state, _step_backend, _step_phone, _step_otp_code
-    import asyncio
 
     _state = CredentialState.CONFIGURED
 
     if _step_backend is not None:
         try:
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(_step_backend.disconnect())
+            await _step_backend.disconnect()
         except Exception:
             pass
 
@@ -534,10 +540,6 @@ def _finalize_auth() -> None:
     # Hot-reload via existing callback
     if _on_configured_callback:
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                asyncio.ensure_future(_on_configured_callback())
-            else:
-                loop.run_until_complete(_on_configured_callback())
+            await _on_configured_callback()
         except Exception as e:
             logger.warning("Backend reinit after OTP auth failed: {}", e)

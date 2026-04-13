@@ -779,20 +779,20 @@ def test_credential_keys():
 # ---------------------------------------------------------------------------
 
 
-def test_save_credentials_bot_mode_returns_none():
+async def test_save_credentials_bot_mode_returns_none():
     """Bot mode (token only) should complete immediately."""
     from better_telegram_mcp.credential_state import save_credentials
 
     with patch("mcp_core.storage.config_file.write_config"):
         os.environ.pop("TELEGRAM_BOT_TOKEN", None)
-        result = save_credentials({"TELEGRAM_BOT_TOKEN": "123:abc"})
+        result = await save_credentials({"TELEGRAM_BOT_TOKEN": "123:abc"})
     assert result is None
 
     # Cleanup
     os.environ.pop("TELEGRAM_BOT_TOKEN", None)
 
 
-def test_save_credentials_user_mode_returns_otp_required():
+async def test_save_credentials_user_mode_returns_otp_required():
     """User mode (phone only) should return otp_required next_step."""
     from better_telegram_mcp.credential_state import save_credentials
 
@@ -808,7 +808,7 @@ def test_save_credentials_user_mode_returns_otp_required():
         ),
     ):
         os.environ.pop("TELEGRAM_PHONE", None)
-        result = save_credentials({"TELEGRAM_PHONE": "+1234567890"})
+        result = await save_credentials({"TELEGRAM_PHONE": "+1234567890"})
 
     assert result is not None
     assert result["type"] == "otp_required"
@@ -819,7 +819,7 @@ def test_save_credentials_user_mode_returns_otp_required():
     os.environ.pop("TELEGRAM_PHONE", None)
 
 
-def test_save_credentials_user_mode_telethon_failure_returns_error():
+async def test_save_credentials_user_mode_telethon_failure_returns_error():
     """If UserBackend import/construction fails, return error dict."""
     from better_telegram_mcp.credential_state import save_credentials
 
@@ -831,7 +831,7 @@ def test_save_credentials_user_mode_telethon_failure_returns_error():
         ),
     ):
         os.environ.pop("TELEGRAM_PHONE", None)
-        result = save_credentials({"TELEGRAM_PHONE": "+1234567890"})
+        result = await save_credentials({"TELEGRAM_PHONE": "+1234567890"})
 
     assert result is not None
     assert result["type"] == "error"
@@ -841,16 +841,16 @@ def test_save_credentials_user_mode_telethon_failure_returns_error():
     os.environ.pop("TELEGRAM_PHONE", None)
 
 
-def test_on_step_submitted_no_session_returns_error():
+async def test_on_step_submitted_no_session_returns_error():
     """Without active session, /otp submission returns error."""
     from better_telegram_mcp.credential_state import on_step_submitted
 
-    result = on_step_submitted({"otp_code": "12345"})
+    result = await on_step_submitted({"otp_code": "12345"})
     assert result is not None
     assert result["type"] == "error"
 
 
-def test_on_step_submitted_otp_success_returns_none():
+async def test_on_step_submitted_otp_success_returns_none():
     """OTP success should finalize auth and return None."""
     import better_telegram_mcp.credential_state as cs
 
@@ -860,12 +860,12 @@ def test_on_step_submitted_otp_success_returns_none():
     cs._step_backend = mock_backend
     cs._step_phone = "+1234567890"
 
-    result = cs.on_step_submitted({"otp_code": "12345"})
+    result = await cs.on_step_submitted({"otp_code": "12345"})
     assert result is None
     assert cs._state == cs.CredentialState.CONFIGURED
 
 
-def test_on_step_submitted_needs_2fa_returns_password_required():
+async def test_on_step_submitted_needs_2fa_returns_password_required():
     """When Telethon indicates 2FA needed, return password_required."""
     import better_telegram_mcp.credential_state as cs
 
@@ -876,29 +876,35 @@ def test_on_step_submitted_needs_2fa_returns_password_required():
     cs._step_backend = mock_backend
     cs._step_phone = "+1234567890"
 
-    result = cs.on_step_submitted({"otp_code": "12345"})
+    result = await cs.on_step_submitted({"otp_code": "12345"})
     assert result is not None
     assert result["type"] == "password_required"
     assert result["field"] == "password"
     assert result["input_type"] == "password"
+    # 2FA path: backend must be kept for password submission.
+    assert cs._step_backend is mock_backend
 
 
-def test_on_step_submitted_otp_invalid_returns_error():
-    """When OTP is invalid (non-2FA error), return error for retry."""
+async def test_on_step_submitted_otp_invalid_returns_error():
+    """When OTP is invalid (non-2FA error), return error and clean up."""
     import better_telegram_mcp.credential_state as cs
 
     mock_backend = MagicMock()
     mock_backend.sign_in = AsyncMock(side_effect=Exception("phone code invalid"))
+    mock_backend.disconnect = AsyncMock()
     cs._step_backend = mock_backend
     cs._step_phone = "+1234567890"
 
-    result = cs.on_step_submitted({"otp_code": "00000"})
+    result = await cs.on_step_submitted({"otp_code": "00000"})
     assert result is not None
     assert result["type"] == "error"
     assert "Authentication failed" in result["text"]
+    # Terminal failure cleans up backend so retry starts fresh.
+    assert cs._step_backend is None
+    mock_backend.disconnect.assert_awaited_once()
 
 
-def test_on_step_submitted_password_success_returns_none():
+async def test_on_step_submitted_password_success_returns_none():
     """2FA password success should finalize."""
     import better_telegram_mcp.credential_state as cs
 
@@ -909,12 +915,12 @@ def test_on_step_submitted_password_success_returns_none():
     cs._step_phone = "+1234567890"
     cs._step_otp_code = "12345"
 
-    result = cs.on_step_submitted({"password": "secret"})
+    result = await cs.on_step_submitted({"password": "secret"})
     assert result is None
     assert cs._state == cs.CredentialState.CONFIGURED
 
 
-def test_on_step_submitted_password_no_otp_returns_error():
+async def test_on_step_submitted_password_no_otp_returns_error():
     """Password submission without prior OTP should error (restart needed)."""
     import better_telegram_mcp.credential_state as cs
 
@@ -923,33 +929,37 @@ def test_on_step_submitted_password_no_otp_returns_error():
     cs._step_phone = "+1234567890"
     cs._step_otp_code = None
 
-    result = cs.on_step_submitted({"password": "secret"})
+    result = await cs.on_step_submitted({"password": "secret"})
     assert result is not None
     assert result["type"] == "error"
 
 
-def test_on_step_submitted_password_failure_returns_error():
-    """2FA password failure returns error for retry."""
+async def test_on_step_submitted_password_failure_returns_error():
+    """2FA password failure returns error and cleans up backend."""
     import better_telegram_mcp.credential_state as cs
 
     mock_backend = MagicMock()
     mock_backend.sign_in = AsyncMock(side_effect=Exception("wrong password"))
+    mock_backend.disconnect = AsyncMock()
     cs._step_backend = mock_backend
     cs._step_phone = "+1234567890"
     cs._step_otp_code = "12345"
 
-    result = cs.on_step_submitted({"password": "wrong"})
+    result = await cs.on_step_submitted({"password": "wrong"})
     assert result is not None
     assert result["type"] == "error"
     assert "2FA failed" in result["text"]
+    # Terminal failure cleans up.
+    assert cs._step_backend is None
+    mock_backend.disconnect.assert_awaited_once()
 
 
-def test_on_step_submitted_unexpected_input_returns_error():
+async def test_on_step_submitted_unexpected_input_returns_error():
     """Unknown keys in step_data -> error."""
     import better_telegram_mcp.credential_state as cs
 
     cs._step_backend = MagicMock()
 
-    result = cs.on_step_submitted({"random_key": "value"})
+    result = await cs.on_step_submitted({"random_key": "value"})
     assert result is not None
     assert result["type"] == "error"
