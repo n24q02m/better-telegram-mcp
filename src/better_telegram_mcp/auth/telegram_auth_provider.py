@@ -211,6 +211,9 @@ class TelegramAuthProvider:
             msg = f"Failed to send code: {exc}"
             raise ValueError(msg) from exc
 
+        # Pop existing key to maintain insertion order if updated
+        self._pending_otps.pop(bearer, None)
+
         # Store pending OTP state
         self._pending_otps[bearer] = {
             "bearer": bearer,
@@ -310,11 +313,14 @@ class TelegramAuthProvider:
                 removed += 1
 
         # Also clean up stale pending OTPs (5 min TTL)
-        stale_otps = [
-            b for b, p in self._pending_otps.items() if now - p["created_at"] > 300
-        ]
-        for bearer in stale_otps:
-            pending = self._pending_otps.pop(bearer)
+        # Using dict insertion order allows O(1) time-based popping
+        while self._pending_otps:
+            bearer = next(iter(self._pending_otps))
+            pending = self._pending_otps[bearer]
+            if now - pending["created_at"] <= 300:
+                break
+            # Pop the stale item directly
+            self._pending_otps.pop(bearer)
             await pending["backend"].disconnect()
             removed += 1
 
