@@ -1,4 +1,4 @@
-"""Tests for non-blocking credential state management."""
+"""Tests for credential_state module -- state machine, resolve, trigger_relay_setup."""
 
 from __future__ import annotations
 
@@ -7,11 +7,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+import better_telegram_mcp.credential_state as cs
 from better_telegram_mcp.credential_state import (
     CredentialState,
+    get_setup_url,
     get_state,
     reset_state,
+    resolve_credential_state,
     set_on_configured,
+    set_state,
     trigger_relay_setup,
 )
 
@@ -19,21 +23,31 @@ from better_telegram_mcp.credential_state import (
 @pytest.fixture(autouse=True)
 def _reset_module_state():
     """Ensure state is clean before each test."""
-    import better_telegram_mcp.credential_state as cs
-
     cs._state = CredentialState.AWAITING_SETUP
     cs._setup_url = None
     cs._on_configured_callback = None
     yield
 
 
+# ---------------------------------------------------------------------------
+# State and basic accessors
+# ---------------------------------------------------------------------------
+
+
 def test_get_state_default():
     assert get_state() == CredentialState.AWAITING_SETUP
 
 
-def test_reset_state():
-    import better_telegram_mcp.credential_state as cs
+def test_get_setup_url_default():
+    assert get_setup_url() is None
 
+
+def test_set_state():
+    set_state(CredentialState.CONFIGURED)
+    assert get_state() == CredentialState.CONFIGURED
+
+
+def test_reset_state():
     cs._state = CredentialState.CONFIGURED
     cs._setup_url = "https://relay"
     reset_state()
@@ -43,11 +57,79 @@ def test_reset_state():
 
 @pytest.mark.asyncio
 async def test_on_configured_registration():
-    import better_telegram_mcp.credential_state as cs
-
     callback = AsyncMock()
     set_on_configured(callback)
     assert cs._on_configured_callback == callback
+
+
+# ---------------------------------------------------------------------------
+# resolve_credential_state
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_bot_token_env():
+    with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": "bot:token"}):
+        assert resolve_credential_state() == CredentialState.CONFIGURED
+
+
+def test_resolve_user_phone_env():
+    with patch.dict(os.environ, {"TELEGRAM_PHONE": "+12345"}):
+        assert resolve_credential_state() == CredentialState.CONFIGURED
+
+
+def test_resolve_config_file_bot():
+    with (
+        patch.dict(os.environ, {}, clear=True),
+        patch(
+            "mcp_relay_core.storage.config_file.read_config",
+            return_value={"TELEGRAM_BOT_TOKEN": "bot:saved"},
+        ),
+    ):
+        assert resolve_credential_state() == CredentialState.CONFIGURED
+        assert os.environ.get("TELEGRAM_BOT_TOKEN") == "bot:saved"
+
+
+def test_resolve_config_file_user():
+    with (
+        patch.dict(os.environ, {}, clear=True),
+        patch(
+            "mcp_relay_core.storage.config_file.read_config",
+            return_value={"TELEGRAM_PHONE": "+84saved"},
+        ),
+    ):
+        assert resolve_credential_state() == CredentialState.CONFIGURED
+        assert os.environ.get("TELEGRAM_PHONE") == "+84saved"
+
+
+def test_resolve_saved_sessions_signal():
+    """Session files exist -> soft signal (stay awaiting, but log it)."""
+    with (
+        patch.dict(os.environ, {}, clear=True),
+        patch(
+            "mcp_relay_core.storage.config_file.read_config",
+            return_value=None,
+        ),
+        patch(
+            "better_telegram_mcp.credential_state.check_saved_sessions",
+            return_value=True,
+        ),
+    ):
+        assert resolve_credential_state() == CredentialState.AWAITING_SETUP
+
+
+def test_resolve_nothing_found():
+    with (
+        patch.dict(os.environ, {}, clear=True),
+        patch(
+            "mcp_relay_core.storage.config_file.read_config",
+            return_value=None,
+        ),
+        patch(
+            "better_telegram_mcp.credential_state.check_saved_sessions",
+            return_value=False,
+        ),
+    ):
+        assert resolve_credential_state() == CredentialState.AWAITING_SETUP
 
 
 # ---------------------------------------------------------------------------
@@ -56,10 +138,8 @@ async def test_on_configured_registration():
 
 
 @pytest.mark.asyncio
-async def test_trigger_relay_already_in_progress():
+async def test_trigger_relay_setup_in_progress_no_force():
     """If setup is in progress, return existing setup URL without re-triggering."""
-    import better_telegram_mcp.credential_state as cs
-
     cs._state = CredentialState.SETUP_IN_PROGRESS
     cs._setup_url = "https://relay.example.com/existing"
 
@@ -71,10 +151,8 @@ async def test_trigger_relay_already_in_progress():
 
 
 @pytest.mark.asyncio
-async def test_trigger_relay_already_configured():
+async def test_trigger_relay_already_configured_no_force():
     """If configured, return None (no setup needed)."""
-    import better_telegram_mcp.credential_state as cs
-
     cs._state = CredentialState.CONFIGURED
 
     with patch("mcp_relay_core.acquire_session_lock") as mock_lock:
@@ -142,8 +220,6 @@ async def test_trigger_relay_creates_new_session():
 @pytest.mark.asyncio
 async def test_trigger_relay_force_reconfigures():
     """force=True triggers relay even when state is CONFIGURED."""
-    import better_telegram_mcp.credential_state as cs
-
     cs._state = CredentialState.CONFIGURED
 
     mock_session_info = MagicMock()
@@ -166,7 +242,7 @@ async def test_trigger_relay_force_reconfigures():
 
     assert result == "https://relay.example.com/forced"
     assert cs._state == CredentialState.SETUP_IN_PROGRESS
-    # Reusing existing session lock if force=True and it exists is expected
+    # Existing session lock means no new task
     mock_create_task.assert_not_called()
 
 
@@ -195,7 +271,6 @@ async def test_trigger_relay_exception_returns_none():
 @pytest.mark.asyncio
 async def test_poll_relay_background_bot_mode():
     """Bot mode config -> save + apply env + notify complete."""
-    import better_telegram_mcp.credential_state as cs
     from better_telegram_mcp.credential_state import _poll_relay_background
 
     cs._state = CredentialState.SETUP_IN_PROGRESS
@@ -207,7 +282,6 @@ async def test_poll_relay_background_bot_mode():
     mock_callback = AsyncMock()
     cs._on_configured_callback = mock_callback
 
-    # We need to ensure TELEGRAM_BOT_TOKEN is NOT in env before the call
     with (
         patch.dict(os.environ, {}, clear=True),
         patch(
@@ -243,7 +317,6 @@ async def test_poll_relay_background_bot_mode():
 @pytest.mark.asyncio
 async def test_poll_relay_background_user_mode():
     """User mode config -> save + call _handle_user_mode_auth."""
-    import better_telegram_mcp.credential_state as cs
     from better_telegram_mcp.credential_state import _poll_relay_background
 
     cs._state = CredentialState.SETUP_IN_PROGRESS
@@ -282,7 +355,6 @@ async def test_poll_relay_background_user_mode():
 @pytest.mark.asyncio
 async def test_poll_relay_background_relay_skipped():
     """RELAY_SKIPPED error -> state back to AWAITING_SETUP."""
-    import better_telegram_mcp.credential_state as cs
     from better_telegram_mcp.credential_state import _poll_relay_background
 
     cs._state = CredentialState.SETUP_IN_PROGRESS
@@ -302,7 +374,6 @@ async def test_poll_relay_background_relay_skipped():
 @pytest.mark.asyncio
 async def test_poll_relay_background_runtime_error():
     """Non-RELAY_SKIPPED RuntimeError -> state back to AWAITING_SETUP."""
-    import better_telegram_mcp.credential_state as cs
     from better_telegram_mcp.credential_state import _poll_relay_background
 
     cs._state = CredentialState.SETUP_IN_PROGRESS
@@ -322,7 +393,6 @@ async def test_poll_relay_background_runtime_error():
 @pytest.mark.asyncio
 async def test_poll_relay_background_generic_exception():
     """Generic exception -> state back to AWAITING_SETUP."""
-    import better_telegram_mcp.credential_state as cs
     from better_telegram_mcp.credential_state import _poll_relay_background
 
     cs._state = CredentialState.SETUP_IN_PROGRESS
@@ -342,7 +412,6 @@ async def test_poll_relay_background_generic_exception():
 @pytest.mark.asyncio
 async def test_poll_relay_background_bot_send_message_error():
     """Bot mode: send_message failure is swallowed, state still CONFIGURED."""
-    import better_telegram_mcp.credential_state as cs
     from better_telegram_mcp.credential_state import _poll_relay_background
 
     cs._state = CredentialState.SETUP_IN_PROGRESS
@@ -381,7 +450,6 @@ async def test_poll_relay_background_bot_send_message_error():
 @pytest.mark.asyncio
 async def test_poll_relay_background_custom_timeout():
     """Custom timeout is passed through to poll_for_result."""
-    import better_telegram_mcp.credential_state as cs
     from better_telegram_mcp.credential_state import _poll_relay_background
 
     cs._state = CredentialState.SETUP_IN_PROGRESS
