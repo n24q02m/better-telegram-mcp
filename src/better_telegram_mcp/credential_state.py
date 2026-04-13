@@ -162,7 +162,7 @@ async def trigger_relay_setup(
         from .relay_schema import RELAY_SCHEMA
 
         relay_base = os.environ.get("MCP_RELAY_URL", DEFAULT_RELAY_URL)
-        session = await create_session(relay_base, SERVER_NAME, RELAY_SCHEMA)  # ty: ignore[invalid-argument-type]
+        session = await create_session(relay_base, SERVER_NAME, RELAY_SCHEMA)
 
         # Save session lock for parallel processes
         import time
@@ -215,7 +215,7 @@ async def _poll_relay_background(
         from mcp_core.storage.config_file import write_config
 
         poll_timeout = timeout if timeout is not None else 300.0
-        config = await poll_for_result(relay_base, session, timeout_s=poll_timeout)  # ty: ignore[invalid-argument-type]
+        config = await poll_for_result(relay_base, session, timeout_s=poll_timeout)
 
         # Save config
         write_config(SERVER_NAME, config)
@@ -234,7 +234,7 @@ async def _poll_relay_background(
 
             await send_message(
                 relay_base,
-                session.session_id,  # ty: ignore[union-attr]
+                session.session_id,
                 {
                     "type": "complete",
                     "text": "Telegram config saved. Setup complete!",
