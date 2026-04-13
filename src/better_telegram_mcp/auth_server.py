@@ -49,9 +49,15 @@ input[type="password"]{letter-spacing:normal;text-align:left}
 input:focus{border-color:#3b82f6}
 input:focus-visible,button:focus-visible{outline:2px solid #3b82f6;outline-offset:2px}
 button{width:100%;padding:.75rem;background:#3b82f6;color:#fff;border:none;
-  border-radius:8px;font-size:1rem;cursor:pointer;font-weight:500}
+  border-radius:8px;font-size:1rem;cursor:pointer;font-weight:500;position:relative}
 button:hover{background:#2563eb}
 button:disabled{background:#333;color:#666;cursor:not-allowed}
+button[aria-busy="true"]{color:transparent!important;cursor:wait}
+button[aria-busy="true"]::after{content:"";position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);display:inline-block;width:1.2em;height:1.2em;
+  border:2px solid rgba(255,255,255,0.3);border-radius:50%;border-top-color:#fff;
+  animation:spin 1s linear infinite}
+@keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
 .st{margin-top:1rem;padding:.75rem;border-radius:8px;font-size:.875rem;display:none}
 .st.error{display:block;background:#2d1111;border:1px solid #dc2626;color:#f87171}
 .st.success{display:block;background:#0d2818;border:1px solid #16a34a;color:#4ade80}
