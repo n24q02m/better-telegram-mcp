@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 from pathlib import Path
 from typing import Literal
 
@@ -38,7 +39,7 @@ class Settings(BaseSettings):
     # Runtime (derived)
     mode: Literal["bot", "user"] = "bot"
 
-    @property
+    @functools.cached_property
     def trusted_proxy_list(self) -> list[str]:
         if not self.trusted_proxies:
             return []
