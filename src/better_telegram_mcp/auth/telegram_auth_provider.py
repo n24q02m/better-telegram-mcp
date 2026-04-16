@@ -293,7 +293,9 @@ class TelegramAuthProvider:
             await pending["backend"].disconnect()
 
         # Remove from ownership map
-        self.session_owners = {sid: b for sid, b in self.session_owners.items() if b != bearer}
+        self.session_owners = {
+            sid: b for sid, b in self.session_owners.items() if b != bearer
+        }
 
         return self._store.delete(bearer)
 
