@@ -384,7 +384,9 @@ class AuthServer:
                 raise RuntimeError(
                     f"Could not start server on port {self.port}: {e}"
                 ) from e
-        logger.info("Auth server started at {}", self.url)
+        logger.info(
+            "Auth server started at http://127.0.0.1:{} (token masked)", self.port
+        )
         return self.url
 
     async def wait_for_auth(self) -> None:
