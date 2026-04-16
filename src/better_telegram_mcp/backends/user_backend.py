@@ -75,8 +75,8 @@ class UserBackend(TelegramBackend):
         try:
             fd = os.open(str(actual_session_path), os.O_CREAT | os.O_WRONLY, 0o600)
             os.close(fd)
-        except OSError:
-            pass  # Windows may not support this or file already exists
+        except OSError as e:
+            logger.debug("Failed to pre-create session file securely: {e}", e=e)
 
         self._client = TelegramClient(
             str(session_path),
@@ -92,8 +92,8 @@ class UserBackend(TelegramBackend):
         if self._client is not None:
             try:
                 await self._client.disconnect()
-            except Exception:
-                pass  # Ignore errors during disconnect cleanup
+            except Exception as e:
+                logger.debug("Ignore errors during disconnect cleanup: {e}", e=e)
             self._client = None
 
     async def is_connected(self) -> bool:
@@ -110,8 +110,8 @@ class UserBackend(TelegramBackend):
             # Clear Telethon's entity cache by deleting cached entities
             try:
                 self._client.session.save()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to save session during cache clear: {e}", e=e)
 
     # --- Auth ---
     async def is_authorized(self) -> bool:
@@ -142,8 +142,8 @@ class UserBackend(TelegramBackend):
         if session_file.exists():
             try:
                 os.chmod(session_file, 0o600)
-            except OSError:
-                pass
+            except OSError as e:
+                logger.debug("Failed to set session file permissions: {e}", e=e)
 
         return {
             "authenticated_as": getattr(me, "first_name", ""),

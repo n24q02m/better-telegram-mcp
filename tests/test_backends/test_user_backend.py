@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -84,6 +84,12 @@ def mock_client_class(mock_client):
         yield cls
 
 
+@pytest.fixture
+def mock_logger():
+    with patch("better_telegram_mcp.backends.user_backend.logger") as mock:
+        yield mock
+
+
 class TestConnect:
     async def test_connect_authorized(self, tmp_path, mock_client, mock_client_class):
         from better_telegram_mcp.backends.user_backend import UserBackend
@@ -114,6 +120,25 @@ class TestConnect:
         assert backend._client is not None
         mock_client.connect.assert_awaited_once()
 
+    async def test_connect_chmod_handles_oserror_logged(
+        self, tmp_path, mock_client, mock_client_class, mock_logger
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+
+        with patch(
+            "better_telegram_mcp.backends.user_backend.os.open",
+            side_effect=OSError("Permission denied"),
+        ):
+            await backend.connect()
+
+        mock_logger.debug.assert_called_with(
+            "Failed to pre-create session file securely: {e}", e=ANY
+        )
+        mock_client.connect.assert_awaited_once()
+
 
 class TestDisconnect:
     async def test_disconnect(self, tmp_path, mock_client, mock_client_class):
@@ -128,8 +153,8 @@ class TestDisconnect:
         mock_client.disconnect.assert_awaited()
         assert backend._client is None
 
-    async def test_disconnect_exception_is_ignored(
-        self, tmp_path, mock_client, mock_client_class
+    async def test_disconnect_exception_is_logged(
+        self, tmp_path, mock_client, mock_client_class, mock_logger
     ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
@@ -139,10 +164,13 @@ class TestDisconnect:
         backend = UserBackend(settings)
         await backend.connect()
 
-        # Should not raise despite disconnect error
+        # Should not raise despite disconnect error, but should log a debug message
         await backend.disconnect()
 
         mock_client.disconnect.assert_awaited()
+        mock_logger.debug.assert_called_with(
+            "Ignore errors during disconnect cleanup: {e}", e=ANY
+        )
         assert backend._client is None
 
     async def test_disconnect_when_not_connected(self, tmp_path):
@@ -774,8 +802,8 @@ class TestClearCache:
         # Should not raise
         await backend.clear_cache()
 
-    async def test_clear_cache_exception_swallowed(
-        self, tmp_path, mock_client, mock_client_class
+    async def test_clear_cache_exception_logged(
+        self, tmp_path, mock_client, mock_client_class, mock_logger
     ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
@@ -787,10 +815,13 @@ class TestClearCache:
         backend = UserBackend(settings)
         await backend.connect()
 
-        # Should not raise an exception
+        # Should not raise an exception, but should log a warning
         await backend.clear_cache()
 
         mock_session.save.assert_called_once()
+        mock_logger.warning.assert_called_with(
+            "Failed to save session during cache clear: {e}", e=ANY
+        )
 
 
 class TestManageTopics:
@@ -1362,7 +1393,7 @@ class TestSignIn:
         assert session_file.stat().st_mode & 0o777 == 0o600
 
     async def test_sign_in_chmod_handles_oserror(
-        self, tmp_path, mock_client, mock_client_class
+        self, tmp_path, mock_client, mock_client_class, mock_logger
     ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
@@ -1381,10 +1412,15 @@ class TestSignIn:
         await backend.connect()
 
         with patch(
-            "better_telegram_mcp.backends.user_backend.os.chmod", side_effect=OSError
+            "better_telegram_mcp.backends.user_backend.os.chmod",
+            side_effect=OSError("Permission denied"),
         ):
             result = await backend.sign_in("+84912345678", "12345")
 
+        assert "authenticated_as" in result
+        mock_logger.debug.assert_called_with(
+            "Failed to set session file permissions: {e}", e=ANY
+        )
         assert result["authenticated_as"] == "Test"
         assert result["username"] == "testuser"
 
