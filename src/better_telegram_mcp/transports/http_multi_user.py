@@ -96,6 +96,206 @@ def _jsonrpc_error(code: int, message: str) -> JSONResponse:
     )
 
 
+class BearerAuthMCPApp:
+    """ASGI middleware: authenticate bearer -> inject per-user backend -> forward to MCP."""
+
+    def __init__(self, inner: ASGIApp, auth_provider: TelegramAuthProvider) -> None:
+        self.inner = inner
+        self.auth_provider = auth_provider
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.inner(scope, receive, send)
+            return
+
+        # Extract bearer from headers
+        bearer = None
+        for key, value in scope.get("headers", []):
+            if key == b"authorization":
+                auth_str = value.decode("utf-8", errors="ignore")
+                if auth_str.startswith("Bearer "):
+                    bearer = auth_str[7:].strip()
+                break
+
+        if not bearer:
+            resp = _jsonrpc_error(-32000, "Bearer authentication required")
+            await resp(scope, receive, send)
+            return
+
+        backend = self.auth_provider.resolve_backend(bearer)
+        if backend is None:
+            resp = _jsonrpc_error(
+                -32000,
+                "Invalid or expired bearer token. "
+                "Authenticate via /auth/bot or /auth/user/send-code first.",
+            )
+            await resp(scope, receive, send)
+            return
+
+        token = _current_backend.set(backend)
+        try:
+            await self.inner(scope, receive, send)
+        finally:
+            _current_backend.reset(token)
+
+
+class MultiUserAuthHandlers:
+    """Encapsulates authentication-related route handlers."""
+
+    def __init__(
+        self, client_store: StatelessClientStore, auth_provider: TelegramAuthProvider
+    ) -> None:
+        self.client_store = client_store
+        self.auth_provider = auth_provider
+
+    async def register(self, request: Request) -> JSONResponse:
+        """Dynamic Client Registration endpoint."""
+        ip = _get_client_ip(request)
+        if not _check_rate_limit(f"auth:{ip}", _RATE_LIMIT_AUTH):
+            return _error_response(429, "rate_limited", "Too many requests")
+
+        try:
+            body = await request.json()
+        except Exception:
+            return _error_response(400, "invalid_request", "Invalid JSON body")
+
+        redirect_uris = body.get("redirect_uris", [])
+        if not isinstance(redirect_uris, list):
+            return _error_response(
+                400, "invalid_request", "redirect_uris must be a list"
+            )
+
+        client_name = body.get("client_name")
+        client_id, client_secret = self.client_store.register(
+            redirect_uris, client_name
+        )
+
+        return JSONResponse(
+            {
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "client_name": client_name,
+                "redirect_uris": redirect_uris,
+                "grant_types": ["authorization_code", "refresh_token"],
+                "response_types": ["code"],
+                "token_endpoint_auth_method": "client_secret_post",
+            },
+            status_code=201,
+        )
+
+    async def auth_bot(self, request: Request) -> JSONResponse:
+        """Bot token authentication endpoint.
+
+        Accepts bot_token, validates it with Telegram, returns bearer.
+        """
+        ip = _get_client_ip(request)
+        if not _check_rate_limit(f"auth:{ip}", _RATE_LIMIT_AUTH):
+            return _error_response(429, "rate_limited", "Too many requests")
+
+        try:
+            body = await request.json()
+        except Exception:
+            return _error_response(400, "invalid_request", "Invalid JSON body")
+
+        bot_token = body.get("bot_token")
+        if not bot_token or not isinstance(bot_token, str):
+            return _error_response(400, "invalid_request", "bot_token is required")
+
+        try:
+            bearer = await self.auth_provider.register_bot("", bot_token)
+        except ValueError as exc:
+            return _error_response(401, "invalid_token", str(exc))
+
+        return JSONResponse(
+            {
+                "bearer_token": bearer,
+                "token_type": "Bearer",
+                "mode": "bot",
+            }
+        )
+
+    async def auth_user_send_code(self, request: Request) -> JSONResponse:
+        """Start user authentication - send OTP code to phone."""
+        ip = _get_client_ip(request)
+        if not _check_rate_limit(f"auth:{ip}", _RATE_LIMIT_AUTH):
+            return _error_response(429, "rate_limited", "Too many requests")
+
+        try:
+            body = await request.json()
+        except Exception:
+            return _error_response(400, "invalid_request", "Invalid JSON body")
+
+        phone = body.get("phone")
+        if not phone or not isinstance(phone, str):
+            return _error_response(
+                400, "invalid_request", "phone is required (international format)"
+            )
+
+        try:
+            result = await self.auth_provider.start_user_auth("", phone)
+        except ValueError as exc:
+            return _error_response(400, "auth_error", str(exc))
+
+        return JSONResponse(
+            {
+                "bearer_token": result["bearer"],
+                "phone_code_hash": result["phone_code_hash"],
+                "message": "Check Telegram for OTP code",
+            }
+        )
+
+    async def auth_user_verify(self, request: Request) -> JSONResponse:
+        """Complete user authentication with OTP code."""
+        ip = _get_client_ip(request)
+        if not _check_rate_limit(f"auth:{ip}", _RATE_LIMIT_AUTH):
+            return _error_response(429, "rate_limited", "Too many requests")
+
+        bearer = _extract_bearer(request)
+        if not bearer:
+            return _error_response(
+                401, "unauthorized", "Bearer token required (from send-code step)"
+            )
+
+        try:
+            body = await request.json()
+        except Exception:
+            return _error_response(400, "invalid_request", "Invalid JSON body")
+
+        code = body.get("code")
+        if not code or not isinstance(code, str):
+            return _error_response(400, "invalid_request", "code is required")
+
+        password = body.get("password")
+
+        try:
+            result = await self.auth_provider.complete_user_auth(
+                bearer, code, password=password
+            )
+        except ValueError as exc:
+            return _error_response(400, "auth_error", str(exc))
+
+        return JSONResponse(
+            {
+                "bearer_token": bearer,
+                "token_type": "Bearer",
+                "mode": "user",
+                **result,
+            }
+        )
+
+    async def health(self, request: Request) -> JSONResponse:
+        """Health check endpoint."""
+        active = len(self.auth_provider.active_clients)
+        return JSONResponse(
+            {
+                "status": "ok",
+                "mode": "multi-user",
+                "active_sessions": active,
+                "timestamp": time.time(),
+            }
+        )
+
+
 def create_app(
     *,
     data_dir: Path,
@@ -128,208 +328,21 @@ def create_app(
         await auth_provider.shutdown()
 
     # --- Auth endpoints ---
-
-    async def register(request: Request) -> JSONResponse:
-        """Dynamic Client Registration endpoint."""
-        ip = _get_client_ip(request)
-        if not _check_rate_limit(f"auth:{ip}", _RATE_LIMIT_AUTH):
-            return _error_response(429, "rate_limited", "Too many requests")
-
-        try:
-            body = await request.json()
-        except Exception:
-            return _error_response(400, "invalid_request", "Invalid JSON body")
-
-        redirect_uris = body.get("redirect_uris", [])
-        if not isinstance(redirect_uris, list):
-            return _error_response(
-                400, "invalid_request", "redirect_uris must be a list"
-            )
-
-        client_name = body.get("client_name")
-        client_id, client_secret = client_store.register(redirect_uris, client_name)
-
-        return JSONResponse(
-            {
-                "client_id": client_id,
-                "client_secret": client_secret,
-                "client_name": client_name,
-                "redirect_uris": redirect_uris,
-                "grant_types": ["authorization_code", "refresh_token"],
-                "response_types": ["code"],
-                "token_endpoint_auth_method": "client_secret_post",
-            },
-            status_code=201,
-        )
-
-    async def auth_bot(request: Request) -> JSONResponse:
-        """Bot token authentication endpoint.
-
-        Accepts bot_token, validates it with Telegram, returns bearer.
-        """
-        ip = _get_client_ip(request)
-        if not _check_rate_limit(f"auth:{ip}", _RATE_LIMIT_AUTH):
-            return _error_response(429, "rate_limited", "Too many requests")
-
-        try:
-            body = await request.json()
-        except Exception:
-            return _error_response(400, "invalid_request", "Invalid JSON body")
-
-        bot_token = body.get("bot_token")
-        if not bot_token or not isinstance(bot_token, str):
-            return _error_response(400, "invalid_request", "bot_token is required")
-
-        try:
-            bearer = await auth_provider.register_bot("", bot_token)
-        except ValueError as exc:
-            return _error_response(401, "invalid_token", str(exc))
-
-        return JSONResponse(
-            {
-                "bearer_token": bearer,
-                "token_type": "Bearer",
-                "mode": "bot",
-            }
-        )
-
-    async def auth_user_send_code(request: Request) -> JSONResponse:
-        """Start user authentication - send OTP code to phone."""
-        ip = _get_client_ip(request)
-        if not _check_rate_limit(f"auth:{ip}", _RATE_LIMIT_AUTH):
-            return _error_response(429, "rate_limited", "Too many requests")
-
-        try:
-            body = await request.json()
-        except Exception:
-            return _error_response(400, "invalid_request", "Invalid JSON body")
-
-        phone = body.get("phone")
-        if not phone or not isinstance(phone, str):
-            return _error_response(
-                400, "invalid_request", "phone is required (international format)"
-            )
-
-        try:
-            result = await auth_provider.start_user_auth("", phone)
-        except ValueError as exc:
-            return _error_response(400, "auth_error", str(exc))
-
-        return JSONResponse(
-            {
-                "bearer_token": result["bearer"],
-                "phone_code_hash": result["phone_code_hash"],
-                "message": "Check Telegram for OTP code",
-            }
-        )
-
-    async def auth_user_verify(request: Request) -> JSONResponse:
-        """Complete user authentication with OTP code."""
-        ip = _get_client_ip(request)
-        if not _check_rate_limit(f"auth:{ip}", _RATE_LIMIT_AUTH):
-            return _error_response(429, "rate_limited", "Too many requests")
-
-        bearer = _extract_bearer(request)
-        if not bearer:
-            return _error_response(
-                401, "unauthorized", "Bearer token required (from send-code step)"
-            )
-
-        try:
-            body = await request.json()
-        except Exception:
-            return _error_response(400, "invalid_request", "Invalid JSON body")
-
-        code = body.get("code")
-        if not code or not isinstance(code, str):
-            return _error_response(400, "invalid_request", "code is required")
-
-        password = body.get("password")
-
-        try:
-            result = await auth_provider.complete_user_auth(
-                bearer, code, password=password
-            )
-        except ValueError as exc:
-            return _error_response(400, "auth_error", str(exc))
-
-        return JSONResponse(
-            {
-                "bearer_token": bearer,
-                "token_type": "Bearer",
-                "mode": "user",
-                **result,
-            }
-        )
+    handlers = MultiUserAuthHandlers(client_store, auth_provider)
 
     # --- MCP endpoint (bearer auth + per-user backend injection) ---
-
     from mcp.server.fastmcp.server import StreamableHTTPASGIApp
 
     mcp_asgi_handler = StreamableHTTPASGIApp(session_manager)
-
-    class BearerAuthMCPApp:
-        """ASGI middleware: authenticate bearer -> inject per-user backend -> forward to MCP."""
-
-        def __init__(self, inner: ASGIApp) -> None:
-            self.inner = inner
-
-        async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-            if scope["type"] != "http":
-                await self.inner(scope, receive, send)
-                return
-
-            # Extract bearer from headers
-            bearer = None
-            for key, value in scope.get("headers", []):
-                if key == b"authorization":
-                    auth_str = value.decode("utf-8", errors="ignore")
-                    if auth_str.startswith("Bearer "):
-                        bearer = auth_str[7:].strip()
-                    break
-
-            if not bearer:
-                resp = _jsonrpc_error(-32000, "Bearer authentication required")
-                await resp(scope, receive, send)
-                return
-
-            backend = auth_provider.resolve_backend(bearer)
-            if backend is None:
-                resp = _jsonrpc_error(
-                    -32000,
-                    "Invalid or expired bearer token. "
-                    "Authenticate via /auth/bot or /auth/user/send-code first.",
-                )
-                await resp(scope, receive, send)
-                return
-
-            token = _current_backend.set(backend)
-            try:
-                await self.inner(scope, receive, send)
-            finally:
-                _current_backend.reset(token)
-
-    mcp_app = BearerAuthMCPApp(mcp_asgi_handler)
-
-    async def health(request: Request) -> JSONResponse:
-        """Health check endpoint."""
-        active = len(auth_provider.active_clients)
-        return JSONResponse(
-            {
-                "status": "ok",
-                "mode": "multi-user",
-                "active_sessions": active,
-                "timestamp": time.time(),
-            }
-        )
+    mcp_app = BearerAuthMCPApp(mcp_asgi_handler, auth_provider)
 
     routes = [
-        Route("/auth/register", register, methods=["POST"]),
-        Route("/auth/bot", auth_bot, methods=["POST"]),
-        Route("/auth/user/send-code", auth_user_send_code, methods=["POST"]),
-        Route("/auth/user/verify", auth_user_verify, methods=["POST"]),
+        Route("/auth/register", handlers.register, methods=["POST"]),
+        Route("/auth/bot", handlers.auth_bot, methods=["POST"]),
+        Route("/auth/user/send-code", handlers.auth_user_send_code, methods=["POST"]),
+        Route("/auth/user/verify", handlers.auth_user_verify, methods=["POST"]),
         Route("/mcp", endpoint=mcp_app),
-        Route("/health", health, methods=["GET"]),
+        Route("/health", handlers.health, methods=["GET"]),
     ]
 
     return Starlette(
