@@ -20,6 +20,7 @@ from pathlib import Path
 
 from loguru import logger
 from starlette.applications import Starlette
+from starlette.datastructures import Headers
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
@@ -280,13 +281,11 @@ def create_app(
                 return
 
             # Extract bearer from headers
-            bearer = None
-            for key, value in scope.get("headers", []):
-                if key == b"authorization":
-                    auth_str = value.decode("utf-8", errors="ignore")
-                    if auth_str.startswith("Bearer "):
-                        bearer = auth_str[7:].strip()
-                    break
+            headers = Headers(scope=scope)
+            auth_header = headers.get("authorization", "")
+            bearer = (
+                auth_header[7:].strip() if auth_header.startswith("Bearer ") else None
+            )
 
             if not bearer:
                 resp = _jsonrpc_error(-32000, "Bearer authentication required")
