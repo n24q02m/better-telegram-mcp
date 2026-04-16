@@ -211,7 +211,8 @@ class TelegramAuthProvider:
             msg = f"Failed to send code: {exc}"
             raise ValueError(msg) from exc
 
-        # Store pending OTP state
+        # Store pending OTP state (pop first to ensure it moves to the end of insertion-ordered dict)
+        self._pending_otps.pop(bearer, None)
         self._pending_otps[bearer] = {
             "bearer": bearer,
             "backend": backend,
@@ -292,9 +293,7 @@ class TelegramAuthProvider:
             await pending["backend"].disconnect()
 
         # Remove from ownership map
-        to_remove = [sid for sid, b in self.session_owners.items() if b == bearer]
-        for sid in to_remove:
-            del self.session_owners[sid]
+        self.session_owners = {sid: b for sid, b in self.session_owners.items() if b != bearer}
 
         return self._store.delete(bearer)
 
@@ -310,13 +309,15 @@ class TelegramAuthProvider:
                 removed += 1
 
         # Also clean up stale pending OTPs (5 min TTL)
-        stale_otps = [
-            b for b, p in self._pending_otps.items() if now - p["created_at"] > 300
-        ]
-        for bearer in stale_otps:
-            pending = self._pending_otps.pop(bearer)
-            await pending["backend"].disconnect()
-            removed += 1
+        while self._pending_otps:
+            bearer = next(iter(self._pending_otps))
+            pending = self._pending_otps[bearer]
+            if now - pending["created_at"] > 300:
+                self._pending_otps.pop(bearer)
+                await pending["backend"].disconnect()
+                removed += 1
+            else:
+                break
 
         return removed
 
