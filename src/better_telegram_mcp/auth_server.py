@@ -269,7 +269,9 @@ class AuthServer:
             )
 
         async def status_endpoint(request: Request) -> JSONResponse:
-            if request.headers.get("X-Auth-Token") != self._token:
+            if not secrets.compare_digest(
+                request.headers.get("X-Auth-Token", ""), self._token
+            ):
                 return JSONResponse({"error": "Forbidden"}, status_code=403)
             try:
                 authorized = await self._backend.is_authorized()
@@ -281,7 +283,9 @@ class AuthServer:
             return JSONResponse(data)
 
         async def send_code(request: Request) -> JSONResponse:
-            if request.headers.get("X-Auth-Token") != self._token:
+            if not secrets.compare_digest(
+                request.headers.get("X-Auth-Token", ""), self._token
+            ):
                 return JSONResponse({"error": "Forbidden"}, status_code=403)
             ip = self._get_client_ip(request)
             if not self._check_rate_limit(f"send_code:{ip}"):
@@ -304,7 +308,9 @@ class AuthServer:
                 return JSONResponse({"ok": False, "error": _sanitize_error(str(e))})
 
         async def verify(request: Request) -> JSONResponse:
-            if request.headers.get("X-Auth-Token") != self._token:
+            if not secrets.compare_digest(
+                request.headers.get("X-Auth-Token", ""), self._token
+            ):
                 return JSONResponse({"error": "Forbidden"}, status_code=403)
             ip = self._get_client_ip(request)
             if not self._check_rate_limit(f"verify:{ip}"):
