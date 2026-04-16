@@ -1426,3 +1426,87 @@ class TestSerializeMessage:
         # getattr with default should return None, then fallback
         result = UserBackend._serialize_dialog(d2)
         assert result["id"] == 1
+
+
+class TestUserBackendLogging:
+    @pytest.fixture
+    def mock_logger(self):
+        with patch("better_telegram_mcp.backends.user_backend.logger") as mock:
+            yield mock
+
+    async def test_connect_logging(
+        self, tmp_path, mock_client, mock_client_class, mock_logger
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        settings = _make_settings(tmp_path)
+        # Force OSError in os.open
+        with patch("os.open", side_effect=OSError("Permission denied")):
+            backend = UserBackend(settings)
+            await backend.connect()
+
+        mock_logger.debug.assert_called()
+        args, _ = mock_logger.debug.call_args
+        assert "Could not pre-create session file" in args[0]
+
+    async def test_disconnect_logging(
+        self, tmp_path, mock_client, mock_client_class, mock_logger
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_client.disconnect = AsyncMock(side_effect=Exception("Disconnect failed"))
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+        await backend.disconnect()
+
+        mock_logger.warning.assert_called()
+        args, _ = mock_logger.warning.call_args
+        assert "Error during disconnect" in args[0]
+
+    async def test_clear_cache_logging(
+        self, tmp_path, mock_client, mock_client_class, mock_logger
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_client.session = MagicMock()
+        mock_client.session.save = MagicMock(side_effect=Exception("Save failed"))
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+        await backend.clear_cache()
+
+        mock_logger.warning.assert_called()
+        args, _ = mock_logger.warning.call_args
+        assert "Error saving session during clear_cache" in args[0]
+
+    async def test_sign_in_chmod_logging(
+        self, tmp_path, mock_client, mock_client_class, mock_logger
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        # Setup for sign_in
+        mock_me = MagicMock()
+        mock_me.first_name = "Test"
+        mock_me.username = "testuser"
+        mock_client.sign_in = AsyncMock()
+        mock_client.get_me = AsyncMock(return_value=mock_me)
+
+        settings = _make_settings(tmp_path)
+        # Create session file
+        session_file = (settings.data_dir / settings.session_name).with_suffix(
+            ".session"
+        )
+        settings.data_dir.mkdir(parents=True, exist_ok=True)
+        session_file.write_text("fake session")
+
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        # Force OSError in os.chmod
+        with patch("os.chmod", side_effect=OSError("Operation not permitted")):
+            await backend.sign_in("+84912345678", "12345")
+
+        mock_logger.debug.assert_called()
+        args, _ = mock_logger.debug.call_args
+        assert "Could not set session file permissions" in args[0]
