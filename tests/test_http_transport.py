@@ -165,3 +165,25 @@ class TestStartHttp:
             # Assert inside the context manager before patch.dict restores env
             assert os.environ.get("TELEGRAM_BOT_TOKEN") == "env-token-123"
             assert os.environ.get("TELEGRAM_API_ID") == "99999"
+
+
+class TestGetCurrentBackend:
+    def test_get_current_backend_none(self) -> None:
+        """Should return None when no backend is set in context."""
+        from better_telegram_mcp.transports.http import get_current_backend
+
+        assert get_current_backend() is None
+
+    def test_get_current_backend_set(self) -> None:
+        """Should return the backend when set in context."""
+        from better_telegram_mcp.transports.http import (
+            _current_backend,
+            get_current_backend,
+        )
+
+        mock_backend = MagicMock()
+        token = _current_backend.set(mock_backend)
+        try:
+            assert get_current_backend() is mock_backend
+        finally:
+            _current_backend.reset(token)
