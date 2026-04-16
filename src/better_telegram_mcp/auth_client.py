@@ -54,7 +54,7 @@ class AuthClient:
         data = resp.json()
         self.url = data["url"]
         self._token = data["token"]
-        logger.info("Auth session created: {}", self.url)
+        logger.info("Auth session created")
         return self.url
 
     async def poll_and_execute(self) -> None:
