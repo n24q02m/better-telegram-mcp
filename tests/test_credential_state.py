@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -834,3 +834,71 @@ async def test_on_step_submitted_unexpected_input_returns_error():
     result = await cs.on_step_submitted({"random_key": "value"})
     assert result is not None
     assert result["type"] == "error"
+
+
+@pytest.mark.asyncio
+async def test_poll_relay_background_send_message_error_logs_debug():
+    """Verify that send_message failure in _poll_relay_background logs a debug message."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _poll_relay_background
+
+    cs._state = CredentialState.SETUP_IN_PROGRESS
+
+    mock_session = MagicMock()
+    mock_session.session_id = "sess-err-log"
+    config = {"TELEGRAM_BOT_TOKEN": "bot:errlogtoken"}
+
+    with (
+        patch.dict(os.environ, {}, clear=False),
+        patch(
+            "mcp_core.relay.client.poll_for_result",
+            new_callable=AsyncMock,
+            return_value=config,
+        ),
+        patch("mcp_core.storage.config_file.write_config"),
+        patch(
+            "better_telegram_mcp.relay_setup._is_user_mode_config",
+            return_value=False,
+        ),
+        patch(
+            "mcp_core.relay.client.send_message",
+            new_callable=AsyncMock,
+            side_effect=Exception("network flake"),
+        ),
+        patch(
+            "mcp_core.release_session_lock",
+            new_callable=AsyncMock,
+        ),
+        patch("better_telegram_mcp.credential_state.logger") as mock_logger,
+    ):
+        os.environ.pop("TELEGRAM_BOT_TOKEN", None)
+        await _poll_relay_background("https://relay", mock_session, None)
+
+    # Check if logger.debug was called with the expected message
+    # The message is "Failed to send relay completion message: network flake"
+    mock_logger.debug.assert_any_call(
+        "Failed to send relay completion message: {}", ANY
+    )
+
+    # Clean up
+    os.environ.pop("TELEGRAM_BOT_TOKEN", None)
+
+
+@pytest.mark.asyncio
+async def test_poll_relay_background_generic_exception_logs_error():
+    """Verify that generic exception in _poll_relay_background logs an error message."""
+    from better_telegram_mcp.credential_state import _poll_relay_background
+
+    mock_session = MagicMock()
+
+    with (
+        patch(
+            "mcp_core.relay.client.poll_for_result",
+            new_callable=AsyncMock,
+            side_effect=ValueError("unexpected format"),
+        ),
+        patch("better_telegram_mcp.credential_state.logger") as mock_logger,
+    ):
+        await _poll_relay_background("https://relay", mock_session, None)
+
+    mock_logger.error.assert_called_once_with("Relay polling failed: {}", ANY)
