@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v4.4.1 (2026-04-17)
+
+### Bug Fixes
+
+- Bump mcp-core pin to 1.1.0 and forward HOST env to run_local_server
+  ([`c9e809f`](https://github.com/n24q02m/better-telegram-mcp/commit/c9e809f4cd711919b41d0b6be7fb67f83a4b36cd))
+
+### Chores
+
+- Ignore AI assistant traces
+  ([`e94643d`](https://github.com/n24q02m/better-telegram-mcp/commit/e94643dba139edcee9e5e64ae4142f850c2a7ef4))
+
+
 ## v4.4.0 (2026-04-13)
 
 ### Bug Fixes
