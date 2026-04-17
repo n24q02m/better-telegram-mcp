@@ -52,6 +52,9 @@ button{width:100%;padding:.75rem;background:#3b82f6;color:#fff;border:none;
   border-radius:8px;font-size:1rem;cursor:pointer;font-weight:500}
 button:hover{background:#2563eb}
 button:disabled{background:#333;color:#666;cursor:not-allowed}
+button[aria-busy="true"]{color:transparent!important;pointer-events:none;position:relative;opacity:1!important}
+button[aria-busy="true"]::after{content:"";position:absolute;left:50%;top:50%;width:1.25rem;height:1.25rem;margin-left:-.625rem;margin-top:-.625rem;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 .st{margin-top:1rem;padding:.75rem;border-radius:8px;font-size:.875rem;display:none}
 .st.error{display:block;background:#2d1111;border:1px solid #dc2626;color:#f87171}
 .st.success{display:block;background:#0d2818;border:1px solid #16a34a;color:#4ade80}
