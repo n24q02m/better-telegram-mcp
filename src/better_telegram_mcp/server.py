@@ -576,4 +576,5 @@ def main() -> None:
     elif os.environ.get("TRANSPORT_MODE") == "stdio":
         mcp.run(transport="stdio")
     else:
-        asyncio.run(run_http())
+        port = int(os.environ.get("PORT", "0"))
+        asyncio.run(run_http(port=port))
