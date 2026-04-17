@@ -247,6 +247,32 @@ def render_telegram_credential_form(
             cursor: not-allowed;
         }}
 
+        .submit-btn[aria-busy="true"] {{
+            color: transparent !important;
+            position: relative;
+            pointer-events: none;
+            opacity: 1 !important;
+            background-color: #4a6fa5 !important;
+        }}
+
+        .submit-btn[aria-busy="true"]::after {{
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 1.25rem;
+            height: 1.25rem;
+            margin: -0.625rem 0 0 -0.625rem;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }}
+
+        @keyframes spin {{
+            to {{ transform: rotate(360deg) }}
+        }}
+
         .status-box {{
             display: none;
             border-radius: 8px;
@@ -489,6 +515,7 @@ def render_telegram_credential_form(
                 errorEl.style.display = "none";
                 errorEl.textContent = "";
                 buttonEl.disabled = true;
+                buttonEl.setAttribute("aria-busy", "true");
                 buttonEl.textContent = "Verifying...";
                 inputEl.disabled = true;
 
@@ -521,6 +548,7 @@ def render_telegram_credential_form(
                                 errorEl.style.display = "block";
                                 inputEl.disabled = false;
                                 buttonEl.disabled = false;
+                                buttonEl.removeAttribute("aria-busy");
                                 buttonEl.textContent = "Verify";
                                 inputEl.focus();
                             }}
@@ -531,6 +559,7 @@ def render_telegram_credential_form(
                         errorEl.style.display = "block";
                         inputEl.disabled = false;
                         buttonEl.disabled = false;
+                        buttonEl.removeAttribute("aria-busy");
                         buttonEl.textContent = "Verify";
                     }});
             }}
