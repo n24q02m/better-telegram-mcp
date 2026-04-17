@@ -24,8 +24,8 @@ classifiers = [
 dependencies = [
     "mcp[cli]>=1.27.0",
     "httpx>=0.28.1",
-    "telethon>=1.43.0",
-    "pydantic>=2.12.5",
+    "telethon>=1.43.1",
+    "pydantic>=2.13.1",
     "pydantic-settings>=2.13.1",
     "loguru>=0.7.3",
     "n24q02m-mcp-core>=1.1.0",
@@ -42,8 +42,8 @@ dev = [
     "pytest-timeout>=2.4.0",
     "pytest-cov>=7.1.0",
     "pytest-xdist>=3.8.0",
-    "ruff>=0.15.10",
-    "ty>=0.0.29",
+    "ruff>=0.15.11",
+    "ty>=0.0.31",
     "pre-commit>=4.5.1",
 ]
 
