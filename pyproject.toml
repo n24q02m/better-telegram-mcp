@@ -1,6 +1,6 @@
 [project]
 name = "better-telegram-mcp"
-version = "4.5.0"
+version = "4.5.1"
 description = "Production-grade MCP server for Telegram — dual-mode Bot API + MTProto, domain-separated tools"
 readme = "README.md"
 license = { text = "MIT" }
@@ -28,7 +28,7 @@ dependencies = [
     "pydantic>=2.13.1",
     "pydantic-settings>=2.13.1",
     "loguru>=0.7.3",
-    "n24q02m-mcp-core>=1.1.0",
+    "n24q02m-mcp-core>=1.1.1",
     "cryptography>=46.0.7",
     "starlette>=1.0.0",
     "uvicorn>=0.44.0",
