@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v4.5.3 (2026-04-17)
+
+### Bug Fixes
+
+- Bump n24q02m-mcp-core to 1.2.0 (authlib CVE patch)
+  ([`ff8cbd4`](https://github.com/n24q02m/better-telegram-mcp/commit/ff8cbd41eea8de1d38eea633c581fecaa4bf1765))
+
+- Upgrade authlib to 1.6.11 (CVE-2024-cross-site-request-forging)
+  ([`591a986`](https://github.com/n24q02m/better-telegram-mcp/commit/591a9862365524dd261a826c91d882f1056d98b7))
+
+
 ## v4.5.2 (2026-04-17)
 
 ### Bug Fixes
