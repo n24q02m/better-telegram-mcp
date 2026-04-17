@@ -2,6 +2,67 @@
 
 <!-- version list -->
 
+## v4.5.0 (2026-04-17)
+
+### Bug Fixes
+
+- Add diacritic preservation pre-commit hook
+  ([#324](https://github.com/n24q02m/better-telegram-mcp/pull/324),
+  [`97351c9`](https://github.com/n24q02m/better-telegram-mcp/commit/97351c97ef3a1737eff97e0f1ec4d51a527802c8))
+
+- Bump authlib to 1.6.11 for CSRF cache bypass (GHSA-jj8c-mmj3-mmgv)
+  ([`874aad3`](https://github.com/n24q02m/better-telegram-mcp/commit/874aad31fff05b23089ac49b44d28c8fc1a1c5b6))
+
+- Document live remote URL for HTTP multi-user setup
+  ([#323](https://github.com/n24q02m/better-telegram-mcp/pull/323),
+  [`15c6c57`](https://github.com/n24q02m/better-telegram-mcp/commit/15c6c57f822eb97c4b234fc947dfc9af898fb362))
+
+- Ignore coverage.xml and htmlcov artifacts
+  ([#323](https://github.com/n24q02m/better-telegram-mcp/pull/323),
+  [`15c6c57`](https://github.com/n24q02m/better-telegram-mcp/commit/15c6c57f822eb97c4b234fc947dfc9af898fb362))
+
+- Ignore coverage.xml and htmlcov artifacts
+  ([`53779fa`](https://github.com/n24q02m/better-telegram-mcp/commit/53779fab745eb62e2d8b9ec4bf3d924578f9ac2c))
+
+- Replace swallowed exceptions with logging in credential_state
+  ([`e40cae7`](https://github.com/n24q02m/better-telegram-mcp/commit/e40cae7104834cd3c9df88bce0ddd03fabd865f2))
+
+- **deps**: Bump actions/create-github-app-token digest to 1b10c78
+  ([#289](https://github.com/n24q02m/better-telegram-mcp/pull/289),
+  [`c79c1d0`](https://github.com/n24q02m/better-telegram-mcp/commit/c79c1d06aadc93dc9c883700ddc0b9347cd0e195))
+
+- **deps**: Bump actions/upload-artifact digest to 043fb46
+  ([#278](https://github.com/n24q02m/better-telegram-mcp/pull/278),
+  [`ddba3fc`](https://github.com/n24q02m/better-telegram-mcp/commit/ddba3fc7982fb8bf67919059527b93663c816ed2))
+
+- **deps**: Bump docker/build-push-action digest to bcafcac
+  ([#290](https://github.com/n24q02m/better-telegram-mcp/pull/290),
+  [`5e6fe0e`](https://github.com/n24q02m/better-telegram-mcp/commit/5e6fe0e33798660ee63bba3f4b96a05eb99c2102))
+
+- **deps**: Bump non-major dependencies
+  ([#291](https://github.com/n24q02m/better-telegram-mcp/pull/291),
+  [`8cdfdc9`](https://github.com/n24q02m/better-telegram-mcp/commit/8cdfdc9a65882508301de13264be69bc9cff13e0))
+
+- **deps**: Lock file maintenance ([#292](https://github.com/n24q02m/better-telegram-mcp/pull/292),
+  [`14684e5`](https://github.com/n24q02m/better-telegram-mcp/commit/14684e52b0570031c888eac89c4b50d1159b1540))
+
+### Features
+
+- Add accessible CSS spinners for async loading states in credential form
+  ([#295](https://github.com/n24q02m/better-telegram-mcp/pull/295),
+  [`84c00b7`](https://github.com/n24q02m/better-telegram-mcp/commit/84c00b74347b9d94a6d3cf20cc9cd690c9c6cbb5))
+
+- Cache trusted_proxy_list using functools.cached_property
+  ([`484cbd7`](https://github.com/n24q02m/better-telegram-mcp/commit/484cbd7bfdcf94251f8dc792d3e168b9f6d7944a))
+
+- Optimize OTP cleanup traversal with chronological early-exit
+  ([#296](https://github.com/n24q02m/better-telegram-mcp/pull/296),
+  [`db23fe3`](https://github.com/n24q02m/better-telegram-mcp/commit/db23fe357027ebebde5c68940637908199eff5dd))
+
+- Use semantic forms for auth UI
+  ([`b819ee1`](https://github.com/n24q02m/better-telegram-mcp/commit/b819ee1e9ef2b5ac75a1156a4455f4713db6173f))
+
+
 ## v4.4.2 (2026-04-17)
 
 ### Bug Fixes
