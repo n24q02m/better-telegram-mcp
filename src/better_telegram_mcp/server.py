@@ -553,11 +553,14 @@ async def run_http(port: int = 0) -> None:
     from .credential_state import on_step_submitted, save_credentials
     from .relay_schema import RELAY_SCHEMA
 
+    host = os.environ.get("HOST")
+
     await run_local_server(
         mcp,
         server_name="better-telegram-mcp",
         relay_schema=RELAY_SCHEMA,
         port=port,
+        host=host,
         on_credentials_saved=save_credentials,
         on_step_submitted=on_step_submitted,
         custom_credential_form_html=render_telegram_credential_form,
