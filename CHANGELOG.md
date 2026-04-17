@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.4.2 (2026-04-17)
+
+### Bug Fixes
+
+- Forward PORT env var to run_http in main()
+  ([`a34c2c4`](https://github.com/n24q02m/better-telegram-mcp/commit/a34c2c46935dfaa159b13aa7c58017ad8abf7116))
+
+
 ## v4.4.1 (2026-04-17)
 
 ### Bug Fixes
