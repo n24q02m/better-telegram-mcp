@@ -91,17 +91,21 @@ def test_reset_state():
 
 
 def test_reset_state_delete_config_error():
-    """reset_state swallows delete_config errors."""
+    """reset_state logs delete_config errors."""
     import better_telegram_mcp.credential_state as cs
 
     cs._state = CredentialState.CONFIGURED
     cs._setup_url = "https://example.com/setup"
 
-    with patch(
-        "mcp_core.storage.config_file.delete_config",
-        side_effect=Exception("disk error"),
+    with (
+        patch(
+            "mcp_core.storage.config_file.delete_config",
+            side_effect=Exception("disk error"),
+        ),
+        patch("better_telegram_mcp.credential_state.logger") as mock_logger,
     ):
         reset_state()
+    mock_logger.warning.assert_called_once()
 
     assert get_state() == CredentialState.AWAITING_SETUP
     assert get_setup_url() is None
