@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.5.1 (2026-04-17)
+
+### Bug Fixes
+
+- Bump version to rebuild with mcp-core 1.1.1
+  ([`0565a92`](https://github.com/n24q02m/better-telegram-mcp/commit/0565a92bac6f3ebccb4b800d097a347a67cd5358))
+
+
 ## v4.5.0 (2026-04-17)
 
 ### Bug Fixes
