@@ -211,7 +211,11 @@ class TelegramAuthProvider:
             msg = f"Failed to send code: {exc}"
             raise ValueError(msg) from exc
 
-        # Store pending OTP state
+        # Store pending OTP state.
+        # Pop any existing entry first so the new entry is appended at the end,
+        # keeping dict insertion order aligned with chronological created_at.
+        # This enables O(1) early-exit cleanup in cleanup_expired().
+        self._pending_otps.pop(bearer, None)
         self._pending_otps[bearer] = {
             "bearer": bearer,
             "backend": backend,
@@ -309,13 +313,21 @@ class TelegramAuthProvider:
                 await self.revoke_session(bearer)
                 removed += 1
 
-        # Also clean up stale pending OTPs (5 min TTL)
-        stale_otps = [
-            b for b, p in self._pending_otps.items() if now - p["created_at"] > 300
-        ]
-        for bearer in stale_otps:
-            pending = self._pending_otps.pop(bearer)
-            await pending["backend"].disconnect()
+        # Clean up stale pending OTPs (5 min TTL) using chronological insertion order.
+        # Since start_user_auth pops-then-reinserts each bearer, the oldest entries
+        # are always at the front, so we can stop at the first non-stale entry instead
+        # of scanning the full dict on every cleanup tick.
+        while self._pending_otps:
+            bearer, pending = next(iter(self._pending_otps.items()))
+            if now - pending["created_at"] <= 300:
+                break
+            self._pending_otps.pop(bearer)
+            try:
+                await pending["backend"].disconnect()
+            except Exception as exc:  # pragma: no cover - best-effort cleanup
+                logger.warning(
+                    "Error disconnecting stale OTP backend {}: {}", bearer[:8], exc
+                )
             removed += 1
 
         return removed
