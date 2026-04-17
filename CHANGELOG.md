@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.5.2 (2026-04-17)
+
+### Bug Fixes
+
+- Update lockfile to include mcp-core 1.1.1
+  ([`23e1dfc`](https://github.com/n24q02m/better-telegram-mcp/commit/23e1dfc090c1e307f2d4867bad5166365c13961f))
+
+
 ## v4.5.1 (2026-04-17)
 
 ### Bug Fixes
