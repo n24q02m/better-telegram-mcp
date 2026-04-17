@@ -185,7 +185,7 @@ async def trigger_relay_setup(
 
         try_open_browser(session.relay_url)
 
-        logger.info("Relay session created: {}", session.relay_url)
+        logger.info("Relay session created")
 
         # Start background poll task (non-blocking)
         import asyncio
