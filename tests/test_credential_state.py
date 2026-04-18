@@ -868,3 +868,728 @@ async def test_on_step_submitted_unexpected_input_returns_error():
     result = await cs.on_step_submitted({"random_key": "value"})
     assert result is not None
     assert result["type"] == "error"
+
+
+# ---------------------------------------------------------------------------
+# set_on_configured
+# ---------------------------------------------------------------------------
+
+
+def test_set_on_configured_registers_callback():
+    """set_on_configured stores callback in module-level variable."""
+    import better_telegram_mcp.credential_state as cs
+
+    async def my_callback():
+        pass
+
+    cs.set_on_configured(my_callback)
+    assert cs._on_configured_callback is my_callback
+    # Cleanup
+    cs._on_configured_callback = None
+
+
+# ---------------------------------------------------------------------------
+# _poll_relay_background -- bot mode with on_configured_callback
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_poll_relay_background_bot_mode_callback_invoked():
+    """Bot mode: on_configured_callback is called after credentials saved."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _poll_relay_background
+
+    cs._state = CredentialState.SETUP_IN_PROGRESS
+    callback = AsyncMock()
+    cs._on_configured_callback = callback
+
+    mock_session = MagicMock()
+    mock_session.session_id = "sess-cb"
+    config = {"TELEGRAM_BOT_TOKEN": "bot:cb-token"}
+
+    with (
+        patch.dict(os.environ, {}, clear=False),
+        patch(
+            "mcp_core.relay.client.poll_for_result",
+            new_callable=AsyncMock,
+            return_value=config,
+        ),
+        patch("mcp_core.storage.config_file.write_config"),
+        patch(
+            "better_telegram_mcp.relay_setup._is_user_mode_config",
+            return_value=False,
+        ),
+        patch(
+            "mcp_core.relay.client.send_message",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "mcp_core.release_session_lock",
+            new_callable=AsyncMock,
+        ),
+    ):
+        os.environ.pop("TELEGRAM_BOT_TOKEN", None)
+        await _poll_relay_background("https://relay", mock_session, None)
+
+    callback.assert_awaited_once()
+    assert cs._state == CredentialState.CONFIGURED
+
+    # Cleanup
+    cs._on_configured_callback = None
+    os.environ.pop("TELEGRAM_BOT_TOKEN", None)
+
+
+@pytest.mark.asyncio
+async def test_poll_relay_background_bot_mode_callback_raises():
+    """Bot mode: on_configured_callback exception is swallowed, state still CONFIGURED."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _poll_relay_background
+
+    cs._state = CredentialState.SETUP_IN_PROGRESS
+    cs._on_configured_callback = AsyncMock(side_effect=RuntimeError("reinit failed"))
+
+    mock_session = MagicMock()
+    mock_session.session_id = "sess-cb-err"
+    config = {"TELEGRAM_BOT_TOKEN": "bot:cb-err-token"}
+
+    with (
+        patch.dict(os.environ, {}, clear=False),
+        patch(
+            "mcp_core.relay.client.poll_for_result",
+            new_callable=AsyncMock,
+            return_value=config,
+        ),
+        patch("mcp_core.storage.config_file.write_config"),
+        patch(
+            "better_telegram_mcp.relay_setup._is_user_mode_config",
+            return_value=False,
+        ),
+        patch(
+            "mcp_core.relay.client.send_message",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "mcp_core.release_session_lock",
+            new_callable=AsyncMock,
+        ),
+    ):
+        os.environ.pop("TELEGRAM_BOT_TOKEN", None)
+        await _poll_relay_background("https://relay", mock_session, None)
+
+    assert cs._state == CredentialState.CONFIGURED
+
+    # Cleanup
+    cs._on_configured_callback = None
+    os.environ.pop("TELEGRAM_BOT_TOKEN", None)
+
+
+# ---------------------------------------------------------------------------
+# _run_user_mode_relay_flow -- all branches
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_run_user_mode_relay_flow_save_credentials_returns_none():
+    """save_credentials returns None -> send complete + return immediately."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _run_user_mode_relay_flow
+
+    cs._state = CredentialState.SETUP_IN_PROGRESS
+    mock_session = MagicMock()
+    mock_session.session_id = "sess-none"
+    mock_send = AsyncMock(return_value="msg-1")
+    mock_poll_resp = AsyncMock()
+
+    with patch(
+        "better_telegram_mcp.credential_state.save_credentials",
+        new_callable=AsyncMock,
+        return_value=None,
+    ):
+        await _run_user_mode_relay_flow(
+            "https://relay",
+            mock_session,
+            {"TELEGRAM_PHONE": "+1"},
+            mock_send,
+            mock_poll_resp,
+        )
+
+    mock_send.assert_awaited_once()
+    sent_msg = mock_send.await_args_list[0][0][2]
+    assert sent_msg["type"] == "complete"
+    mock_poll_resp.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_run_user_mode_relay_flow_save_credentials_error():
+    """save_credentials returns error -> send error to relay + AWAITING_SETUP."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _run_user_mode_relay_flow
+
+    cs._state = CredentialState.SETUP_IN_PROGRESS
+    mock_session = MagicMock()
+    mock_session.session_id = "sess-err"
+    mock_send = AsyncMock(return_value="msg-1")
+    mock_poll_resp = AsyncMock()
+
+    with patch(
+        "better_telegram_mcp.credential_state.save_credentials",
+        new_callable=AsyncMock,
+        return_value={"type": "error", "text": "phone invalid"},
+    ):
+        await _run_user_mode_relay_flow(
+            "https://relay",
+            mock_session,
+            {"TELEGRAM_PHONE": "+1"},
+            mock_send,
+            mock_poll_resp,
+        )
+
+    assert cs._state == CredentialState.AWAITING_SETUP
+    mock_send.assert_awaited_once()
+    sent_msg = mock_send.await_args_list[0][0][2]
+    assert sent_msg["type"] == "error"
+    mock_poll_resp.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_run_user_mode_relay_flow_otp_timeout():
+    """_ask_browser_for_input returns None (OTP timeout) -> AWAITING_SETUP."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _run_user_mode_relay_flow
+
+    cs._state = CredentialState.SETUP_IN_PROGRESS
+    mock_session = MagicMock()
+    mock_session.session_id = "sess-otp-timeout"
+    # send_message raises -> _ask_browser_for_input returns None
+    mock_send = AsyncMock(side_effect=Exception("send failed"))
+    mock_poll_resp = AsyncMock()
+
+    with patch(
+        "better_telegram_mcp.credential_state.save_credentials",
+        new_callable=AsyncMock,
+        return_value={
+            "type": "otp_required",
+            "text": "Enter OTP",
+            "field": "otp_code",
+            "input_type": "text",
+        },
+    ):
+        await _run_user_mode_relay_flow(
+            "https://relay",
+            mock_session,
+            {"TELEGRAM_PHONE": "+1"},
+            mock_send,
+            mock_poll_resp,
+        )
+
+    assert cs._state == CredentialState.AWAITING_SETUP
+    mock_poll_resp.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_run_user_mode_relay_flow_otp_success_no_2fa():
+    """OTP submitted successfully, on_step_submitted returns None -> complete."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _run_user_mode_relay_flow
+
+    cs._state = CredentialState.SETUP_IN_PROGRESS
+    mock_session = MagicMock()
+    mock_session.session_id = "sess-otp-ok"
+    mock_send = AsyncMock(return_value="msg-1")
+    mock_poll_resp = AsyncMock(return_value="12345")
+
+    with (
+        patch(
+            "better_telegram_mcp.credential_state.save_credentials",
+            new_callable=AsyncMock,
+            return_value={
+                "type": "otp_required",
+                "text": "Enter OTP",
+                "field": "otp_code",
+                "input_type": "text",
+            },
+        ),
+        patch(
+            "better_telegram_mcp.credential_state.on_step_submitted",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+    ):
+        await _run_user_mode_relay_flow(
+            "https://relay",
+            mock_session,
+            {"TELEGRAM_PHONE": "+1"},
+            mock_send,
+            mock_poll_resp,
+        )
+
+    # 2 calls: input_required + complete
+    assert mock_send.await_count == 2
+    last_msg = mock_send.await_args_list[-1][0][2]
+    assert last_msg["type"] == "complete"
+
+
+@pytest.mark.asyncio
+async def test_run_user_mode_relay_flow_otp_verification_error():
+    """on_step_submitted returns error -> send error + AWAITING_SETUP."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _run_user_mode_relay_flow
+
+    cs._state = CredentialState.SETUP_IN_PROGRESS
+    mock_session = MagicMock()
+    mock_session.session_id = "sess-otp-err"
+    mock_send = AsyncMock(return_value="msg-1")
+    mock_poll_resp = AsyncMock(return_value="99999")
+
+    with (
+        patch(
+            "better_telegram_mcp.credential_state.save_credentials",
+            new_callable=AsyncMock,
+            return_value={
+                "type": "otp_required",
+                "text": "Enter OTP",
+                "field": "otp_code",
+                "input_type": "text",
+            },
+        ),
+        patch(
+            "better_telegram_mcp.credential_state.on_step_submitted",
+            new_callable=AsyncMock,
+            return_value={"type": "error", "text": "wrong code"},
+        ),
+    ):
+        await _run_user_mode_relay_flow(
+            "https://relay",
+            mock_session,
+            {"TELEGRAM_PHONE": "+1"},
+            mock_send,
+            mock_poll_resp,
+        )
+
+    assert cs._state == CredentialState.AWAITING_SETUP
+    last_msg = mock_send.await_args_list[-1][0][2]
+    assert last_msg["type"] == "error"
+
+
+@pytest.mark.asyncio
+async def test_run_user_mode_relay_flow_otp_unexpected_type():
+    """on_step_submitted returns unexpected type (not complete/error/password_required) -> error + AWAITING_SETUP."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _run_user_mode_relay_flow
+
+    cs._state = CredentialState.SETUP_IN_PROGRESS
+    mock_session = MagicMock()
+    mock_session.session_id = "sess-unexpected"
+    mock_send = AsyncMock(return_value="msg-1")
+    mock_poll_resp = AsyncMock(return_value="12345")
+
+    with (
+        patch(
+            "better_telegram_mcp.credential_state.save_credentials",
+            new_callable=AsyncMock,
+            return_value={
+                "type": "otp_required",
+                "text": "Enter OTP",
+                "field": "otp_code",
+                "input_type": "text",
+            },
+        ),
+        patch(
+            "better_telegram_mcp.credential_state.on_step_submitted",
+            new_callable=AsyncMock,
+            return_value={"type": "redirect", "url": "https://example.com"},
+        ),
+    ):
+        await _run_user_mode_relay_flow(
+            "https://relay",
+            mock_session,
+            {"TELEGRAM_PHONE": "+1"},
+            mock_send,
+            mock_poll_resp,
+        )
+
+    assert cs._state == CredentialState.AWAITING_SETUP
+    last_msg = mock_send.await_args_list[-1][0][2]
+    assert last_msg["type"] == "error"
+
+
+@pytest.mark.asyncio
+async def test_run_user_mode_relay_flow_2fa_happy_path():
+    """OTP succeeds with password_required -> ask password -> complete."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _run_user_mode_relay_flow
+
+    cs._state = CredentialState.SETUP_IN_PROGRESS
+    mock_session = MagicMock()
+    mock_session.session_id = "sess-2fa"
+    # First send_message (input_required for OTP) returns msg id;
+    # second (input_required for password) also returns msg id.
+    mock_send = AsyncMock(return_value="msg-1")
+    # First poll_for_responses returns OTP, second returns password.
+    mock_poll_resp = AsyncMock(side_effect=["12345", "my-2fa-pass"])
+
+    with (
+        patch(
+            "better_telegram_mcp.credential_state.save_credentials",
+            new_callable=AsyncMock,
+            return_value={
+                "type": "otp_required",
+                "text": "Enter OTP",
+                "field": "otp_code",
+                "input_type": "text",
+            },
+        ),
+        patch(
+            "better_telegram_mcp.credential_state.on_step_submitted",
+            new_callable=AsyncMock,
+            side_effect=[
+                {
+                    "type": "password_required",
+                    "text": "Enter 2FA password",
+                    "field": "password",
+                    "input_type": "password",
+                },
+                None,
+            ],
+        ),
+    ):
+        await _run_user_mode_relay_flow(
+            "https://relay",
+            mock_session,
+            {"TELEGRAM_PHONE": "+1"},
+            mock_send,
+            mock_poll_resp,
+        )
+
+    last_msg = mock_send.await_args_list[-1][0][2]
+    assert last_msg["type"] == "complete"
+
+
+@pytest.mark.asyncio
+async def test_run_user_mode_relay_flow_2fa_password_timeout():
+    """2FA password input times out -> AWAITING_SETUP."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _run_user_mode_relay_flow
+
+    cs._state = CredentialState.SETUP_IN_PROGRESS
+    mock_session = MagicMock()
+    mock_session.session_id = "sess-2fa-timeout"
+    call_count = 0
+
+    async def send_side_effect(relay_base, session_id, msg):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            # First send (input_required for OTP) succeeds, returns msg id
+            return "msg-otp"
+        # Second send (input_required for 2FA password) raises -> _ask_browser_for_input returns None
+        raise Exception("network error")
+
+    mock_send = AsyncMock(side_effect=send_side_effect)
+    mock_poll_resp = AsyncMock(return_value="12345")
+
+    with (
+        patch(
+            "better_telegram_mcp.credential_state.save_credentials",
+            new_callable=AsyncMock,
+            return_value={
+                "type": "otp_required",
+                "text": "Enter OTP",
+                "field": "otp_code",
+                "input_type": "text",
+            },
+        ),
+        patch(
+            "better_telegram_mcp.credential_state.on_step_submitted",
+            new_callable=AsyncMock,
+            return_value={
+                "type": "password_required",
+                "text": "Enter 2FA password",
+                "field": "password",
+                "input_type": "password",
+            },
+        ),
+    ):
+        await _run_user_mode_relay_flow(
+            "https://relay",
+            mock_session,
+            {"TELEGRAM_PHONE": "+1"},
+            mock_send,
+            mock_poll_resp,
+        )
+
+    assert cs._state == CredentialState.AWAITING_SETUP
+
+
+@pytest.mark.asyncio
+async def test_run_user_mode_relay_flow_2fa_failure():
+    """2FA password submit fails -> error + AWAITING_SETUP."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _run_user_mode_relay_flow
+
+    cs._state = CredentialState.SETUP_IN_PROGRESS
+    mock_session = MagicMock()
+    mock_session.session_id = "sess-2fa-fail"
+    mock_send = AsyncMock(return_value="msg-1")
+    mock_poll_resp = AsyncMock(side_effect=["12345", "bad-pass"])
+
+    with (
+        patch(
+            "better_telegram_mcp.credential_state.save_credentials",
+            new_callable=AsyncMock,
+            return_value={
+                "type": "otp_required",
+                "text": "Enter OTP",
+                "field": "otp_code",
+                "input_type": "text",
+            },
+        ),
+        patch(
+            "better_telegram_mcp.credential_state.on_step_submitted",
+            new_callable=AsyncMock,
+            side_effect=[
+                {
+                    "type": "password_required",
+                    "text": "Enter 2FA password",
+                    "field": "password",
+                    "input_type": "password",
+                },
+                {"type": "error", "text": "2FA wrong"},
+            ],
+        ),
+    ):
+        await _run_user_mode_relay_flow(
+            "https://relay",
+            mock_session,
+            {"TELEGRAM_PHONE": "+1"},
+            mock_send,
+            mock_poll_resp,
+        )
+
+    assert cs._state == CredentialState.AWAITING_SETUP
+    last_msg = mock_send.await_args_list[-1][0][2]
+    assert last_msg["type"] == "error"
+
+
+# ---------------------------------------------------------------------------
+# _ask_browser_for_input -- error paths
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_ask_browser_for_input_send_failure_returns_none():
+    """send_message raises -> return None immediately, poll never called."""
+    from better_telegram_mcp.credential_state import _ask_browser_for_input
+
+    mock_send = AsyncMock(side_effect=Exception("network error"))
+    mock_poll_resp = AsyncMock()
+
+    result = await _ask_browser_for_input(
+        "https://relay",
+        "sess-1",
+        text="Enter value",
+        input_type="text",
+        placeholder="x",
+        send_message_fn=mock_send,
+        poll_for_responses_fn=mock_poll_resp,
+    )
+
+    assert result is None
+    mock_poll_resp.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_ask_browser_for_input_poll_failure_returns_none():
+    """poll_for_responses raises -> return None."""
+    from better_telegram_mcp.credential_state import _ask_browser_for_input
+
+    mock_send = AsyncMock(return_value="msg-1")
+    mock_poll_resp = AsyncMock(side_effect=TimeoutError("timed out"))
+
+    result = await _ask_browser_for_input(
+        "https://relay",
+        "sess-1",
+        text="Enter value",
+        input_type="text",
+        placeholder="x",
+        send_message_fn=mock_send,
+        poll_for_responses_fn=mock_poll_resp,
+    )
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_ask_browser_for_input_success():
+    """Happy path: send succeeds, poll returns value."""
+    from better_telegram_mcp.credential_state import _ask_browser_for_input
+
+    mock_send = AsyncMock(return_value="msg-abc")
+    mock_poll_resp = AsyncMock(return_value="user-input-value")
+
+    result = await _ask_browser_for_input(
+        "https://relay",
+        "sess-2",
+        text="Enter OTP",
+        input_type="text",
+        placeholder="OTP code",
+        send_message_fn=mock_send,
+        poll_for_responses_fn=mock_poll_resp,
+    )
+
+    assert result == "user-input-value"
+    mock_send.assert_awaited_once()
+    sent_payload = mock_send.await_args_list[0][0][2]
+    assert sent_payload["type"] == "input_required"
+    assert sent_payload["data"]["input_type"] == "text"
+    assert sent_payload["data"]["placeholder"] == "OTP code"
+    mock_poll_resp.assert_awaited_once()
+
+
+# ---------------------------------------------------------------------------
+# save_credentials -- bot mode with on_configured_callback
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_save_credentials_bot_mode_callback_invoked():
+    """Bot mode: on_configured_callback is called after credentials saved."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import save_credentials
+
+    callback = AsyncMock()
+    cs._on_configured_callback = callback
+
+    with patch("mcp_core.storage.config_file.write_config"):
+        os.environ.pop("TELEGRAM_BOT_TOKEN", None)
+        result = await save_credentials({"TELEGRAM_BOT_TOKEN": "cb:token"})
+
+    assert result is None
+    callback.assert_awaited_once()
+
+    # Cleanup
+    cs._on_configured_callback = None
+    os.environ.pop("TELEGRAM_BOT_TOKEN", None)
+
+
+@pytest.mark.asyncio
+async def test_save_credentials_bot_mode_callback_raises():
+    """Bot mode: on_configured_callback exception is swallowed, still returns None."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import save_credentials
+
+    cs._on_configured_callback = AsyncMock(side_effect=RuntimeError("reinit error"))
+
+    with patch("mcp_core.storage.config_file.write_config"):
+        os.environ.pop("TELEGRAM_BOT_TOKEN", None)
+        result = await save_credentials({"TELEGRAM_BOT_TOKEN": "cb-fail:token"})
+
+    assert result is None
+
+    # Cleanup
+    cs._on_configured_callback = None
+    os.environ.pop("TELEGRAM_BOT_TOKEN", None)
+
+
+# ---------------------------------------------------------------------------
+# on_step_submitted -- disconnect raises (best-effort paths)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_on_step_submitted_otp_invalid_disconnect_raises():
+    """Non-2FA OTP error + disconnect raises -> still cleans up + returns error."""
+    import better_telegram_mcp.credential_state as cs
+
+    mock_backend = MagicMock()
+    mock_backend.sign_in = AsyncMock(side_effect=Exception("phone code invalid"))
+    mock_backend.disconnect = AsyncMock(side_effect=Exception("disconnect failed"))
+    cs._step_backend = mock_backend
+    cs._step_phone = "+1234567890"
+
+    result = await cs.on_step_submitted({"otp_code": "00000"})
+
+    assert result is not None
+    assert result["type"] == "error"
+    assert cs._step_backend is None
+
+
+@pytest.mark.asyncio
+async def test_on_step_submitted_password_failure_disconnect_raises():
+    """2FA password failure + disconnect raises -> still cleans up + returns error."""
+    import better_telegram_mcp.credential_state as cs
+
+    mock_backend = MagicMock()
+    mock_backend.sign_in = AsyncMock(side_effect=Exception("wrong password"))
+    mock_backend.disconnect = AsyncMock(side_effect=Exception("disconnect failed"))
+    cs._step_backend = mock_backend
+    cs._step_phone = "+1234567890"
+    cs._step_otp_code = "12345"
+
+    result = await cs.on_step_submitted({"password": "wrong"})
+
+    assert result is not None
+    assert result["type"] == "error"
+    assert cs._step_backend is None
+
+
+# ---------------------------------------------------------------------------
+# _finalize_auth -- disconnect raises + callback raises
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_finalize_auth_disconnect_raises():
+    """_finalize_auth: disconnect failure is swallowed, state still CONFIGURED."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _finalize_auth
+
+    mock_backend = MagicMock()
+    mock_backend.disconnect = AsyncMock(side_effect=Exception("disconnect error"))
+    cs._step_backend = mock_backend
+    cs._step_phone = "+1234567890"
+    cs._step_otp_code = "12345"
+    cs._on_configured_callback = None
+
+    await _finalize_auth()
+
+    assert cs._state == CredentialState.CONFIGURED
+    assert cs._step_backend is None
+    assert cs._step_phone == ""
+    assert cs._step_otp_code is None
+
+
+@pytest.mark.asyncio
+async def test_finalize_auth_callback_raises():
+    """_finalize_auth: on_configured_callback exception is swallowed."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _finalize_auth
+
+    cs._step_backend = None
+    cs._on_configured_callback = AsyncMock(side_effect=RuntimeError("reinit error"))
+
+    await _finalize_auth()
+
+    assert cs._state == CredentialState.CONFIGURED
+
+    # Cleanup
+    cs._on_configured_callback = None
+
+
+@pytest.mark.asyncio
+async def test_finalize_auth_callback_invoked():
+    """_finalize_auth: on_configured_callback is called on success."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import _finalize_auth
+
+    callback = AsyncMock()
+    cs._step_backend = None
+    cs._on_configured_callback = callback
+
+    await _finalize_auth()
+
+    callback.assert_awaited_once()
+    assert cs._state == CredentialState.CONFIGURED
+
+    # Cleanup
+    cs._on_configured_callback = None

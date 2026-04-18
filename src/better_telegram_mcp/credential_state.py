@@ -590,8 +590,8 @@ async def on_step_submitted(step_data: dict[str, str]) -> dict | None:
             # Terminal failure (non-2FA) -- clean up so next attempt starts fresh.
             try:
                 await _step_backend.disconnect()
-            except Exception as e:
-                logger.debug("Best-effort disconnect failed: {}", e)
+            except Exception as disconnect_err:
+                logger.debug("Best-effort disconnect failed: {}", disconnect_err)
             _step_backend = None
             _step_phone = ""
             _step_otp_code = None
@@ -614,17 +614,18 @@ async def on_step_submitted(step_data: dict[str, str]) -> dict | None:
             await _finalize_auth()
             return None
         except Exception as e:
+            error_msg = str(e)
             # Terminal failure -- clean up so next attempt starts fresh.
             try:
                 await _step_backend.disconnect()
-            except Exception as e:
-                logger.debug("Best-effort disconnect failed: {}", e)
+            except Exception as disconnect_err:
+                logger.debug("Best-effort disconnect failed: {}", disconnect_err)
             _step_backend = None
             _step_phone = ""
             _step_otp_code = None
             return {
                 "type": "error",
-                "text": f"2FA failed: {_sanitize_error(str(e))}",
+                "text": f"2FA failed: {_sanitize_error(error_msg)}",
             }
 
     return {"type": "error", "text": "Unexpected input."}
