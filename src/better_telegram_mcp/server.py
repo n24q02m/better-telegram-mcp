@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -17,6 +18,10 @@ from .tools.help_tool import handle_help
 from .tools.media import MediaOptions, handle_media
 from .tools.messages import MessagesArgs, handle_messages
 from .utils.formatting import err, ok
+
+# Silence httpx INFO-level request logs so the bot token in the request URL
+# (https://api.telegram.org/bot<TOKEN>/...) cannot leak into stderr.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 _backend: TelegramBackend | None = None
 _settings: Settings | None = None

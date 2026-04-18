@@ -203,15 +203,28 @@ async def trigger_relay_setup(
 async def _poll_relay_background(
     relay_base: str, session: object, timeout: float | None
 ) -> None:
-    """Background task that polls relay and applies config when user submits.
+    """Background task that polls relay, saves config, and orchestrates
+    multi-step user-mode OTP/2FA via relay bidirectional messaging.
 
-    User-mode OTP/2FA now runs through the local OAuth form + ``/otp`` endpoint
-    (``save_credentials`` + ``on_step_submitted``), so this background task only
-    persists credentials and notifies the relay session of completion.
+    Flow:
+    - Poll relay for initial credential submission (bot token or user phone).
+    - Bot mode: save, mark configured, send ``complete`` to browser.
+    - User mode: save phone, trigger Telethon send_code, then push
+      ``input_required`` message to browser for OTP. Poll response, forward
+      to ``on_step_submitted``. If 2FA required, push another ``input_required``
+      for password. Finalize and send ``complete``.
+
+    This reuses mcp-core primitives ``send_message`` + ``poll_for_responses``
+    together with the shared browser UI ``startMessagePolling`` (which already
+    renders ``input_required`` dynamic inputs).
     """
     global _state
     try:
-        from mcp_core.relay.client import poll_for_result
+        from mcp_core.relay.client import (
+            poll_for_responses,
+            poll_for_result,
+            send_message,
+        )
         from mcp_core.storage.config_file import write_config
 
         poll_timeout = timeout if timeout is not None else 300.0
@@ -225,33 +238,35 @@ async def _poll_relay_background(
             if value and key not in os.environ:
                 os.environ[key] = value
 
-        # Notify relay completion (bot + user mode). For user mode the actual
-        # Telethon OTP/2FA exchange now happens via the OAuth form's /otp
-        # endpoint (see ``save_credentials`` + ``on_step_submitted``); no more
-        # relay-driven OTP prompts here.
-        try:
-            from mcp_core.relay.client import send_message
+        is_user_mode = bool(config.get("TELEGRAM_PHONE")) and not config.get(
+            "TELEGRAM_BOT_TOKEN"
+        )
 
-            await send_message(
-                relay_base,
-                session.session_id,
-                {
-                    "type": "complete",
-                    "text": "Telegram config saved. Setup complete!",
-                },
+        if is_user_mode:
+            await _run_user_mode_relay_flow(
+                relay_base, session, config, send_message, poll_for_responses
             )
-        except Exception as e:
-            logger.debug("Failed to notify relay of completion: {}", e)
-
-        _state = CredentialState.CONFIGURED
-        logger.info("Relay config applied successfully")
-
-        # Hot-reload: reinitialize backend so tools work without restart
-        if _on_configured_callback:
+        else:
+            # Bot mode: configure immediately and notify browser
+            _state = CredentialState.CONFIGURED
+            if _on_configured_callback:
+                try:
+                    await _on_configured_callback()
+                except Exception as e:
+                    logger.warning("Backend reinit after relay failed: {}", e)
             try:
-                await _on_configured_callback()
+                await send_message(
+                    relay_base,
+                    session.session_id,
+                    {
+                        "type": "complete",
+                        "text": "Telegram config saved. Setup complete!",
+                    },
+                )
             except Exception as e:
-                logger.warning("Backend reinit after relay failed: {}", e)
+                logger.debug("Failed to notify relay of completion: {}", e)
+
+        logger.info("Relay config applied successfully")
 
         # Release session lock
         from mcp_core import release_session_lock
@@ -268,6 +283,151 @@ async def _poll_relay_background(
     except Exception as e:
         logger.warning("Relay polling failed: {}", e)
         _state = CredentialState.AWAITING_SETUP
+
+
+async def _run_user_mode_relay_flow(
+    relay_base: str,
+    session: object,
+    config: dict[str, str],
+    send_message_fn,
+    poll_for_responses_fn,
+) -> None:
+    """Drive the OTP + optional 2FA exchange over the relay channel.
+
+    Uses the same helpers as the local OAuth form (``save_credentials`` +
+    ``on_step_submitted``) so Telethon state lives in one place regardless
+    of which front-end the user chose.
+    """
+    global _state
+
+    # Step 1: trigger Telethon connect + send_code
+    prompt = await save_credentials(config)
+    if prompt is None:
+        # save_credentials already marked configured (shouldn't happen for user mode)
+        await send_message_fn(
+            relay_base,
+            session.session_id,
+            {"type": "complete", "text": "Telegram user mode setup complete!"},
+        )
+        return
+    if prompt.get("type") == "error":
+        await send_message_fn(
+            relay_base,
+            session.session_id,
+            {"type": "error", "text": prompt.get("text", "Failed to send OTP")},
+        )
+        _state = CredentialState.AWAITING_SETUP
+        return
+
+    # Step 2: ask browser for OTP code via input_required
+    otp_code = await _ask_browser_for_input(
+        relay_base,
+        session.session_id,
+        text=prompt.get("text", "Enter the OTP code sent to your Telegram app"),
+        input_type=prompt.get("input_type", "text"),
+        placeholder="OTP code",
+        send_message_fn=send_message_fn,
+        poll_for_responses_fn=poll_for_responses_fn,
+    )
+    if otp_code is None:
+        _state = CredentialState.AWAITING_SETUP
+        return
+
+    # Step 3: submit OTP to Telethon via on_step_submitted
+    result = await on_step_submitted({"otp_code": otp_code})
+    if result is None:
+        # Success, no 2FA required
+        await send_message_fn(
+            relay_base,
+            session.session_id,
+            {"type": "complete", "text": "Telegram user mode setup complete!"},
+        )
+        return
+    if result.get("type") == "error":
+        await send_message_fn(
+            relay_base,
+            session.session_id,
+            {"type": "error", "text": result.get("text", "OTP verification failed")},
+        )
+        _state = CredentialState.AWAITING_SETUP
+        return
+
+    if result.get("type") != "password_required":
+        await send_message_fn(
+            relay_base,
+            session.session_id,
+            {"type": "error", "text": "Unexpected auth response from server."},
+        )
+        _state = CredentialState.AWAITING_SETUP
+        return
+
+    # Step 4: ask browser for 2FA password
+    password = await _ask_browser_for_input(
+        relay_base,
+        session.session_id,
+        text=result.get("text", "Enter your Telegram 2FA password"),
+        input_type=result.get("input_type", "password"),
+        placeholder="2FA password",
+        send_message_fn=send_message_fn,
+        poll_for_responses_fn=poll_for_responses_fn,
+    )
+    if password is None:
+        _state = CredentialState.AWAITING_SETUP
+        return
+
+    # Step 5: submit password
+    final = await on_step_submitted({"password": password})
+    if final is None:
+        await send_message_fn(
+            relay_base,
+            session.session_id,
+            {"type": "complete", "text": "Telegram user mode setup complete!"},
+        )
+    else:
+        await send_message_fn(
+            relay_base,
+            session.session_id,
+            {
+                "type": "error",
+                "text": final.get("text", "2FA verification failed"),
+            },
+        )
+        _state = CredentialState.AWAITING_SETUP
+
+
+async def _ask_browser_for_input(
+    relay_base: str,
+    session_id: str,
+    *,
+    text: str,
+    input_type: str,
+    placeholder: str,
+    send_message_fn,
+    poll_for_responses_fn,
+    timeout_s: float = 300.0,
+) -> str | None:
+    """Push an ``input_required`` message and wait for the browser response."""
+    try:
+        message_id = await send_message_fn(
+            relay_base,
+            session_id,
+            {
+                "type": "input_required",
+                "text": text,
+                "data": {"input_type": input_type, "placeholder": placeholder},
+            },
+        )
+    except Exception as e:
+        logger.warning("Failed to request browser input: {}", e)
+        return None
+
+    try:
+        return await poll_for_responses_fn(
+            relay_base, session_id, message_id, timeout_s=timeout_s
+        )
+    except Exception as e:
+        logger.warning("Timed out waiting for browser input: {}", e)
+        return None
 
 
 async def save_credentials(config: dict[str, str]) -> dict | None:
@@ -430,8 +590,8 @@ async def on_step_submitted(step_data: dict[str, str]) -> dict | None:
             # Terminal failure (non-2FA) -- clean up so next attempt starts fresh.
             try:
                 await _step_backend.disconnect()
-            except Exception as e:
-                logger.debug("Best-effort disconnect failed: {}", e)
+            except Exception as disconnect_err:
+                logger.debug("Best-effort disconnect failed: {}", disconnect_err)
             _step_backend = None
             _step_phone = ""
             _step_otp_code = None
@@ -454,17 +614,18 @@ async def on_step_submitted(step_data: dict[str, str]) -> dict | None:
             await _finalize_auth()
             return None
         except Exception as e:
+            error_msg = str(e)
             # Terminal failure -- clean up so next attempt starts fresh.
             try:
                 await _step_backend.disconnect()
-            except Exception as e:
-                logger.debug("Best-effort disconnect failed: {}", e)
+            except Exception as disconnect_err:
+                logger.debug("Best-effort disconnect failed: {}", disconnect_err)
             _step_backend = None
             _step_phone = ""
             _step_otp_code = None
             return {
                 "type": "error",
-                "text": f"2FA failed: {_sanitize_error(str(e))}",
+                "text": f"2FA failed: {_sanitize_error(error_msg)}",
             }
 
     return {"type": "error", "text": "Unexpected input."}

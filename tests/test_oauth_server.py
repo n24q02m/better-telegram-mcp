@@ -74,7 +74,12 @@ def mock_inner_app():
 
 @pytest.fixture
 def app(
-    data_dir, mock_issuer, mock_oauth, mock_user_store, mock_auth_provider, mock_inner_app
+    data_dir,
+    mock_issuer,
+    mock_oauth,
+    mock_user_store,
+    mock_auth_provider,
+    mock_inner_app,
 ):
     with (
         patch(
