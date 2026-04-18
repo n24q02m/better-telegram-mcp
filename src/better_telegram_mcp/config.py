@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import functools
+import os
+from functools import cached_property
 from pathlib import Path
 from typing import Literal
 
@@ -101,3 +103,20 @@ class Settings(BaseSettings):
     @property
     def session_path(self) -> Path:
         return self.data_dir / f"{self.session_name}.session"
+
+    @cached_property
+    def secret(self) -> str:
+        """Resolve master encryption secret from env or disk."""
+        # 1. Check explicit env vars (prioritize CREDENTIAL_SECRET)
+        secret = (
+            os.environ.get("CREDENTIAL_SECRET")
+            or os.environ.get("DCR_SERVER_SECRET")
+            or os.environ.get("MASTER_SECRET")
+        )
+        if secret:
+            return secret
+
+        # 2. Resolve or generate persistent secret on disk
+        from .transports.credential_store import CredentialStore
+
+        return CredentialStore._resolve_or_generate_secret(self.data_dir)

@@ -1,6 +1,10 @@
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, version
 
 from .__main__ import _cli as main
 
-__version__ = version("better-telegram-mcp")
+try:
+    __version__ = version("better-telegram-mcp")
+except PackageNotFoundError:
+    __version__ = "unknown"
+
 __all__ = ["main", "__version__"]

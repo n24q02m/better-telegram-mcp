@@ -94,3 +94,36 @@ def test_empty_to_none():
     assert _empty_to_none("   ") is None
     assert _empty_to_none("valid") == "valid"
     assert _empty_to_none("  valid  ") == "  valid  "
+
+
+def test_secret_priority_env_credential(monkeypatch):
+    monkeypatch.setenv("CREDENTIAL_SECRET", "env-cred")
+    monkeypatch.setenv("DCR_SERVER_SECRET", "env-dcr")
+    monkeypatch.setenv("MASTER_SECRET", "env-master")
+    s = Settings()
+    assert s.secret == "env-cred"
+
+
+def test_secret_priority_env_dcr(monkeypatch):
+    monkeypatch.delenv("CREDENTIAL_SECRET", raising=False)
+    monkeypatch.setenv("DCR_SERVER_SECRET", "env-dcr")
+    monkeypatch.setenv("MASTER_SECRET", "env-master")
+    s = Settings()
+    assert s.secret == "env-dcr"
+
+
+def test_secret_persistence(tmp_path):
+    # Test that it generates and persists a secret when no env vars are set
+    import os
+
+    for env in ["CREDENTIAL_SECRET", "DCR_SERVER_SECRET", "MASTER_SECRET"]:
+        if env in os.environ:
+            del os.environ[env]
+
+    s = Settings(data_dir=tmp_path)
+    secret1 = s.secret
+    assert len(secret1) == 64  # urandom(32).hex()
+
+    # Reload settings with same data_dir
+    s2 = Settings(data_dir=tmp_path)
+    assert s2.secret == secret1
