@@ -343,9 +343,9 @@ class TelegramAuthProvider:
         self.session_owners.clear()
 
         # Disconnect pending OTP backends
-        for _bearer, pending in list(self._pending_otps.items()):
+        for bearer, pending in list(self._pending_otps.items()):
             try:
                 await pending["backend"].disconnect()
             except Exception:
-                pass
+                logger.warning("Error disconnecting pending OTP backend {}", bearer[:8])
         self._pending_otps.clear()
