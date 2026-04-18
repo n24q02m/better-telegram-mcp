@@ -450,8 +450,14 @@ async def test_poll_relay_background_bot_mode():
 
 
 @pytest.mark.asyncio
-async def test_poll_relay_background_user_mode_sends_complete():
-    """User mode config -> sends 'complete' notification (OTP now via /otp endpoint)."""
+async def test_poll_relay_background_user_mode_runs_otp_flow():
+    """User mode: relay drives full OTP multi-step via input_required messages.
+
+    Flow: poll_for_result returns phone -> save_credentials triggers Telethon
+    send_code -> server pushes input_required for OTP via send_message ->
+    poll_for_responses gets OTP -> on_step_submitted verifies with Telethon ->
+    server pushes 'complete' message. No 2FA in this test case.
+    """
     import better_telegram_mcp.credential_state as cs
     from better_telegram_mcp.credential_state import _poll_relay_background
 
@@ -470,9 +476,30 @@ async def test_poll_relay_background_user_mode_sends_complete():
         ),
         patch("mcp_core.storage.config_file.write_config"),
         patch(
+            "better_telegram_mcp.credential_state.save_credentials",
+            new_callable=AsyncMock,
+            return_value={
+                "type": "otp_required",
+                "text": "Enter OTP",
+                "field": "otp_code",
+                "input_type": "text",
+            },
+        ) as mock_save,
+        patch(
+            "better_telegram_mcp.credential_state.on_step_submitted",
+            new_callable=AsyncMock,
+            return_value=None,
+        ) as mock_step,
+        patch(
             "mcp_core.relay.client.send_message",
             new_callable=AsyncMock,
+            return_value="msg-otp-1",
         ) as mock_send,
+        patch(
+            "mcp_core.relay.client.poll_for_responses",
+            new_callable=AsyncMock,
+            return_value="12345",
+        ) as mock_poll_resp,
         patch(
             "mcp_core.release_session_lock",
             new_callable=AsyncMock,
@@ -481,8 +508,11 @@ async def test_poll_relay_background_user_mode_sends_complete():
         os.environ.pop("TELEGRAM_PHONE", None)
         await _poll_relay_background("https://relay", mock_session, 60.0)
 
-    assert cs._state == CredentialState.CONFIGURED
-    mock_send.assert_awaited_once()
+    mock_save.assert_awaited_once_with(config)
+    mock_poll_resp.assert_awaited_once()
+    mock_step.assert_awaited_once_with({"otp_code": "12345"})
+    # send_message called at least twice: once for input_required, once for complete
+    assert mock_send.await_count >= 2
     # Cleanup
     os.environ.pop("TELEGRAM_PHONE", None)
 
