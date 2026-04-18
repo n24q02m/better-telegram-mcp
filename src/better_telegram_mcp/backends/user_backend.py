@@ -31,6 +31,32 @@ class UserBackend(TelegramBackend):
             raise RuntimeError(msg)
         return self._client
 
+    def _prepare_session_file(self) -> None:
+        """Prepare session directory and file with secure permissions."""
+        s = self._settings
+        s.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+
+        # Pre-create session file with secure permissions to avoid TOCTOU
+        # where Telethon creates it with default (insecure) permissions
+        session_path = s.data_dir / s.session_name
+        actual_session_path = session_path.with_suffix(".session")
+        try:
+            fd = os.open(str(actual_session_path), os.O_CREAT | os.O_WRONLY, 0o600)
+            os.close(fd)
+        except OSError as e:
+            # Windows may not support this or file already exists
+            logger.debug("Could not pre-create session file: {e}", e=e)
+
+    def _secure_session_file(self) -> None:
+        """Ensure existing session files are secured with 0o600 permissions."""
+        s = self._settings
+        session_file = (s.data_dir / s.session_name).with_suffix(".session")
+        if session_file.exists():
+            try:
+                os.chmod(session_file, 0o600)
+            except OSError as e:
+                logger.debug("Could not set session file permissions: {e}", e=e)
+
     @staticmethod
     def _serialize_message(msg: Any) -> dict[str, Any]:
         sender_id = None
@@ -65,19 +91,11 @@ class UserBackend(TelegramBackend):
     # --- Connection ---
     async def connect(self) -> None:
         s = self._settings
+        # Bolt: Move blocking I/O to a background thread
+        await asyncio.to_thread(self._prepare_session_file)
+
         # Telethon auto-appends .session, so pass path without extension
         session_path = s.data_dir / s.session_name
-        s.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
-
-        # Pre-create session file with secure permissions to avoid TOCTOU
-        # where Telethon creates it with default (insecure) permissions
-        actual_session_path = session_path.with_suffix(".session")
-        try:
-            fd = os.open(str(actual_session_path), os.O_CREAT | os.O_WRONLY, 0o600)
-            os.close(fd)
-        except OSError as e:
-            logger.debug("Could not pre-create session file: {e}", e=e)
-
         self._client = TelegramClient(
             str(session_path),
             s.api_id,
@@ -136,14 +154,8 @@ class UserBackend(TelegramBackend):
                 raise
 
         me = await client.get_me()
-        # Ensure existing session files (from older versions) are also secured
-        s = self._settings
-        session_file = (s.data_dir / s.session_name).with_suffix(".session")
-        if session_file.exists():
-            try:
-                os.chmod(session_file, 0o600)
-            except OSError as e:
-                logger.debug("Could not set session file permissions: {e}", e=e)
+        # Bolt: Move blocking I/O to a background thread
+        await asyncio.to_thread(self._secure_session_file)
 
         return {
             "authenticated_as": getattr(me, "first_name", ""),
@@ -466,7 +478,8 @@ class UserBackend(TelegramBackend):
         download_path: Path | str | None = None
         if output_dir:
             safe_dir = validate_output_dir(output_dir)
-            safe_dir.mkdir(parents=True, exist_ok=True)
+            # Bolt: Move blocking I/O to a background thread
+            await asyncio.to_thread(safe_dir.mkdir, parents=True, exist_ok=True)
             download_path = await client.download_media(msg, file=str(safe_dir))
         else:
             download_path = await client.download_media(msg)
