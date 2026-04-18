@@ -74,7 +74,7 @@ def _get_client_ip(request: Request) -> str:
 def _extract_bearer(request: Request) -> str | None:
     """Extract bearer token from Authorization header."""
     auth_header = request.headers.get("authorization", "")
-    if auth_header.startswith("Bearer "):
+    if auth_header.lower().startswith("bearer "):
         return auth_header[7:].strip()
     return None
 
@@ -284,7 +284,7 @@ def create_app(
             bearer = None
             headers = Headers(scope=scope)
             auth_str = headers.get("authorization")
-            if auth_str and auth_str.startswith("Bearer "):
+            if auth_str and auth_str.lower().startswith("bearer "):
                 bearer = auth_str[7:].strip()
 
             if not bearer:

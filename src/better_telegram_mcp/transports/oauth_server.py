@@ -219,7 +219,7 @@ def create_app(
             bearer = None
             headers = Headers(scope=scope)
             auth_str = headers.get("authorization")
-            if auth_str and auth_str.startswith("Bearer "):
+            if auth_str and auth_str.lower().startswith("bearer "):
                 bearer = auth_str[7:].strip()
 
             if not bearer:
