@@ -218,7 +218,6 @@ class TelegramAuthProvider:
         if (existing := self._pending_otps.pop(bearer, None)) is not None:
             await existing["backend"].disconnect()
 
-
         self._pending_otps[bearer] = {
             "bearer": bearer,
             "backend": backend,
