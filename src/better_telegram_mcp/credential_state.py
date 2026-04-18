@@ -109,8 +109,8 @@ def resolve_credential_state() -> CredentialState:
                 logger.info("Config loaded from encrypted file")
                 _state = CredentialState.CONFIGURED
                 return _state
-    except Exception as e:
-        logger.warning("Failed to read config file: {}", e)
+    except Exception:
+        pass
 
     # 3. Check saved Telethon session files
     if check_saved_sessions():
@@ -240,8 +240,8 @@ async def _poll_relay_background(
                     "text": "Telegram config saved. Setup complete!",
                 },
             )
-        except Exception as e:
-            logger.warning("Failed to notify relay of completion: {}", e)
+        except Exception:
+            pass
 
         _state = CredentialState.CONFIGURED
         logger.info("Relay config applied successfully")
@@ -265,8 +265,7 @@ async def _poll_relay_background(
             logger.info("Relay skipped by user. Credentials still required.")
         else:
             _state = CredentialState.AWAITING_SETUP
-    except Exception as e:
-        logger.error("Unexpected error in relay background task: {}", e)
+    except Exception:
         _state = CredentialState.AWAITING_SETUP
 
 
@@ -385,8 +384,8 @@ def reset_state() -> None:
         from mcp_core.storage.config_file import delete_config
 
         delete_config(SERVER_NAME)
-    except Exception as e:
-        logger.debug("Failed to delete config during reset: {}", e)
+    except Exception:
+        pass
 
 
 async def on_step_submitted(step_data: dict[str, str]) -> dict | None:
@@ -430,8 +429,8 @@ async def on_step_submitted(step_data: dict[str, str]) -> dict | None:
             # Terminal failure (non-2FA) -- clean up so next attempt starts fresh.
             try:
                 await _step_backend.disconnect()
-            except Exception as e:
-                logger.debug("Failed to disconnect backend: {}", e)
+            except Exception:
+                pass
             _step_backend = None
             _step_phone = ""
             _step_otp_code = None
@@ -457,8 +456,8 @@ async def on_step_submitted(step_data: dict[str, str]) -> dict | None:
             # Terminal failure -- clean up so next attempt starts fresh.
             try:
                 await _step_backend.disconnect()
-            except Exception as e:
-                logger.debug("Failed to disconnect backend: {}", e)
+            except Exception:
+                pass
             _step_backend = None
             _step_phone = ""
             _step_otp_code = None
@@ -479,8 +478,8 @@ async def _finalize_auth() -> None:
     if _step_backend is not None:
         try:
             await _step_backend.disconnect()
-        except Exception as e:
-            logger.debug("Failed to disconnect backend: {}", e)
+        except Exception:
+            pass
 
     _step_backend = None
     _step_phone = ""
