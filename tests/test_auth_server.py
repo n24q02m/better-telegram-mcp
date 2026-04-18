@@ -294,3 +294,35 @@ class TestAuthServerStart:
 
             with pytest.raises(RuntimeError, match="Could not start server"):
                 await server.start()
+
+    @pytest.mark.asyncio
+    async def test_start_logs_masked_url(self, caplog):
+        backend = MagicMock()
+        settings = MagicMock()
+        settings.phone = "+1234567890"
+        server = AuthServer(backend, settings)
+
+        with patch("uvicorn.Server") as mock_server_class:
+            mock_instance = mock_server_class.return_value
+            mock_instance.serve = AsyncMock()
+
+            # caplog doesn't work out-of-the-box with loguru,
+            # but we can patch loguru's logger or use a different approach.
+            # Let's patch loguru.logger.info.
+            with patch("better_telegram_mcp.auth_server.logger.info") as mock_logger:
+                await server.start()
+
+                # Check that info was called
+                assert mock_logger.called
+
+                # Check that the token is NOT in any of the logged messages
+                for call in mock_logger.call_args_list:
+                    message = call.args[0]
+                    # Loguru uses {} for formatting, but here we are checking the template or the formatted string
+                    # Our change was: logger.info("Auth server started at http://127.0.0.1:{} (token masked)", self.port)
+                    assert server._token not in message
+                    if "Auth server started at" in message:
+                        assert "token masked" in message
+                        assert "token=" not in message
+
+            await server.stop()
