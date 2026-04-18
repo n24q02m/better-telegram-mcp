@@ -215,7 +215,10 @@ class TelegramAuthProvider:
         # Pop any existing entry first so the new entry is appended at the end,
         # keeping dict insertion order aligned with chronological created_at.
         # This enables O(1) early-exit cleanup in cleanup_expired().
-        self._pending_otps.pop(bearer, None)
+        if (existing := self._pending_otps.pop(bearer, None)) is not None:
+            await existing["backend"].disconnect()
+
+
         self._pending_otps[bearer] = {
             "bearer": bearer,
             "backend": backend,
