@@ -2,6 +2,65 @@
 
 <!-- version list -->
 
+## v4.6.0-beta.1 (2026-04-18)
+
+### Bug Fixes
+
+- Add tests for user-mode OTP/2FA relay branches + fix Python 3.13 variable shadowing bug
+  ([#334](https://github.com/n24q02m/better-telegram-mcp/pull/334),
+  [`a0b5ba5`](https://github.com/n24q02m/better-telegram-mcp/commit/a0b5ba50ec489a6781a903f00b5c1ece2e942829))
+
+- Apply ruff format to auth + test files for CI parity
+  ([#334](https://github.com/n24q02m/better-telegram-mcp/pull/334),
+  [`a0b5ba5`](https://github.com/n24q02m/better-telegram-mcp/commit/a0b5ba50ec489a6781a903f00b5c1ece2e942829))
+
+- Mask sensitive token in auth server start log
+  ([#313](https://github.com/n24q02m/better-telegram-mcp/pull/313),
+  [`2c2571c`](https://github.com/n24q02m/better-telegram-mcp/commit/2c2571c741b5b16016ce638c0409f16b0bd113f8))
+
+- Remove hardcoded default dev secret and centralize secret management
+  ([#312](https://github.com/n24q02m/better-telegram-mcp/pull/312),
+  [`b335f7d`](https://github.com/n24q02m/better-telegram-mcp/commit/b335f7db8535a3fcf5e84eeb94f9e4a7282e8e5b))
+
+- Remove sensitive auth session URL from logs
+  ([#307](https://github.com/n24q02m/better-telegram-mcp/pull/307),
+  [`137e743`](https://github.com/n24q02m/better-telegram-mcp/commit/137e743749c5d14f634f79997fb7dab1f28e5f69))
+
+- **auth**: Log swallowed exception in pending OTP disconnect
+  ([#317](https://github.com/n24q02m/better-telegram-mcp/pull/317),
+  [`9374e4c`](https://github.com/n24q02m/better-telegram-mcp/commit/9374e4cb2c21c5b1bd01cbf372faec962264b5f4))
+
+### Features
+
+- Fix user-mode OTP flow over remote relay and patch bot token leak
+  ([#334](https://github.com/n24q02m/better-telegram-mcp/pull/334),
+  [`a0b5ba5`](https://github.com/n24q02m/better-telegram-mcp/commit/a0b5ba50ec489a6781a903f00b5c1ece2e942829))
+
+### Performance Improvements
+
+- **auth**: Optimize stale OTP cleanup
+  ([#306](https://github.com/n24q02m/better-telegram-mcp/pull/306),
+  [`e37683d`](https://github.com/n24q02m/better-telegram-mcp/commit/e37683d2eb4b1ae4c4a6e1b03b003159dd4a0977))
+
+### Testing
+
+- Add relay_schema.py tests and fix ty check failures
+  ([#266](https://github.com/n24q02m/better-telegram-mcp/pull/266),
+  [`b94dd81`](https://github.com/n24q02m/better-telegram-mcp/commit/b94dd81c64176e829cc6603bcd0bb768d520fa5b))
+
+- Add unit tests for auth_client.py and remove from coverage omit
+  ([#300](https://github.com/n24q02m/better-telegram-mcp/pull/300),
+  [`b286b83`](https://github.com/n24q02m/better-telegram-mcp/commit/b286b836a17387d0b884de2c2e123925f49301b2))
+
+- Add unit tests for http transport and enable coverage
+  ([#304](https://github.com/n24q02m/better-telegram-mcp/pull/304),
+  [`f6e5868`](https://github.com/n24q02m/better-telegram-mcp/commit/f6e58683bfa22017e20b6ff7f9cfb920335d0165))
+
+- Add unit tests for oauth_server transport
+  ([#303](https://github.com/n24q02m/better-telegram-mcp/pull/303),
+  [`f48fd99`](https://github.com/n24q02m/better-telegram-mcp/commit/f48fd99d94fcfd132e82897e1b6c8be274e863fd))
+
+
 ## v4.5.3 (2026-04-17)
 
 ### Bug Fixes
