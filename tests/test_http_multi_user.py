@@ -71,6 +71,12 @@ def test_extract_bearer():
     request.headers = {"authorization": "Bearer my-token"}
     assert _extract_bearer(request) == "my-token"
 
+    request.headers = {"authorization": "bearer my-token"}
+    assert _extract_bearer(request) == "my-token"
+
+    request.headers = {"authorization": "BEARER my-token"}
+    assert _extract_bearer(request) == "my-token"
+
     request.headers = {"authorization": "Basic something"}
     assert _extract_bearer(request) is None
 
