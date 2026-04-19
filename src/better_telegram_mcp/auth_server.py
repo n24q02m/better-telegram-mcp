@@ -63,6 +63,7 @@ button[aria-busy="true"]::after{content:"";position:absolute;left:50%;top:50%;wi
 #pwd-section{display:none;margin-top:.5rem}
 .pwd-hint{font-size:.8rem;color:#888;margin-bottom:.5rem}
 .divider{border:0;border-top:1px solid #333;margin:1.25rem 0}
+.req{color:#ef4444;margin-left:.25rem}
 </style>
 </head>
 <body>
@@ -88,15 +89,15 @@ button[aria-busy="true"]::after{content:"";position:absolute;left:50%;top:50%;wi
         <p style="margin-bottom:.75rem;color:#aaa">
           Step 2: Enter the code you received.
         </p>
-        <label for="otp">OTP Code</label>
+        <label for="otp">OTP Code <span aria-hidden="true" class="req">*</span></label>
         <input id="otp" type="text" placeholder="Enter code" autofocus
                inputmode="numeric" pattern="[0-9]*"
-               autocomplete="one-time-code">
+               autocomplete="one-time-code" aria-describedby="s1" required>
         <div id="pwd-section">
-          <label for="pwd">2FA Password</label>
+          <label for="pwd">2FA Password <span aria-hidden="true" class="req">*</span></label>
           <input id="pwd" type="password" placeholder="Enter your 2FA password"
-                 autocomplete="current-password">
-          <p class="pwd-hint">Your account has two-factor authentication enabled.</p>
+                 autocomplete="current-password" aria-describedby="pwd-hint s1">
+          <p id="pwd-hint" class="pwd-hint">Your account has two-factor authentication enabled.</p>
         </div>
         <button id="btn-verify" type="submit">Verify Code</button>
         <div id="s1" class="st" role="status" aria-live="polite"></div>
@@ -125,7 +126,7 @@ function st(el,cls,msg){el.className='st '+cls;el.textContent=msg;el.style.displ
 function clearSt(el){el.className='st';el.textContent='';el.style.display='none'}
 function btnLoading(fs,btn,text){fs.disabled=true;btn.textContent=text;btn.setAttribute('aria-busy','true')}
 function btnReset(fs,btn,text){fs.disabled=false;btn.textContent=text;btn.removeAttribute('aria-busy')}
-function showPwd(){$('pwd-section').style.display='block';$('pwd').focus()}
+function showPwd(){$('pwd-section').style.display='block';$('pwd').required=true;$('pwd').focus()}
 
 async function checkStatus(){
   try{const r=await fetch('/status',{headers:{'X-Auth-Token':_t}});const d=await r.json();
