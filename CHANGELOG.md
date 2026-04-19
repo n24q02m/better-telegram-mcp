@@ -2,6 +2,50 @@
 
 <!-- version list -->
 
+## v4.6.0 (2026-04-19)
+
+### Bug Fixes
+
+- Bump mcp-core to 1.3.0 ([#335](https://github.com/n24q02m/better-telegram-mcp/pull/335),
+  [`51eeaed`](https://github.com/n24q02m/better-telegram-mcp/commit/51eeaeda5c2092a2d09982ee65a0dea6318a323e))
+
+- Bump n24q02m-mcp-core to 1.4.0 ([#340](https://github.com/n24q02m/better-telegram-mcp/pull/340),
+  [`5de8bdc`](https://github.com/n24q02m/better-telegram-mcp/commit/5de8bdcb059a6b22916fa55726e20b9eaeb72557))
+
+- **deps**: Update dependency pydantic to >=2.13.2
+  ([#329](https://github.com/n24q02m/better-telegram-mcp/pull/329),
+  [`ab699f4`](https://github.com/n24q02m/better-telegram-mcp/commit/ab699f404ee316f529cf23a2409c386244d9c8ba))
+
+### Chores
+
+- Log non-critical exceptions in UserBackend
+  ([#315](https://github.com/n24q02m/better-telegram-mcp/pull/315),
+  [`696dddf`](https://github.com/n24q02m/better-telegram-mcp/commit/696dddfe7e94d215653b35ffdf5b57e77b8da789))
+
+- **deps**: Lock file maintenance ([#330](https://github.com/n24q02m/better-telegram-mcp/pull/330),
+  [`cd86b41`](https://github.com/n24q02m/better-telegram-mcp/commit/cd86b410dfbe1ad61e5885e7f9542838b6c088e5))
+
+- **deps**: Update step-security/harden-runner digest to 6c3c2f2
+  ([#328](https://github.com/n24q02m/better-telegram-mcp/pull/328),
+  [`8bda093`](https://github.com/n24q02m/better-telegram-mcp/commit/8bda0936c55d612aa3dbe115db43f3244a537694))
+
+### Performance Improvements
+
+- **user-backend**: Move blocking file I/O to background threads
+  ([#320](https://github.com/n24q02m/better-telegram-mcp/pull/320),
+  [`4f4f9d4`](https://github.com/n24q02m/better-telegram-mcp/commit/4f4f9d45b26e86fc686021960d1d3aa27fab16db))
+
+### Testing
+
+- Add unit tests for AuthClient and enable coverage reporting
+  ([#271](https://github.com/n24q02m/better-telegram-mcp/pull/271),
+  [`457f4ee`](https://github.com/n24q02m/better-telegram-mcp/commit/457f4ee68bca2b9a0b29643ed0a06adf1b0eb436))
+
+- **transports**: Add coverage for http_multi_user.py
+  ([#318](https://github.com/n24q02m/better-telegram-mcp/pull/318),
+  [`61dc43a`](https://github.com/n24q02m/better-telegram-mcp/commit/61dc43a5d1f58dc31a5620c8b47ffd85fa167b09))
+
+
 ## v4.6.0-beta.1 (2026-04-18)
 
 ### Bug Fixes
