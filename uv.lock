@@ -77,7 +77,7 @@ wheels = [
 
 [[package]]
 name = "better-telegram-mcp"
-version = "4.6.0"
+version = "4.6.1"
 source = { editable = "." }
 dependencies = [
     { name = "cryptg" },
@@ -112,7 +112,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.27.0" },
-    { name = "n24q02m-mcp-core", specifier = ">=1.4.2" },
+    { name = "n24q02m-mcp-core", specifier = ">=1.4.3" },
     { name = "pydantic", specifier = ">=2.13.2" },
     { name = "pydantic-settings", specifier = ">=2.13.1" },
     { name = "starlette", specifier = ">=1.0.0" },
@@ -727,7 +727,7 @@ wheels = [
 
 [[package]]
 name = "n24q02m-mcp-core"
-version = "1.4.2"
+version = "1.4.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "authlib" },
@@ -740,9 +740,9 @@ dependencies = [
     { name = "starlette" },
     { name = "tomli-w" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b6/8a/91b6cfa13f135171a42b88d852203e08bc96a5028d1cdd4210f7308ac4b9/n24q02m_mcp_core-1.4.2.tar.gz", hash = "sha256:784f5aa5f1579b5ac642254e65547d29fc76d3d01db9f28815edd3e9bd8700d6", size = 146833, upload-time = "2026-04-20T02:53:37.477Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cb/6b/a1d150bde068eacf56dfc8f7bc5043990c031899ffb7f6d7fc557395d009/n24q02m_mcp_core-1.4.3.tar.gz", hash = "sha256:9738e83a465cbaf0d18b460f977779b471149d0fd1b3d56f7e2cb080ec3e6e6b", size = 146834, upload-time = "2026-04-20T03:59:03.002Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/83/17/1da2e05df2f29a83fb6ac7c81b94e9d8e69320e4b9d05b76fdf20c2039cc/n24q02m_mcp_core-1.4.2-py3-none-any.whl", hash = "sha256:2a4142ac4f7ed3eb48da5164ffc8e953bc46fcf890c74303c777f55615a86517", size = 89325, upload-time = "2026-04-20T02:53:36.232Z" },
+    { url = "https://files.pythonhosted.org/packages/46/6e/ff2ba5f28e341fa617d6e13ec856b0ef18b2b5cd0048145c2ad4d54d1c6d/n24q02m_mcp_core-1.4.3-py3-none-any.whl", hash = "sha256:359f56cbb349cd365a7e681b3064a855e9a32e97cfad412ef4e798e779ea352f", size = 89331, upload-time = "2026-04-20T03:59:04.11Z" },
 ]
 
 [[package]]
