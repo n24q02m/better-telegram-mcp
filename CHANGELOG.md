@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v4.6.2 (2026-04-20)
+
+### Bug Fixes
+
+- Bump n24q02m-mcp-core to >=1.4.3 (aria-busy step reset parity)
+  ([#350](https://github.com/n24q02m/better-telegram-mcp/pull/350),
+  [`df06f1a`](https://github.com/n24q02m/better-telegram-mcp/commit/df06f1adc364ec52ec4ab1d7dcb0ef93c7bc19e5))
+
+- Clear aria-busy on step-input reset to unblock 2FA submit
+  ([#348](https://github.com/n24q02m/better-telegram-mcp/pull/348),
+  [`eb1993f`](https://github.com/n24q02m/better-telegram-mcp/commit/eb1993fd8cccf34bbe9ef837274f7640f44ef69b))
+
+
 ## v4.6.1 (2026-04-20)
 
 ### Bug Fixes
