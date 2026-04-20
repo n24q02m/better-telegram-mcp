@@ -13,6 +13,7 @@ Provides:
 
 from __future__ import annotations
 
+import functools
 import time
 from collections import defaultdict
 from contextlib import asynccontextmanager
@@ -53,6 +54,12 @@ def _check_rate_limit(ip: str, limit: int) -> bool:
     return True
 
 
+@functools.lru_cache(maxsize=1)
+def _parse_trusted_proxies(env_val: str) -> frozenset[str]:
+    """⚡ Bolt: Memoize proxy parsing and convert to frozenset for O(1) lookups."""
+    return frozenset(p.strip() for p in env_val.split(",") if p.strip())
+
+
 def _get_client_ip(request: Request) -> str:
     """Extract actual client socket IP to prevent spoofing and rate limit bypass."""
     import os
@@ -61,7 +68,7 @@ def _get_client_ip(request: Request) -> str:
     # 🛡️ Sentinel: Never trust x-forwarded-for or cf-connecting-ip headers for rate
     # limiting unless explicitly behind a configured trusted proxy, as they can be easily spoofed.
     trusted_proxies_env = os.environ.get("TELEGRAM_TRUSTED_PROXIES", "")
-    trusted_proxies = [p.strip() for p in trusted_proxies_env.split(",") if p.strip()]
+    trusted_proxies = _parse_trusted_proxies(trusted_proxies_env)
 
     if client_ip in trusted_proxies:
         if "cf-connecting-ip" in request.headers:
