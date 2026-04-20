@@ -264,7 +264,7 @@ def test_mcp_success(client, mock_issuer, mock_auth_provider):
     resp = client.post(
         "/mcp",
         json={"jsonrpc": "2.0", "method": "list_tools", "id": 1},
-        headers={"Authorization": "Bearer goodtoken"},
+        headers={"Authorization": "bearer goodtoken"},
     )
     assert resp.status_code == 200
     assert resp.json()["result"] == "ok"
@@ -277,7 +277,7 @@ def test_mcp_reload_backend(client, mock_issuer, mock_auth_provider, mock_user_s
     resp = client.post(
         "/mcp",
         json={"jsonrpc": "2.0", "method": "list_tools", "id": 1},
-        headers={"Authorization": "Bearer goodtoken"},
+        headers={"Authorization": "BEARER goodtoken"},
     )
 
     assert resp.status_code == 200
@@ -291,7 +291,7 @@ def test_mcp_user_not_found(client, mock_issuer, mock_auth_provider, mock_user_s
     resp = client.post(
         "/mcp",
         json={"jsonrpc": "2.0", "method": "list_tools", "id": 1},
-        headers={"Authorization": "Bearer goodtoken"},
+        headers={"Authorization": "BeArEr goodtoken"},
     )
 
     assert resp.status_code == 403
