@@ -443,6 +443,7 @@ def render_telegram_credential_form(
                     inputEl.value = "";
                     inputEl.disabled = false;
                     buttonEl.disabled = false;
+                    buttonEl.removeAttribute("aria-busy");
                     buttonEl.textContent = "Verify";
                 }} else {{
                     var card = form.parentNode;
