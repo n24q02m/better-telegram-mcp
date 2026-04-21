@@ -2,6 +2,23 @@
 
 <!-- version list -->
 
+## v4.6.6 (2026-04-21)
+
+### Bug Fixes
+
+- Add aria-busy spinner to credential form submit button
+  ([`43f6eed`](https://github.com/n24q02m/better-telegram-mcp/commit/43f6eed7495546a5962dd2d9b7e55126632bc4c7))
+
+- Bump non-major Python deps (lock file maintenance)
+  ([`a405714`](https://github.com/n24q02m/better-telegram-mcp/commit/a405714ed0625c4f8a4c73edc27b6a515bbafffa))
+
+- Bump non-major Python deps incl mcp-core to 1.5.0
+  ([`a4ea367`](https://github.com/n24q02m/better-telegram-mcp/commit/a4ea367ecc157c90bd4287bcacaae3a8626dacfa))
+
+- Bump step-security/harden-runner digest to 8d3c67d
+  ([`95b1036`](https://github.com/n24q02m/better-telegram-mcp/commit/95b10364cee8ee3cf02029abc889cf48d61ab068))
+
+
 ## v4.6.5 (2026-04-21)
 
 ### Bug Fixes
