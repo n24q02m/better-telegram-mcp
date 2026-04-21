@@ -573,13 +573,19 @@ async def run_http(port: int = 0) -> None:
 
 
 def main() -> None:
-    import asyncio
     import sys
 
     if "--stdio" in sys.argv or os.environ.get("MCP_TRANSPORT") == "stdio":
         mcp.run(transport="stdio")
-    elif os.environ.get("TRANSPORT_MODE") == "stdio":
+        return
+    if os.environ.get("TRANSPORT_MODE") == "stdio":
         mcp.run(transport="stdio")
-    else:
-        port = int(os.environ.get("PORT", "0"))
-        asyncio.run(run_http(port=port))
+        return
+
+    # HTTP mode: dispatch through transports/http.py so the multi-user
+    # OAuth 2.1 branch, the refuse-guard for broken single-user-on-public
+    # deploys, and the local-relay fallback all live in one place.
+    from .config import Settings
+    from .transports.http import start_http
+
+    start_http(Settings())

@@ -145,28 +145,36 @@ def start_http(settings: Settings) -> None:
 
 
 def _start_single_user_http(settings: Settings) -> None:
-    """Single-user HTTP mode: env vars > stored creds > relay setup.
+    """Single-user HTTP mode via mcp-core local relay + browser form.
 
-    Backward compatible with the original HTTP transport.
+    Same browser paste-form flow as the other MCP servers (notion, email,
+    wet, mnemo, crg). Uses ``run_local_server`` from mcp-core so /authorize
+    renders the custom telegram credential form and OTP/2FA steps are
+    handled via ``/otp`` against the local OAuth AS.
     """
     import asyncio
 
+    from mcp_core.transport.local_server import run_local_server
+
+    from ..credential_form import render_telegram_credential_form
+    from ..credential_state import on_step_submitted, save_credentials
     from ..server import mcp
 
-    # If env vars already have credentials, skip CredentialStore/relay
-    if not settings.is_configured:
-        store = CredentialStore(settings.data_dir, secret=settings.secret)
-        creds = store.load()
+    port = int(os.environ.get("PORT", "0"))
+    host = os.environ.get("HOST")
 
-        if creds is None:
-            creds = asyncio.run(setup_credentials(settings))
-
-        # Apply credentials to environment so lifespan picks them up
-        for key, value in creds.items():
-            if key.startswith("TELEGRAM_") and key not in os.environ:
-                os.environ[key] = value
-
-    mcp.run(transport="streamable-http")
+    asyncio.run(
+        run_local_server(
+            mcp,
+            server_name="better-telegram-mcp",
+            relay_schema=RELAY_SCHEMA,
+            port=port,
+            host=host,
+            on_credentials_saved=save_credentials,
+            on_step_submitted=on_step_submitted,
+            custom_credential_form_html=render_telegram_credential_form,
+        )
+    )
 
 
 def _start_multi_user_http(settings: Settings) -> None:

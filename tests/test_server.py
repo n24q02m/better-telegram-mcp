@@ -868,14 +868,15 @@ def test_get_backend_multi_user_mode_fallback():
 
 
 def test_main_http_transport():
-    """main() starts HTTP transport by default (mcp-core local OAuth)."""
+    """main() dispatches HTTP through transports.http.start_http so the
+    multi-user OAuth branch + refuse-guard + local-relay fallback all live
+    behind one entry point."""
     with (
-        patch("better_telegram_mcp.server.run_http") as mock_run_http,
-        patch("asyncio.run") as mock_asyncio_run,
+        patch("better_telegram_mcp.transports.http.start_http") as mock_start_http,
+        patch.dict(os.environ, {}, clear=True),
     ):
         main()
-        mock_asyncio_run.assert_called_once()
-        mock_run_http.assert_called_once()
+        mock_start_http.assert_called_once()
 
 
 # --- lifespan: user mode unauthorized, no phone, no relay ---

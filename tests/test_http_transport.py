@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -149,42 +148,27 @@ class TestSetupCredentials:
 
 
 class TestStartHttp:
-    def test_start_http_single_user_with_stored_credentials(
+    def test_start_http_single_user_uses_local_relay(
         self, settings: Settings, data_dir: Path
     ) -> None:
-        """start_http should load stored creds and run mcp with streamable-http."""
-        store = CredentialStore(data_dir, secret="test")
-        store.store({"TELEGRAM_BOT_TOKEN": "stored-token"})
-
-        with (
-            patch.dict("os.environ", {"CREDENTIAL_SECRET": "test"}),
-            patch("better_telegram_mcp.server.mcp") as mock_mcp,
-        ):
-            start_http(settings)
-
-        mock_mcp.run.assert_called_once_with(transport="streamable-http")
-
-    def test_start_http_single_user_trigger_setup(
-        self, settings: Settings, data_dir: Path
-    ) -> None:
-        """start_http should trigger setup if no creds found in store/env."""
-        expected_creds = {"TELEGRAM_BOT_TOKEN": "setup-token"}
-
+        """Single-user path should dispatch to mcp-core run_local_server
+        so the browser paste form + OTP flow render correctly."""
         with (
             patch.dict("os.environ", {}, clear=True),
             patch(
-                "better_telegram_mcp.transports.http.setup_credentials",
+                "mcp_core.transport.local_server.run_local_server",
                 new_callable=AsyncMock,
-                return_value=expected_creds,
-            ),
-            patch("better_telegram_mcp.server.mcp") as mock_mcp,
+            ) as mock_run,
         ):
-            # Ensure settings not configured
-            with patch.object(Settings, "is_configured", False):
-                start_http(settings)
-                assert os.environ["TELEGRAM_BOT_TOKEN"] == "setup-token"
+            start_http(settings)
 
-        mock_mcp.run.assert_called_once_with(transport="streamable-http")
+        mock_run.assert_called_once()
+        kwargs = mock_run.call_args.kwargs
+        assert kwargs["server_name"] == "better-telegram-mcp"
+        assert "relay_schema" in kwargs
+        assert kwargs["on_credentials_saved"] is not None
+        assert kwargs["on_step_submitted"] is not None
+        assert kwargs["custom_credential_form_html"] is not None
 
     def test_start_http_multi_user(self, settings: Settings) -> None:
         """start_http should start multi-user server if required env vars are set."""
@@ -239,25 +223,34 @@ class TestStartHttp:
             assert kwargs["port"] == 8080
             assert kwargs["host"] == "127.0.0.1"
 
-    def test_start_http_sets_env_vars(self, settings: Settings, data_dir: Path) -> None:
-        """start_http should set TELEGRAM_ env vars from stored credentials."""
-        store = CredentialStore(data_dir, secret="test")
-        creds = {
-            "TELEGRAM_BOT_TOKEN": "env-token-123",
-            "TELEGRAM_API_ID": "99999",
-        }
-        store.store(creds)
+    def test_start_http_refuses_public_url_without_multi_user(
+        self, settings: Settings
+    ) -> None:
+        """PUBLIC_URL set without DCR_SERVER_SECRET = refuse start."""
+        env = {"PUBLIC_URL": "https://mcp.example.com"}
 
         with (
-            patch.dict(
-                "os.environ",
-                {"CREDENTIAL_SECRET": "test"},
-                clear=False,
-            ),
-            patch("better_telegram_mcp.server.mcp"),
+            patch.dict("os.environ", env, clear=True),
+            pytest.raises(RuntimeError, match="Refusing to start"),
         ):
             start_http(settings)
 
-            # Assert inside the context manager before patch.dict restores env
-            assert os.environ.get("TELEGRAM_BOT_TOKEN") == "env-token-123"
-            assert os.environ.get("TELEGRAM_API_ID") == "99999"
+    def test_start_http_public_url_override_allows_single_user(
+        self, settings: Settings
+    ) -> None:
+        """TELEGRAM_ACCEPT_SHARED_SINGLE_USER=1 opt-in skips the refuse-guard."""
+        env = {
+            "PUBLIC_URL": "https://mcp.example.com",
+            "TELEGRAM_ACCEPT_SHARED_SINGLE_USER": "1",
+        }
+
+        with (
+            patch.dict("os.environ", env, clear=True),
+            patch(
+                "mcp_core.transport.local_server.run_local_server",
+                new_callable=AsyncMock,
+            ) as mock_run,
+        ):
+            start_http(settings)
+
+        mock_run.assert_called_once()
