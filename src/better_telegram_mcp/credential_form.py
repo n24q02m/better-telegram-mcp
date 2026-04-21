@@ -593,6 +593,7 @@ def render_telegram_credential_form(
                 }}
 
                 submitBtn.disabled = true;
+                submitBtn.setAttribute("aria-busy", "true");
                 submitBtn.textContent = "Connecting...";
                 statusBox.style.display = "none";
 
@@ -610,12 +611,14 @@ def render_telegram_credential_form(
                                 }} else if (data.next_step && data.next_step.type === "info") {{
                                     form.querySelectorAll(".field-input").forEach(function (i) {{ i.disabled = true; }});
                                     submitBtn.disabled = true;
+                                    submitBtn.removeAttribute("aria-busy");
                                     submitBtn.textContent = "Connected";
                                     tabs.forEach(function (t) {{ t.disabled = true; }});
                                     showStatus("success", data.next_step.message || "Setup saved. Additional steps may be required.");
                                 }} else {{
                                     form.querySelectorAll(".field-input").forEach(function (i) {{ i.disabled = true; }});
                                     submitBtn.disabled = true;
+                                    submitBtn.removeAttribute("aria-busy");
                                     submitBtn.textContent = "Connected";
                                     tabs.forEach(function (t) {{ t.disabled = true; }});
                                     var successMsg = data.message || "Connected successfully. You can close this window.";
@@ -624,6 +627,7 @@ def render_telegram_credential_form(
                             }} else {{
                                 showStatus("error", data.error || data.error_description || "Request failed.");
                                 submitBtn.disabled = false;
+                                submitBtn.removeAttribute("aria-busy");
                                 submitBtn.textContent = "Connect";
                             }}
                         }});
@@ -631,6 +635,7 @@ def render_telegram_credential_form(
                     .catch(function (err) {{
                         showStatus("error", "Network error: " + err.message);
                         submitBtn.disabled = false;
+                        submitBtn.removeAttribute("aria-busy");
                         submitBtn.textContent = "Connect";
                     }});
             }});
