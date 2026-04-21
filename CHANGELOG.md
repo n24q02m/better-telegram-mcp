@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.6.4 (2026-04-21)
+
+### Bug Fixes
+
+- Accept Settings api_id/api_hash defaults for multi-user mode detection
+  ([`6d32d4e`](https://github.com/n24q02m/better-telegram-mcp/commit/6d32d4e8997e413928573a620af81897c59ee814))
+
+
 ## v4.6.3 (2026-04-21)
 
 ### Bug Fixes
