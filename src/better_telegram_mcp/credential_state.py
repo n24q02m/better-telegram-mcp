@@ -237,7 +237,9 @@ async def trigger_relay_setup(
         return None
 
 
-async def save_credentials(config: dict[str, str]) -> dict | None:
+async def save_credentials(
+    config: dict[str, str], _context: dict[str, str]
+) -> dict | None:
     """Persist credentials from the local OAuth form and drive Telethon auth.
 
     Called by ``mcp_core``'s local OAuth AS when the user submits credentials
@@ -247,6 +249,16 @@ async def save_credentials(config: dict[str, str]) -> dict | None:
     User mode: saves phone, triggers Telethon send_code, returns
     ``otp_required`` so the form prompts for the OTP. OTP verification
     happens via ``on_step_submitted`` (bound to ``POST /otp``).
+
+    ``_context`` carries the per-authorize ``sub``. The current public-URL
+    deployment (``better-telegram-mcp.n24q02m.com``) is intended as a
+    single-user self-host target — the Telethon session is a physical device
+    login bound to one phone number, so splitting by JWT sub does not yield a
+    usable multi-user experience. Consumers who want public multi-tenant
+    should run one container per user (each with its own ``config.enc`` +
+    session file) behind an auth proxy rather than sharing the session file.
+    The sub is still accepted so the callback signature matches the mcp-core
+    contract introduced for remote-relay isolation (email etc.).
     """
     global _state
 
@@ -352,11 +364,18 @@ def reset_state() -> None:
         logger.warning("Failed to delete config during state reset: {}", e)
 
 
-async def on_step_submitted(step_data: dict[str, str]) -> dict | None:
+async def on_step_submitted(
+    step_data: dict[str, str], _context: dict[str, str]
+) -> dict | None:
     """Handle multi-step auth input from ``/otp`` endpoint.
 
     Returns ``None`` on success (complete), ``{"type": "password_required", ...}``
     if 2FA is needed, or ``{"type": "error", ...}`` on failure (allows retry).
+
+    ``_context`` carries the per-authorize ``sub`` (the same subject passed
+    to ``save_credentials``). The deployed single-user fallback ignores it;
+    multi-user migration (future) will key the Telethon client + session file
+    by this sub so concurrent remote-relay users don't share 2FA state.
     """
     global _step_backend, _step_phone, _step_otp_code
 

@@ -397,7 +397,9 @@ async def test_save_credentials_bot_mode_returns_none():
 
     with patch("mcp_core.storage.config_file.write_config"):
         os.environ.pop("TELEGRAM_BOT_TOKEN", None)
-        result = await save_credentials({"TELEGRAM_BOT_TOKEN": "123:abc"})
+        result = await save_credentials(
+            {"TELEGRAM_BOT_TOKEN": "123:abc"}, {"sub": "test-sub"}
+        )
     assert result is None
 
     os.environ.pop("TELEGRAM_BOT_TOKEN", None)
@@ -419,7 +421,9 @@ async def test_save_credentials_user_mode_returns_otp_required():
         ),
     ):
         os.environ.pop("TELEGRAM_PHONE", None)
-        result = await save_credentials({"TELEGRAM_PHONE": "+1234567890"})
+        result = await save_credentials(
+            {"TELEGRAM_PHONE": "+1234567890"}, {"sub": "test-sub"}
+        )
 
     assert result is not None
     assert result["type"] == "otp_required"
@@ -441,7 +445,9 @@ async def test_save_credentials_user_mode_telethon_failure_returns_error():
         ),
     ):
         os.environ.pop("TELEGRAM_PHONE", None)
-        result = await save_credentials({"TELEGRAM_PHONE": "+1234567890"})
+        result = await save_credentials(
+            {"TELEGRAM_PHONE": "+1234567890"}, {"sub": "test-sub"}
+        )
 
     assert result is not None
     assert result["type"] == "error"
@@ -454,7 +460,7 @@ async def test_on_step_submitted_no_session_returns_error():
     """Without active session, /otp submission returns error."""
     from better_telegram_mcp.credential_state import on_step_submitted
 
-    result = await on_step_submitted({"otp_code": "12345"})
+    result = await on_step_submitted({"otp_code": "12345"}, {"sub": "test-sub"})
     assert result is not None
     assert result["type"] == "error"
 
@@ -469,7 +475,7 @@ async def test_on_step_submitted_otp_success_returns_none():
     cs._step_backend = mock_backend
     cs._step_phone = "+1234567890"
 
-    result = await cs.on_step_submitted({"otp_code": "12345"})
+    result = await cs.on_step_submitted({"otp_code": "12345"}, {"sub": "test-sub"})
     assert result is None
     assert cs._state == cs.CredentialState.CONFIGURED
 
@@ -485,7 +491,7 @@ async def test_on_step_submitted_needs_2fa_returns_password_required():
     cs._step_backend = mock_backend
     cs._step_phone = "+1234567890"
 
-    result = await cs.on_step_submitted({"otp_code": "12345"})
+    result = await cs.on_step_submitted({"otp_code": "12345"}, {"sub": "test-sub"})
     assert result is not None
     assert result["type"] == "password_required"
     assert result["field"] == "password"
@@ -503,7 +509,7 @@ async def test_on_step_submitted_otp_invalid_returns_error():
     cs._step_backend = mock_backend
     cs._step_phone = "+1234567890"
 
-    result = await cs.on_step_submitted({"otp_code": "00000"})
+    result = await cs.on_step_submitted({"otp_code": "00000"}, {"sub": "test-sub"})
     assert result is not None
     assert result["type"] == "error"
     assert "Authentication failed" in result["text"]
@@ -522,7 +528,7 @@ async def test_on_step_submitted_password_success_returns_none():
     cs._step_phone = "+1234567890"
     cs._step_otp_code = "12345"
 
-    result = await cs.on_step_submitted({"password": "secret"})
+    result = await cs.on_step_submitted({"password": "secret"}, {"sub": "test-sub"})
     assert result is None
     assert cs._state == cs.CredentialState.CONFIGURED
 
@@ -536,7 +542,7 @@ async def test_on_step_submitted_password_no_otp_returns_error():
     cs._step_phone = "+1234567890"
     cs._step_otp_code = None
 
-    result = await cs.on_step_submitted({"password": "secret"})
+    result = await cs.on_step_submitted({"password": "secret"}, {"sub": "test-sub"})
     assert result is not None
     assert result["type"] == "error"
 
@@ -552,7 +558,7 @@ async def test_on_step_submitted_password_failure_returns_error():
     cs._step_phone = "+1234567890"
     cs._step_otp_code = "12345"
 
-    result = await cs.on_step_submitted({"password": "wrong"})
+    result = await cs.on_step_submitted({"password": "wrong"}, {"sub": "test-sub"})
     assert result is not None
     assert result["type"] == "error"
     assert "2FA failed" in result["text"]
@@ -566,7 +572,7 @@ async def test_on_step_submitted_unexpected_input_returns_error():
 
     cs._step_backend = MagicMock()
 
-    result = await cs.on_step_submitted({"random_key": "value"})
+    result = await cs.on_step_submitted({"random_key": "value"}, {"sub": "test-sub"})
     assert result is not None
     assert result["type"] == "error"
 
@@ -604,7 +610,9 @@ async def test_save_credentials_bot_mode_callback_invoked():
 
     with patch("mcp_core.storage.config_file.write_config"):
         os.environ.pop("TELEGRAM_BOT_TOKEN", None)
-        result = await save_credentials({"TELEGRAM_BOT_TOKEN": "cb:token"})
+        result = await save_credentials(
+            {"TELEGRAM_BOT_TOKEN": "cb:token"}, {"sub": "test-sub"}
+        )
 
     assert result is None
     callback.assert_awaited_once()
@@ -623,7 +631,9 @@ async def test_save_credentials_bot_mode_callback_raises():
 
     with patch("mcp_core.storage.config_file.write_config"):
         os.environ.pop("TELEGRAM_BOT_TOKEN", None)
-        result = await save_credentials({"TELEGRAM_BOT_TOKEN": "cb-fail:token"})
+        result = await save_credentials(
+            {"TELEGRAM_BOT_TOKEN": "cb-fail:token"}, {"sub": "test-sub"}
+        )
 
     assert result is None
 
@@ -647,7 +657,7 @@ async def test_on_step_submitted_otp_invalid_disconnect_raises():
     cs._step_backend = mock_backend
     cs._step_phone = "+1234567890"
 
-    result = await cs.on_step_submitted({"otp_code": "00000"})
+    result = await cs.on_step_submitted({"otp_code": "00000"}, {"sub": "test-sub"})
 
     assert result is not None
     assert result["type"] == "error"
@@ -666,7 +676,7 @@ async def test_on_step_submitted_password_failure_disconnect_raises():
     cs._step_phone = "+1234567890"
     cs._step_otp_code = "12345"
 
-    result = await cs.on_step_submitted({"password": "wrong"})
+    result = await cs.on_step_submitted({"password": "wrong"}, {"sub": "test-sub"})
 
     assert result is not None
     assert result["type"] == "error"

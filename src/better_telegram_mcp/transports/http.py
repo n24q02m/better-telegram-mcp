@@ -93,13 +93,52 @@ def _is_multi_user_mode() -> bool:
 def start_http(settings: Settings) -> None:
     """Start MCP server in HTTP mode.
 
-    Detects multi-user mode (DCR_SERVER_SECRET + PUBLIC_URL set)
-    or falls back to single-user relay mode.
+    Three outcomes:
+    - Full multi-user OAuth 2.1 when all four env vars are present
+      (``DCR_SERVER_SECRET`` + ``PUBLIC_URL`` + ``TELEGRAM_API_ID`` +
+      ``TELEGRAM_API_HASH``). Per-JWT-sub Telethon clients, isolated
+      credentials, the intended public-deploy mode.
+    - Single-user relay fallback when ``PUBLIC_URL`` is absent — that's
+      self-host / localhost ``uvx`` usage and a single shared config is
+      correct there.
+    - ``RuntimeError`` when ``PUBLIC_URL`` is set but the other three env
+      vars aren't. Without all four, the fallback would serve a shared
+      ``default.session`` + shared ``TELEGRAM_PHONE`` on a public URL, and
+      two concurrent visitors would overwrite each other's Telegram
+      credentials (the 2026-04-21 incident). Refuse to start rather than
+      silently ship that behaviour. Override with
+      ``TELEGRAM_ACCEPT_SHARED_SINGLE_USER=1`` iff you really do own every
+      request (e.g. a private CF Tunnel behind basic auth).
     """
     if _is_multi_user_mode():
         _start_multi_user_http(settings)
-    else:
-        _start_single_user_http(settings)
+        return
+
+    public_url = os.environ.get("PUBLIC_URL")
+    override = os.environ.get("TELEGRAM_ACCEPT_SHARED_SINGLE_USER") == "1"
+    if public_url and not override:
+        missing = [
+            name
+            for name in (
+                "DCR_SERVER_SECRET",
+                "TELEGRAM_API_ID",
+                "TELEGRAM_API_HASH",
+            )
+            if not os.environ.get(name)
+        ]
+        msg = (
+            "Refusing to start: PUBLIC_URL is set (public deploy detected) "
+            "but multi-user mode requires "
+            f"{', '.join(missing)} to be set as well. Without them the server "
+            "falls back to a SHARED default.session + TELEGRAM_PHONE across "
+            "every visitor, which leaks credentials. Either provide the "
+            "missing env vars to enable per-user OAuth 2.1, or set "
+            "TELEGRAM_ACCEPT_SHARED_SINGLE_USER=1 to explicitly opt in to "
+            "single-user behaviour (only safe on private networks)."
+        )
+        raise RuntimeError(msg)
+
+    _start_single_user_http(settings)
 
 
 def _start_single_user_http(settings: Settings) -> None:
