@@ -2,6 +2,32 @@
 
 <!-- version list -->
 
+## v4.6.3 (2026-04-21)
+
+### Bug Fixes
+
+- Case-insensitive Bearer token parsing per RFC 7235 (with tests)
+  ([`411ae2d`](https://github.com/n24q02m/better-telegram-mcp/commit/411ae2daced4a010b468db87028a99136f57beac))
+
+- Improve OTP and 2FA password form accessibility
+  ([`0ceacf3`](https://github.com/n24q02m/better-telegram-mcp/commit/0ceacf39ee6598ef5c38f6202a6c500526e39b01))
+
+- Memoize trusted proxy parsing in hot path
+  ([`4065522`](https://github.com/n24q02m/better-telegram-mcp/commit/40655220289f90ce1bbd0b99010277f8ca967bfe))
+
+- Refuse public-URL single-user fallback + propagate SubjectContext
+  ([`4fb18e3`](https://github.com/n24q02m/better-telegram-mcp/commit/4fb18e30798c218fe9b8c263c778e4f66f35fddc))
+
+- Stdio fallback renders custom telegram credential form
+  ([`1142286`](https://github.com/n24q02m/better-telegram-mcp/commit/114228637e3e03cd21dda2dbbda60c8029494fd8))
+
+- Stdio fallback spawns local credential form, not remote relay
+  ([`48f338b`](https://github.com/n24q02m/better-telegram-mcp/commit/48f338bd252a8c9716d5440697b8aa42f239c62f))
+
+- **deps**: Lock file maintenance (filelock 3.28.0->3.29.0)
+  ([`d0f1865`](https://github.com/n24q02m/better-telegram-mcp/commit/d0f18658f332546dc9e921fd6805406b970d2ae4))
+
+
 ## v4.6.2 (2026-04-20)
 
 ### Bug Fixes
