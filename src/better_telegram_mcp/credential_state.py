@@ -205,6 +205,7 @@ async def trigger_relay_setup(
         from fastmcp import FastMCP
         from mcp_core import start_local_server_background, try_open_browser
 
+        from .credential_form import render_telegram_credential_form
         from .relay_schema import RELAY_SCHEMA
 
         stub_mcp = FastMCP(f"{SERVER_NAME}-setup")
@@ -217,6 +218,7 @@ async def trigger_relay_setup(
             host="127.0.0.1",
             on_credentials_saved=save_credentials,
             on_step_submitted=on_step_submitted,
+            custom_credential_form_html=render_telegram_credential_form,
         )
 
         _active_handle = handle
