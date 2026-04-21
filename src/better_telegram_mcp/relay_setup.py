@@ -16,7 +16,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-DEFAULT_RELAY_URL = "https://better-telegram-mcp.n24q02m.com"
 SERVER_NAME = "better-telegram-mcp"
 REQUIRED_FIELDS_BOT = ["TELEGRAM_BOT_TOKEN"]
 REQUIRED_FIELDS_USER = ["TELEGRAM_PHONE"]
