@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.6.5 (2026-04-21)
+
+### Bug Fixes
+
+- Route HTTP entry through transports.http so multi-user OAuth actually runs
+  ([`9821675`](https://github.com/n24q02m/better-telegram-mcp/commit/982167513eea5e4c408cbad4fdc0230bb68ede95))
+
+
 ## v4.6.4 (2026-04-21)
 
 ### Bug Fixes
