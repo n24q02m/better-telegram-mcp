@@ -42,13 +42,10 @@ class Settings(BaseSettings):
     mode: Literal["bot", "user"] = "bot"
 
     @functools.cached_property
-    def trusted_proxy_list(self) -> frozenset[str]:
-        """⚡ Bolt: Memoize proxy parsing and convert to frozenset for O(1) lookups."""
+    def trusted_proxy_list(self) -> list[str]:
         if not self.trusted_proxies:
-            return frozenset()
-        return frozenset(
-            p.strip() for p in self.trusted_proxies.split(",") if p.strip()
-        )
+            return []
+        return [p.strip() for p in self.trusted_proxies.split(",") if p.strip()]
 
     @model_validator(mode="after")
     def _detect_mode(self) -> Settings:
