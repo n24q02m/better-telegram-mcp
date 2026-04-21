@@ -31,7 +31,7 @@ dependencies = [
     "n24q02m-mcp-core>=1.5.1",
     "cryptography>=46.0.7",
     "starlette>=1.0.0",
-    "uvicorn>=0.44.0",
+    "uvicorn>=0.45.0",
     "cryptg>=0.6.0",
 ]
 [dependency-groups]
@@ -43,7 +43,7 @@ dev = [
     "pytest-xdist>=3.8.0",
     "ruff>=0.15.11",
     "ty>=0.0.32",
-    "pre-commit>=4.5.1",
+    "pre-commit>=4.6.0",
 ]
 [project.scripts]
 better-telegram-mcp = "better_telegram_mcp.__main__:_cli"
