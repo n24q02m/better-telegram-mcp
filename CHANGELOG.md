@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.6.12-beta.1 (2026-04-22)
+
+### Bug Fixes
+
+- Add RFC 7591 dynamic client registration endpoint
+  ([`ee5d1aa`](https://github.com/n24q02m/better-telegram-mcp/commit/ee5d1aad8e838a9c95bfbe22cdc24eb9aa790a1d))
+
+
 ## v4.6.11 (2026-04-22)
 
 ### Bug Fixes
