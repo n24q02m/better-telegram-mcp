@@ -144,6 +144,12 @@ def render_telegram_credential_form(
             color: #ccc;
         }}
 
+        .tab:focus-visible {{
+            outline: 2px solid #4a6fa5;
+            outline-offset: -2px;
+            border-radius: 4px;
+        }}
+
         .tab.active {{
             color: #fff;
             border-bottom-color: #4a6fa5;
@@ -223,6 +229,12 @@ def render_telegram_credential_form(
             text-decoration: underline;
         }}
 
+        .help-text a:focus-visible {{
+            outline: 2px solid #4a6fa5;
+            outline-offset: 2px;
+            border-radius: 2px;
+        }}
+
         .submit-btn {{
             width: 100%;
             background-color: #4a6fa5;
@@ -240,6 +252,11 @@ def render_telegram_credential_form(
 
         .submit-btn:hover {{
             background-color: #5a7fb5;
+        }}
+
+        .submit-btn:focus-visible {{
+            outline: 2px solid #4a6fa5;
+            outline-offset: 2px;
         }}
 
         .submit-btn:disabled {{
