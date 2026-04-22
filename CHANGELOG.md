@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v4.6.9 (2026-04-22)
+
+### Bug Fixes
+
+- Bump n24q02m-mcp-core to 1.6.3 (relay form follow redirect_url)
+  ([#368](https://github.com/n24q02m/better-telegram-mcp/pull/368),
+  [`e61e041`](https://github.com/n24q02m/better-telegram-mcp/commit/e61e0418b707b0bd3f0b68be85f97e5af8d2cfba))
+
+
 ## v4.6.8 (2026-04-22)
 
 ### Bug Fixes
