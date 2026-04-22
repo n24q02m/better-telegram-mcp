@@ -10,6 +10,7 @@ Provides:
 
 import hashlib
 import os
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import cast
@@ -130,6 +131,32 @@ def create_app(
                 {"error": "server_error", "description": str(e)}, status_code=500
             )
 
+    async def register(request: Request) -> JSONResponse:
+        """POST /register — RFC 7591 Dynamic Client Registration."""
+        try:
+            body = await request.json()
+        except Exception:
+            return JSONResponse({"error": "invalid_request"}, status_code=400)
+
+        client_name = body.get("client_name", "unknown")
+        redirect_uris = body.get("redirect_uris", [])
+        grant_types = body.get("grant_types", ["authorization_code"])
+        response_types = body.get("response_types", ["code"])
+        token_endpoint_auth_method = body.get("token_endpoint_auth_method", "none")
+
+        client_id = str(uuid.uuid4())
+        return JSONResponse(
+            {
+                "client_id": client_id,
+                "client_name": client_name,
+                "redirect_uris": redirect_uris,
+                "grant_types": grant_types,
+                "response_types": response_types,
+                "token_endpoint_auth_method": token_endpoint_auth_method,
+            },
+            status_code=201,
+        )
+
     async def token(request: Request) -> JSONResponse:
         """POST /token"""
         try:
@@ -201,6 +228,7 @@ def create_app(
                 "issuer": public_url,
                 "authorization_endpoint": f"{public_url}/authorize",
                 "token_endpoint": f"{public_url}/token",
+                "registration_endpoint": f"{public_url}/register",
                 "jwks_uri": f"{public_url}/.well-known/jwks.json",
                 "response_types_supported": ["code"],
                 "grant_types_supported": ["authorization_code"],
@@ -280,6 +308,7 @@ def create_app(
 
     routes = [
         Route("/authorize", authorize, methods=["GET"]),
+        Route("/register", register, methods=["POST"]),
         Route("/token", token, methods=["POST"]),
         Route("/.well-known/jwks.json", jwks, methods=["GET"]),
         Route("/.well-known/oauth-authorization-server", metadata, methods=["GET"]),
