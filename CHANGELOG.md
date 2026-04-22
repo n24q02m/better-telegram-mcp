@@ -2,6 +2,30 @@
 
 <!-- version list -->
 
+## v4.6.7 (2026-04-22)
+
+### Bug Fixes
+
+- Bump n24q02m-mcp-core to 1.5.1
+  ([`863260d`](https://github.com/n24q02m/better-telegram-mcp/commit/863260d3b811c4ae7318262b49280eca07ab5050))
+
+- Bump n24q02m-mcp-core to 1.6.1 ([#364](https://github.com/n24q02m/better-telegram-mcp/pull/364),
+  [`4630fa8`](https://github.com/n24q02m/better-telegram-mcp/commit/4630fa890a406cc2c79c464468c92af3c0a0fcbe))
+
+- **deps**: Update non-major dependencies
+  ([#358](https://github.com/n24q02m/better-telegram-mcp/pull/358),
+  [`6d53224`](https://github.com/n24q02m/better-telegram-mcp/commit/6d5322438b3bb8c2e80547ce9a232f7f0487c5a9))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#360](https://github.com/n24q02m/better-telegram-mcp/pull/360),
+  [`65d9888`](https://github.com/n24q02m/better-telegram-mcp/commit/65d9888dd78220e004abb18f0e2afe043f3a82fb))
+
+- **deps**: Update astral-sh/setup-uv action to v8
+  ([#359](https://github.com/n24q02m/better-telegram-mcp/pull/359),
+  [`3ff3cb7`](https://github.com/n24q02m/better-telegram-mcp/commit/3ff3cb759bef04ec263e13093b554d2df38f030b))
+
+
 ## v4.6.6 (2026-04-21)
 
 ### Bug Fixes
