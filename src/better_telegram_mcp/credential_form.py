@@ -435,6 +435,12 @@ def render_telegram_credential_form(
                 return submitUrl.replace(/\\/authorize.*/, "/otp");
             }}
 
+            // Stashed from initial POST /authorize response so OTP/password
+            // completion can follow the OAuth redirect (external test harness,
+            // Claude CLI, desktop app). Without this the form stalls on "close
+            // tab" and external clients wait on a callback that never fires.
+            var pendingRedirectUrl = null;
+
             // --- Step-input UI (otp_required / password_required) -------------
             // Identical behavior to mcp-core's default credential form:
             // builds/updates a step container, POSTs to /otp, chains next_step.
@@ -558,8 +564,14 @@ def render_telegram_credential_form(
                                     var done = document.createElement("div");
                                     done.className = "status-box success";
                                     done.style.display = "block";
-                                    done.textContent = "Setup complete! You can close this tab.";
-                                    container.appendChild(done);
+                                    if (typeof pendingRedirectUrl === "string" && pendingRedirectUrl.length > 0) {{
+                                        done.textContent = "Setup complete! Redirecting...";
+                                        container.appendChild(done);
+                                        window.location.replace(pendingRedirectUrl);
+                                    }} else {{
+                                        done.textContent = "Setup complete! You can close this tab.";
+                                        container.appendChild(done);
+                                    }}
                                 }}
                             }} else {{
                                 errorEl.textContent = data.error || data.error_description || "Verification failed.";
@@ -622,6 +634,12 @@ def render_telegram_credential_form(
                     .then(function (response) {{
                         return response.json().then(function (data) {{
                             if (data.ok) {{
+                                // Stash the OAuth redirect target so follow-up async steps
+                                // (OTP verify, 2FA password) can navigate to it on final
+                                // success instead of orphaning the external client callback.
+                                if (typeof data.redirect_url === "string" && data.redirect_url.length > 0) {{
+                                    pendingRedirectUrl = data.redirect_url;
+                                }}
                                 if (data.next_step && (data.next_step.type === "otp_required" || data.next_step.type === "password_required")) {{
                                     statusBox.style.display = "none";
                                     showStepInput(data.next_step);
@@ -632,6 +650,16 @@ def render_telegram_credential_form(
                                     submitBtn.textContent = "Connected";
                                     tabs.forEach(function (t) {{ t.disabled = true; }});
                                     showStatus("success", data.next_step.message || "Setup saved. Additional steps may be required.");
+                                }} else if (pendingRedirectUrl) {{
+                                    // No interactive next step — follow the OAuth redirect now
+                                    // so the external client callback receives the auth code.
+                                    form.querySelectorAll(".field-input").forEach(function (i) {{ i.disabled = true; }});
+                                    submitBtn.disabled = true;
+                                    submitBtn.removeAttribute("aria-busy");
+                                    submitBtn.textContent = "Connected";
+                                    tabs.forEach(function (t) {{ t.disabled = true; }});
+                                    showStatus("success", "Credentials saved. Redirecting...");
+                                    window.location.replace(pendingRedirectUrl);
                                 }} else {{
                                     form.querySelectorAll(".field-input").forEach(function (i) {{ i.disabled = true; }});
                                     submitBtn.disabled = true;
