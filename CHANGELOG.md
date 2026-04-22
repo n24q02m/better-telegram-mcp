@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v4.6.10 (2026-04-22)
+
+### Bug Fixes
+
+- Follow redirect_url after async OTP/password completion
+  ([#369](https://github.com/n24q02m/better-telegram-mcp/pull/369),
+  [`0560529`](https://github.com/n24q02m/better-telegram-mcp/commit/0560529f5700849f46438e8e74c35638ef657d30))
+
+
 ## v4.6.9 (2026-04-22)
 
 ### Bug Fixes
