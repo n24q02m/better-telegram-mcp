@@ -90,7 +90,7 @@ def test_error_responses():
     assert b"err" in resp.body
 
     resp = _jsonrpc_error(-32000, "msg")
-    assert resp.status_code == 403
+    assert resp.status_code == 401
     assert b"msg" in resp.body
 
 
@@ -235,14 +235,14 @@ def test_auth_user_verify_no_bearer(client):
 
 def test_mcp_middleware_no_auth(client):
     response = client.post("/mcp", json={})
-    assert response.status_code == 403
+    assert response.status_code == 401
     assert "Bearer authentication required" in response.json()["error"]["message"]
 
 
 def test_mcp_middleware_invalid_bearer(client, mock_deps):
     mock_deps["auth"].resolve_backend.return_value = None
     response = client.post("/mcp", json={}, headers={"authorization": "Bearer invalid"})
-    assert response.status_code == 403
+    assert response.status_code == 401
     assert "Invalid or expired bearer token" in response.json()["error"]["message"]
 
 
@@ -353,7 +353,7 @@ def test_auth_user_verify_missing_code(client):
 
 def test_mcp_middleware_wrong_header_format(client, mock_deps):
     response = client.post("/mcp", headers={"authorization": "NotBearer token"})
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 def test_auth_user_verify_fail(client, mock_deps):
