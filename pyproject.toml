@@ -109,3 +109,6 @@ major_on_zero = false
 changelog_file = "CHANGELOG.md"
 [tool.semantic_release.remote]
 type = "github"
+
+[tool.uv.sources]
+n24q02m-mcp-core = { path = "../mcp-core/packages/core-py" }

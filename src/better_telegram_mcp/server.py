@@ -575,12 +575,15 @@ async def run_http(port: int = 0) -> None:
 def main() -> None:
     import sys
 
-    if "--stdio" in sys.argv or os.environ.get("MCP_TRANSPORT") == "stdio":
-        mcp.run(transport="stdio")
-        return
-    if os.environ.get("TRANSPORT_MODE") == "stdio":
-        mcp.run(transport="stdio")
-        return
+    if (
+        "--stdio" in sys.argv
+        or os.environ.get("MCP_TRANSPORT") == "stdio"
+        or os.environ.get("TRANSPORT_MODE") == "stdio"
+    ):
+        from mcp_core.transport import run_smart_stdio_proxy
+
+        daemon_cmd = [sys.executable, "-m", "better_telegram_mcp"]
+        sys.exit(run_smart_stdio_proxy("better-telegram-mcp", daemon_cmd))
 
     # HTTP mode: dispatch through transports/http.py so the multi-user
     # OAuth 2.1 branch, the refuse-guard for broken single-user-on-public
