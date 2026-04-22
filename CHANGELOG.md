@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v4.6.11 (2026-04-22)
+
+### Bug Fixes
+
+- Return 401 + WWW-Authenticate for bearer auth failures
+  ([#370](https://github.com/n24q02m/better-telegram-mcp/pull/370),
+  [`a23ea71`](https://github.com/n24q02m/better-telegram-mcp/commit/a23ea71b093f67f50de51ffe49403fb1189271e0))
+
+
 ## v4.6.10 (2026-04-22)
 
 ### Bug Fixes
