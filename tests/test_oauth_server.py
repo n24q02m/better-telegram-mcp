@@ -245,7 +245,7 @@ def test_metadata(client):
 
 def test_mcp_no_auth(client):
     resp = client.post("/mcp", json={"jsonrpc": "2.0", "method": "list_tools", "id": 1})
-    assert resp.status_code == 403
+    assert resp.status_code == 401
     assert "Bearer authentication required" in resp.json()["error"]["message"]
 
 
@@ -256,7 +256,7 @@ def test_mcp_invalid_token(client, mock_issuer):
         json={"jsonrpc": "2.0", "method": "list_tools", "id": 1},
         headers={"Authorization": "Bearer badtoken"},
     )
-    assert resp.status_code == 403
+    assert resp.status_code == 401
     assert "Invalid or expired access token" in resp.json()["error"]["message"]
 
 
@@ -294,7 +294,7 @@ def test_mcp_user_not_found(client, mock_issuer, mock_auth_provider, mock_user_s
         headers={"Authorization": "BeArEr goodtoken"},
     )
 
-    assert resp.status_code == 403
+    assert resp.status_code == 401
     assert "User credentials not found" in resp.json()["error"]["message"]
 
 

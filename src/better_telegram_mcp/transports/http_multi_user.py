@@ -94,13 +94,18 @@ def _error_response(status: int, error: str, description: str) -> JSONResponse:
 
 
 def _jsonrpc_error(code: int, message: str) -> JSONResponse:
+    # RFC 6750 §3: missing/invalid bearer token MUST return 401 +
+    # WWW-Authenticate: Bearer. MCP SDK uses the header to discover the
+    # authorization server and trigger OAuth. Returning 403 leaves the
+    # client stuck with no way to recover.
     return JSONResponse(
         {
             "jsonrpc": "2.0",
             "error": {"code": code, "message": message},
             "id": None,
         },
-        status_code=403,
+        status_code=401,
+        headers={"WWW-Authenticate": "Bearer"},
     )
 
 

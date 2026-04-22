@@ -32,13 +32,19 @@ from .http import _current_backend
 
 
 def _jsonrpc_error(code: int, message: str) -> JSONResponse:
+    # RFC 6750 §3: missing/invalid bearer token MUST return 401 with
+    # WWW-Authenticate: Bearer. MCP Python SDK relies on this header to
+    # discover the authorization server and initiate the OAuth flow; if
+    # we return 403 the client treats it as a terminal authorization
+    # failure and never attempts to authenticate.
     return JSONResponse(
         {
             "jsonrpc": "2.0",
             "error": {"code": code, "message": message},
             "id": None,
         },
-        status_code=403,  # Authentication errors map to JSON-RPC HTTP 403 or 401
+        status_code=401,
+        headers={"WWW-Authenticate": "Bearer"},
     )
 
 
