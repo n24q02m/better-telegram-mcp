@@ -350,12 +350,12 @@ async def test_help_works_during_pending_auth():
 
 def test_main_calls_run():
     with (
-        patch("mcp_core.transport.run_smart_stdio_proxy", return_value=0) as mock_proxy,
+        patch("better_telegram_mcp.server.mcp.run") as mock_run,
         patch.dict(os.environ, {"MCP_TRANSPORT": "stdio"}),
         pytest.raises(SystemExit, match="0"),
     ):
         main()
-        mock_proxy.assert_called_once()
+        mock_run.assert_called_once_with(transport="stdio")
 
 
 # --- unconfigured state tests (no credentials) ---
