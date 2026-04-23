@@ -52,6 +52,7 @@ jobs:
           sed -i.bak '/n24q02m-mcp-core = { path =/d' pyproject.toml || true
           sed -i.bak '/\[tool\.uv\.sources\]/d' pyproject.toml || true
           rm -f pyproject.toml.bak
+          rm -f uv.lock
 
       - name: Install dependencies
         run: uv sync --group dev
