@@ -210,6 +210,15 @@ def render_telegram_credential_form(
             box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.2);
         }}
 
+        .field-input[aria-invalid="true"] {{
+            border-color: #f87171;
+        }}
+
+        .field-input[aria-invalid="true"]:focus {{
+            border-color: #f87171;
+            box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.2);
+        }}
+
         .field-input::placeholder {{
             color: #555;
         }}
@@ -421,7 +430,6 @@ def render_telegram_credential_form(
                     statusBox.style.display = "none";
                     statusBox.textContent = "";
                     form.querySelectorAll(".field-input").forEach(function (i) {{
-                        i.style.borderColor = "";
                         i.removeAttribute("aria-invalid");
                         i.removeAttribute("required");
                     }});
@@ -545,10 +553,12 @@ def render_telegram_credential_form(
                 if (value.trim() === "") {{
                     errorEl.textContent = "Please enter a value.";
                     errorEl.style.display = "block";
+                    inputEl.setAttribute("aria-invalid", "true");
                     return;
                 }}
                 errorEl.style.display = "none";
                 errorEl.textContent = "";
+                inputEl.removeAttribute("aria-invalid");
                 buttonEl.disabled = true;
                 buttonEl.setAttribute("aria-busy", "true");
                 buttonEl.textContent = "Verifying...";
@@ -588,6 +598,7 @@ def render_telegram_credential_form(
                                 errorEl.textContent = data.error || data.error_description || "Verification failed.";
                                 errorEl.style.display = "block";
                                 inputEl.disabled = false;
+                                inputEl.setAttribute("aria-invalid", "true");
                                 buttonEl.disabled = false;
                                 buttonEl.removeAttribute("aria-busy");
                                 buttonEl.textContent = "Verify";
@@ -599,6 +610,7 @@ def render_telegram_credential_form(
                         errorEl.textContent = "Network error: " + err.message;
                         errorEl.style.display = "block";
                         inputEl.disabled = false;
+                        inputEl.setAttribute("aria-invalid", "true");
                         buttonEl.disabled = false;
                         buttonEl.removeAttribute("aria-busy");
                         buttonEl.textContent = "Verify";
@@ -620,10 +632,8 @@ def render_telegram_credential_form(
                 inputs.forEach(function (input) {{
                     if (input.value.trim() === "") {{
                         valid = false;
-                        input.style.borderColor = "#f87171";
                         input.setAttribute("aria-invalid", "true");
                     }} else {{
-                        input.style.borderColor = "";
                         input.removeAttribute("aria-invalid");
                         payload[input.name] = input.value;
                     }}

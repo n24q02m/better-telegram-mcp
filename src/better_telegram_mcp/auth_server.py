@@ -48,6 +48,8 @@ input{width:100%;padding:.75rem 1rem;background:#111;border:1px solid #444;
 input[type="password"]{letter-spacing:normal;text-align:left}
 input:focus{border-color:#3b82f6}
 input:focus-visible,button:focus-visible{outline:2px solid #3b82f6;outline-offset:2px}
+input[aria-invalid="true"]{border-color:#ef4444}
+input[aria-invalid="true"]:focus,input[aria-invalid="true"]:focus-visible{border-color:#ef4444;outline:2px solid #ef4444}
 button{width:100%;padding:.75rem;background:#3b82f6;color:#fff;border:none;
   border-radius:8px;font-size:1rem;cursor:pointer;font-weight:500}
 button:hover{background:#2563eb}
@@ -127,6 +129,8 @@ function clearSt(el){el.className='st';el.textContent='';el.style.display='none'
 function btnLoading(fs,btn,text){fs.disabled=true;btn.textContent=text;btn.setAttribute('aria-busy','true')}
 function btnReset(fs,btn,text){fs.disabled=false;btn.textContent=text;btn.removeAttribute('aria-busy')}
 function showPwd(){$('pwd-section').style.display='block';$('pwd').required=true;$('pwd').focus()}
+function setInvalid(id){$(id).setAttribute('aria-invalid','true')}
+function clearInvalid(id){$(id).removeAttribute('aria-invalid')}
 
 async function checkStatus(){
   try{const r=await fetch('/status',{headers:{'X-Auth-Token':_t}});const d=await r.json();
@@ -146,8 +150,9 @@ async function sendCode(){
 
 async function verify(){
   const btn=$('btn-verify'),s=$('s1'),fs=$('fs1');
+  clearInvalid('otp');clearInvalid('pwd');
   const code=$('otp').value.trim();
-  if(!code){st(s,'error','Please enter the OTP code first.');return}
+  if(!code){st(s,'error','Please enter the OTP code first.');setInvalid('otp');return}
   btnLoading(fs,btn,'Verifying...');
   try{const body={code};const pwd=$('pwd').value.trim();if(pwd)body.password=pwd;
     const r=await fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json','X-Auth-Token':_t},body:JSON.stringify(body)});
@@ -155,10 +160,10 @@ async function verify(){
     if(d.ok){$('auth-name').textContent=d.name||'User';show('step2')}
     else{
       btnReset(fs,btn,'Verify Code');
-      if(d.needs_password){showPwd();st(s,'error','2FA password is required. Please enter it above.')}
-      else{st(s,'error',d.error||'Verification failed')}
+      if(d.needs_password){showPwd();st(s,'error','2FA password is required. Please enter it above.');setInvalid('pwd')}
+      else{st(s,'error',d.error||'Verification failed');setInvalid('otp');if($('pwd-section').style.display==='block')setInvalid('pwd')}
     }
-  }catch(e){st(s,'error','Network error. Check your connection.');btnReset(fs,btn,'Verify Code')}
+  }catch(e){st(s,'error','Network error. Check your connection.');setInvalid('otp');if($('pwd-section').style.display==='block')setInvalid('pwd');btnReset(fs,btn,'Verify Code')}
 }
 checkStatus();
 </script>
