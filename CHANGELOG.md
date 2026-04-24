@@ -2,6 +2,39 @@
 
 <!-- version list -->
 
+## v4.7.0 (2026-04-24)
+
+### Bug Fixes
+
+- Bump n24q02m-mcp-core to 1.7.5 + loosen pydantic for cohere compat
+  ([#385](https://github.com/n24q02m/better-telegram-mcp/pull/385),
+  [`e09b1f6`](https://github.com/n24q02m/better-telegram-mcp/commit/e09b1f6cb3730555620f985cb57bf9e1369d0c16))
+
+- Bump n24q02m-mcp-core to 1.7.6 ([#387](https://github.com/n24q02m/better-telegram-mcp/pull/387),
+  [`f555bf1`](https://github.com/n24q02m/better-telegram-mcp/commit/f555bf192c85fb3872474a2c08ebb3484d49de5a))
+
+- Bump n24q02m-mcp-core to >=1.7.0 ([#379](https://github.com/n24q02m/better-telegram-mcp/pull/379),
+  [`1a1ae4e`](https://github.com/n24q02m/better-telegram-mcp/commit/1a1ae4e6a8139882859e7ea19ce6ff9f60eb2239))
+
+- Optimize trusted proxy list lookup to O(1) (PR 374 split)
+  ([`407539f`](https://github.com/n24q02m/better-telegram-mcp/commit/407539fd79c46a1fa9b0cf233703c368244644d2))
+
+- **deps**: Update dependency uvicorn to >=0.46.0
+  ([#375](https://github.com/n24q02m/better-telegram-mcp/pull/375),
+  [`0e17be6`](https://github.com/n24q02m/better-telegram-mcp/commit/0e17be6d8414287a0f87870e323206c9e1deb9a8))
+
+### Chores
+
+- **deps**: Update python:3.13-slim-bookworm docker digest to bb73517
+  ([#372](https://github.com/n24q02m/better-telegram-mcp/pull/372),
+  [`2fe0dcc`](https://github.com/n24q02m/better-telegram-mcp/commit/2fe0dcc713ba13ce4786bc5715e65ac2dd57f931))
+
+### Features
+
+- Enforce Smart Daemon Manager (1-Daemon) for stdio transport
+  ([`8d68f2e`](https://github.com/n24q02m/better-telegram-mcp/commit/8d68f2e19ef239ac769b0baf7306fc9182e0c252))
+
+
 ## v4.6.12-beta.1 (2026-04-22)
 
 ### Bug Fixes
