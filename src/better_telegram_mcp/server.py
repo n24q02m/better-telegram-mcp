@@ -580,15 +580,10 @@ def main() -> None:
         or os.environ.get("MCP_TRANSPORT") == "stdio"
         or os.environ.get("TRANSPORT_MODE") == "stdio"
     ):
-        import anyio
+        from mcp_core.transport import run_smart_stdio_proxy
 
-        async def _run_stdio():
-            from better_telegram_mcp.config import Settings
-            from better_telegram_mcp.transports.http import _start_single_user_http
-
-            _start_single_user_http(Settings())
-
-        sys.exit(anyio.run(_run_stdio))
+        daemon_cmd = [sys.executable, "-m", "better_telegram_mcp"]
+        sys.exit(run_smart_stdio_proxy("better-telegram-mcp", daemon_cmd))
 
     # HTTP mode: dispatch through transports/http.py so the multi-user
     # OAuth 2.1 branch, the refuse-guard for broken single-user-on-public
