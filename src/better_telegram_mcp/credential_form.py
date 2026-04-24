@@ -327,12 +327,12 @@ def render_telegram_credential_form(
             </div>
 
             <div class="tabs" role="tablist">
-                <button type="button" class="tab active" data-tab="bot" role="tab" aria-selected="true">Bot Mode</button>
-                <button type="button" class="tab" data-tab="user" role="tab" aria-selected="false">User Mode</button>
+                <button type="button" id="tab-bot" class="tab active" data-tab="bot" role="tab" aria-selected="true" aria-controls="panel-bot">Bot Mode</button>
+                <button type="button" id="tab-user" class="tab" data-tab="user" role="tab" aria-selected="false" aria-controls="panel-user">User Mode</button>
             </div>
 
             <form id="credential-form" novalidate>
-                <div class="tab-panel active" data-panel="bot" role="tabpanel">
+                <div id="panel-bot" class="tab-panel active" data-panel="bot" role="tabpanel" aria-labelledby="tab-bot">
                     <div class="field-group">
                         <label for="field-TELEGRAM_BOT_TOKEN" class="field-label">
                             Bot Token
@@ -348,14 +348,16 @@ def render_telegram_credential_form(
                             autocorrect="off"
                             autocapitalize="off"
                             spellcheck="false"
+                            aria-describedby="help-bot-token"
+                            required
                         />
-                        <p class="help-text">
+                        <p id="help-bot-token" class="help-text">
                             <a href="https://core.telegram.org/bots#botfather" target="_blank" rel="noopener noreferrer">Get from @BotFather on Telegram</a>
                         </p>
                     </div>
                 </div>
 
-                <div class="tab-panel" data-panel="user" role="tabpanel">
+                <div id="panel-user" class="tab-panel" data-panel="user" role="tabpanel" aria-labelledby="tab-user">
                     <div class="field-group">
                         <label for="field-TELEGRAM_PHONE" class="field-label">
                             Phone Number
@@ -371,8 +373,9 @@ def render_telegram_credential_form(
                             autocorrect="off"
                             autocapitalize="off"
                             spellcheck="false"
+                            aria-describedby="help-phone"
                         />
-                        <p class="help-text">
+                        <p id="help-phone" class="help-text">
                             Full account access via MTProto. API ID/Hash built-in. OTP verification required after submit.
                         </p>
                     </div>
@@ -419,7 +422,15 @@ def render_telegram_credential_form(
                     statusBox.textContent = "";
                     form.querySelectorAll(".field-input").forEach(function (i) {{
                         i.style.borderColor = "";
+                        i.removeAttribute("aria-invalid");
+                        i.removeAttribute("required");
                     }});
+                    // Set required on the active panel's inputs
+                    if (panel) {{
+                        panel.querySelectorAll(".field-input").forEach(function (i) {{
+                            i.setAttribute("required", "");
+                        }});
+                    }}
                 }});
             }});
 
@@ -610,8 +621,10 @@ def render_telegram_credential_form(
                     if (input.value.trim() === "") {{
                         valid = false;
                         input.style.borderColor = "#f87171";
+                        input.setAttribute("aria-invalid", "true");
                     }} else {{
                         input.style.borderColor = "";
+                        input.removeAttribute("aria-invalid");
                         payload[input.name] = input.value;
                     }}
                 }});
