@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v4.7.1 (2026-04-24)
+
+### Bug Fixes
+
+- Regenerate uv.lock without [tool.uv.sources] for Docker build
+  ([#388](https://github.com/n24q02m/better-telegram-mcp/pull/388),
+  [`f7e7ca4`](https://github.com/n24q02m/better-telegram-mcp/commit/f7e7ca47911c729089043639b7109f9a0f6f23a5))
+
+
 ## v4.7.0 (2026-04-24)
 
 ### Bug Fixes
