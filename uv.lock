@@ -112,7 +112,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.27.0" },
-    { name = "n24q02m-mcp-core", directory = "../mcp-core/packages/core-py" },
+    { name = "n24q02m-mcp-core", specifier = ">=1.7.0" },
     { name = "pydantic", specifier = ">=2.13.3" },
     { name = "pydantic-settings", specifier = ">=2.14.0" },
     { name = "starlette", specifier = ">=1.0.0" },
@@ -727,8 +727,8 @@ wheels = [
 
 [[package]]
 name = "n24q02m-mcp-core"
-version = "1.6.3"
-source = { directory = "../mcp-core/packages/core-py" }
+version = "1.7.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "authlib" },
     { name = "cryptography" },
@@ -740,28 +740,9 @@ dependencies = [
     { name = "starlette" },
     { name = "tomli-w" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "authlib", specifier = ">=1.7.0" },
-    { name = "cryptography", specifier = ">=46.0.7" },
-    { name = "fastmcp", specifier = ">=3.2.4" },
-    { name = "httpx", specifier = ">=0.28.1" },
-    { name = "loguru", specifier = ">=0.7.3" },
-    { name = "platformdirs", specifier = ">=4.9.6" },
-    { name = "pydantic", specifier = ">=2.12.5" },
-    { name = "starlette", specifier = ">=0.52.1" },
-    { name = "tomli-w", specifier = ">=1.2.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest", specifier = ">=9.0.3" },
-    { name = "pytest-asyncio", specifier = ">=1.3.0" },
-    { name = "pytest-cov", specifier = ">=7.1.0" },
-    { name = "pytest-timeout", specifier = ">=2.4.0" },
-    { name = "ruff", specifier = ">=0.15.11" },
-    { name = "ty", specifier = ">=0.0.32" },
+sdist = { url = "https://files.pythonhosted.org/packages/7d/ae/1d23350eddbe26bd66548704a7ff650503fdce43f1f418ce47b62bf8a234/n24q02m_mcp_core-1.7.0.tar.gz", hash = "sha256:85fab05ef5f598a7d52710e73d3081f3046b5b9a6fd9024704d2f40c0e87d84a", size = 157679, upload-time = "2026-04-24T03:11:01.575Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/98/3f/327da212102536617cf5a8bf8cb031f44c4d26360690e49a93fd1fc11bb8/n24q02m_mcp_core-1.7.0-py3-none-any.whl", hash = "sha256:6fac23d7a59ad84e318055005c5940611553131a124b52ab1abbf2b55de401e9", size = 97950, upload-time = "2026-04-24T03:11:03.543Z" },
 ]
 
 [[package]]
