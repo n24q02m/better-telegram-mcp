@@ -47,19 +47,19 @@ jobs:
           python-version: "3.13"
 
       - name: Install dependencies
-        run: uv sync --group dev
+        run: uv sync --group dev --no-sources
 
       - name: Run Ruff check
-        run: uv run ruff check .
+        run: uv run --no-sync ruff check .
 
       - name: Run Ruff format check
-        run: uv run ruff format --check .
+        run: uv run --no-sync ruff format --check .
 
       - name: Run ty type check
-        run: uv run ty check
+        run: uv run --no-sync ty check
 
       - name: Run tests with coverage
-        run: uv run pytest tests/ --cov=better_telegram_mcp --cov-report=xml --cov-fail-under=95
+        run: uv run --no-sync pytest tests/ --cov=better_telegram_mcp --cov-report=xml --cov-fail-under=95
 
       - name: Upload coverage to Codecov
         if: github.event_name == 'push' && matrix.os == 'ubuntu-latest'
