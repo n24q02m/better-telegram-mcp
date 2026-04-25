@@ -67,7 +67,7 @@ NO `TELEGRAM_PASSWORD` -- 2FA nhap qua web UI, KHONG luu env.
 - Config tool: `status|set|cache_clear` (NO auth/send_code -- web UI only)
 - Coverage omit: auth_server.py, auth_client.py (integration test only)
 - Security: SSRF, path traversal, error sanitization, rate limiting on relay
-- Infisical project: `29457d18-fd82-4942-9330-7da7982e6b1d`
+- Secrets: skret SSM namespace `/better-telegram-mcp/prod` (region `ap-southeast-1`)
 
 ## Known bugs (phat hien 2026-04-18 E2E)
 

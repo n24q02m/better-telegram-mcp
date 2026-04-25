@@ -24,7 +24,7 @@ docker-compose.yml
 # Secrets
 .env
 .env.*
-.infisical.json
+.skret.yaml
 
 # Config
 .pre-commit-config.yaml
