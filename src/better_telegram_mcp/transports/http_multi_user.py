@@ -13,6 +13,7 @@ Provides:
 
 from __future__ import annotations
 
+import bisect
 import functools
 import time
 from collections import defaultdict
@@ -44,10 +45,13 @@ def _check_rate_limit(ip: str, limit: int) -> bool:
     window_start = now - _RATE_LIMIT_WINDOW
     timestamps = _rate_limits[ip]
 
-    # Prune old entries
-    _rate_limits[ip] = [t for t in timestamps if t > window_start]
+    # Prune old entries using O(log N) bisect instead of O(N) list comprehension
+    # ⚡ Bolt: Fast in-place pruning of strictly ordered chronological list
+    idx = bisect.bisect_right(timestamps, window_start)
+    if idx > 0:
+        del timestamps[:idx]
 
-    if len(_rate_limits[ip]) >= limit:
+    if len(timestamps) >= limit:
         return False
 
     _rate_limits[ip].append(now)

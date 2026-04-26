@@ -8,6 +8,7 @@ status page when authenticated.
 from __future__ import annotations
 
 import asyncio
+import bisect
 import html
 import re
 import secrets
@@ -252,10 +253,13 @@ class AuthServer:
         now = time.time()
         window_start = now - self._RATE_LIMIT_WINDOW
         timestamps = self._rate_limits[key]
-        self._rate_limits[key] = [t for t in timestamps if t > window_start]
-        if len(self._rate_limits[key]) >= self._RATE_LIMIT_MAX:
+        # ⚡ Bolt: Fast in-place pruning of strictly ordered chronological list
+        idx = bisect.bisect_right(timestamps, window_start)
+        if idx > 0:
+            del timestamps[:idx]
+        if len(timestamps) >= self._RATE_LIMIT_MAX:
             return False
-        self._rate_limits[key].append(now)
+        timestamps.append(now)
         return True
 
     def _make_app(self) -> Starlette:
