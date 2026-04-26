@@ -150,7 +150,7 @@ def create_app(
 
         try:
             body = await request.json()
-        except Exception:
+        except ValueError:
             return _error_response(400, "invalid_request", "Invalid JSON body")
 
         redirect_uris = body.get("redirect_uris", [])
@@ -186,7 +186,7 @@ def create_app(
 
         try:
             body = await request.json()
-        except Exception:
+        except ValueError:
             return _error_response(400, "invalid_request", "Invalid JSON body")
 
         bot_token = body.get("bot_token")
@@ -214,7 +214,7 @@ def create_app(
 
         try:
             body = await request.json()
-        except Exception:
+        except ValueError:
             return _error_response(400, "invalid_request", "Invalid JSON body")
 
         phone = body.get("phone")
@@ -250,7 +250,7 @@ def create_app(
 
         try:
             body = await request.json()
-        except Exception:
+        except ValueError:
             return _error_response(400, "invalid_request", "Invalid JSON body")
 
         code = body.get("code")
