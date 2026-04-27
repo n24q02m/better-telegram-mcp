@@ -1,0 +1,3 @@
+## 2024-04-24 - Improve error state visualization with aria-invalid
+**Learning:** Directly manipulating inline styles for validation (like `style.borderColor = "#f87171"`) creates a confusing visual state when native browser focus rings (e.g. blue outline) overlap with the manual style. It also fails to communicate the error state to assistive technologies.
+**Action:** Always use semantic HTML attributes like `aria-invalid="true"` combined with CSS attribute selectors (`[aria-invalid="true"]:focus`) for form validation feedback. This ensures accessibility for screen readers, allows precise control over focus states in CSS, and maintains a clean separation of concerns between JavaScript state and visual styling.
