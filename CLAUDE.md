@@ -69,31 +69,30 @@ NO `TELEGRAM_PASSWORD` -- 2FA nhap qua web UI, KHONG luu env.
 - Security: SSRF, path traversal, error sanitization, rate limiting on relay
 - Secrets: skret SSM namespace `/better-telegram-mcp/prod` (region `ap-southeast-1`)
 
-## Known bugs (phat hien 2026-04-18 E2E)
+## Known bugs
 
-**CRITICAL SECURITY BUG: Bot token leak trong stderr logs**:
-- `src/better_telegram_mcp/backends/bot_backend.py:24`: `self._base_url = API_BASE.format(bot_token)` -> httpx.AsyncClient(base_url=...) -> **httpx default INFO logging** print full URL incluing bot token len stderr (vi du: `https://api.telegram.org/bot8739495379:AAF-qAG...ta redacted/sendMessage "HTTP/1.1 200 OK"`)
-- Bot token co the bi leak qua: (1) log file, (2) monitoring dashboards, (3) screenshots, (4) error reports
-- **Fix required:**
-  (a) set logger level cho `httpx` library = WARNING (tat INFO-level HTTP request logs), HOAC
-  (b) dung httpx event_hooks de redact token trong URL truoc khi log, HOAC
-  (c) pass bot_token qua httpx `params` thay vi URL (khong dang vi Telegram API spec requires URL)
-- **Option (a) don gian nhat:** them vao `init-server.ts` / server startup: `logging.getLogger("httpx").setLevel(logging.WARNING)`
-- Phat hien 2026-04-18 E2E test: phase 2 tools call dump URL with token in stderr
+(All 2026-04-18 E2E findings have been resolved. Section retained as a
+short audit trail with the fix commit so future investigators do not
+re-open closed issues.)
 
-1. **User mode OTP/2FA flow BROKEN o relay page**:
-   - Steps thuc te: submit phone -> relay bao "done" -> server **KHONG** prompt OTP -> session never authorized (`authorized=false`, `pending_auth=true`)
-   - Root cause: `src/better_telegram_mcp/relay_schema.py` `RELAY_SCHEMA` chi co flat fields `TELEGRAM_BOT_TOKEN` + `TELEGRAM_PHONE`. KHONG co multi-step cho OTP + 2FA password
-   - Per credential_state.py:208: "User-mode OTP/2FA now runs through the local OAuth form + /otp endpoint" -- nghia la browser SHOULD redirect tu relay den local 127.0.0.1:PORT/otp. Nhung browser khong redirect -> user mac ket
-   - **Impact:** User mode (MTProto) ho`ang hoan toan. Chi bot mode co the su dung.
-   - **Fix required:**
-     (a) update RELAY_SCHEMA them multi-step: phone -> submit -> show OTP input -> submit -> if 2FA enabled show password input -> submit, HOAC
-     (b) relay page redirect den local 127.0.0.1/otp sau khi phone save, HOAC
-     (c) su dung RELAY_SCHEMA_MODES (da co san o line 46) thay vi flat RELAY_SCHEMA
+1. **Bot token leak via httpx INFO logs** -- RESOLVED. `server.py:24` sets
+   `logging.getLogger("httpx").setLevel(logging.WARNING)` so request URLs
+   (which include the bot token) never reach stderr at INFO level.
 
-2. **Bot mode**: chua verify end-to-end (phase M E2E 2026-04-18 time-out chua test bot)
+2. **User mode OTP/2FA multi-step flow** -- RESOLVED. `credential_form.py`
+   ships a custom dark-themed form with `showStepInput` JS that handles
+   `next_step.type === "otp_required"` + `password_required`. Wired into
+   mcp-core's local OAuth AS via `run_local_server(...,
+   custom_credential_form_html=render_telegram_credential_form,
+   on_step_submitted=on_step_submitted)`. After phone submit, the same
+   page re-renders the OTP input, posts to `/otp`, and chains to the 2FA
+   password step if Telethon reports it. Recent reinforcements:
+   `0560529 fix: follow redirect_url after async OTP/password completion`,
+   `eb1993f fix: clear aria-busy on step-input reset to unblock 2FA submit`.
 
-3. **Relay "Setup complete" browser UI** (if Python core-py has same bug): chua observe, nhung neu user mode fix xong, can verify browser hien "Setup complete!" sau OTP done
+3. **Setup-complete UI redirect** -- RESOLVED via mcp-core
+   `feedback_relay_form_must_follow_redirect.md` fix; the form follows
+   `redirect_url` instead of showing a static "close tab" page.
 
 ## E2E
 
