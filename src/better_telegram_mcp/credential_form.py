@@ -24,12 +24,20 @@ def _escape(value: Any) -> str:
 def render_telegram_credential_form(
     schema: dict[str, Any],
     submit_url: str,
+    prefill: dict[str, str] | None = None,
 ) -> str:
     """Render telegram credential form with Bot Mode + User Mode tabs.
 
     Args:
         schema: RelayConfigSchema dict (server / displayName / description).
         submit_url: URL the form POSTs to (includes authorize nonce).
+        prefill: Optional ``{KEY: VALUE}`` mapping populated by mcp-core
+            from ``?prefill_<KEY>=<VALUE>`` GET query params. Recognised
+            keys: ``TELEGRAM_BOT_TOKEN``, ``TELEGRAM_PHONE``. When present,
+            the matching input renders with ``value="..."`` and the form
+            auto-activates the matching tab so the user just clicks
+            Connect (skipping the retype step). Phone-only prefill (the
+            telegram-user E2E case) opens on User Mode tab.
 
     Returns:
         Complete HTML document string. All dynamic content is HTML-escaped;
@@ -42,6 +50,29 @@ def render_telegram_credential_form(
     server = _escape(schema.get("server", "better-telegram-mcp"))
     description = _escape(schema.get("description", ""))
     submit_url_escaped = _escape(submit_url)
+
+    prefill = prefill or {}
+    bot_token_value = _escape(prefill.get("TELEGRAM_BOT_TOKEN", ""))
+    phone_value = _escape(prefill.get("TELEGRAM_PHONE", ""))
+    bot_token_value_attr = f' value="{bot_token_value}"' if bot_token_value else ""
+    phone_value_attr = f' value="{phone_value}"' if phone_value else ""
+
+    # If phone is prefilled but bot token is not, the driver is exercising
+    # User Mode (telegram-user E2E config) — open on the User tab so the
+    # form does not invite the user to ignore the prefilled phone and
+    # paste a bot token instead. Bot-only and dual-prefill default to Bot.
+    initial_tab = "user" if phone_value and not bot_token_value else "bot"
+    bot_tab_class = "tab active" if initial_tab == "bot" else "tab"
+    user_tab_class = "tab active" if initial_tab == "user" else "tab"
+    bot_tab_aria = "true" if initial_tab == "bot" else "false"
+    user_tab_aria = "true" if initial_tab == "user" else "false"
+    bot_panel_class = "tab-panel active" if initial_tab == "bot" else "tab-panel"
+    user_panel_class = "tab-panel active" if initial_tab == "user" else "tab-panel"
+    # ``required`` is set on the active panel's inputs only; the inactive
+    # panel's required attr is removed so the form doesn't reject submits
+    # because of a hidden field.
+    bot_token_required = " required" if initial_tab == "bot" else ""
+    phone_required = " required" if initial_tab == "user" else ""
 
     description_html = (
         f'<p class="server-description">{description}</p>' if description else ""
@@ -336,12 +367,12 @@ def render_telegram_credential_form(
             </div>
 
             <div class="tabs" role="tablist">
-                <button type="button" id="tab-bot" class="tab active" data-tab="bot" role="tab" aria-selected="true" aria-controls="panel-bot">Bot Mode</button>
-                <button type="button" id="tab-user" class="tab" data-tab="user" role="tab" aria-selected="false" aria-controls="panel-user">User Mode</button>
+                <button type="button" id="tab-bot" class="{bot_tab_class}" data-tab="bot" role="tab" aria-selected="{bot_tab_aria}" aria-controls="panel-bot">Bot Mode</button>
+                <button type="button" id="tab-user" class="{user_tab_class}" data-tab="user" role="tab" aria-selected="{user_tab_aria}" aria-controls="panel-user">User Mode</button>
             </div>
 
             <form id="credential-form" novalidate>
-                <div id="panel-bot" class="tab-panel active" data-panel="bot" role="tabpanel" aria-labelledby="tab-bot">
+                <div id="panel-bot" class="{bot_panel_class}" data-panel="bot" role="tabpanel" aria-labelledby="tab-bot">
                     <div class="field-group">
                         <label for="field-TELEGRAM_BOT_TOKEN" class="field-label">
                             Bot Token
@@ -356,9 +387,8 @@ def render_telegram_credential_form(
                             autocomplete="off"
                             autocorrect="off"
                             autocapitalize="off"
-                            spellcheck="false"
-                            aria-describedby="help-bot-token"
-                            required
+                            spellcheck="false"{bot_token_value_attr}
+                            aria-describedby="help-bot-token"{bot_token_required}
                         />
                         <p id="help-bot-token" class="help-text">
                             <a href="https://core.telegram.org/bots#botfather" target="_blank" rel="noopener noreferrer">Get from @BotFather on Telegram</a>
@@ -366,7 +396,7 @@ def render_telegram_credential_form(
                     </div>
                 </div>
 
-                <div id="panel-user" class="tab-panel" data-panel="user" role="tabpanel" aria-labelledby="tab-user">
+                <div id="panel-user" class="{user_panel_class}" data-panel="user" role="tabpanel" aria-labelledby="tab-user">
                     <div class="field-group">
                         <label for="field-TELEGRAM_PHONE" class="field-label">
                             Phone Number
@@ -381,8 +411,8 @@ def render_telegram_credential_form(
                             autocomplete="off"
                             autocorrect="off"
                             autocapitalize="off"
-                            spellcheck="false"
-                            aria-describedby="help-phone"
+                            spellcheck="false"{phone_value_attr}
+                            aria-describedby="help-phone"{phone_required}
                         />
                         <p id="help-phone" class="help-text">
                             Full account access via MTProto. API ID/Hash built-in. OTP verification required after submit.
@@ -403,7 +433,7 @@ def render_telegram_credential_form(
             var submitBtn = document.getElementById("submit-btn");
             var statusBox = document.getElementById("status-box");
             var submitUrl = "{submit_url_escaped}";
-            var activeTab = "bot";
+            var activeTab = "{initial_tab}";
 
             // --- Tab switching -------------------------------------------------
             var tabs = document.querySelectorAll(".tab");
