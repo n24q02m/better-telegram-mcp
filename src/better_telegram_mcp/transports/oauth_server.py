@@ -135,7 +135,7 @@ def create_app(
         """POST /register — RFC 7591 Dynamic Client Registration."""
         try:
             body = await request.json()
-        except Exception:
+        except ValueError:
             return JSONResponse({"error": "invalid_request"}, status_code=400)
 
         client_name = body.get("client_name", "unknown")
