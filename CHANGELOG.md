@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.7.2-beta.1 (2026-04-27)
+
+### Bug Fixes
+
+- Sweep doppler/infisical refs to skret SSM
+  ([`1d3a948`](https://github.com/n24q02m/better-telegram-mcp/commit/1d3a9489a5db389b3c15a532652842a410f04cdc))
+
+
 ## v4.7.1 (2026-04-24)
 
 ### Bug Fixes
