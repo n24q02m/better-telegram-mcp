@@ -2,6 +2,33 @@
 
 <!-- version list -->
 
+## v4.8.0 (2026-04-27)
+
+### Bug Fixes
+
+- Bump n24q02m-mcp-core to 1.8.0 + widen pydantic to <2.14
+  ([#399](https://github.com/n24q02m/better-telegram-mcp/pull/399),
+  [`291c7c2`](https://github.com/n24q02m/better-telegram-mcp/commit/291c7c2cb5e434ae11a6e954cc1ddcdd911ba4ad))
+
+- Clear resolved 2026-04-18 known bugs from CLAUDE.md
+  ([#397](https://github.com/n24q02m/better-telegram-mcp/pull/397),
+  [`5b5aeee`](https://github.com/n24q02m/better-telegram-mcp/commit/5b5aeeee3c536e726c0ab3e60cd4e0c0d20af93d))
+
+- Clear resolved 2026-04-18 known bugs from CLAUDE.md
+  ([#396](https://github.com/n24q02m/better-telegram-mcp/pull/396),
+  [`389b0b0`](https://github.com/n24q02m/better-telegram-mcp/commit/389b0b096d46605522ee56ea2c687ffe54caa308))
+
+### Features
+
+- Add ## E2E section to CLAUDE.md per Task 21 docs rollout
+  ([#395](https://github.com/n24q02m/better-telegram-mcp/pull/395),
+  [`da53a65`](https://github.com/n24q02m/better-telegram-mcp/commit/da53a65dbab24fc731869fb560c1c518882ec5ab))
+
+- Render bot token + phone with prefilled value attrs
+  ([#397](https://github.com/n24q02m/better-telegram-mcp/pull/397),
+  [`5b5aeee`](https://github.com/n24q02m/better-telegram-mcp/commit/5b5aeeee3c536e726c0ab3e60cd4e0c0d20af93d))
+
+
 ## v4.7.2-beta.1 (2026-04-27)
 
 ### Bug Fixes
