@@ -2,6 +2,23 @@
 
 <!-- version list -->
 
+## v4.8.2 (2026-04-28)
+
+### Bug Fixes
+
+- Migrate plugin.json to deployed HTTP remote + add /health route
+  ([#406](https://github.com/n24q02m/better-telegram-mcp/pull/406),
+  [`96be424`](https://github.com/n24q02m/better-telegram-mcp/commit/96be424a98f11501dffed9da9b1fa80019e1fb8d))
+
+- Replace stale OAuth 2.1 wording with DCR + relay form in setup-manual
+  ([#405](https://github.com/n24q02m/better-telegram-mcp/pull/405),
+  [`fd717a6`](https://github.com/n24q02m/better-telegram-mcp/commit/fd717a66ff2831b7387f6e76a0af45254567e0b1))
+
+- **deps**: Bump n24q02m-mcp-core to 1.10.0 — Transparent Bridge waves 1-3
+  ([#408](https://github.com/n24q02m/better-telegram-mcp/pull/408),
+  [`044b56f`](https://github.com/n24q02m/better-telegram-mcp/commit/044b56fe10033ab7a82a24b8fbf19949e7bc08b7))
+
+
 ## v4.8.1 (2026-04-28)
 
 ### Bug Fixes
