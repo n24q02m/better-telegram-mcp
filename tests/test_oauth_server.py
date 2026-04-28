@@ -243,6 +243,12 @@ def test_metadata(client):
     assert resp.json()["authorization_endpoint"] == "https://mcp.example.com/authorize"
 
 
+def test_health(client):
+    resp = client.get("/health")
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "ok", "server": "better-telegram-mcp"}
+
+
 def test_mcp_no_auth(client):
     resp = client.post("/mcp", json={"jsonrpc": "2.0", "method": "list_tools", "id": 1})
     assert resp.status_code == 401
