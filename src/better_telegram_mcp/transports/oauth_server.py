@@ -306,12 +306,16 @@ def create_app(
 
     mcp_app = BearerAuthMCPApp(mcp_asgi_handler)
 
+    async def health(_request: Request) -> JSONResponse:
+        return JSONResponse({"status": "ok", "server": "better-telegram-mcp"})
+
     routes = [
         Route("/authorize", authorize, methods=["GET"]),
         Route("/register", register, methods=["POST"]),
         Route("/token", token, methods=["POST"]),
         Route("/.well-known/jwks.json", jwks, methods=["GET"]),
         Route("/.well-known/oauth-authorization-server", metadata, methods=["GET"]),
+        Route("/health", health, methods=["GET"]),
         Route("/mcp", endpoint=mcp_app),
     ]
 
