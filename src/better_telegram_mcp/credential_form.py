@@ -376,7 +376,7 @@ def render_telegram_credential_form(
                     <div class="field-group">
                         <label for="field-TELEGRAM_BOT_TOKEN" class="field-label">
                             Bot Token
-                            <span class="required-badge">Required</span>
+                            <span class="required-badge" aria-hidden="true">Required</span>
                         </label>
                         <input
                             id="field-TELEGRAM_BOT_TOKEN"
@@ -388,7 +388,7 @@ def render_telegram_credential_form(
                             autocorrect="off"
                             autocapitalize="off"
                             spellcheck="false"{bot_token_value_attr}
-                            aria-describedby="help-bot-token"{bot_token_required}
+                            aria-describedby="help-bot-token status-box"{bot_token_required}
                         />
                         <p id="help-bot-token" class="help-text">
                             <a href="https://core.telegram.org/bots#botfather" target="_blank" rel="noopener noreferrer">Get from @BotFather on Telegram</a>
@@ -400,7 +400,7 @@ def render_telegram_credential_form(
                     <div class="field-group">
                         <label for="field-TELEGRAM_PHONE" class="field-label">
                             Phone Number
-                            <span class="required-badge">Required</span>
+                            <span class="required-badge" aria-hidden="true">Required</span>
                         </label>
                         <input
                             id="field-TELEGRAM_PHONE"
@@ -412,7 +412,7 @@ def render_telegram_credential_form(
                             autocorrect="off"
                             autocapitalize="off"
                             spellcheck="false"{phone_value_attr}
-                            aria-describedby="help-phone"{phone_required}
+                            aria-describedby="help-phone status-box"{phone_required}
                         />
                         <p id="help-phone" class="help-text">
                             Full account access via MTProto. API ID/Hash built-in. OTP verification required after submit.
@@ -537,6 +537,7 @@ def render_telegram_credential_form(
                     inputEl.setAttribute("autocapitalize", "off");
                     inputEl.setAttribute("spellcheck", "false");
                     inputEl.setAttribute("aria-labelledby", "step-prompt");
+                    inputEl.setAttribute("aria-describedby", "step-error");
                     fieldGroup.appendChild(inputEl);
                     container.appendChild(fieldGroup);
 
