@@ -109,7 +109,7 @@ For Claude Code users, the plugin approach is the simplest.
 
 ## Method 4: HTTP Remote (Multi-User)
 
-Live production endpoint (OAuth 2.1 with Dynamic Client Registration):
+Live production endpoint (Dynamic Client Registration + relay form auth):
 
 ```json
 {
@@ -121,10 +121,15 @@ Live production endpoint (OAuth 2.1 with Dynamic Client Registration):
 }
 ```
 
-The client performs OAuth 2.1 authorization code flow on first connect. No
-pre-shared token is required — the server discovers the client via RFC 8414
-metadata at `/.well-known/oauth-authorization-server` and issues a Bearer
-token after user consent at `/authorize`.
+The client registers a public DCR client at `/register`, then opens
+`/authorize` to fill the Telegram relay form (phone, then OTP, then optional
+2FA password — all multi-step on the same page). The server issues a Bearer
+JWT after the form completes. Mode selection is via `TELEGRAM_AUTH_URL`:
+
+- `TELEGRAM_AUTH_URL=local` — auth UI runs locally on `http://127.0.0.1:<port>` (dev/single-user). Set this when running outside a hosted deployment.
+- `TELEGRAM_AUTH_URL=https://better-telegram-mcp.n24q02m.com` (default) — uses the hosted relay above.
+
+> Python 3.14+ is **not supported** because Telethon and `cryptg` have not yet shipped 3.14 wheels; install via `uvx --python 3.13` or use the Docker image which bakes in Python 3.13.
 
 For self-hosted deployments, replace the URL with your own domain and ensure
 the container binds `HOST=0.0.0.0` (see `oci-vm-prod/services/better-telegram-mcp/docker-compose.yml`).
