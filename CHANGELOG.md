@@ -2,6 +2,18 @@
 
 <!-- version list -->
 
+## v4.8.1 (2026-04-28)
+
+### Bug Fixes
+
+- Bump n24q02m-mcp-core to 1.9.0 ([#404](https://github.com/n24q02m/better-telegram-mcp/pull/404),
+  [`1a7db20`](https://github.com/n24q02m/better-telegram-mcp/commit/1a7db200b41e9737906b8878eb02dc97ea823fbe))
+
+- **deps**: Update non-major dependencies
+  ([#401](https://github.com/n24q02m/better-telegram-mcp/pull/401),
+  [`c7ac9af`](https://github.com/n24q02m/better-telegram-mcp/commit/c7ac9afe8221210aad1b880bfa0067734e35d63f))
+
+
 ## v4.8.0 (2026-04-27)
 
 ### Bug Fixes
