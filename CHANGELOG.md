@@ -2,6 +2,23 @@
 
 <!-- version list -->
 
+## v4.8.5 (2026-04-29)
+
+### Bug Fixes
+
+- Bump n24q02m-mcp-core to 1.11.3 for D17 tools cache refresh
+  ([#418](https://github.com/n24q02m/better-telegram-mcp/pull/418),
+  [`1c0fb63`](https://github.com/n24q02m/better-telegram-mcp/commit/1c0fb63437745b1a056e01af5f13efa2d4941447))
+
+- Pin @latest in plugin.json to bypass uvx cache stale versions
+  ([#416](https://github.com/n24q02m/better-telegram-mcp/pull/416),
+  [`0caf1a6`](https://github.com/n24q02m/better-telegram-mcp/commit/0caf1a6d76870fa7bd78ec34523902d86ca4a7a2))
+
+- Rebuild uv.lock without local path source
+  ([#416](https://github.com/n24q02m/better-telegram-mcp/pull/416),
+  [`0caf1a6`](https://github.com/n24q02m/better-telegram-mcp/commit/0caf1a6d76870fa7bd78ec34523902d86ca4a7a2))
+
+
 ## v4.8.4 (2026-04-29)
 
 ### Bug Fixes
