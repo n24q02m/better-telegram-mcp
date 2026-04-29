@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v4.8.4 (2026-04-29)
+
+### Bug Fixes
+
+- Rebuild uv.lock without local path source
+  ([#414](https://github.com/n24q02m/better-telegram-mcp/pull/414),
+  [`ab5433a`](https://github.com/n24q02m/better-telegram-mcp/commit/ab5433ac7dbb391ec562e095deb19ad4cae14625))
+
+
 ## v4.8.3 (2026-04-29)
 
 ### Bug Fixes
