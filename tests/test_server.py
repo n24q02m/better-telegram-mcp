@@ -14,10 +14,18 @@ from better_telegram_mcp.server import (
 )
 
 
-def test_mcp_has_6_tools():
+def test_mcp_has_7_tools():
     tools = mcp._tool_manager._tools
-    assert len(tools) == 6
-    expected = {"message", "chat", "media", "contact", "config", "help"}
+    assert len(tools) == 7
+    expected = {
+        "message",
+        "chat",
+        "media",
+        "contact",
+        "config",
+        "help",
+        "config__open_relay",
+    }
     assert set(tools.keys()) == expected
 
 
@@ -365,8 +373,16 @@ def test_main_calls_run():
 async def test_tools_list_works_without_credentials():
     """tools/list should work even with no Telegram credentials."""
     tools = mcp._tool_manager._tools
-    assert len(tools) == 6
-    expected = {"message", "chat", "media", "contact", "config", "help"}
+    assert len(tools) == 7
+    expected = {
+        "message",
+        "chat",
+        "media",
+        "contact",
+        "config",
+        "help",
+        "config__open_relay",
+    }
     assert set(tools.keys()) == expected
 
 

@@ -194,6 +194,17 @@ mcp = FastMCP(
     lifespan=_lifespan,
 )
 
+# Register the standard `config__open_relay` MCP tool so the LLM can re-trigger
+# the relay form via tool call when credentials are missing or expired. The
+# Telegram relay form has multi-step JS (phone -> OTP -> 2FA password) which is
+# already wired into mcp-core's local OAuth AS via `custom_credential_form_html`
+# in `run_http`; the tool only opens the form URL, no OTP-specific logic here.
+from mcp_core.relay.tool_helpers import register_open_relay_tool  # noqa: E402
+
+from .relay_schema import RELAY_SCHEMA  # noqa: E402
+
+register_open_relay_tool(mcp, "better-telegram-mcp", RELAY_SCHEMA)
+
 
 # --- Tools ---
 
