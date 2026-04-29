@@ -9,8 +9,9 @@
   "homepage": "https://github.com/n24q02m/better-telegram-mcp",
   "mcpServers": {
     "better-telegram-mcp": {
-      "type": "http",
-      "url": "https://better-telegram-mcp.n24q02m.com/mcp"
+      "command": "uvx",
+      "args": ["--python", "3.13", "better-telegram-mcp"],
+      "env": { "MCP_TRANSPORT": "stdio" }
     }
   }
 }
