@@ -2,6 +2,27 @@
 
 <!-- version list -->
 
+## v4.8.3 (2026-04-29)
+
+### Bug Fixes
+
+- Improve credential form accessibility with ARIA refinements
+  ([#409](https://github.com/n24q02m/better-telegram-mcp/pull/409),
+  [`f3e21ac`](https://github.com/n24q02m/better-telegram-mcp/commit/f3e21ac8cd3a76979e61da2600e14487d43b83d2))
+
+- Register config__open_relay tool (Transparent Bridge Wave 3)
+  ([#412](https://github.com/n24q02m/better-telegram-mcp/pull/412),
+  [`cd865ea`](https://github.com/n24q02m/better-telegram-mcp/commit/cd865ead4aa79157a09e253050b3a4127464d821))
+
+- Switch plugin.json to stdio proxy for local relay testing
+  ([#410](https://github.com/n24q02m/better-telegram-mcp/pull/410),
+  [`b7d93d0`](https://github.com/n24q02m/better-telegram-mcp/commit/b7d93d00c2f79006b5775f9833aa59401f4b865c))
+
+- **deps**: Bump n24q02m-mcp-core to 1.10.0 — Transparent Bridge waves 1-3
+  ([#410](https://github.com/n24q02m/better-telegram-mcp/pull/410),
+  [`b7d93d0`](https://github.com/n24q02m/better-telegram-mcp/commit/b7d93d00c2f79006b5775f9833aa59401f4b865c))
+
+
 ## v4.8.2 (2026-04-28)
 
 ### Bug Fixes
