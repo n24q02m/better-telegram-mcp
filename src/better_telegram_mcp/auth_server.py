@@ -136,8 +136,8 @@ function clearInvalid(id){$(id).removeAttribute('aria-invalid')}
 async function checkStatus(){
   try{const r=await fetch('/status',{headers:{'X-Auth-Token':_t}});const d=await r.json();
     if(d.authenticated){$('auth-name').textContent=d.name||'User';show('step2')}
-    else{show('step0');$('otp').focus()}
-  }catch(e){show('step0')}
+    else{show('step0');$('btn-send').focus()}
+  }catch(e){show('step0');$('btn-send').focus()}
 }
 
 async function sendCode(){
@@ -153,7 +153,7 @@ async function verify(){
   const btn=$('btn-verify'),s=$('s1'),fs=$('fs1');
   clearInvalid('otp');clearInvalid('pwd');
   const code=$('otp').value.trim();
-  if(!code){st(s,'error','Please enter the OTP code first.');setInvalid('otp');return}
+  if(!code){st(s,'error','Please enter the OTP code first.');setInvalid('otp');$('otp').focus();return}
   btnLoading(fs,btn,'Verifying...');
   try{const body={code};const pwd=$('pwd').value.trim();if(pwd)body.password=pwd;
     const r=await fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json','X-Auth-Token':_t},body:JSON.stringify(body)});
@@ -161,10 +161,10 @@ async function verify(){
     if(d.ok){$('auth-name').textContent=d.name||'User';show('step2')}
     else{
       btnReset(fs,btn,'Verify Code');
-      if(d.needs_password){showPwd();st(s,'error','2FA password is required. Please enter it above.');setInvalid('pwd')}
-      else{st(s,'error',d.error||'Verification failed');setInvalid('otp');if($('pwd-section').style.display==='block')setInvalid('pwd')}
+      if(d.needs_password){showPwd();st(s,'error','2FA password is required. Please enter it above.');setInvalid('pwd');$('pwd').focus()}
+      else{st(s,'error',d.error||'Verification failed');setInvalid('otp');if($('pwd-section').style.display==='block')setInvalid('pwd');$('otp').focus()}
     }
-  }catch(e){st(s,'error','Network error. Check your connection.');setInvalid('otp');if($('pwd-section').style.display==='block')setInvalid('pwd');btnReset(fs,btn,'Verify Code')}
+  }catch(e){st(s,'error','Network error. Check your connection.');setInvalid('otp');if($('pwd-section').style.display==='block')setInvalid('pwd');btnReset(fs,btn,'Verify Code');$('otp').focus()}
 }
 checkStatus();
 </script>
