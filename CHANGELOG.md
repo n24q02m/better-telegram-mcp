@@ -2,6 +2,25 @@
 
 <!-- version list -->
 
+## v4.9.0-beta.4 (2026-04-30)
+
+### Bug Fixes
+
+- Regenerate uv.lock with UV_NO_SOURCES=1 to remove local path references
+  ([#428](https://github.com/n24q02m/better-telegram-mcp/pull/428),
+  [`bccf15b`](https://github.com/n24q02m/better-telegram-mcp/commit/bccf15bf1c5962811e2bd95d18c8ebcadf3f3433))
+
+### Features
+
+- **auth**: Migrate to in-memory session store (TC-NearZK)
+  ([#429](https://github.com/n24q02m/better-telegram-mcp/pull/429),
+  [`7cf5304`](https://github.com/n24q02m/better-telegram-mcp/commit/7cf5304255615b5b3b820e2c8b79221656178b2c))
+
+- **docs**: Add trust model section to README
+  ([#428](https://github.com/n24q02m/better-telegram-mcp/pull/428),
+  [`bccf15b`](https://github.com/n24q02m/better-telegram-mcp/commit/bccf15bf1c5962811e2bd95d18c8ebcadf3f3433))
+
+
 ## v4.9.0-beta.3 (2026-04-30)
 
 ### Bug Fixes
