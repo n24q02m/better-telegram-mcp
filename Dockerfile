@@ -14,13 +14,15 @@ ENV UV_COMPILE_BYTECODE=1 \
 WORKDIR /app
 
 # Install dependencies first (cached when deps don't change)
+# Strip [tool.uv.sources] local path overrides so uv resolves from PyPI
+COPY pyproject.toml uv.lock ./
+RUN sed -i '/^\[tool\.uv\.sources\]/,/^$/d' pyproject.toml && cp uv.lock /tmp/uv.lock.docker
 RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
-    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --frozen --no-install-project --no-dev
 
 # Copy application code and install the project
 COPY . /app
+RUN sed -i '/^\[tool\.uv\.sources\]/,/^$/d' pyproject.toml && cp /tmp/uv.lock.docker uv.lock
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
