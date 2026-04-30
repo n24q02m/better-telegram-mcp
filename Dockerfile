@@ -25,9 +25,14 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
 # ========================
-# Stage 2: Runtime
+# Stage 2: Runtime base (shared by stdio + http targets)
 # ========================
-FROM python:3.13-slim-bookworm@sha256:bb73517d48bd32016e15eade0c009b2724ec3a025a9975b5cd9b251d0dcadb33
+# Multi-target Dockerfile per spec
+# `~/projects/.superpower/mcp-core/specs/2026-04-30-multi-mode-stdio-http-architecture.md`
+# section D6. Build stdio: `docker buildx build --target stdio -t <repo>:stdio .`
+# Build http:  `docker buildx build --target http  -t <repo>:http .`
+# Build latest (= http): `docker buildx build --target http -t <repo>:latest .`
+FROM python:3.13-slim-bookworm@sha256:bb73517d48bd32016e15eade0c009b2724ec3a025a9975b5cd9b251d0dcadb33 AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/n24q02m/better-telegram-mcp"
 LABEL io.modelcontextprotocol.server.name="io.github.n24q02m/better-telegram-mcp"
@@ -43,10 +48,7 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH=/app/src \
     PYTHONUNBUFFERED=1 \
     TELEGRAM_DATA_DIR=/data \
-    TRANSPORT_MODE=stdio \
     HOST=0.0.0.0
-
-EXPOSE 8080
 
 # Create non-root user and set permissions
 RUN groupadd -r appuser && useradd -r -g appuser -d /home/appuser -m appuser \
@@ -56,5 +58,18 @@ RUN groupadd -r appuser && useradd -r -g appuser -d /home/appuser -m appuser \
 VOLUME /data
 USER appuser
 
-# Stdio transport by default
-CMD ["python", "-m", "better_telegram_mcp"]
+# ========================
+# Stage 3a: stdio target (default for plugin marketplace & uvx-style usage)
+# ========================
+FROM runtime AS stdio
+ENV MCP_TRANSPORT=stdio
+ENTRYPOINT ["python", "-m", "better_telegram_mcp"]
+
+# ========================
+# Stage 3b: http target (multi-user remote daemon)
+# ========================
+FROM runtime AS http
+ENV MCP_TRANSPORT=http \
+    MCP_PORT=8080
+EXPOSE 8080
+ENTRYPOINT ["python", "-m", "better_telegram_mcp"]
