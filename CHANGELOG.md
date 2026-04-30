@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v4.9.0-beta.2 (2026-04-30)
+
+### Bug Fixes
+
+- Strip [tool.uv.sources] in Dockerfile to fix uv sync --frozen Docker build
+  ([#425](https://github.com/n24q02m/better-telegram-mcp/pull/425),
+  [`72b2da9`](https://github.com/n24q02m/better-telegram-mcp/commit/72b2da933d98fa72e574e459413f9f76d097bdee))
+
+
 ## v4.9.0-beta.1 (2026-04-30)
 
 ### Features
