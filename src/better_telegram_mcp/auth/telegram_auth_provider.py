@@ -19,7 +19,8 @@ from ..backends.base import TelegramBackend
 from ..backends.bot_backend import BotBackend
 from ..backends.user_backend import UserBackend
 from ..config import Settings
-from .per_user_session_store import PerUserSessionStore, SessionInfo
+from .in_memory_session_store import InMemorySessionStore
+from .per_user_session_store import SessionInfo
 
 # Session expiry: 30 days
 _SESSION_TTL = 30 * 24 * 60 * 60
@@ -39,7 +40,7 @@ class TelegramAuthProvider:
         self._data_dir = data_dir
         self._api_id = api_id
         self._api_hash = api_hash
-        self._store = PerUserSessionStore(data_dir)
+        self._store = InMemorySessionStore()
 
         # bearer -> active TelegramBackend
         self.active_clients: dict[str, TelegramBackend] = {}
