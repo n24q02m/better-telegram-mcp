@@ -247,10 +247,11 @@ class AuthServer:
         # 🛡️ Sentinel: Never trust x-forwarded-for or cf-connecting-ip headers for rate
         # limiting unless explicitly behind a configured trusted proxy, as they can be easily spoofed.
         if client_ip in self._settings.trusted_proxy_list:
-            if "cf-connecting-ip" in request.headers:
-                return request.headers["cf-connecting-ip"]
-            if "x-forwarded-for" in request.headers:
-                return request.headers["x-forwarded-for"].split(",")[0].strip()
+            # ⚡ Bolt: Use .get() to avoid redundant dictionary lookups
+            if cf_ip := request.headers.get("cf-connecting-ip"):
+                return cf_ip
+            if xf_ip := request.headers.get("x-forwarded-for"):
+                return xf_ip.split(",")[0].strip()
         return client_ip
 
     def _check_rate_limit(self, key: str) -> bool:

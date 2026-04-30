@@ -76,10 +76,11 @@ def _get_client_ip(request: Request) -> str:
     trusted_proxies = _parse_trusted_proxies(trusted_proxies_env)
 
     if client_ip in trusted_proxies:
-        if "cf-connecting-ip" in request.headers:
-            return request.headers["cf-connecting-ip"]
-        if "x-forwarded-for" in request.headers:
-            return request.headers["x-forwarded-for"].split(",")[0].strip()
+        # ⚡ Bolt: Use .get() to avoid redundant dictionary lookups
+        if cf_ip := request.headers.get("cf-connecting-ip"):
+            return cf_ip
+        if xf_ip := request.headers.get("x-forwarded-for"):
+            return xf_ip.split(",")[0].strip()
     return client_ip
 
 
