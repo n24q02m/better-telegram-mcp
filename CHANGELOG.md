@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v4.9.0-beta.3 (2026-04-30)
+
+### Bug Fixes
+
+- Regenerate uv.lock with UV_NO_SOURCES=1 to remove local path references
+  ([#426](https://github.com/n24q02m/better-telegram-mcp/pull/426),
+  [`f950492`](https://github.com/n24q02m/better-telegram-mcp/commit/f9504921a29eddaa7fd056dc1acd8f57f55dacc0))
+
+
 ## v4.9.0-beta.2 (2026-04-30)
 
 ### Bug Fixes
