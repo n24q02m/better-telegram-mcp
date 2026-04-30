@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v4.9.0-beta.1 (2026-04-30)
+
+### Features
+
+- Route stdio mode to FastMCP direct + multi-target Dockerfile
+  ([#424](https://github.com/n24q02m/better-telegram-mcp/pull/424),
+  [`e174f90`](https://github.com/n24q02m/better-telegram-mcp/commit/e174f90afd281b7a2a897c9c633677287b111d96))
+
+
 ## v4.8.5 (2026-04-29)
 
 ### Bug Fixes
