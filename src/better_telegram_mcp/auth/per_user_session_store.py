@@ -1,5 +1,9 @@
 """Encrypted per-user session storage for multi-user HTTP mode.
 
+DEPRECATED v1.0.0 — disk-encrypted AES-GCM + PBKDF2 storage replaced by
+InMemorySessionStore (TC-NearZK trust class). Module retained for one minor
+release as migration shim. Removed in v2.0.0.
+
 Stores bearer_token -> session_info mappings in a single encrypted file.
 Uses AES-256-GCM, key derived from CREDENTIAL_SECRET env var or auto-generated.
 Reuses the key derivation pattern from transports/credential_store.py.
