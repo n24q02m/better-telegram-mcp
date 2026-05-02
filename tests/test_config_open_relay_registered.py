@@ -14,9 +14,9 @@ def test_config_open_relay_tool_registered():
     """`config__open_relay` is present in the FastMCP tool registry."""
     tools = mcp._tool_manager._tools
     assert "config__open_relay" in tools, (
-        "config__open_relay tool not registered. Wave 3 cascade requires "
-        "register_open_relay_tool(mcp, 'better-telegram-mcp', RELAY_SCHEMA) "
-        "to be called at module load in server.py."
+        "config__open_relay tool not registered. Stdio-pure architecture "
+        "requires register_open_relay_tool(mcp, 'better-telegram-mcp', "
+        "PUBLIC_URL) to be called at module load in server.py."
     )
 
 

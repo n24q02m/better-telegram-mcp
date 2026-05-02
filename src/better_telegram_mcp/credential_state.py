@@ -3,19 +3,12 @@
 State machine: awaiting_setup -> setup_in_progress -> configured
 Reset: configured -> awaiting_setup (via setup tool).
 
-When no credentials are present, ``trigger_relay_setup`` spawns a LOCAL HTTP
-credential form on ``http://127.0.0.1:<random>`` via
-``mcp_core.start_local_server_background`` with the telegram relay schema.
-The user submits a phone number (user mode) or bot token (bot mode) into
-that local form; ``save_credentials`` persists to ``config.enc``, and — for
-user mode — returns an ``otp_required`` prompt so the form asks for the
-OTP. ``on_step_submitted`` then drives Telethon sign-in + optional 2FA
-entirely against the local form's ``/otp`` endpoint.
-
-This fallback is LOCAL-ONLY. We never hit the remote relay URL here — that
-is reserved for explicit ``MCP_MODE`` HTTP deployments. See
-``~/.claude/skills/mcp-dev/references/mode-matrix.md`` section ``stdio proxy``
-for the canonical rule.
+Per spec ``2026-05-01-stdio-pure-http-multiuser.md``: stdio mode does not
+spawn any in-process credential form — missing creds in stdio mode mean
+``main()`` exits 1 with a stderr hint. Browser-based setup (paste form +
+OTP/2FA flow) is the responsibility of HTTP mode (``transports/http.py``),
+which calls ``mcp_core.transport.run_http_server`` with the same
+``save_credentials``/``on_step_submitted`` callbacks defined here.
 
 Hot-reload: after credentials land, the ``on_configured`` callback
 (registered by ``server.py``) reinitializes the Telegram backend so tools
@@ -24,11 +17,9 @@ work immediately without restart.
 
 from __future__ import annotations
 
-import asyncio
 import os
 from collections.abc import Awaitable, Callable
 from enum import Enum
-from typing import Any
 
 from loguru import logger
 
@@ -45,9 +36,6 @@ from .relay_setup import (
 CREDENTIAL_KEYS_BOT = REQUIRED_FIELDS_BOT  # ["TELEGRAM_BOT_TOKEN"]
 CREDENTIAL_KEYS_USER = REQUIRED_FIELDS_USER  # ["TELEGRAM_PHONE"]
 
-# Grace window so the browser renders "Setup complete!" before the local spawn closes.
-_SPAWN_CLEANUP_S = 5.0
-
 
 class CredentialState(Enum):
     AWAITING_SETUP = "awaiting_setup"
@@ -59,9 +47,8 @@ class CredentialState(Enum):
 _state = CredentialState.AWAITING_SETUP
 _setup_url: str | None = None
 _on_configured_callback: Callable[[], Awaitable[None]] | None = None
-_active_handle: Any | None = None  # LocalServerHandle
 
-# Multi-step auth state (single-user local mode)
+# Multi-step auth state (single-user HTTP mode)
 _step_backend: object | None = None  # UserBackend instance held during OTP flow
 _step_phone: str = ""
 _step_otp_code: str | None = None  # OTP code remembered for 2FA signin retry
@@ -132,109 +119,6 @@ def resolve_credential_state() -> CredentialState:
     logger.info("No credentials found -- server starting in awaiting_setup mode")
     _state = CredentialState.AWAITING_SETUP
     return _state
-
-
-async def _close_active_handle() -> None:
-    """Best-effort close of the module-level local credential-form handle."""
-    global _active_handle
-
-    handle = _active_handle
-    _active_handle = None
-    if handle is None:
-        return
-    try:
-        await handle.close()
-    except Exception as e:
-        logger.debug("Best-effort close of credential-form handle failed: {}", e)
-
-
-def _schedule_spawn_cleanup(grace_s: float = _SPAWN_CLEANUP_S) -> None:
-    """Schedule detached cleanup of the local credential-form spawn.
-
-    The grace window lets the browser render the completion UI before the
-    server goes away.
-    """
-    global _active_handle
-    if _active_handle is None:
-        return
-
-    async def _delayed_close() -> None:
-        try:
-            await asyncio.sleep(grace_s)
-            await _close_active_handle()
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:
-            logger.debug("Delayed spawn cleanup failed: {}", e)
-
-    task = asyncio.create_task(_delayed_close())
-    task.add_done_callback(lambda _t: None)
-
-
-async def trigger_relay_setup(
-    *, force: bool = False, timeout: float | None = None
-) -> str | None:
-    """Spawn a local credential form (stdio fallback) and return its URL.
-
-    The spawn is LOCAL ONLY — ``mcp_core.start_local_server_background``
-    binds ``127.0.0.1:<random>`` and renders the telegram relay schema in a
-    browser form. The returned URL is handed back to the tool response so
-    the user can open it.
-
-    Args:
-        force: Re-spawn even when not in ``AWAITING_SETUP``.
-        timeout: Unused (kept for backward compatibility with the old remote
-            relay poll timeout argument).
-
-    Returns:
-        The local setup URL, or ``None`` if the spawn could not be started.
-    """
-    global _state, _setup_url, _active_handle
-
-    if not force and _state not in (CredentialState.AWAITING_SETUP,):
-        return _setup_url
-
-    # If we already have a live spawn, reuse it instead of binding a new port.
-    if _active_handle is not None and _setup_url:
-        _state = CredentialState.SETUP_IN_PROGRESS
-        return _setup_url
-
-    _state = CredentialState.SETUP_IN_PROGRESS
-
-    try:
-        from fastmcp import FastMCP
-        from mcp_core import start_local_server_background, try_open_browser
-
-        from .credential_form import render_telegram_credential_form
-        from .relay_schema import RELAY_SCHEMA
-
-        stub_mcp = FastMCP(f"{SERVER_NAME}-setup")
-
-        handle = await start_local_server_background(
-            stub_mcp,
-            server_name=SERVER_NAME,
-            relay_schema=RELAY_SCHEMA,
-            port=0,
-            host="127.0.0.1",
-            on_credentials_saved=save_credentials,
-            on_step_submitted=on_step_submitted,
-            custom_credential_form_html=render_telegram_credential_form,
-        )
-
-        _active_handle = handle
-        _setup_url = f"http://{handle.host}:{handle.port}/"
-
-        try_open_browser(_setup_url)
-
-        logger.info("Local credential form ready at {}", _setup_url)
-        return _setup_url
-
-    except Exception as e:
-        logger.debug("Relay setup failed: {}. Server continues in awaiting_setup.", e)
-        _state = CredentialState.AWAITING_SETUP
-        await _close_active_handle()
-        _setup_url = None
-        return None
 
 
 async def save_credentials(
@@ -315,7 +199,6 @@ async def save_credentials(
         except Exception as e:
             logger.warning("Backend reinit after save failed: {}", e)
 
-    _schedule_spawn_cleanup()
     return None
 
 
@@ -345,16 +228,6 @@ def reset_state() -> None:
     _step_backend = None
     _step_phone = ""
     _step_otp_code = None
-
-    # Close any active local credential-form spawn. Fire-and-forget task so
-    # callers don't need to be async.
-    if _active_handle is not None:
-        try:
-            task = asyncio.create_task(_close_active_handle())
-            task.add_done_callback(lambda _t: None)
-        except RuntimeError:
-            # No running loop; state is cleared regardless.
-            pass
 
     try:
         from mcp_core.storage.config_file import delete_config
@@ -466,5 +339,3 @@ async def _finalize_auth() -> None:
             await _on_configured_callback()
         except Exception as e:
             logger.warning("Backend reinit after OTP auth failed: {}", e)
-
-    _schedule_spawn_cleanup()

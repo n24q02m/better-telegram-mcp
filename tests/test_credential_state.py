@@ -1,4 +1,4 @@
-"""Tests for credential_state module -- state machine, resolve, trigger_relay_setup."""
+"""Tests for credential_state module -- state machine, resolve, save_credentials."""
 
 from __future__ import annotations
 
@@ -14,7 +14,6 @@ from better_telegram_mcp.credential_state import (
     reset_state,
     resolve_credential_state,
     set_state,
-    trigger_relay_setup,
 )
 
 # ---------------------------------------------------------------------------
@@ -29,17 +28,14 @@ def _clean_credential_state():
 
     old_state = cs._state
     old_url = cs._setup_url
-    old_handle = cs._active_handle
     cs._state = CredentialState.AWAITING_SETUP
     cs._setup_url = None
-    cs._active_handle = None
     cs._step_backend = None
     cs._step_phone = ""
     cs._step_otp_code = None
     yield
     cs._state = old_state
     cs._setup_url = old_url
-    cs._active_handle = old_handle
     cs._step_backend = None
     cs._step_phone = ""
     cs._step_otp_code = None
@@ -273,102 +269,6 @@ def test_resolve_nothing_found():
             state = resolve_credential_state()
 
     assert state == CredentialState.AWAITING_SETUP
-
-
-# ---------------------------------------------------------------------------
-# trigger_relay_setup -- local HTTP fallback (no remote relay)
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_trigger_relay_not_awaiting():
-    """When state is not AWAITING_SETUP (and not forced), returns existing URL."""
-    import better_telegram_mcp.credential_state as cs
-
-    cs._state = CredentialState.CONFIGURED
-    cs._setup_url = "http://127.0.0.1:51000/"
-
-    result = await trigger_relay_setup()
-    assert result == "http://127.0.0.1:51000/"
-    assert cs._state == CredentialState.CONFIGURED
-
-
-@pytest.mark.asyncio
-async def test_trigger_relay_setup_in_progress_no_force():
-    """SETUP_IN_PROGRESS (not forced) -> return existing URL."""
-    import better_telegram_mcp.credential_state as cs
-
-    cs._state = CredentialState.SETUP_IN_PROGRESS
-    cs._setup_url = "http://127.0.0.1:51001/"
-
-    result = await trigger_relay_setup()
-    assert result == "http://127.0.0.1:51001/"
-
-
-@pytest.mark.asyncio
-async def test_trigger_relay_spawns_local_form():
-    """AWAITING_SETUP -> spawn local credential form, return URL, open browser."""
-    mock_handle = MagicMock()
-    mock_handle.host = "127.0.0.1"
-    mock_handle.port = 51234
-
-    with (
-        patch(
-            "mcp_core.start_local_server_background",
-            new_callable=AsyncMock,
-            return_value=mock_handle,
-            create=True,
-        ) as mock_start,
-        patch("mcp_core.try_open_browser") as mock_browser,
-    ):
-        result = await trigger_relay_setup()
-
-    assert result == "http://127.0.0.1:51234/"
-    assert get_state() == CredentialState.SETUP_IN_PROGRESS
-    mock_start.assert_awaited_once()
-    # Verify callbacks are the local save_credentials / on_step_submitted.
-    call_kwargs = mock_start.await_args.kwargs
-    assert call_kwargs["server_name"] == "better-telegram-mcp"
-    assert call_kwargs["host"] == "127.0.0.1"
-    assert call_kwargs["port"] == 0
-    assert callable(call_kwargs["on_credentials_saved"])
-    assert callable(call_kwargs["on_step_submitted"])
-    mock_browser.assert_called_once_with("http://127.0.0.1:51234/")
-
-
-@pytest.mark.asyncio
-async def test_trigger_relay_reuses_active_handle():
-    """If an active handle already exists, reuse its URL instead of re-spawning."""
-    import better_telegram_mcp.credential_state as cs
-
-    cs._state = CredentialState.AWAITING_SETUP
-    cs._active_handle = MagicMock()
-    cs._setup_url = "http://127.0.0.1:51111/"
-
-    with patch(
-        "mcp_core.start_local_server_background",
-        new_callable=AsyncMock,
-        create=True,
-    ) as mock_start:
-        result = await trigger_relay_setup()
-
-    assert result == "http://127.0.0.1:51111/"
-    mock_start.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_trigger_relay_exception_returns_none():
-    """Spawn failure -> returns None, state back to AWAITING_SETUP."""
-    with patch(
-        "mcp_core.start_local_server_background",
-        new_callable=AsyncMock,
-        side_effect=RuntimeError("bind failed"),
-        create=True,
-    ):
-        result = await trigger_relay_setup()
-
-    assert result is None
-    assert get_state() == CredentialState.AWAITING_SETUP
 
 
 # ---------------------------------------------------------------------------
