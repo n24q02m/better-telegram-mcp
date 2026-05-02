@@ -153,7 +153,7 @@ async function verify(){
   const btn=$('btn-verify'),s=$('s1'),fs=$('fs1');
   clearInvalid('otp');clearInvalid('pwd');
   const code=$('otp').value.trim();
-  if(!code){st(s,'error','Please enter the OTP code first.');setInvalid('otp');return}
+  if(!code){st(s,'error','Please enter the OTP code first.');setInvalid('otp');$('otp').focus();return}
   btnLoading(fs,btn,'Verifying...');
   try{const body={code};const pwd=$('pwd').value.trim();if(pwd)body.password=pwd;
     const r=await fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json','X-Auth-Token':_t},body:JSON.stringify(body)});
