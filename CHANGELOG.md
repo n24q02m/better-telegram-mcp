@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v4.9.0-beta.6 (2026-05-02)
+
+### Bug Fixes
+
+- Regenerate uv.lock UV_NO_SOURCES=1 (Docker build trap)
+  ([#435](https://github.com/n24q02m/better-telegram-mcp/pull/435),
+  [`eb90157`](https://github.com/n24q02m/better-telegram-mcp/commit/eb90157cd6a2c35631b51a8a9f45d0c319bcb634))
+
+
 ## v4.9.0-beta.5 (2026-05-02)
 
 ### Bug Fixes
