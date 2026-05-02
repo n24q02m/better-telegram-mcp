@@ -2,7 +2,11 @@
 
 > Give this file to your AI agent to automatically set up better-telegram-mcp.
 
-## Option 1: Claude Code Plugin (Recommended)
+> **2026-05-02 Update (v&lt;auto&gt;+)**: Plugin install (Option 1) uses stdio mode with `TELEGRAM_BOT_TOKEN`. Bot mode only.
+> User mode (MTProto via phone+OTP) is HTTP-only after this update.
+> Set `TELEGRAM_BOT_TOKEN` in plugin config (Option 1), or switch to HTTP mode for user mode.
+
+## Option 1: Claude Code Plugin (Recommended, stdio Bot Mode Only)
 
 ```bash
 # Install from marketplace (includes skills: /setup-bot, /channel-post)
@@ -10,9 +14,9 @@
 /plugin install better-telegram-mcp@n24q02m-plugins
 ```
 
-You still need to provide credentials (bot token or user API credentials). See the Authentication section below.
+Set `TELEGRAM_BOT_TOKEN` from [@BotFather](https://t.me/BotFather) in plugin settings or as a system env var. **Bot mode only** -- user mode (read messages, browse chats) requires HTTP (Option 4).
 
-## Option 2: MCP Direct
+## Option 2: MCP Direct (stdio, Bot Mode Only)
 
 **Python 3.13 required** -- Python 3.14+ is NOT supported.
 
@@ -25,7 +29,10 @@ Add to `~/.claude/settings.local.json` under `"mcpServers"`:
   "mcpServers": {
     "telegram": {
       "command": "uvx",
-      "args": ["--python", "3.13", "better-telegram-mcp"]
+      "args": ["--python", "3.13", "better-telegram-mcp"],
+      "env": {
+        "TELEGRAM_BOT_TOKEN": "123456789:ABCdef..."
+      }
     }
   }
 }
@@ -39,6 +46,7 @@ Add to `~/.codex/config.toml`:
 [mcp_servers.telegram]
 command = "uvx"
 args = ["--python", "3.13", "better-telegram-mcp"]
+env = { TELEGRAM_BOT_TOKEN = "123456789:ABCdef..." }
 ```
 
 ### OpenCode (opencode.json)
@@ -50,35 +58,22 @@ Add to `opencode.json` in the project root:
   "mcpServers": {
     "telegram": {
       "command": "uvx",
-      "args": ["--python", "3.13", "better-telegram-mcp"]
+      "args": ["--python", "3.13", "better-telegram-mcp"],
+      "env": {
+        "TELEGRAM_BOT_TOKEN": "123456789:ABCdef..."
+      }
     }
   }
 }
 ```
 
-## Option 3: Docker
-
-### Bot Mode
+## Option 3: Docker (stdio, Bot Mode Only)
 
 ```bash
 docker run -i --rm \
   -e TELEGRAM_BOT_TOKEN=your_bot_token \
-  -v telegram-data:/data \
   n24q02m/better-telegram-mcp
 ```
-
-### User Mode
-
-```bash
-docker run -i --rm \
-  -e TELEGRAM_API_ID=your_api_id \
-  -e TELEGRAM_API_HASH=your_api_hash \
-  -e TELEGRAM_PHONE=+84912345678 \
-  -v ~/.better-telegram-mcp:/data \
-  n24q02m/better-telegram-mcp
-```
-
-Mount `~/.better-telegram-mcp:/data` so session files persist across container restarts.
 
 Or as an MCP server config:
 
@@ -90,7 +85,6 @@ Or as an MCP server config:
       "args": [
         "run", "-i", "--rm",
         "-e", "TELEGRAM_BOT_TOKEN",
-        "-v", "telegram-data:/data",
         "n24q02m/better-telegram-mcp"
       ]
     }
@@ -98,100 +92,91 @@ Or as an MCP server config:
 }
 ```
 
-## Option 4: HTTP Remote (Multi-User Deployment)
+> Docker stdio supports bot mode only. For user mode, run the container in HTTP mode (Option 4 self-host).
 
-For shared/multi-user deployments, the server can run as an HTTP endpoint with bearer token authentication and Dynamic Client Registration (DCR).
+## Why upgrade to HTTP mode?
+
+Stdio (Options 1-3) is the simplest path for **bot mode**, but stdio cannot host the browser-based phone+OTP flow that **user mode** requires. Switch to HTTP for any of these reasons:
+
+- **User mode access** (REQUIRED for user mode) -- read messages, browse chat history, list contacts, create groups/channels. Bot tokens cannot do this; only MTProto user sessions can. User mode auth is browser-based (phone + OTP code from Telegram app + optional 2FA password) and only HTTP transport hosts that flow.
+- **claude.ai web compatibility** -- claude.ai supports HTTP MCP servers; stdio is desktop/CLI only.
+- **One server, many sessions** -- a single HTTP server is shared across N Claude Code sessions instead of one stdio process per session.
+- **Multi-device cred sync** -- log in once on any device; the server keeps the session.
+- **Multi-user team sharing** -- HTTP supports per-JWT-sub credential isolation, so a team can share one self-hosted instance.
+- **Always-on persistent process** -- enables webhook listeners, long-running agents, and scheduled tasks.
+
+## Option 4: HTTP Remote (Multi-User, Bot + User Modes)
+
+Use the live production endpoint (Dynamic Client Registration + relay form auth):
 
 ```json
 {
   "mcpServers": {
     "telegram": {
-      "url": "https://your-domain.com/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_ACCESS_TOKEN"
-      }
+      "url": "https://better-telegram-mcp.n24q02m.com/mcp"
     }
   }
 }
 ```
 
-HTTP mode requires a separate deployment. See the [HTTP transport source](../src/better_telegram_mcp/transports/) for details.
+The client registers a public DCR client at `/register`, then opens `/authorize` to fill the Telegram relay form. The form supports both modes:
+
+- **Bot mode** -- paste your bot token from [@BotFather](https://t.me/BotFather)
+- **User mode** -- enter your phone number, then the OTP code Telegram sends to your Telegram app, then your 2FA password if enabled
+
+The server bundles public Telegram dev credentials (`api_id` and `api_hash`), so users do not need to register at [my.telegram.org](https://my.telegram.org). After the form completes, the server issues a Bearer JWT and tools become active immediately.
+
+## Option 5: Self-Hosting HTTP Mode
+
+For private deployments (single user or team), clone the repo and run via Docker:
+
+```bash
+git clone https://github.com/n24q02m/better-telegram-mcp.git
+cd better-telegram-mcp
+cp .env.example .env
+# edit .env: PUBLIC_URL=https://your-domain.com, MCP_DCR_SERVER_SECRET=<32+ random bytes>
+docker compose up -d
+```
+
+Bundled Telegram dev credentials (`api_id=37984984`, `api_hash=2f5f4c76c4de7c07302380c788390100`) are baked into the image -- no my.telegram.org registration needed. Each user authenticates through the relay form (phone + OTP).
+
+Then point your MCP client at your domain:
+
+```json
+{
+  "mcpServers": {
+    "telegram": {
+      "url": "https://your-domain.com/mcp"
+    }
+  }
+}
+```
 
 ## Environment Variables
 
-### Core Credentials (One Mode Required)
+### Stdio Mode (Bot Only)
 
 | Variable | Required | Default | Description |
 |:---------|:---------|:--------|:------------|
-| `TELEGRAM_BOT_TOKEN` | Bot mode | -- | Bot token from [@BotFather](https://t.me/BotFather) (format: `123456789:ABCdef...`) |
-| `TELEGRAM_API_ID` | User mode | -- | API ID from [my.telegram.org](https://my.telegram.org) (integer) |
-| `TELEGRAM_API_HASH` | User mode | -- | API hash from [my.telegram.org](https://my.telegram.org) (32-char hex) |
-| `TELEGRAM_PHONE` | User mode | -- | Phone number with country code (e.g., `+84912345678`) |
+| `TELEGRAM_BOT_TOKEN` | Yes | -- | Bot token from [@BotFather](https://t.me/BotFather) (format: `123456789:ABCdef...`) |
 
-### Auth and Session
+### HTTP Mode (Bot + User)
+
+HTTP mode credentials are entered via the browser-based relay form, not env vars. Server-side env vars for self-hosting:
 
 | Variable | Required | Default | Description |
 |:---------|:---------|:--------|:------------|
-| `TELEGRAM_AUTH_URL` | No | `https://better-telegram-mcp.n24q02m.com` | Auth relay URL. Set `local` for localhost-only mode |
-| `TELEGRAM_SESSION_NAME` | No | `default` | Session file name (useful for multiple accounts) |
-| `TELEGRAM_DATA_DIR` | No | `~/.better-telegram-mcp` | Data directory for session files |
+| `PUBLIC_URL` | Self-host | -- | Public URL of the server (enables multi-user) |
+| `MCP_DCR_SERVER_SECRET` | Self-host | -- | DCR server secret (32+ random bytes) |
+| `HOST` | Self-host | `127.0.0.1` | Bind address (`0.0.0.0` for Docker) |
+| `PORT` | Self-host | `8000` | HTTP port |
 
-### Mode Detection
-
-- If `TELEGRAM_API_ID` + `TELEGRAM_API_HASH` are set: **User mode** (MTProto via Telethon)
-- If only `TELEGRAM_BOT_TOKEN` is set: **Bot mode** (HTTP via Bot API)
-- If neither is set: server shows relay setup page for configuration
-
-## Authentication
-
-### Zero-Config Relay
-
-> **Recommended.** The relay is the primary setup method. Credentials are encrypted end-to-end and stored locally. Environment variables are supported for backward compatibility.
-
-On first run without any credentials in environment:
-
-1. Server starts and creates a relay session
-2. A setup URL is printed to stderr
-3. Open the URL in any browser
-4. Choose mode (Bot or User) and fill in credentials
-5. Credentials are encrypted and stored locally at `~/.config/mcp/config.enc`
-6. Subsequent runs load saved credentials automatically
-
-The relay form has 2 modes:
-
-**Bot Mode:**
-- **Bot Token** -- from @BotFather on Telegram
-
-**User Mode:**
-- **Phone Number** -- with country code
-
-### User Mode OTP Authentication
-
-After credentials are configured (via relay or environment variables), user mode requires OTP verification on first run:
-
-1. A web-based auth UI opens in your browser (or URL is logged for headless)
-2. Click "Send OTP Code" -- code is sent to the Telegram app (not SMS)
-3. Enter the OTP code
-4. If 2FA is enabled, enter your password (never stored in environment)
-5. Session file is saved at `~/.better-telegram-mcp/<name>.session` (600 permissions)
-6. Tools become active immediately -- no restart needed
-
-Auth modes:
-
-| Mode | `TELEGRAM_AUTH_URL` | Use case |
-|:-----|:--------------------|:---------|
-| **Remote** (default) | `https://better-telegram-mcp.n24q02m.com` | Headless, SSH, Docker |
-| **Self-hosted** | `https://your-domain.com` | Custom relay deployment |
-| **Local** | `local` | Desktop, offline |
-
-### Environment Variables (Recommended)
-
-Set credentials directly as environment variables to skip relay entirely.
+The bundled Telegram dev `api_id` (`37984984`) and `api_hash` (`2f5f4c76c4de7c07302380c788390100`) are public dev credentials baked into the source.
 
 ## Mode Capabilities
 
-| Feature | Bot | User |
-|:--------|:---:|:----:|
+| Feature | Bot (stdio or HTTP) | User (HTTP only) |
+|:--------|:-------------------:|:----------------:|
 | Send/Edit/Delete/Forward messages | Y | Y |
 | Pin messages, React | Y | Y |
 | Search messages, Browse history | -- | Y |
@@ -200,6 +185,28 @@ Set credentials directly as environment variables to skip relay entirely.
 | Send media (photo/file/voice/video) | Y | Y |
 | Download media | -- | Y |
 | Contacts (list/search/add/block) | -- | Y |
+
+## Authentication
+
+### Stdio Bot Mode
+
+Set `TELEGRAM_BOT_TOKEN` env var. No web flow -- the server connects to the Bot API directly on startup.
+
+### HTTP Bot Mode
+
+Open the `/authorize` URL in any browser, choose **Bot Mode**, paste your bot token. Done.
+
+### HTTP User Mode
+
+Open the `/authorize` URL in any browser, choose **User Mode**:
+
+1. Enter your phone number (with country code, e.g., `+84912345678`)
+2. Click submit -- Telegram sends an OTP code to your **Telegram app** (not SMS)
+3. Enter the OTP code on the same form
+4. If 2FA is enabled, enter your 2FA password (never stored anywhere)
+5. The server issues a Bearer JWT, tools become active immediately
+
+Subsequent requests reuse the in-memory session keyed by your JWT subject (sub). Re-authenticate by repeating the `/authorize` flow.
 
 ## Verification
 
