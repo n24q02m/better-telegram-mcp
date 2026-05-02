@@ -2,6 +2,27 @@
 
 <!-- version list -->
 
+## v4.9.0-beta.5 (2026-05-02)
+
+### Bug Fixes
+
+- Setup docs + README reflect stdio-pure architecture
+  ([#434](https://github.com/n24q02m/better-telegram-mcp/pull/434),
+  [`1fe4d2a`](https://github.com/n24q02m/better-telegram-mcp/commit/1fe4d2acccc6693f8078f7b2ce647416169600f2))
+
+### Chores
+
+- **deps**: Update dawidd6/action-send-mail action to v17
+  ([#422](https://github.com/n24q02m/better-telegram-mcp/pull/422),
+  [`6e214b9`](https://github.com/n24q02m/better-telegram-mcp/commit/6e214b9d0475fde4a36f463b13532d91699dc02f))
+
+### Features
+
+- Stdio-pure + http-multi-user (drop daemon-bridge)
+  ([#433](https://github.com/n24q02m/better-telegram-mcp/pull/433),
+  [`1e6588b`](https://github.com/n24q02m/better-telegram-mcp/commit/1e6588b60d6e182d7e58120667631d63537b68e6))
+
+
 ## v4.9.0-beta.4 (2026-04-30)
 
 ### Bug Fixes
