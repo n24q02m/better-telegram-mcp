@@ -1,0 +1,6 @@
+# Public Telegram dev api_hash bundled in setup docs (matches the constant in
+# src/better_telegram_mcp/config.py, which is a public-shareable Telegram dev
+# credential -- not a real secret per CLAUDE.md "Google OAuth Desktop = PUBLIC"
+# pattern: bundled public client credentials documented as such).
+docs/setup-manual.md:generic-api-key:162
+docs/setup-with-agent.md:generic-api-key:141
