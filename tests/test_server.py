@@ -357,15 +357,33 @@ async def test_help_works_during_pending_auth():
 
 
 def test_main_calls_run():
-    """main() in stdio mode runs FastMCP stdio server directly (no bridge)."""
+    """main() in stdio mode (default) runs FastMCP stdio server directly (no bridge).
+
+    Per spec 2026-05-01-stdio-pure-http-multiuser.md, stdio is now the default
+    transport. TELEGRAM_BOT_TOKEN must be set for stdio (bot mode only).
+    """
     import better_telegram_mcp.server as srv
 
     with (
         patch.object(srv.mcp, "run") as mock_run,
-        patch.dict(os.environ, {"MCP_TRANSPORT": "stdio"}),
+        patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": "fake:token"}, clear=True),
     ):
         main()
     mock_run.assert_called_once_with(transport="stdio")
+
+
+def test_main_stdio_missing_bot_token_exits_1(capsys):
+    """Stdio mode without TELEGRAM_BOT_TOKEN exits 1 with stderr hint."""
+    with (
+        patch.dict(os.environ, {}, clear=True),
+        pytest.raises(SystemExit) as exc_info,
+    ):
+        main()
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    assert "TELEGRAM_BOT_TOKEN" in captured.err
+    assert "stdio mode" in captured.err
+    assert "HTTP mode" in captured.err
 
 
 # --- unconfigured state tests (no credentials) ---
@@ -617,69 +635,38 @@ async def test_config_setup_start_already_configured():
 
 
 @pytest.mark.asyncio
-async def test_config_setup_start_force():
-    """setup_start with key='force' triggers relay even when configured."""
+async def test_config_setup_start_force_returns_stdio_unsupported():
+    """setup_start with key='force' returns stdio_unsupported.
+
+    Per spec 2026-05-01-stdio-pure-http-multiuser.md, stdio mode does not
+    spawn an in-process credential form. The tool now points users at HTTP
+    mode (or env var) for setup.
+    """
     from better_telegram_mcp.credential_state import CredentialState
     from better_telegram_mcp.server import config
 
-    with (
-        patch(
-            "better_telegram_mcp.credential_state.get_state",
-            return_value=CredentialState.CONFIGURED,
-        ),
-        patch(
-            "better_telegram_mcp.credential_state.trigger_relay_setup",
-            new_callable=AsyncMock,
-            return_value="https://relay.example.com/setup",
-        ),
+    with patch(
+        "better_telegram_mcp.credential_state.get_state",
+        return_value=CredentialState.CONFIGURED,
     ):
         result = json.loads(await config(action="setup_start", key="force"))
-        assert result["status"] == "setup_started"
-        assert result["setup_url"] == "https://relay.example.com/setup"
+        assert result["status"] == "stdio_unsupported"
+        assert "TELEGRAM_BOT_TOKEN" in result["message"]
 
 
 @pytest.mark.asyncio
-async def test_config_setup_start_awaiting():
-    """setup_start when awaiting -> triggers relay."""
+async def test_config_setup_start_awaiting_returns_stdio_unsupported():
+    """setup_start when awaiting returns stdio_unsupported with switch hint."""
     from better_telegram_mcp.credential_state import CredentialState
     from better_telegram_mcp.server import config
 
-    with (
-        patch(
-            "better_telegram_mcp.credential_state.get_state",
-            return_value=CredentialState.AWAITING_SETUP,
-        ),
-        patch(
-            "better_telegram_mcp.credential_state.trigger_relay_setup",
-            new_callable=AsyncMock,
-            return_value="https://relay.example.com/new-setup",
-        ),
+    with patch(
+        "better_telegram_mcp.credential_state.get_state",
+        return_value=CredentialState.AWAITING_SETUP,
     ):
         result = json.loads(await config(action="setup_start"))
-        assert result["status"] == "setup_started"
-        assert "new-setup" in result["setup_url"]
-
-
-@pytest.mark.asyncio
-async def test_config_setup_start_relay_fails():
-    """setup_start when relay fails -> returns error."""
-    from better_telegram_mcp.credential_state import CredentialState
-    from better_telegram_mcp.server import config
-
-    with (
-        patch(
-            "better_telegram_mcp.credential_state.get_state",
-            return_value=CredentialState.AWAITING_SETUP,
-        ),
-        patch(
-            "better_telegram_mcp.credential_state.trigger_relay_setup",
-            new_callable=AsyncMock,
-            return_value=None,
-        ),
-    ):
-        result = json.loads(await config(action="setup_start"))
-        assert "error" in result
-        assert "Failed" in result["error"]
+        assert result["status"] == "stdio_unsupported"
+        assert "HTTP mode" in result["message"]
 
 
 @pytest.mark.asyncio
@@ -887,12 +874,16 @@ def test_get_backend_multi_user_mode_fallback():
 
 
 def test_main_http_transport():
-    """main() dispatches HTTP through transports.http.start_http so the
-    multi-user OAuth branch + refuse-guard + local-relay fallback all live
-    behind one entry point."""
+    """main() dispatches HTTP (opt-in via MCP_TRANSPORT=http) through
+    transports.http.start_http so the multi-user OAuth branch + refuse-guard
+    + single-user fallback all live behind one entry point.
+
+    Per spec 2026-05-01-stdio-pure-http-multiuser.md, HTTP is now opt-in via
+    --http or MCP_TRANSPORT=http or TRANSPORT_MODE=http (was the default).
+    """
     with (
         patch("better_telegram_mcp.transports.http.start_http") as mock_start_http,
-        patch.dict(os.environ, {}, clear=True),
+        patch.dict(os.environ, {"MCP_TRANSPORT": "http"}, clear=True),
     ):
         main()
         mock_start_http.assert_called_once()

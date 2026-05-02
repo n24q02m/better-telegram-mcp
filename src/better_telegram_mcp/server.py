@@ -195,15 +195,16 @@ mcp = FastMCP(
 )
 
 # Register the standard `config__open_relay` MCP tool so the LLM can re-trigger
-# the relay form via tool call when credentials are missing or expired. The
-# Telegram relay form has multi-step JS (phone -> OTP -> 2FA password) which is
-# already wired into mcp-core's local OAuth AS via `custom_credential_form_html`
-# in `run_http`; the tool only opens the form URL, no OTP-specific logic here.
+# the relay form via tool call when credentials are missing or expired. In
+# stdio mode (PUBLIC_URL unset), the tool returns ``stdio_unsupported`` so
+# the caller surfaces a clear "switch to HTTP mode" message. In HTTP mode,
+# the tool opens ``<PUBLIC_URL>/authorize`` which renders the multi-step
+# Telegram credential form (phone -> OTP -> 2FA password) already wired into
+# mcp-core's HTTP OAuth AS via `custom_credential_form_html` in `run_http`.
 from mcp_core.relay.tool_helpers import register_open_relay_tool  # noqa: E402
 
-from .relay_schema import RELAY_SCHEMA  # noqa: E402
-
-register_open_relay_tool(mcp, "better-telegram-mcp", RELAY_SCHEMA)
+_PUBLIC_URL = os.environ.get("PUBLIC_URL")
+register_open_relay_tool(mcp, "better-telegram-mcp", _PUBLIC_URL)
 
 
 # --- Tools ---
@@ -445,11 +446,7 @@ async def config(
             )
 
         case "setup_start":
-            from .credential_state import (
-                CredentialState,
-                get_state,
-                trigger_relay_setup,
-            )
+            from .credential_state import CredentialState, get_state
 
             if get_state() == CredentialState.CONFIGURED and not (
                 key and key.lower() == "force"
@@ -460,16 +457,22 @@ async def config(
                         "message": "Already configured. Use key='force' to reconfigure.",
                     }
                 )
-            url = await trigger_relay_setup(force=True)
-            if url:
-                return ok(
-                    {
-                        "status": "setup_started",
-                        "setup_url": url,
-                        "message": "Open this URL to configure Telegram credentials.",
-                    }
-                )
-            return err("Failed to start relay session.")
+            # Per spec 2026-05-01-stdio-pure-http-multiuser.md: stdio mode does
+            # not spawn an in-process credential form. Browser-based setup is
+            # the responsibility of HTTP mode; this branch tells the user how
+            # to switch.
+            return ok(
+                {
+                    "status": "stdio_unsupported",
+                    "message": (
+                        "Browser-based setup is HTTP-mode only. "
+                        "For stdio mode, set TELEGRAM_BOT_TOKEN in your "
+                        "plugin/server config (get from @BotFather). "
+                        "For user-mode auth (phone+OTP), switch to HTTP mode "
+                        "(see docs/setup-manual.md)."
+                    ),
+                }
+            )
 
         case "setup_reset":
             from .credential_state import reset_state
@@ -563,7 +566,7 @@ def create_http_mcp_server() -> FastMCP:
 
 async def run_http(port: int = 0) -> None:
     """Run as HTTP server with local OAuth 2.1 AS via mcp-core."""
-    from mcp_core.transport.local_server import run_local_server
+    from mcp_core.transport.local_server import run_http_server
 
     from .credential_form import render_telegram_credential_form
     from .credential_state import on_step_submitted, save_credentials
@@ -571,7 +574,7 @@ async def run_http(port: int = 0) -> None:
 
     host = os.environ.get("HOST")
 
-    await run_local_server(
+    await run_http_server(
         mcp,
         server_name="better-telegram-mcp",
         relay_schema=RELAY_SCHEMA,
@@ -586,20 +589,43 @@ async def run_http(port: int = 0) -> None:
 def main() -> None:
     import sys
 
-    if (
-        "--stdio" in sys.argv
-        or os.environ.get("MCP_TRANSPORT") == "stdio"
-        or os.environ.get("TRANSPORT_MODE") == "stdio"
-    ):
-        # Stdio mode: run FastMCP stdio server directly. No bridge layer.
+    is_http = (
+        "--http" in sys.argv
+        or os.environ.get("MCP_TRANSPORT") == "http"
+        or os.environ.get("TRANSPORT_MODE") == "http"
+    )
+
+    if not is_http:
+        # Stdio mode (default): run FastMCP stdio server directly. No bridge layer.
         # Universal MCP client compatibility (Claude Code, Cursor, VS Code Copilot, etc.).
-        # See: ~/projects/.superpower/mcp-core/specs/2026-04-30-multi-mode-stdio-http-architecture.md
+        # Per spec ~/projects/.superpower/mcp-core/specs/2026-05-01-stdio-pure-http-multiuser.md:
+        # stdio mode = bot mode only (TELEGRAM_BOT_TOKEN). User mode (MTProto session
+        # via phone+OTP) is HTTP-only.
+        if not os.environ.get("TELEGRAM_BOT_TOKEN"):
+            msg = (
+                "[better-telegram-mcp] TELEGRAM_BOT_TOKEN required for stdio "
+                "mode but not set.\n"
+                "\n"
+                "Note: User mode (MTProto session via phone+OTP) is only "
+                "available in HTTP mode.\n"
+                "\n"
+                "Options:\n"
+                "  1. Set TELEGRAM_BOT_TOKEN in plugin config "
+                "(get from @BotFather)\n"
+                "  2. Switch to HTTP mode for user mode auth "
+                "(see docs/setup-manual.md)\n"
+                "\n"
+                "Documentation: https://github.com/n24q02m/better-telegram-mcp#setup\n"
+            )
+            sys.stderr.write(msg)
+            sys.exit(1)
         mcp.run(transport="stdio")
         return
 
-    # HTTP mode: dispatch through transports/http.py so the multi-user
-    # OAuth 2.1 branch, the refuse-guard for broken single-user-on-public
-    # deploys, and the local-relay fallback all live in one place.
+    # HTTP mode (opt-in via --http or MCP_TRANSPORT=http or TRANSPORT_MODE=http):
+    # dispatch through transports/http.py so the multi-user OAuth 2.1 branch,
+    # the refuse-guard for broken single-user-on-public deploys, and the
+    # single-user fallback all live in one place.
     from .config import Settings
     from .transports.http import start_http
 

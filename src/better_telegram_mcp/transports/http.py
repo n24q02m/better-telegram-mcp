@@ -1,26 +1,32 @@
 """HTTP transport mode for better-telegram-mcp.
 
-Multi-user mode: each bearer token maps to its own TelegramClient.
-Auth endpoints handle bot registration and user OTP flow.
-MCP endpoint requires Bearer auth and resolves per-user backend.
+Two outcomes:
+- Multi-user OAuth 2.1 (deployed) when ``DCR_SERVER_SECRET`` + ``PUBLIC_URL``
+  + a Telegram ``api_id``/``api_hash`` pair are present. Per-JWT-sub
+  Telethon clients, isolated credentials. Intended for public deploys.
+- Single-user paste-form fallback for self-host / localhost. Same browser
+  paste-form flow as the other plugins (notion, email, wet, mnemo, crg) —
+  uses ``run_http_server`` from mcp-core so /authorize renders the custom
+  Telegram credential form and OTP/2FA flow runs against ``/otp``.
 
-Single-user fallback: stored credentials via relay page (backward compat).
+The ``api_id``/``api_hash`` pair has built-in defaults in ``config.py``
+(public Telegram app registration) so a deployed container only needs
+``DCR_SERVER_SECRET`` + ``PUBLIC_URL`` set to flip on multi-user.
+
+Per spec ``2026-05-01-stdio-pure-http-multiuser.md``: there is no
+``MCP_MODE`` env var, no remote-relay client, no daemon-bridge. Stdio mode
+is handled in ``server.main()`` and never reaches this module.
 """
 
 from __future__ import annotations
 
 import os
-import sys
 from contextvars import ContextVar
 
 from loguru import logger
-from mcp_core.relay.client import create_session, poll_for_result
 
 from ..config import Settings
 from ..relay_schema import RELAY_SCHEMA
-from .credential_store import CredentialStore
-
-DEFAULT_RELAY_URL = "https://better-telegram-mcp.n24q02m.com"
 
 # ContextVar for per-user backend injection in multi-user HTTP mode
 _current_backend: ContextVar = ContextVar("current_backend")
@@ -32,52 +38,6 @@ def get_current_backend():
     Returns None if not in HTTP mode or no backend set.
     """
     return _current_backend.get(None)
-
-
-async def setup_credentials(settings: Settings) -> dict[str, str]:
-    """Obtain credentials via relay page and store them encrypted.
-
-    Returns:
-        Credential dict with keys like TELEGRAM_BOT_TOKEN, etc.
-
-    Raises:
-        RuntimeError: If relay setup fails or times out.
-    """
-    store = CredentialStore(settings.data_dir, secret=settings.secret)
-    creds = store.load()
-
-    if creds is not None:
-        logger.info("Loaded stored credentials from {}", settings.data_dir)
-        return creds
-
-    # Need relay setup
-    logger.info("No stored credentials found. Starting relay setup...")
-    relay_url = DEFAULT_RELAY_URL
-
-    try:
-        session = await create_session(relay_url, "better-telegram-mcp", RELAY_SCHEMA)
-    except Exception as exc:
-        msg = (
-            f"Cannot reach relay server at {relay_url}. "
-            "Set credentials manually or check network."
-        )
-        raise RuntimeError(msg) from exc
-
-    print(
-        f"\nSetup required. Open this URL to configure:\n{session.relay_url}\n",
-        file=sys.stderr,
-        flush=True,
-    )
-
-    try:
-        creds = await poll_for_result(relay_url, session)
-    except RuntimeError as exc:
-        msg = "Relay setup timed out or session expired"
-        raise RuntimeError(msg) from exc
-
-    store.store(creds)
-    logger.info("Credentials stored successfully")
-    return creds
 
 
 def _is_multi_user_mode(settings: Settings | None = None) -> bool:
@@ -145,16 +105,16 @@ def start_http(settings: Settings) -> None:
 
 
 def _start_single_user_http(settings: Settings) -> None:
-    """Single-user HTTP mode via mcp-core local relay + browser form.
+    """Single-user HTTP mode via mcp-core HTTP server + browser paste form.
 
     Same browser paste-form flow as the other MCP servers (notion, email,
-    wet, mnemo, crg). Uses ``run_local_server`` from mcp-core so /authorize
+    wet, mnemo, crg). Uses ``run_http_server`` from mcp-core so /authorize
     renders the custom telegram credential form and OTP/2FA steps are
     handled via ``/otp`` against the local OAuth AS.
     """
     import asyncio
 
-    from mcp_core.transport.local_server import run_local_server
+    from mcp_core.transport.local_server import run_http_server
 
     from ..credential_form import render_telegram_credential_form
     from ..credential_state import on_step_submitted, save_credentials
@@ -164,7 +124,7 @@ def _start_single_user_http(settings: Settings) -> None:
     host = os.environ.get("HOST")
 
     asyncio.run(
-        run_local_server(
+        run_http_server(
             mcp,
             server_name="better-telegram-mcp",
             relay_schema=RELAY_SCHEMA,
