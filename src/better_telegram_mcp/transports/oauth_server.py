@@ -16,6 +16,12 @@ from pathlib import Path
 from typing import cast
 
 from loguru import logger
+from mcp_core.auth.relay_login import (
+    configure_relay_login,
+    login_get_handler,
+    login_post_handler,
+    require_relay_session,
+)
 from mcp_core.oauth import (
     JWTIssuer,
     OAuthProvider,
@@ -56,6 +62,15 @@ def create_app(
     master_secret: str,
 ) -> Starlette:
     """Create the multi-user Starlette ASGI application with OAuth 2.1."""
+
+    # Edge auth password gate (per spec 2026-05-01-stdio-pure-http-multiuser
+    # §5.1.2.1 + D21). When ``MCP_RELAY_PASSWORD`` is set, /authorize is
+    # fronted by a thin cookie-session check; unauthenticated requests are
+    # redirected to /login. Empty/unset password disables the gate (single-
+    # user dev mode). This custom multi-user OAuth server bypasses mcp-core's
+    # local_oauth_app, so we wire the same primitive here for parity.
+    _relay_password = os.environ.get("MCP_RELAY_PASSWORD", "")
+    configure_relay_login(_relay_password)
 
     issuer = JWTIssuer(server_name="better-telegram-mcp", keys_dir=data_dir / "keys")
     user_store = SqliteUserStore(
@@ -105,7 +120,21 @@ def create_app(
         await auth_provider.shutdown()
 
     async def authorize(request: Request) -> JSONResponse | RedirectResponse:
-        """GET /authorize"""
+        """GET /authorize.
+
+        When ``MCP_RELAY_PASSWORD`` is set, requests without a valid
+        ``mcp_relay_session`` cookie are redirected to ``/login`` (handled
+        inside ``require_relay_session``). Mirrors mcp-core's
+        ``local_oauth_app.py`` wrapper pattern.
+        """
+        if _relay_password:
+            gated = await require_relay_session(
+                dict(request.cookies),
+                str(request.url.path)
+                + (f"?{request.url.query}" if request.url.query else ""),
+            )
+            if gated is not None:
+                return gated
         params = request.query_params
         client_id = params.get("client_id")
         redirect_uri = params.get("redirect_uri")
@@ -309,7 +338,20 @@ def create_app(
     async def health(_request: Request) -> JSONResponse:
         return JSONResponse({"status": "ok", "server": "better-telegram-mcp"})
 
+    async def login_get(request: Request):
+        """GET /login -- render the relay-password form."""
+        next_param = request.query_params.get("next", "/authorize")
+        return await login_get_handler(next_param)
+
+    async def login_post(request: Request):
+        """POST /login -- verify relay password and issue session cookie."""
+        form = await request.form()
+        ip = request.client.host if request.client else "unknown"
+        return await login_post_handler(dict(form), ip=ip)
+
     routes = [
+        Route("/login", login_get, methods=["GET"]),
+        Route("/login", login_post, methods=["POST"]),
         Route("/authorize", authorize, methods=["GET"]),
         Route("/register", register, methods=["POST"]),
         Route("/token", token, methods=["POST"]),
