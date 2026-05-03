@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v4.9.0-beta.7 (2026-05-03)
+
+### Features
+
+- Bump mcp-core to 1.13.0-beta.7 ([#442](https://github.com/n24q02m/better-telegram-mcp/pull/442),
+  [`7b71df5`](https://github.com/n24q02m/better-telegram-mcp/commit/7b71df53789481aa22dfa166512568e7951a8dfa))
+
+- Document MCP_RELAY_PASSWORD edge auth gate
+  ([#441](https://github.com/n24q02m/better-telegram-mcp/pull/441),
+  [`0e0c8ba`](https://github.com/n24q02m/better-telegram-mcp/commit/0e0c8ba706979fd7971b2eb917afe32b239efcd9))
+
+- Pass MCP_RELAY_PASSWORD env to HTTP container
+  ([#440](https://github.com/n24q02m/better-telegram-mcp/pull/440),
+  [`06024d8`](https://github.com/n24q02m/better-telegram-mcp/commit/06024d8b5d0ee550ab7d1b60c0fb3dcb2a368921))
+
+
 ## v4.9.0-beta.6 (2026-05-02)
 
 ### Bug Fixes
