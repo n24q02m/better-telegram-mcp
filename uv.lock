@@ -77,7 +77,7 @@ wheels = [
 
 [[package]]
 name = "better-telegram-mcp"
-version = "4.9.0b5"
+version = "4.9.0b6"
 source = { editable = "." }
 dependencies = [
     { name = "cryptg" },
@@ -112,7 +112,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.27.0" },
-    { name = "n24q02m-mcp-core", specifier = ">=1.13.0b4" },
+    { name = "n24q02m-mcp-core", specifier = ">=1.13.0b7" },
     { name = "pydantic", specifier = ">=2.9,<2.13" },
     { name = "pydantic-settings", specifier = ">=2.14.0" },
     { name = "starlette", specifier = ">=1.0.0" },
@@ -727,7 +727,7 @@ wheels = [
 
 [[package]]
 name = "n24q02m-mcp-core"
-version = "1.13.0b4"
+version = "1.13.0b7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "authlib" },
@@ -741,9 +741,9 @@ dependencies = [
     { name = "starlette" },
     { name = "tomli-w" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0a/65/916107fa1ff9636fd0b2ef37a7d8e7c6bd94f1f51ed9e616903ffd13771c/n24q02m_mcp_core-1.13.0b4.tar.gz", hash = "sha256:5ccd0a909bb434cd0b5d4bdacb19a962cca986c095b5a47869cf54ab27f81727", size = 185547, upload-time = "2026-05-02T06:02:37.875Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4f/46/e60f6a535043caf93df0ba91086bc613ce8205b4776508b3d0972f972f1e/n24q02m_mcp_core-1.13.0b7.tar.gz", hash = "sha256:5b39457b638f19a463ddae388b8d2e8767e78a33fcf424383730e3043e6e4c38", size = 188748, upload-time = "2026-05-03T12:08:07.455Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/30/d4/e25b5e3c994b4b8618e57570dfdf3f787be54f38d10c5644ab623f0cfc8c/n24q02m_mcp_core-1.13.0b4-py3-none-any.whl", hash = "sha256:e73be2e0d6649bff1d73dfaea9147501ad821709118c962a35b35aa64a7ce940", size = 118637, upload-time = "2026-05-02T06:02:36.536Z" },
+    { url = "https://files.pythonhosted.org/packages/d0/2a/250105b2bef539a91968f60a4493c52be970e9179b7380d6897734831c51/n24q02m_mcp_core-1.13.0b7-py3-none-any.whl", hash = "sha256:06b74ddf4f1847b81665487ca69e463b13b73214fa79d9800a12af571d1b1d9c", size = 121709, upload-time = "2026-05-03T12:08:05.608Z" },
 ]
 
 [[package]]
