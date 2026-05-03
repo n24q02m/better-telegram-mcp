@@ -30,7 +30,7 @@ _BLOCKED_NETWORKS = [
 def validate_url(url: str) -> None:
     """Validate URL is safe (no SSRF to internal networks)."""
     parsed = urlparse(url)
-    if parsed.scheme not in ("http", "https"):
+    if parsed.scheme not in {"http", "https"}:
         msg = f"Only http/https URLs are allowed, got: {parsed.scheme}"
         raise SecurityError(msg)
     hostname = parsed.hostname
@@ -38,13 +38,13 @@ def validate_url(url: str) -> None:
         msg = "URL has no hostname"
         raise SecurityError(msg)
     # Block metadata endpoints
-    if hostname in ("metadata.google.internal", "metadata.internal"):
+    if hostname in {"metadata.google.internal", "metadata.internal"}:
         msg = "Access to cloud metadata endpoints is blocked"
         raise SecurityError(msg)
     # Resolve and check IPs
     # Not an IP literal -- resolve to prevent SSRF via DNS like 127.0.0.1.nip.io
     # Block known dangerous hostnames as an early check
-    if hostname in ("localhost", "0.0.0.0"):  # noqa: S104
+    if hostname in {"localhost", "0.0.0.0"}:  # noqa: S104
         msg = f"Access to {hostname} is blocked"
         raise SecurityError(msg)
     try:
@@ -107,7 +107,7 @@ def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Pa
     # Block dotfiles in home directories (SSH keys, secrets, etc.)
     parts = path.parts
     for part in parts:
-        if part.startswith(".") and part not in (".", ".."):
+        if part.startswith(".") and part not in {".", ".."}:
             msg = f"Access to hidden files/directories ({part}) is blocked"
             raise SecurityError(msg)
     # If an allowed_dir is specified, enforce containment
@@ -153,7 +153,7 @@ def validate_output_dir(output_dir: str, *, base_dir: Path | None = None) -> Pat
             raise SecurityError(msg)
     # Block hidden directories
     for part in path.parts:
-        if part.startswith(".") and part not in (".", ".."):
+        if part.startswith(".") and part not in {".", ".."}:
             msg = f"Writing to hidden directories ({part}) is blocked"
             raise SecurityError(msg)
     if base_dir is not None:
