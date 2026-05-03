@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v4.9.0-beta.8 (2026-05-03)
+
+### Features
+
+- Wire /login relay-password gate into multi-user oauth_server
+  ([#443](https://github.com/n24q02m/better-telegram-mcp/pull/443),
+  [`0ee389a`](https://github.com/n24q02m/better-telegram-mcp/commit/0ee389a0684592a7b43e115d7ac663357afd8104))
+
+
 ## v4.9.0-beta.7 (2026-05-03)
 
 ### Features
