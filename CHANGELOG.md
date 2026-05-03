@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v4.9.0-beta.9 (2026-05-03)
+
+### Bug Fixes
+
+- Bump mcp-core to 1.13.0-beta.9 for /login form shell refactor
+  ([#444](https://github.com/n24q02m/better-telegram-mcp/pull/444),
+  [`2e47dbb`](https://github.com/n24q02m/better-telegram-mcp/commit/2e47dbbc5b66b946d65b9240f30fd9bc067993e9))
+
+
 ## v4.9.0-beta.8 (2026-05-03)
 
 ### Features
