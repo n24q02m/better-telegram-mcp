@@ -180,6 +180,20 @@ For private deployments (single user or team):
 
 See `oci-vm-prod/services/better-telegram-mcp/docker-compose.yml` for a reference compose file.
 
+### Edge auth: relay password
+
+Public HTTP deployments expose `<your-domain>/authorize` to URL discovery. To prevent random Internet users from accessing the relay form, mint a relay password:
+
+```bash
+openssl rand -hex 32
+# Save in your skret / .env as:
+MCP_RELAY_PASSWORD=<generated-32-byte-hex>
+```
+
+Share this password out-of-band (Signal/email/SMS) with anyone you invite to use your server. They will see a login form when first opening `/authorize`; once logged in, the cookie persists 24 hours.
+
+**Single-user dev exception**: If `PUBLIC_URL=http://localhost:8080`, you can leave `MCP_RELAY_PASSWORD` empty to disable the gate. The server logs a warning if you skip the password with a non-localhost `PUBLIC_URL`.
+
 ## Method 6: Build from Source
 
 ```bash
