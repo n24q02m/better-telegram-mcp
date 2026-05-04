@@ -27,25 +27,34 @@ All MCP servers across this stack share this priority hierarchy. Note: 2 plugins
 
 For Claude Code users, the plugin approach is the simplest. **Bot mode only** -- user mode requires HTTP (see Method 3).
 
+### Step 0: Credential prompt
+
+When you run `/plugin install better-telegram-mcp@n24q02m-plugins`, Claude Code prompts for the field declared in `plugin.json` `userConfig`:
+
+| Field | Required | Sensitive | Notes |
+|:------|:---------|:----------|:------|
+| `TELEGRAM_BOT_TOKEN` | No (leave empty for user mode via Method 3) | Yes | From [@BotFather](https://t.me/BotFather). Format: `123456789:ABCdefGHI-...` |
+
+Sensitive values are stored in the system keychain (or `~/.claude/.credentials.json` fallback) and persist across `/plugin update`. Claude Code substitutes the value into `mcpServers.better-telegram-mcp.env.TELEGRAM_BOT_TOKEN` via `${user_config.TELEGRAM_BOT_TOKEN}` -- you do not edit `env` manually.
+
+> Leaving the field empty disables stdio bot mode; you must use Method 3 HTTP for user mode (phone+OTP) anyway. The `TELEGRAM_PHONE` value used in user mode is collected in the HTTP `/authorize` form, not via `userConfig`.
+
+### Steps
+
 1. Get a bot token from [@BotFather](https://t.me/BotFather):
    - Open Telegram, send `/newbot` to @BotFather
    - Follow prompts to name your bot
    - Copy the token (format: `123456789:ABCdefGHI-JKLmnoPQRstUVwxyz`)
 
-2. Open Claude Code and install the plugin:
+2. Open Claude Code and install the plugin (Claude Code prompts for `TELEGRAM_BOT_TOKEN`):
    ```bash
    /plugin marketplace add n24q02m/claude-plugins
    /plugin install better-telegram-mcp@n24q02m-plugins
    ```
 
-3. Configure `TELEGRAM_BOT_TOKEN` in the plugin settings (Claude Code prompts on first use), or set the env var system-wide:
-   ```bash
-   export TELEGRAM_BOT_TOKEN="123456789:ABCdef..."
-   ```
+3. Restart Claude Code -- the server starts in stdio bot mode with the token injected.
 
-4. Restart Claude Code -- the server starts in stdio bot mode.
-
-> **Need user mode (read messages, browse chats, manage groups)?** Bot tokens cannot do this. Skip to Method 3 (HTTP) -- user mode runs over HTTP only.
+> **Need user mode (read messages, browse chats, manage groups)?** Bot tokens cannot do this. Skip to Method 3 (HTTP) -- user mode runs over HTTP only and does not use the `userConfig` prompt.
 
 ## Method 2: Docker stdio (fallback)
 

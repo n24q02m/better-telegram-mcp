@@ -2,6 +2,15 @@
   "name": "better-telegram-mcp",
   "description": "Telegram dual-mode (Bot API + MTProto) — messages, chats, media, contacts",
   "version": "4.9.0",
+  "userConfig": {
+    "TELEGRAM_BOT_TOKEN": {
+      "type": "string",
+      "title": "Bot token (bot mode)",
+      "description": "From @BotFather. Required for stdio bot mode. Leave empty for user mode (HTTP only).",
+      "sensitive": true,
+      "required": false
+    }
+  },
   "author": {
     "name": "n24q02m",
     "url": "https://github.com/n24q02m"
@@ -10,8 +19,15 @@
   "mcpServers": {
     "better-telegram-mcp": {
       "command": "uvx",
-      "args": ["--python", "3.13", "better-telegram-mcp@latest"],
-      "env": { "MCP_TRANSPORT": "stdio" }
+      "args": [
+        "--python",
+        "3.13",
+        "better-telegram-mcp@latest"
+      ],
+      "env": {
+        "MCP_TRANSPORT": "stdio",
+        "TELEGRAM_BOT_TOKEN": "${user_config.TELEGRAM_BOT_TOKEN}"
+      }
     }
   }
 }
