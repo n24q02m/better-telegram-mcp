@@ -10,6 +10,7 @@ import pytest
 from better_telegram_mcp.config import Settings
 from better_telegram_mcp.transports.http import (
     _current_backend,
+    _per_request_sub_scope,
     get_current_backend,
     start_http,
 )
@@ -30,7 +31,6 @@ def settings(data_dir: Path) -> Settings:
 class TestGetCurrentBackend:
     def test_get_current_backend_none(self) -> None:
         """Should return None if context variable is not set."""
-        # Ensure it's clean
         token = _current_backend.set(None)
         try:
             assert get_current_backend() is None
@@ -51,8 +51,8 @@ class TestStartHttp:
     def test_start_http_single_user_uses_local_relay(
         self, settings: Settings, data_dir: Path
     ) -> None:
-        """Single-user path should dispatch to mcp-core run_http_server
-        so the browser paste form + OTP flow render correctly."""
+        """Single-user path dispatches to mcp-core run_http_server so the
+        browser paste form + OTP flow render correctly."""
         with (
             patch.dict("os.environ", {}, clear=True),
             patch(
@@ -69,9 +69,14 @@ class TestStartHttp:
         assert kwargs["on_credentials_saved"] is not None
         assert kwargs["on_step_submitted"] is not None
         assert kwargs["custom_credential_form_html"] is not None
+        # Single-user must NOT pin auth_scope (single shared backend).
+        assert kwargs.get("auth_scope") is None
 
-    def test_start_http_multi_user(self, settings: Settings) -> None:
-        """start_http should start multi-user server if required env vars are set."""
+    def test_start_http_multi_user_dispatches_run_http_server(
+        self, settings: Settings, tmp_path: Path
+    ) -> None:
+        """Multi-user path also routes through mcp-core run_http_server but
+        with auth_scope=_per_request_sub_scope and a per-sub provider."""
         env = {
             "DCR_SERVER_SECRET": "secret",
             "PUBLIC_URL": "https://mcp.example.com",
@@ -82,28 +87,40 @@ class TestStartHttp:
         }
 
         with (
-            patch.dict("os.environ", env),
+            patch.dict("os.environ", env, clear=True),
             patch(
-                "better_telegram_mcp.transports.oauth_server.create_app"
-            ) as mock_create_app,
-            patch("uvicorn.run") as mock_uvicorn_run,
+                "mcp_core.transport.local_server.run_http_server",
+                new_callable=AsyncMock,
+            ) as mock_run,
+            patch(
+                "better_telegram_mcp.auth.telegram_auth_provider.TelegramAuthProvider"
+            ) as mock_provider_cls,
         ):
-            mock_app = MagicMock()
-            mock_create_app.return_value = mock_app
+            mock_provider = mock_provider_cls.return_value
+            mock_provider.restore_sessions = AsyncMock(return_value=0)
+            mock_provider.shutdown = AsyncMock()
 
-            start_http(settings)
-
-            mock_create_app.assert_called_once_with(
-                data_dir=settings.data_dir,
-                public_url="https://mcp.example.com",
-                master_secret="secret",
+            settings_with_api = Settings(
+                data_dir=tmp_path / "d",
+                api_id=12345,
+                api_hash="hash",
             )
-            mock_uvicorn_run.assert_called_once_with(
-                mock_app, host="0.0.0.0", port=9090, log_level="info"
-            )
+            start_http(settings_with_api)
 
-    def test_start_http_multi_user_default_port_host(self, settings: Settings) -> None:
-        """start_http multi-user should use default port/host if not provided."""
+        mock_run.assert_called_once()
+        kwargs = mock_run.call_args.kwargs
+        assert kwargs["server_name"] == "better-telegram-mcp"
+        assert kwargs["host"] == "0.0.0.0"
+        assert kwargs["port"] == 9090
+        assert kwargs["auth_scope"] is _per_request_sub_scope
+        # Per-sub provider should be wired up via lifespan.
+        mock_provider.restore_sessions.assert_called_once()
+        mock_provider.shutdown.assert_called_once()
+
+    def test_start_http_multi_user_default_port_host(
+        self, settings: Settings, tmp_path: Path
+    ) -> None:
+        """Multi-user uses default port 8080 and binds 0.0.0.0 by default."""
         env = {
             "DCR_SERVER_SECRET": "secret",
             "PUBLIC_URL": "https://mcp.example.com",
@@ -113,15 +130,28 @@ class TestStartHttp:
 
         with (
             patch.dict("os.environ", env, clear=True),
-            patch("better_telegram_mcp.transports.oauth_server.create_app"),
-            patch("uvicorn.run") as mock_uvicorn_run,
+            patch(
+                "mcp_core.transport.local_server.run_http_server",
+                new_callable=AsyncMock,
+            ) as mock_run,
+            patch(
+                "better_telegram_mcp.auth.telegram_auth_provider.TelegramAuthProvider"
+            ) as mock_provider_cls,
         ):
-            start_http(settings)
+            mock_provider = mock_provider_cls.return_value
+            mock_provider.restore_sessions = AsyncMock(return_value=0)
+            mock_provider.shutdown = AsyncMock()
 
-            # Check arguments of the last uvicorn.run call
-            _, kwargs = mock_uvicorn_run.call_args
-            assert kwargs["port"] == 8080
-            assert kwargs["host"] == "127.0.0.1"
+            settings_with_api = Settings(
+                data_dir=tmp_path / "d",
+                api_id=12345,
+                api_hash="hash",
+            )
+            start_http(settings_with_api)
+
+        kwargs = mock_run.call_args.kwargs
+        assert kwargs["port"] == 8080
+        assert kwargs["host"] == "0.0.0.0"
 
     def test_start_http_refuses_public_url_without_multi_user(
         self, settings: Settings
@@ -154,3 +184,50 @@ class TestStartHttp:
             start_http(settings)
 
         mock_run.assert_called_once()
+
+
+class TestPerRequestSubScope:
+    """The auth_scope middleware that pins per-request sub + backend."""
+
+    @pytest.mark.asyncio
+    async def test_pins_backend_when_provider_resolves_sub(self) -> None:
+        from better_telegram_mcp.credential_state import _current_sub
+
+        mock_backend = MagicMock()
+        mock_provider = MagicMock()
+        mock_provider.resolve_backend.return_value = mock_backend
+
+        observed: dict[str, object] = {}
+
+        async def _next() -> None:
+            observed["sub"] = _current_sub.get()
+            observed["backend"] = get_current_backend()
+
+        with patch(
+            "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+            return_value=mock_provider,
+        ):
+            await _per_request_sub_scope({"sub": "sub-uuid-123"}, _next)
+
+        assert observed["sub"] == "sub-uuid-123"
+        assert observed["backend"] is mock_backend
+        # Reset cleared the backend (avoid leak across requests).
+        assert get_current_backend() is None
+        assert _current_sub.get() is None
+        mock_provider.resolve_backend.assert_called_once_with("sub-uuid-123")
+
+    @pytest.mark.asyncio
+    async def test_skips_backend_when_provider_returns_none(self) -> None:
+        """User has not completed setup yet — backend stays unset, tool
+        handlers will fail with the standard 'not initialized' error."""
+        mock_provider = MagicMock()
+        mock_provider.resolve_backend.return_value = None
+
+        async def _next() -> None:
+            assert get_current_backend() is None
+
+        with patch(
+            "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+            return_value=mock_provider,
+        ):
+            await _per_request_sub_scope({"sub": "no-creds-yet"}, _next)

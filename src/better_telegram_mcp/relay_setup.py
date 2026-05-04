@@ -24,7 +24,7 @@ ALL_POSSIBLE_FIELDS = [
     "TELEGRAM_PHONE",
 ]
 
-# Error sanitization patterns (same as auth_server.py for consistency)
+# Error sanitization patterns shared with credential_state.py.
 _CAUSED_BY_RE = re.compile(r"\s*\(caused by \w+\)\s*$", re.IGNORECASE)
 _ERROR_SIMPLIFICATIONS: list[tuple[re.Pattern[str], str]] = [
     (
