@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v4.9.0-beta.12 (2026-05-04)
+
+### Bug Fixes
+
+- Re-lock uv.lock without path source so Docker --frozen succeeds
+  ([#449](https://github.com/n24q02m/better-telegram-mcp/pull/449),
+  [`53630c1`](https://github.com/n24q02m/better-telegram-mcp/commit/53630c16f0598eb6261185a180b9afbc5caeeb9c))
+
+
 ## v4.9.0-beta.11 (2026-05-04)
 
 ### Bug Fixes
