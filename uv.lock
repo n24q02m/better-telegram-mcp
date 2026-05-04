@@ -112,7 +112,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.27.0" },
-    { name = "n24q02m-mcp-core", specifier = ">=1.13.0b9" },
+    { name = "n24q02m-mcp-core", directory = "../mcp-core/packages/core-py" },
     { name = "pydantic", specifier = ">=2.9,<2.13" },
     { name = "pydantic-settings", specifier = ">=2.14.0" },
     { name = "starlette", specifier = ">=1.0.0" },
@@ -727,8 +727,8 @@ wheels = [
 
 [[package]]
 name = "n24q02m-mcp-core"
-version = "1.13.0b9"
-source = { registry = "https://pypi.org/simple" }
+version = "1.13.0b8"
+source = { directory = "../mcp-core/packages/core-py" }
 dependencies = [
     { name = "authlib" },
     { name = "cryptography" },
@@ -741,9 +741,29 @@ dependencies = [
     { name = "starlette" },
     { name = "tomli-w" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b2/83/62231d50dc150328f58c78fac135962e5a7641a00035d1e2b332d7b340a2/n24q02m_mcp_core-1.13.0b9.tar.gz", hash = "sha256:45ca969044f84a06db37d54705f03928dfaf53fd23ab3d13b4e59b86a70e4f3f", size = 192382, upload-time = "2026-05-03T14:27:54.192Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/50/89/7fac8548690857aa6932af2987a9ff19bce595cc975b890c8d83eff27381/n24q02m_mcp_core-1.13.0b9-py3-none-any.whl", hash = "sha256:32ebc4b96b12b8c033bf0f50a938c891020e393a67e5bebde6944f6d4a555eae", size = 123359, upload-time = "2026-05-03T14:27:55.796Z" },
+
+[package.metadata]
+requires-dist = [
+    { name = "authlib", specifier = ">=1.7.0" },
+    { name = "cryptography", specifier = ">=47.0.0" },
+    { name = "fastmcp", specifier = ">=3.2.4" },
+    { name = "filelock", specifier = ">=3.16.1" },
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "loguru", specifier = ">=0.7.3" },
+    { name = "platformdirs", specifier = ">=4.9.6" },
+    { name = "pydantic", specifier = ">=2.12.5,<2.13" },
+    { name = "starlette", specifier = ">=1.0.0" },
+    { name = "tomli-w", specifier = ">=1.2.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=9.0.3" },
+    { name = "pytest-asyncio", specifier = ">=1.3.0" },
+    { name = "pytest-cov", specifier = ">=7.1.0" },
+    { name = "pytest-timeout", specifier = ">=2.4.0" },
+    { name = "ruff", specifier = ">=0.15.12" },
+    { name = "ty", specifier = ">=0.0.33" },
 ]
 
 [[package]]

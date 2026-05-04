@@ -641,3 +641,266 @@ async def test_finalize_auth_callback_invoked():
     assert cs._state == CredentialState.CONFIGURED
 
     cs._on_configured_callback = None
+
+
+# ---------------------------------------------------------------------------
+# Multi-user branch (per-JWT-sub via TelegramAuthProvider)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_save_credentials_multiuser_bot_success():
+    """Multi-user bot mode: register backend on the per-sub provider."""
+    from better_telegram_mcp.credential_state import save_credentials
+
+    provider = MagicMock()
+    provider.register_bot = AsyncMock(return_value="sub-abc")
+
+    with patch(
+        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        return_value=provider,
+    ):
+        result = await save_credentials(
+            {"TELEGRAM_BOT_TOKEN": "123:abc"},
+            {"sub": "sub-uuid-abc"},
+        )
+
+    assert result is None
+    provider.register_bot.assert_awaited_once_with("sub-uuid-abc", "123:abc")
+    assert get_state() == CredentialState.CONFIGURED
+
+
+@pytest.mark.asyncio
+async def test_save_credentials_multiuser_bot_invalid_token():
+    """Multi-user bot mode surfaces validation errors via 'error' result."""
+    from better_telegram_mcp.credential_state import save_credentials
+
+    provider = MagicMock()
+    provider.register_bot = AsyncMock(side_effect=ValueError("Invalid bot token"))
+
+    with patch(
+        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        return_value=provider,
+    ):
+        result = await save_credentials(
+            {"TELEGRAM_BOT_TOKEN": "bad"},
+            {"sub": "sub-uuid"},
+        )
+
+    assert result is not None
+    assert result["type"] == "error"
+    assert "bot token" in result["text"].lower()
+
+
+@pytest.mark.asyncio
+async def test_save_credentials_multiuser_bot_missing_token():
+    """Multi-user mode with neither bot token nor phone returns error."""
+    from better_telegram_mcp.credential_state import save_credentials
+
+    provider = MagicMock()
+
+    with patch(
+        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        return_value=provider,
+    ):
+        result = await save_credentials({}, {"sub": "sub-uuid"})
+
+    assert result is not None
+    assert result["type"] == "error"
+
+
+@pytest.mark.asyncio
+async def test_save_credentials_multiuser_user_mode_starts_otp():
+    """Multi-user user mode: drive the per-sub OTP flow via the provider."""
+    from better_telegram_mcp.credential_state import save_credentials
+
+    provider = MagicMock()
+    provider.start_user_auth = AsyncMock(
+        return_value={"bearer": "sub-x", "phone_code_hash": "hash"}
+    )
+
+    with patch(
+        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        return_value=provider,
+    ):
+        result = await save_credentials(
+            {"TELEGRAM_PHONE": "+84912345678"},
+            {"sub": "sub-uuid"},
+        )
+
+    assert result is not None
+    assert result["type"] == "otp_required"
+    assert result["field"] == "otp_code"
+    provider.start_user_auth.assert_awaited_once_with("sub-uuid", "+84912345678")
+    assert get_state() == CredentialState.SETUP_IN_PROGRESS
+
+
+@pytest.mark.asyncio
+async def test_save_credentials_multiuser_user_mode_send_code_failure():
+    """Multi-user user mode handles upstream Telethon failure with error result."""
+    from better_telegram_mcp.credential_state import save_credentials
+
+    provider = MagicMock()
+    provider.start_user_auth = AsyncMock(side_effect=ValueError("Telethon: limit"))
+
+    with patch(
+        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        return_value=provider,
+    ):
+        result = await save_credentials(
+            {"TELEGRAM_PHONE": "+84912345678"},
+            {"sub": "sub-uuid"},
+        )
+
+    assert result is not None
+    assert result["type"] == "error"
+
+
+@pytest.mark.asyncio
+async def test_on_step_submitted_multiuser_otp_success():
+    """Multi-user OTP path: provider.complete_user_auth marks CONFIGURED."""
+    from better_telegram_mcp.credential_state import on_step_submitted
+
+    provider = MagicMock()
+    provider.complete_user_auth = AsyncMock(return_value={"user_id": 1})
+
+    with patch(
+        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        return_value=provider,
+    ):
+        result = await on_step_submitted({"otp_code": "12345"}, {"sub": "sub-uuid"})
+
+    assert result is None
+    provider.complete_user_auth.assert_awaited_once_with("sub-uuid", "12345")
+    assert get_state() == CredentialState.CONFIGURED
+
+
+@pytest.mark.asyncio
+async def test_on_step_submitted_multiuser_otp_triggers_2fa():
+    """Multi-user OTP failure with 2FA hint triggers password_required step."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import on_step_submitted
+
+    provider = MagicMock()
+    provider.complete_user_auth = AsyncMock(
+        side_effect=ValueError(
+            "Two-step verification is enabled and a password is required"
+        )
+    )
+
+    with patch(
+        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        return_value=provider,
+    ):
+        result = await on_step_submitted({"otp_code": "12345"}, {"sub": "sub-pw"})
+
+    assert result is not None
+    assert result["type"] == "password_required"
+    assert cs._per_sub_steps["sub-pw"][2] == "12345"
+    cs._per_sub_steps.pop("sub-pw", None)
+
+
+@pytest.mark.asyncio
+async def test_on_step_submitted_multiuser_otp_other_failure():
+    """Non-2FA OTP failure returns generic error and clears stash."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import on_step_submitted
+
+    cs._per_sub_steps["sub-bad"] = (None, "+84", None)
+    provider = MagicMock()
+    provider.complete_user_auth = AsyncMock(
+        side_effect=ValueError("PHONE_CODE_INVALID")
+    )
+
+    with patch(
+        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        return_value=provider,
+    ):
+        result = await on_step_submitted({"otp_code": "00000"}, {"sub": "sub-bad"})
+
+    assert result is not None
+    assert result["type"] == "error"
+    assert "sub-bad" not in cs._per_sub_steps
+
+
+@pytest.mark.asyncio
+async def test_on_step_submitted_multiuser_password_success():
+    """Multi-user 2FA password completes auth using the stashed OTP."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import on_step_submitted
+
+    cs._per_sub_steps["sub-2fa"] = (None, "+84", "67890")
+    provider = MagicMock()
+    provider.complete_user_auth = AsyncMock(return_value={"user_id": 2})
+
+    with patch(
+        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        return_value=provider,
+    ):
+        result = await on_step_submitted({"password": "p4ss"}, {"sub": "sub-2fa"})
+
+    assert result is None
+    provider.complete_user_auth.assert_awaited_once_with(
+        "sub-2fa", "67890", password="p4ss"
+    )
+    assert get_state() == CredentialState.CONFIGURED
+    assert "sub-2fa" not in cs._per_sub_steps
+
+
+@pytest.mark.asyncio
+async def test_on_step_submitted_multiuser_password_no_otp_stash():
+    """Submitting password without an OTP-stash returns error."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import on_step_submitted
+
+    cs._per_sub_steps.pop("sub-orphan", None)
+    provider = MagicMock()
+
+    with patch(
+        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        return_value=provider,
+    ):
+        result = await on_step_submitted({"password": "p"}, {"sub": "sub-orphan"})
+
+    assert result is not None
+    assert result["type"] == "error"
+
+
+@pytest.mark.asyncio
+async def test_on_step_submitted_multiuser_password_failure():
+    """Multi-user 2FA password failure returns error and clears stash."""
+    import better_telegram_mcp.credential_state as cs
+    from better_telegram_mcp.credential_state import on_step_submitted
+
+    cs._per_sub_steps["sub-pwfail"] = (None, "+84", "11111")
+    provider = MagicMock()
+    provider.complete_user_auth = AsyncMock(
+        side_effect=ValueError("PASSWORD_HASH_INVALID")
+    )
+
+    with patch(
+        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        return_value=provider,
+    ):
+        result = await on_step_submitted({"password": "wrong"}, {"sub": "sub-pwfail"})
+
+    assert result is not None
+    assert result["type"] == "error"
+    assert "sub-pwfail" not in cs._per_sub_steps
+
+
+@pytest.mark.asyncio
+async def test_on_step_submitted_multiuser_unexpected_input():
+    """Multi-user path with neither otp_code nor password returns error."""
+    from better_telegram_mcp.credential_state import on_step_submitted
+
+    provider = MagicMock()
+
+    with patch(
+        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        return_value=provider,
+    ):
+        result = await on_step_submitted({}, {"sub": "sub-x"})
+
+    assert result is not None
+    assert result["type"] == "error"
