@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.9.0 (2026-05-04)
+
+### Bug Fixes
+
+- Bump mcp-core to 1.13.0 (STABLE) ([#453](https://github.com/n24q02m/better-telegram-mcp/pull/453),
+  [`de541ca`](https://github.com/n24q02m/better-telegram-mcp/commit/de541cae72a67f72de3a1f0de89553b6f3b5ea5e))
+
+
 ## v4.9.0-beta.14 (2026-05-04)
 
 ### Bug Fixes
