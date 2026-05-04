@@ -164,17 +164,26 @@ async def test_lifespan_falls_back_to_unconfigured_when_no_credentials():
     def mock_resolve():
         return CredentialState.AWAITING_SETUP
 
-    with (
-        patch.object(srv, "Settings", return_value=MagicMock(is_configured=False)),
-        patch(
-            "better_telegram_mcp.credential_state.resolve_credential_state",
-            side_effect=mock_resolve,
-        ),
-    ):
-        async with _lifespan(mcp):
-            assert srv._unconfigured is True
+    # Reset _multi_user_mode flag — earlier tests may have called
+    # create_http_mcp_server() which flips it globally. Unconfigured
+    # fallback is single-user-mode behavior; multi-user has its own
+    # branch that yields immediately without setting _unconfigured.
+    original_multi_user = srv._multi_user_mode
+    srv._multi_user_mode = False
+    try:
+        with (
+            patch.object(srv, "Settings", return_value=MagicMock(is_configured=False)),
+            patch(
+                "better_telegram_mcp.credential_state.resolve_credential_state",
+                side_effect=mock_resolve,
+            ),
+        ):
+            async with _lifespan(mcp):
+                assert srv._unconfigured is True
 
-        assert srv._unconfigured is False
+            assert srv._unconfigured is False
+    finally:
+        srv._multi_user_mode = original_multi_user
 
 
 # --- relay_schema ---

@@ -568,20 +568,27 @@ async def test_lifespan_unconfigured_mode():
     from better_telegram_mcp.credential_state import CredentialState
     from better_telegram_mcp.server import _lifespan
 
-    with (
-        patch.object(srv, "Settings") as mock_settings_cls,
-        patch(
-            "better_telegram_mcp.credential_state.resolve_credential_state",
-            return_value=CredentialState.AWAITING_SETUP,
-        ),
-    ):
-        mock_settings = mock_settings_cls.return_value
-        mock_settings.is_configured = False
+    # Reset _multi_user_mode flag — earlier tests may have called
+    # create_http_mcp_server() which flips it globally.
+    original_multi_user = srv._multi_user_mode
+    srv._multi_user_mode = False
+    try:
+        with (
+            patch.object(srv, "Settings") as mock_settings_cls,
+            patch(
+                "better_telegram_mcp.credential_state.resolve_credential_state",
+                return_value=CredentialState.AWAITING_SETUP,
+            ),
+        ):
+            mock_settings = mock_settings_cls.return_value
+            mock_settings.is_configured = False
 
-        async with _lifespan(mcp):
-            assert srv._unconfigured is True
+            async with _lifespan(mcp):
+                assert srv._unconfigured is True
 
-        assert srv._unconfigured is False
+            assert srv._unconfigured is False
+    finally:
+        srv._multi_user_mode = original_multi_user
 
 
 # --- setup_* config actions (credential state integration) ---

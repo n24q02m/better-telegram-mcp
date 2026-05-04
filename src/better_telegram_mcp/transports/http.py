@@ -194,8 +194,28 @@ async def _per_request_sub_scope(
         provider = get_global_provider()
         if provider is not None:
             backend = provider.resolve_backend(sub)
+            keys_preview = list(provider.active_clients.keys())
+            keys_short = [
+                k[:12] + "..." if len(k) > 12 else k for k in keys_preview[:5]
+            ]
+            logger.info(
+                "auth_scope: sub={} found_backend={} active_keys_count={} keys={}",
+                (sub or "")[:12] + "...",
+                type(backend).__name__ if backend else "None",
+                len(provider.active_clients),
+                keys_short,
+            )
             if backend is not None:
                 backend_token = _current_backend.set(backend)
+        else:
+            logger.warning(
+                "auth_scope: get_global_provider() returned None (sub={})",
+                (sub or "")[:12],
+            )
+    else:
+        logger.warning(
+            "auth_scope: claims has no 'sub' field, claims_keys={}", list(claims.keys())
+        )
 
     try:
         await next_()
@@ -226,7 +246,12 @@ def _start_multi_user_http(settings: Settings) -> None:
     from ..auth.telegram_auth_provider import TelegramAuthProvider, set_global_provider
     from ..credential_form import render_telegram_credential_form
     from ..credential_state import on_step_submitted, save_credentials
-    from ..server import mcp
+    from ..server import create_http_mcp_server
+
+    # Set _multi_user_mode = True in server module so get_backend() reads
+    # the per-request contextvar set by _per_request_sub_scope below
+    # instead of falling back to the global single-user backend.
+    mcp = create_http_mcp_server()
 
     # Build the global TelegramAuthProvider so ``save_credentials``,
     # ``on_step_submitted``, and the auth_scope middleware all share the
