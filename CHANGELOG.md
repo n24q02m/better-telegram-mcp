@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v4.9.0-beta.10 (2026-05-04)
+
+### Bug Fixes
+
+- Cover multi-user save_credentials and on_step_submitted branches
+  ([#447](https://github.com/n24q02m/better-telegram-mcp/pull/447),
+  [`765e203`](https://github.com/n24q02m/better-telegram-mcp/commit/765e203b699d5dcf17f029d388a8cc834c806f43))
+
+- Refactor multi-user HTTP to mcp-core run_http_server (drop relay-core)
+  ([#447](https://github.com/n24q02m/better-telegram-mcp/pull/447),
+  [`765e203`](https://github.com/n24q02m/better-telegram-mcp/commit/765e203b699d5dcf17f029d388a8cc834c806f43))
+
+
 ## v4.9.0-beta.9 (2026-05-03)
 
 ### Bug Fixes
