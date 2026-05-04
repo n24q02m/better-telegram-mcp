@@ -20,13 +20,25 @@ All MCP servers across this stack share this priority hierarchy. Note: 2 plugins
 
 ## Option 1: Claude Code Plugin (Recommended, stdio Bot Mode Only)
 
+### Step 0: Credential prompt
+
+When the install command runs, Claude Code prompts for the field declared in `plugin.json` `userConfig`:
+
+| Field | Required | Sensitive | Source |
+|:------|:---------|:----------|:-------|
+| `TELEGRAM_BOT_TOKEN` | No (skip for user mode via Option 3) | Yes | [@BotFather](https://t.me/BotFather) |
+
+The plugin manifest substitutes the value into `mcpServers.better-telegram-mcp.env.TELEGRAM_BOT_TOKEN` via `${user_config.TELEGRAM_BOT_TOKEN}`. Sensitive values stay in the system keychain and persist across `/plugin update` -- you do not edit `env` manually.
+
+### Steps
+
 ```bash
 # Install from marketplace (includes skills: /setup-bot, /channel-post)
 /plugin marketplace add n24q02m/claude-plugins
 /plugin install better-telegram-mcp@n24q02m-plugins
 ```
 
-Set `TELEGRAM_BOT_TOKEN` from [@BotFather](https://t.me/BotFather) in plugin settings or as a system env var. **Bot mode only** -- user mode (read messages, browse chats) requires HTTP (Option 3).
+Paste your bot token when prompted. **Bot mode only** -- user mode (read messages, browse chats) requires HTTP (Option 3) and uses a separate auth flow (phone+OTP via web form, not `userConfig`).
 
 ## Option 2: Docker stdio (fallback)
 
