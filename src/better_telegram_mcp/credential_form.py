@@ -585,6 +585,7 @@ def render_telegram_credential_form(
                     errorEl.textContent = "Please enter a value.";
                     errorEl.style.display = "block";
                     inputEl.setAttribute("aria-invalid", "true");
+                    inputEl.focus();
                     return;
                 }}
                 errorEl.style.display = "none";
@@ -659,11 +660,15 @@ def render_telegram_credential_form(
                 var inputs = activePanel ? activePanel.querySelectorAll('.field-input') : [];
                 var payload = {{}};
                 var valid = true;
+                var firstInvalidInput = null;
 
                 inputs.forEach(function (input) {{
                     if (input.value.trim() === "") {{
                         valid = false;
                         input.setAttribute("aria-invalid", "true");
+                        if (!firstInvalidInput) {{
+                            firstInvalidInput = input;
+                        }}
                     }} else {{
                         input.removeAttribute("aria-invalid");
                         payload[input.name] = input.value;
@@ -672,6 +677,9 @@ def render_telegram_credential_form(
 
                 if (!valid) {{
                     showStatus("error", "Please fill in the required field.");
+                    if (firstInvalidInput) {{
+                        firstInvalidInput.focus();
+                    }}
                     return;
                 }}
 

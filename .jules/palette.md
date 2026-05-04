@@ -1,3 +1,6 @@
 ## 2024-06-25 - Improve ARIA associations in credential forms
 **Learning:** For dynamic/conditionally-visible elements like status boxes or inline errors (e.g. `status-box`, `step-error`), it is completely safe and highly recommended to associate them proactively via `aria-describedby` directly on the `<input>` fields, even if the error blocks are initially empty or styled as `display: none`. Furthermore, strictly decorative strings like "Required" visual badges adjacent to natively `<input required>` fields should have `aria-hidden="true"` applied to avoid screen readers announcing "Required required" redundantly.
 **Action:** Always verify if a native `required` attribute exists on inputs before adding visual "Required" text. If it does, ensure the visual text is masked with `aria-hidden="true"`. Pre-wire inputs to their respective alert/status `div` elements with `aria-describedby` during HTML templating.
+## 2024-05-30 - Focus First Invalid Input on Form Submit
+**Learning:** Automatically focusing the first invalid input on form submission or step verification significantly improves keyboard navigation, saving screen reader and keyboard users from manually tabbing back through the form to find the error.
+**Action:** When adding client-side form validation, always track the first field that fails validation and call `.focus()` on it before returning.
