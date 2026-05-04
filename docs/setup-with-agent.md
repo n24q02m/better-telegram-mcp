@@ -26,60 +26,9 @@ All MCP servers across this stack share this priority hierarchy. Note: 2 plugins
 /plugin install better-telegram-mcp@n24q02m-plugins
 ```
 
-Set `TELEGRAM_BOT_TOKEN` from [@BotFather](https://t.me/BotFather) in plugin settings or as a system env var. **Bot mode only** -- user mode (read messages, browse chats) requires HTTP (Option 4).
+Set `TELEGRAM_BOT_TOKEN` from [@BotFather](https://t.me/BotFather) in plugin settings or as a system env var. **Bot mode only** -- user mode (read messages, browse chats) requires HTTP (Option 3).
 
-## Option 2: MCP Direct (stdio, Bot Mode Only)
-
-**Python 3.13 required** -- Python 3.14+ is NOT supported.
-
-### Claude Code (settings.json)
-
-Add to `~/.claude/settings.local.json` under `"mcpServers"`:
-
-```json
-{
-  "mcpServers": {
-    "telegram": {
-      "command": "uvx",
-      "args": ["--python", "3.13", "better-telegram-mcp"],
-      "env": {
-        "TELEGRAM_BOT_TOKEN": "123456789:ABCdef..."
-      }
-    }
-  }
-}
-```
-
-### Codex CLI (config.toml)
-
-Add to `~/.codex/config.toml`:
-
-```toml
-[mcp_servers.telegram]
-command = "uvx"
-args = ["--python", "3.13", "better-telegram-mcp"]
-env = { TELEGRAM_BOT_TOKEN = "123456789:ABCdef..." }
-```
-
-### OpenCode (opencode.json)
-
-Add to `opencode.json` in the project root:
-
-```json
-{
-  "mcpServers": {
-    "telegram": {
-      "command": "uvx",
-      "args": ["--python", "3.13", "better-telegram-mcp"],
-      "env": {
-        "TELEGRAM_BOT_TOKEN": "123456789:ABCdef..."
-      }
-    }
-  }
-}
-```
-
-## Option 3: Docker (stdio, Bot Mode Only)
+## Option 2: Docker stdio (fallback)
 
 ```bash
 docker run -i --rm \
@@ -104,11 +53,11 @@ Or as an MCP server config:
 }
 ```
 
-> Docker stdio supports bot mode only. For user mode, run the container in HTTP mode (Option 4 self-host).
+> Docker stdio supports bot mode only. For user mode, run the container in HTTP mode (Option 3 self-host).
 
 ## Why upgrade to HTTP mode?
 
-Stdio (Options 1-3) is the simplest path for **bot mode**, but stdio cannot host the browser-based phone+OTP flow that **user mode** requires. Switch to HTTP for any of these reasons:
+Stdio (Options 1-2) is the simplest path for **bot mode**, but stdio cannot host the browser-based phone+OTP flow that **user mode** requires. Switch to HTTP for any of these reasons:
 
 - **User mode access** (REQUIRED for user mode) -- read messages, browse chat history, list contacts, create groups/channels. Bot tokens cannot do this; only MTProto user sessions can. User mode auth is browser-based (phone + OTP code from Telegram app + optional 2FA password) and only HTTP transport hosts that flow.
 - **claude.ai web compatibility** -- claude.ai supports HTTP MCP servers; stdio is desktop/CLI only.
@@ -117,7 +66,9 @@ Stdio (Options 1-3) is the simplest path for **bot mode**, but stdio cannot host
 - **Multi-user team sharing** -- HTTP supports per-JWT-sub credential isolation, so a team can share one self-hosted instance.
 - **Always-on persistent process** -- enables webhook listeners, long-running agents, and scheduled tasks.
 
-## Option 4: HTTP Remote (Multi-User, Bot + User Modes)
+## Option 3: Docker HTTP (recommended)
+
+### 3.1. Hosted (n24q02m.com)
 
 Use the live production endpoint (Dynamic Client Registration + relay form auth):
 
@@ -138,7 +89,7 @@ The client registers a public DCR client at `/register`, then opens `/authorize`
 
 The server bundles public Telegram dev credentials (`api_id` and `api_hash`), so users do not need to register at [my.telegram.org](https://my.telegram.org). After the form completes, the server issues a Bearer JWT and tools become active immediately.
 
-## Option 5: Self-Hosting HTTP Mode
+### 3.2. Self-host with docker-compose
 
 For private deployments (single user or team), clone the repo and run via Docker:
 
