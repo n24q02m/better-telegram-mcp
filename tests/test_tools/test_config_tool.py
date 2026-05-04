@@ -115,5 +115,6 @@ async def test_general_exception(mock_backend):
     assert "RuntimeError" in result["error"]
 
 
-# Auth/send_code actions removed — auth handled by web UI only.
-# Tests for auth_server.py and auth_client.py are in their own test files.
+# Auth/send_code actions removed — auth handled by mcp-core's local OAuth
+# AS in HTTP mode (browser paste form + OTP /otp endpoint), not by the
+# config tool.

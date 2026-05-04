@@ -20,23 +20,41 @@ uv run ruff check --fix . && uv run ruff format .  # Fix
 src/better_telegram_mcp/
   config.py            # Pydantic Settings, env prefix TELEGRAM_
   server.py            # FastMCP + lifespan + auth mode switching
-  auth_server.py       # Local mode: Starlette web UI on localhost
-  auth_client.py       # Remote mode: httpx client polls relay server
+  credential_state.py  # save_credentials/on_step_submitted callbacks +
+                       # _current_sub contextvar (multi-user routing)
+  auth/
+    telegram_auth_provider.py  # Per-sub Telethon backend lifecycle
+    in_memory_session_store.py # bearer/sub -> SessionInfo (RAM only)
+    per_user_session_store.py  # SessionInfo dataclass (storage shim)
   backends/            # TelegramBackend ABC -> BotBackend (httpx), UserBackend (Telethon)
   backends/security.py # validate_url, validate_file_path, validate_output_dir
-  relay_setup.py       # Zero-config relay: create session, poll for config
+  relay_setup.py       # Shared error sanitization, field constants
   relay_schema.py      # Relay form schema (bot mode + user mode fields)
+  credential_form.py   # Custom HTML form (phone -> OTP -> 2FA password)
+  transports/
+    http.py            # _start_single_user_http + _start_multi_user_http
+                       # (both via mcp-core run_http_server)
+    credential_store.py# Master-secret resolution helper
   tools/               # messages, chats, media, contacts, config_tool, help
 ```
 
 ## Auth flow
 
-Dual-mode auth (TELEGRAM_AUTH_URL):
-- `local` -> auth_server.py (Starlette on localhost, browser moi tu dong)
-- `https://...` -> auth_client.py (poll remote relay, browser bat ky dau)
-- Default: `https://better-telegram-mcp.n24q02m.com`
+Stdio mode (default): bot-only via `TELEGRAM_BOT_TOKEN` env. User mode is
+HTTP-only.
 
-Auth xong -> _pending_auth=False -> tools active ngay (khong can restart).
+HTTP mode (`--http` / `MCP_TRANSPORT=http`): mcp-core `run_http_server`
+serves the local OAuth AS at `/authorize`. The custom credential form
+collects bot_token OR phone, posts to `/save`, and chains OTP / 2FA via
+`/otp`.
+
+- **Single-user**: writes to `config.enc`, hot-reloads the global Telethon
+  backend in `server.py`.
+- **Multi-user remote** (`PUBLIC_URL` + `DCR_SERVER_SECRET` set): per-sub
+  Telethon backends managed by `TelegramAuthProvider`; the auth_scope
+  middleware (`_per_request_sub_scope`) pins the JWT sub + per-user
+  backend into contextvars before each MCP tool call.
+
 Session persist: `~/.better-telegram-mcp/<name>.session`, permission 600.
 
 ## Env vars
@@ -64,8 +82,7 @@ NO `TELEGRAM_PASSWORD` -- 2FA nhap qua web UI, KHONG luu env.
 
 ## Luu y
 
-- Config tool: `status|set|cache_clear` (NO auth/send_code -- web UI only)
-- Coverage omit: auth_server.py, auth_client.py (integration test only)
+- Config tool: `status|set|cache_clear|setup_*` (auth flow lives in mcp-core HTTP OAuth AS)
 - Security: SSRF, path traversal, error sanitization, rate limiting on relay
 - Secrets: skret SSM namespace `/better-telegram-mcp/prod` (region `ap-southeast-1`)
 

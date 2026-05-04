@@ -1,13 +1,20 @@
 """HTTP transport mode for better-telegram-mcp.
 
-Two outcomes:
-- Multi-user OAuth 2.1 (deployed) when ``DCR_SERVER_SECRET`` + ``PUBLIC_URL``
-  + a Telegram ``api_id``/``api_hash`` pair are present. Per-JWT-sub
-  Telethon clients, isolated credentials. Intended for public deploys.
-- Single-user paste-form fallback for self-host / localhost. Same browser
-  paste-form flow as the other plugins (notion, email, wet, mnemo, crg) —
-  uses ``run_http_server`` from mcp-core so /authorize renders the custom
-  Telegram credential form and OTP/2FA flow runs against ``/otp``.
+Two outcomes (both via mcp-core ``run_http_server``):
+
+- **Multi-user remote** when ``DCR_SERVER_SECRET`` + ``PUBLIC_URL`` + a
+  Telegram ``api_id``/``api_hash`` pair are present. mcp-core's local OAuth
+  AS issues a per-authorize ``sub`` UUID, and the ``auth_scope`` middleware
+  pins that sub into a contextvar so per-tool-call handlers resolve the
+  right per-user Telethon backend. Credentials land in
+  ``TelegramAuthProvider`` keyed by sub, NOT by raw bearer (per-JWT-sub
+  isolation, ``feedback_remote_relay_multi_user_enforcement.md``).
+
+- **Single-user paste-form fallback** for self-host / localhost. Same
+  browser paste-form flow as the other plugins (notion, email, wet, mnemo,
+  crg) — ``run_http_server`` renders the custom Telegram credential form,
+  OTP/2FA flow runs against ``/otp``, and the global single backend in
+  ``server.py`` is hot-reloaded once credentials land.
 
 The ``api_id``/``api_hash`` pair has built-in defaults in ``config.py``
 (public Telegram app registration) so a deployed container only needs
@@ -22,13 +29,24 @@ from __future__ import annotations
 
 import os
 from contextvars import ContextVar
+from typing import Any
 
 from loguru import logger
 
 from ..config import Settings
 from ..relay_schema import RELAY_SCHEMA
 
-# ContextVar for per-user backend injection in multi-user HTTP mode
+# ContextVar for per-user backend injection in multi-user HTTP mode.
+#
+# In single-user mode this stays unset; ``server.get_backend()`` falls
+# back to the global ``_backend``.
+#
+# In multi-user mode the ``auth_scope`` middleware (``_per_request_sub_scope``
+# below) sets it from ``TelegramAuthProvider.resolve_backend(sub)`` AFTER
+# JWT verification, BEFORE the inner ASGI MCP handler runs. The ``next_()``
+# coroutine dispatches the actual MCP request inside the same asyncio task,
+# so the contextvar set here is visible to tool handlers and is reset on
+# the way out so a stale backend does not leak between requests.
 _current_backend: ContextVar = ContextVar("current_backend")
 
 
@@ -137,26 +155,121 @@ def _start_single_user_http(settings: Settings) -> None:
     )
 
 
+async def _per_request_sub_scope(
+    claims: dict[str, Any],
+    next_: Any,
+) -> None:
+    """``auth_scope`` middleware: pin per-request JWT sub + per-user backend.
+
+    Invoked by mcp-core's ``BearerMCPApp`` AFTER JWT verification, BEFORE the
+    inner ASGI MCP handler runs. The ``next_()`` coroutine dispatches the
+    actual MCP request inside the same asyncio task, so contextvars set here
+    are visible to tool handlers and are reset on the way out so stale state
+    does not leak between requests (a critical guarantee for multi-user
+    safety).
+
+    We pin two things per request:
+
+    1. ``credential_state._current_sub`` — the JWT ``sub`` so handlers
+       like ``save_credentials`` / ``on_step_submitted`` (called via
+       hot-reload paths or future per-sub config writes) know which user
+       the request is for.
+    2. ``transports.http._current_backend`` — the resolved per-user
+       Telethon backend pulled from ``TelegramAuthProvider`` keyed by
+       sub. ``server.get_backend()`` reads this contextvar so tools
+       dispatched in this request execute against the right user.
+
+    If the user has not completed setup yet the backend lookup returns
+    ``None`` and we leave ``_current_backend`` unset — tool handlers will
+    raise the standard ``Backend not initialized`` error which surfaces as
+    a "not authenticated" message via ``_not_ready_response()``.
+    """
+    from ..auth.telegram_auth_provider import get_global_provider
+    from ..credential_state import _current_sub
+
+    sub = claims.get("sub")
+    sub_token = _current_sub.set(sub)
+    backend_token = None
+    if sub:
+        provider = get_global_provider()
+        if provider is not None:
+            backend = provider.resolve_backend(sub)
+            if backend is not None:
+                backend_token = _current_backend.set(backend)
+
+    try:
+        await next_()
+    finally:
+        _current_sub.reset(sub_token)
+        if backend_token is not None:
+            _current_backend.reset(backend_token)
+
+
 def _start_multi_user_http(settings: Settings) -> None:
-    """Multi-user HTTP mode: per-user auth with standard OAuth 2.1."""
+    """Multi-user HTTP mode: per-JWT-sub Telethon backends.
 
-    import uvicorn
+    Runs the same mcp-core ``run_http_server`` as single-user mode but
+    binds ``0.0.0.0:8080`` (deployment behind reverse proxy), wires
+    ``auth_scope=_per_request_sub_scope`` to pin per-request user state,
+    and routes credential writes through a per-sub
+    ``TelegramAuthProvider`` so concurrent users do not share Telethon
+    sessions.
 
-    from .oauth_server import create_app
+    The ``DCR_SERVER_SECRET`` env var is required by the upstream check
+    in :func:`_is_multi_user_mode`; mcp-core's local OAuth AS reuses it
+    to mint per-user JWTs.
+    """
+    import asyncio
+
+    from mcp_core.transport.local_server import run_http_server
+
+    from ..auth.telegram_auth_provider import TelegramAuthProvider, set_global_provider
+    from ..credential_form import render_telegram_credential_form
+    from ..credential_state import on_step_submitted, save_credentials
+    from ..server import mcp
+
+    # Build the global TelegramAuthProvider so ``save_credentials``,
+    # ``on_step_submitted``, and the auth_scope middleware all share the
+    # same per-sub backend cache.
+    auth_provider = TelegramAuthProvider(
+        settings.data_dir,
+        int(settings.api_id or 0),
+        settings.api_hash or "",
+    )
+    set_global_provider(auth_provider)
 
     port = int(os.environ.get("PORT", "8080"))
-    public_url = os.environ["PUBLIC_URL"]
-    master_secret = settings.secret
+    host = os.environ.get("HOST", "0.0.0.0")
+    public_url = os.environ.get("PUBLIC_URL", "")
 
-    app = create_app(
-        data_dir=settings.data_dir,
-        public_url=public_url,
-        master_secret=master_secret,
-    )
-
-    logger.info("Starting multi-user OAuth HTTP server on port {}", port)
+    logger.info("Starting multi-user HTTP server on {}:{}", host, port)
     logger.info("Public URL: {}", public_url)
 
-    # Default to 127.0.0.1 for safety; override via HOST env var (e.g. Docker sets HOST=0.0.0.0)
-    host = os.environ.get("HOST", "127.0.0.1")
-    uvicorn.run(app, host=host, port=port, log_level="info")
+    async def _run_with_lifecycle() -> None:
+        try:
+            await auth_provider.restore_sessions()
+        except Exception:
+            logger.opt(exception=True).warning(
+                "Failed to restore Telegram sessions on startup"
+            )
+        try:
+            await run_http_server(
+                mcp,
+                server_name="better-telegram-mcp",
+                relay_schema=RELAY_SCHEMA,
+                port=port,
+                host=host,
+                on_credentials_saved=save_credentials,
+                on_step_submitted=on_step_submitted,
+                custom_credential_form_html=render_telegram_credential_form,
+                auth_scope=_per_request_sub_scope,
+            )
+        finally:
+            try:
+                await auth_provider.shutdown()
+            except Exception:
+                logger.opt(exception=True).warning(
+                    "Failed to cleanly shut down TelegramAuthProvider"
+                )
+
+    asyncio.run(_run_with_lifecycle())
