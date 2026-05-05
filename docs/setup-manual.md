@@ -27,17 +27,13 @@ All MCP servers across this stack share this priority hierarchy. Note: 2 plugins
 
 For Claude Code users, the plugin approach is the simplest. **Bot mode only** -- user mode requires HTTP (see Method 3).
 
-### Step 0: Credential prompt
+### Credential prompts at install
 
-When you run `/plugin install better-telegram-mcp@n24q02m-plugins`, Claude Code prompts for the field declared in `plugin.json` `userConfig`:
+When you run `/plugin install`, Claude Code prompts you for the following credentials (declared in `userConfig` per CC docs). Sensitive values are stored in your system keychain and persist across `/plugin update`:
 
-| Field | Required | Sensitive | Notes |
-|:------|:---------|:----------|:------|
-| `TELEGRAM_BOT_TOKEN` | No (leave empty for user mode via Method 3) | Yes | From [@BotFather](https://t.me/BotFather). Format: `123456789:ABCdefGHI-...` |
-
-Sensitive values are stored in the system keychain (or `~/.claude/.credentials.json` fallback) and persist across `/plugin update`. Claude Code substitutes the value into `mcpServers.better-telegram-mcp.env.TELEGRAM_BOT_TOKEN` via `${user_config.TELEGRAM_BOT_TOKEN}` -- you do not edit `env` manually.
-
-> Leaving the field empty disables stdio bot mode; you must use Method 3 HTTP for user mode (phone+OTP) anyway. The `TELEGRAM_PHONE` value used in user mode is collected in the HTTP `/authorize` form, not via `userConfig`.
+| Field | Required | Where to obtain |
+|---|---|---|
+| `TELEGRAM_BOT_TOKEN` | Optional (required for stdio bot mode) | From @BotFather. Note: HTTP user-mode (phone+OTP) is configured via relay form at `/authorize`, not via plugin install prompt. |
 
 ### Steps
 
@@ -101,6 +97,8 @@ Stdio (Methods 1-2) is the simplest path for **bot mode**, but stdio cannot host
 - **Always-on persistent process** -- enables webhook listeners, long-running agents, and scheduled tasks.
 
 ## Method 3: Docker HTTP (recommended)
+
+> **Switching transport vs. setting credentials**: The `userConfig` prompt only configures credentials for stdio mode (Method 1 / Option 1). To switch transport to HTTP, override `mcpServers` in your client settings per the snippets below -- this is a separate path from `userConfig` and is not driven by the install prompt.
 
 ### 3.1. Hosted (n24q02m.com)
 

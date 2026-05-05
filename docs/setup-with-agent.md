@@ -20,15 +20,13 @@ All MCP servers across this stack share this priority hierarchy. Note: 2 plugins
 
 ## Option 1: Claude Code Plugin (Recommended, stdio Bot Mode Only)
 
-### Step 0: Credential prompt
+### Credential prompts at install
 
-When the install command runs, Claude Code prompts for the field declared in `plugin.json` `userConfig`:
+When you run `/plugin install`, Claude Code prompts you for the following credentials (declared in `userConfig` per CC docs). Sensitive values are stored in your system keychain and persist across `/plugin update`:
 
-| Field | Required | Sensitive | Source |
-|:------|:---------|:----------|:-------|
-| `TELEGRAM_BOT_TOKEN` | No (skip for user mode via Option 3) | Yes | [@BotFather](https://t.me/BotFather) |
-
-The plugin manifest substitutes the value into `mcpServers.better-telegram-mcp.env.TELEGRAM_BOT_TOKEN` via `${user_config.TELEGRAM_BOT_TOKEN}`. Sensitive values stay in the system keychain and persist across `/plugin update` -- you do not edit `env` manually.
+| Field | Required | Where to obtain |
+|---|---|---|
+| `TELEGRAM_BOT_TOKEN` | Optional (required for stdio bot mode) | From @BotFather. Note: HTTP user-mode (phone+OTP) is configured via relay form at `/authorize`, not via plugin install prompt. |
 
 ### Steps
 
@@ -79,6 +77,8 @@ Stdio (Options 1-2) is the simplest path for **bot mode**, but stdio cannot host
 - **Always-on persistent process** -- enables webhook listeners, long-running agents, and scheduled tasks.
 
 ## Option 3: Docker HTTP (recommended)
+
+> **Switching transport vs. setting credentials**: The `userConfig` prompt only configures credentials for stdio mode (Method 1 / Option 1). To switch transport to HTTP, override `mcpServers` in your client settings per the snippets below -- this is a separate path from `userConfig` and is not driven by the install prompt.
 
 ### 3.1. Hosted (n24q02m.com)
 
