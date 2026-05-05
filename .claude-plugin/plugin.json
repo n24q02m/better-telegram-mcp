@@ -9,13 +9,6 @@
       "description": "From @BotFather. Required for stdio bot mode. Leave empty for user mode (HTTP only).",
       "sensitive": true,
       "required": false
-    },
-    "TELEGRAM_PHONE": {
-      "type": "string",
-      "title": "Phone number (user mode, HTTP only)",
-      "description": "International format (e.g. +84xxxxxxxxx). Used by user mode HTTP flow only - not stdio bot mode.",
-      "sensitive": true,
-      "required": false
     }
   },
   "author": {
@@ -33,8 +26,7 @@
       ],
       "env": {
         "MCP_TRANSPORT": "stdio",
-        "TELEGRAM_BOT_TOKEN": "${user_config.TELEGRAM_BOT_TOKEN}",
-        "TELEGRAM_PHONE": "${user_config.TELEGRAM_PHONE}"
+        "TELEGRAM_BOT_TOKEN": "${user_config.TELEGRAM_BOT_TOKEN}"
       }
     }
   }
