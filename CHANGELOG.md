@@ -2,6 +2,61 @@
 
 <!-- version list -->
 
+## v4.10.0-beta.1 (2026-05-06)
+
+### Bug Fixes
+
+- Consolidate setup docs body to 3 methods (drop legacy Method 4/5)
+  ([#455](https://github.com/n24q02m/better-telegram-mcp/pull/455),
+  [`6c26daf`](https://github.com/n24q02m/better-telegram-mcp/commit/6c26dafbaf6778ceadc7d727a6d70e2377f52270))
+
+- Remove TELEGRAM_PHONE from userConfig (stdio = bot mode only per spec V9)
+  ([#460](https://github.com/n24q02m/better-telegram-mcp/pull/460),
+  [`a9168e8`](https://github.com/n24q02m/better-telegram-mcp/commit/a9168e8fc4f5a9e2ebd393f89ef8caf3cc32c7ec))
+
+- Revert pydantic to <2.13 to match mcp-core cap
+  ([`f7a7485`](https://github.com/n24q02m/better-telegram-mcp/commit/f7a74857bf3becaaa9a5e56c59dd0d287731e971))
+
+- Sync uv.lock version after v4.9.0 release commit
+  ([`17ac5f2`](https://github.com/n24q02m/better-telegram-mcp/commit/17ac5f2659d93303538f3997791e1956f694c289))
+
+- **deps**: Update dependency cryptography to v48
+  ([#464](https://github.com/n24q02m/better-telegram-mcp/pull/464),
+  [`d9b9c99`](https://github.com/n24q02m/better-telegram-mcp/commit/d9b9c99405181b2987fdb843adddb2423e744bee))
+
+- **deps**: Update non-major dependencies
+  ([#437](https://github.com/n24q02m/better-telegram-mcp/pull/437),
+  [`82c925a`](https://github.com/n24q02m/better-telegram-mcp/commit/82c925a2e56e092e169f4d3b96b0156d1d51e959))
+
+### Chores
+
+- **deps**: Update step-security/harden-runner digest to a5ad31d
+  ([#436](https://github.com/n24q02m/better-telegram-mcp/pull/436),
+  [`1fe3621`](https://github.com/n24q02m/better-telegram-mcp/commit/1fe362153f810870095e7fe3c37def31d4a5e1f9))
+
+### Features
+
+- Add explicit Method overview section to setup docs
+  ([#454](https://github.com/n24q02m/better-telegram-mcp/pull/454),
+  [`dd31227`](https://github.com/n24q02m/better-telegram-mcp/commit/dd312275dce2b2ff7385974d520f34ba338ef6fe))
+
+- Align userConfig with relay_schema fields
+  ([#459](https://github.com/n24q02m/better-telegram-mcp/pull/459),
+  [`544f0af`](https://github.com/n24q02m/better-telegram-mcp/commit/544f0af63fe2bdc65545ad68acaec7dd9ad5f009))
+
+- Clarify Method 1/2/3 mutually exclusive (CC scope-by-endpoint)
+  ([#463](https://github.com/n24q02m/better-telegram-mcp/pull/463),
+  [`4af35f3`](https://github.com/n24q02m/better-telegram-mcp/commit/4af35f34178547dabfa99c01ccd1be1f6c2dac36))
+
+- Declare userConfig schema and document install prompt
+  ([#456](https://github.com/n24q02m/better-telegram-mcp/pull/456),
+  [`a92cab1`](https://github.com/n24q02m/better-telegram-mcp/commit/a92cab153f2e048c9d11b775d7d607b0128d8a6f))
+
+- Document userConfig credential prompts per plugin
+  ([#461](https://github.com/n24q02m/better-telegram-mcp/pull/461),
+  [`ce8d10e`](https://github.com/n24q02m/better-telegram-mcp/commit/ce8d10e8866db1fc52efc1999a93f85358d7d133))
+
+
 ## v4.9.0 (2026-05-04)
 
 ### Bug Fixes
