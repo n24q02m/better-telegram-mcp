@@ -254,6 +254,12 @@ def render_telegram_credential_form(
             color: #555;
         }}
 
+        .field-input:disabled {{
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: #0a0a0a;
+        }}
+
         .help-text {{
             font-size: 0.8125rem;
             color: #666;
@@ -687,6 +693,8 @@ def render_telegram_credential_form(
                 submitBtn.setAttribute("aria-busy", "true");
                 submitBtn.textContent = "Connecting...";
                 statusBox.style.display = "none";
+                form.querySelectorAll(".field-input").forEach(function (i) {{ i.disabled = true; }});
+                tabs.forEach(function (t) {{ t.disabled = true; }});
 
                 fetch(submitUrl, {{
                     method: "POST",
@@ -736,6 +744,8 @@ def render_telegram_credential_form(
                                 submitBtn.disabled = false;
                                 submitBtn.removeAttribute("aria-busy");
                                 submitBtn.textContent = "Connect";
+                                form.querySelectorAll(".field-input").forEach(function (i) {{ i.disabled = false; }});
+                                tabs.forEach(function (t) {{ t.disabled = false; }});
                             }}
                         }});
                     }})
@@ -744,6 +754,8 @@ def render_telegram_credential_form(
                         submitBtn.disabled = false;
                         submitBtn.removeAttribute("aria-busy");
                         submitBtn.textContent = "Connect";
+                        form.querySelectorAll(".field-input").forEach(function (i) {{ i.disabled = false; }});
+                        tabs.forEach(function (t) {{ t.disabled = false; }});
                     }});
             }});
         }})();
