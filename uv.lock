@@ -77,7 +77,7 @@ wheels = [
 
 [[package]]
 name = "better-telegram-mcp"
-version = "4.9.0b14"
+version = "4.9.0"
 source = { editable = "." }
 dependencies = [
     { name = "cryptg" },
