@@ -87,20 +87,57 @@ def _not_ready_response() -> str:
     )
 
 
-@asynccontextmanager
-async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
-    global _backend, _settings, _pending_auth, _unconfigured
-    _settings = Settings()
-
-    # Non-blocking credential resolution (fast, <10ms)
-    # Replaces the old blocking ensure_config() which waited 300s for relay.
-    if not _settings.is_configured:
+def _ensure_settings() -> Settings:
+    """Initialize settings and resolve credential state."""
+    settings = Settings()
+    if not settings.is_configured:
         from .credential_state import resolve_credential_state
 
         state = resolve_credential_state()
         # If config was loaded from file, re-create Settings to pick up env vars
         if state.value == "configured":
-            _settings = Settings()
+            settings = Settings()
+    return settings
+
+
+def _create_backend_instance(settings: Settings) -> TelegramBackend:
+    """Create a backend instance based on settings mode."""
+    if settings.mode == "bot":
+        from .backends.bot_backend import BotBackend
+
+        assert settings.bot_token is not None
+        return BotBackend(settings.bot_token)
+    else:
+        from .backends.user_backend import UserBackend
+
+        assert settings.api_id is not None
+        assert settings.api_hash is not None
+        return UserBackend(settings)
+
+
+def _register_hot_reload() -> None:
+    """Register hot-reload callback for relay credentials."""
+    from .credential_state import set_on_configured
+
+    async def _reinit_backend_from_relay() -> None:
+        global _backend, _settings, _pending_auth, _unconfigured
+        _settings = _ensure_settings()
+        if not _settings.is_configured:
+            return
+        logger.info("Hot-reloading backend from relay config ({})", _settings.mode)
+        _backend = _create_backend_instance(_settings)
+        await _backend.connect()
+        _unconfigured = False
+        _pending_auth = False
+        logger.info("Backend hot-reloaded successfully ({})", _settings.mode)
+
+    set_on_configured(_reinit_backend_from_relay)
+
+
+@asynccontextmanager
+async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
+    global _backend, _settings, _pending_auth, _unconfigured
+    _settings = _ensure_settings()
 
     if not _settings.is_configured:
         if _multi_user_mode:
@@ -120,32 +157,7 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
             "Set TELEGRAM_BOT_TOKEN or TELEGRAM_API_ID + TELEGRAM_API_HASH to enable all tools."
         )
 
-        # Register hot-reload callback so relay credentials activate immediately
-        from .credential_state import set_on_configured
-
-        async def _reinit_backend_from_relay() -> None:
-            global _backend, _settings, _pending_auth, _unconfigured
-            _settings = Settings()
-            if not _settings.is_configured:
-                return
-            logger.info("Hot-reloading backend from relay config ({})", _settings.mode)
-            if _settings.mode == "bot":
-                from .backends.bot_backend import BotBackend
-
-                assert _settings.bot_token is not None
-                _backend = BotBackend(_settings.bot_token)
-            else:
-                from .backends.user_backend import UserBackend
-
-                assert _settings.api_id is not None
-                assert _settings.api_hash is not None
-                _backend = UserBackend(_settings)
-            await _backend.connect()
-            _unconfigured = False
-            _pending_auth = False
-            logger.info("Backend hot-reloaded successfully ({})", _settings.mode)
-
-        set_on_configured(_reinit_backend_from_relay)
+        _register_hot_reload()
 
         try:
             yield
@@ -158,19 +170,7 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
         return
 
     logger.info("Mode: {}", _settings.mode)
-
-    if _settings.mode == "bot":
-        from .backends.bot_backend import BotBackend
-
-        assert _settings.bot_token is not None
-        _backend = BotBackend(_settings.bot_token)
-    else:
-        from .backends.user_backend import UserBackend
-
-        assert _settings.api_id is not None
-        assert _settings.api_hash is not None
-        _backend = UserBackend(_settings)
-
+    _backend = _create_backend_instance(_settings)
     await _backend.connect()
     logger.info("Connected to Telegram ({})", _settings.mode)
 
