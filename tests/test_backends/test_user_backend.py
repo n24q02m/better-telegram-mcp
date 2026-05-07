@@ -322,6 +322,7 @@ class TestSearchMessages:
                 yield m
 
         mock_client.iter_messages = mock_iter
+        mock_client.get_messages = AsyncMock(return_value=msgs)
 
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)
@@ -342,6 +343,7 @@ class TestSearchMessages:
                 yield m
 
         mock_client.iter_messages = mock_iter
+        mock_client.get_messages = AsyncMock(return_value=msgs)
 
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)
