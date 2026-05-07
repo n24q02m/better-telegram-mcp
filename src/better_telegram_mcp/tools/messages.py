@@ -3,25 +3,39 @@ from __future__ import annotations
 from collections.abc import Callable, Coroutine
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..backends.base import ModeError, TelegramBackend
 from ..utils.formatting import err, ok, safe_error
 
 
 class MessagesArgs(BaseModel):
-    action: str
-    chat_id: str | int | None = None
-    text: str | None = None
-    message_id: int | None = None
-    reply_to: int | None = None
-    parse_mode: str | None = None
-    from_chat: str | int | None = None
-    to_chat: str | int | None = None
-    emoji: str | None = None
-    query: str | None = None
-    limit: int = 20
-    offset_id: int | None = None
+    action: str = Field(
+        description="Action to perform: send, edit, delete, forward, pin, react, search, or history"
+    )
+    chat_id: str | int | None = Field(
+        default=None, description="Target chat ID (@username or int)"
+    )
+    text: str | None = Field(default=None, description="Message text for send/edit")
+    message_id: int | None = Field(
+        default=None, description="Message ID for edit/delete/forward/pin/react"
+    )
+    reply_to: int | None = Field(default=None, description="Message ID to reply to")
+    parse_mode: str | None = Field(
+        default=None, description="Parse mode (HTML, MarkdownV2, or Markdown)"
+    )
+    from_chat: str | int | None = Field(
+        default=None, description="Source chat ID for forward"
+    )
+    to_chat: str | int | None = Field(
+        default=None, description="Destination chat ID for forward"
+    )
+    emoji: str | None = Field(default=None, description="Emoji for reaction")
+    query: str | None = Field(default=None, description="Search query")
+    limit: int = Field(default=20, description="Max results for search/history")
+    offset_id: int | None = Field(
+        default=None, description="Offset message ID for history"
+    )
 
 
 async def _handle_send(backend: TelegramBackend, args: MessagesArgs) -> str:
