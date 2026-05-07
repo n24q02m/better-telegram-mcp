@@ -16,6 +16,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from loguru import logger
+
 SERVER_NAME = "better-telegram-mcp"
 REQUIRED_FIELDS_BOT = ["TELEGRAM_BOT_TOKEN"]
 REQUIRED_FIELDS_USER = ["TELEGRAM_PHONE"]
@@ -76,11 +78,15 @@ def check_saved_sessions() -> bool:
     Returns:
         True if at least one session file exists, False otherwise.
     """
-    data_dir = Path.home() / ".better-telegram-mcp"
-    if not data_dir.exists():
+    try:
+        data_dir = Path.home() / ".better-telegram-mcp"
+        if not data_dir.exists():
+            return False
+        sessions = list(data_dir.glob("*.session"))
+        return len(sessions) > 0
+    except OSError as e:
+        logger.debug("Failed to check saved sessions: {}", e)
         return False
-    sessions = list(data_dir.glob("*.session"))
-    return len(sessions) > 0
 
 
 def _is_user_mode_config(config: dict[str, str]) -> bool:

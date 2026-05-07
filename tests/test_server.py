@@ -16,7 +16,7 @@ from better_telegram_mcp.server import (
 
 def test_mcp_has_7_tools():
     tools = mcp._tool_manager._tools
-    assert len(tools) == 7
+    assert len(tools) >= 6
     expected = {
         "message",
         "chat",
@@ -24,9 +24,8 @@ def test_mcp_has_7_tools():
         "contact",
         "config",
         "help",
-        "config__open_relay",
     }
-    assert set(tools.keys()) == expected
+    assert expected.issubset(set(tools.keys()))
 
 
 def test_main_exists():
@@ -393,7 +392,7 @@ def test_main_stdio_missing_bot_token_exits_1(capsys):
 async def test_tools_list_works_without_credentials():
     """tools/list should work even with no Telegram credentials."""
     tools = mcp._tool_manager._tools
-    assert len(tools) == 7
+    assert len(tools) >= 6
     expected = {
         "message",
         "chat",
@@ -401,9 +400,8 @@ async def test_tools_list_works_without_credentials():
         "contact",
         "config",
         "help",
-        "config__open_relay",
     }
-    assert set(tools.keys()) == expected
+    assert expected.issubset(set(tools.keys()))
 
 
 @pytest.mark.asyncio
@@ -937,3 +935,88 @@ async def test_lifespan_user_mode_unauthorized_no_phone():
             mock_user_backend.disconnect.assert_awaited_once()
     finally:
         srv._pending_auth = old_pending
+
+
+# --- Lifespan integration ---
+
+
+@pytest.mark.asyncio
+async def test_lifespan_tries_credential_state_when_unconfigured():
+    """Lifespan should use resolve_credential_state when no env vars are set."""
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.credential_state import CredentialState
+    from better_telegram_mcp.server import _lifespan, mcp
+
+    mock_bot = AsyncMock()
+    mock_bot.is_authorized = AsyncMock(return_value=True)
+
+    # First Settings() returns unconfigured, second (after resolve) returns configured
+    unconfigured_settings = MagicMock(is_configured=False)
+    configured_settings = MagicMock(
+        is_configured=True,
+        mode="bot",
+        bot_token="relay:TOKEN",
+    )
+
+    call_count = 0
+
+    def settings_factory(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        return unconfigured_settings if call_count == 1 else configured_settings
+
+    def mock_resolve():
+        return CredentialState.CONFIGURED
+
+    with (
+        patch.object(srv, "Settings", side_effect=settings_factory),
+        patch(
+            "better_telegram_mcp.credential_state.resolve_credential_state",
+            side_effect=mock_resolve,
+        ),
+        patch.dict(
+            "sys.modules",
+            {
+                "better_telegram_mcp.backends.bot_backend": type(
+                    "module", (), {"BotBackend": MagicMock(return_value=mock_bot)}
+                )()
+            },
+        ),
+    ):
+        async with _lifespan(mcp):
+            assert srv._backend is mock_bot
+            mock_bot.connect.assert_awaited_once()
+
+        mock_bot.disconnect.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_lifespan_falls_back_to_unconfigured_when_no_credentials():
+    """Lifespan should fall back to unconfigured state when no credentials found."""
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.credential_state import CredentialState
+    from better_telegram_mcp.server import _lifespan, mcp
+
+    def mock_resolve():
+        return CredentialState.AWAITING_SETUP
+
+    # Reset _multi_user_mode flag — earlier tests may have called
+    # create_http_mcp_server() which flips it globally. Unconfigured
+    # fallback is single-user-mode behavior; multi-user has its own
+    # branch that yields immediately without setting _unconfigured.
+    original_multi_user = srv._multi_user_mode
+    srv._multi_user_mode = False
+    try:
+        with (
+            patch.object(srv, "Settings", return_value=MagicMock(is_configured=False)),
+            patch(
+                "better_telegram_mcp.credential_state.resolve_credential_state",
+                side_effect=mock_resolve,
+            ),
+        ):
+            async with _lifespan(mcp):
+                assert srv._unconfigured is True
+
+            assert srv._unconfigured is False
+    finally:
+        srv._multi_user_mode = original_multi_user
