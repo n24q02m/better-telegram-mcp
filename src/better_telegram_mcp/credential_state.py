@@ -143,7 +143,6 @@ def resolve_credential_state() -> CredentialState:
     return _state
 
 
-
 async def _handle_multi_user_save(
     provider, sub: str, config: dict[str, str], is_user_mode: bool
 ) -> dict | None:
