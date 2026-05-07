@@ -118,3 +118,19 @@ async def test_general_exception(mock_backend):
 # Auth/send_code actions removed — auth handled by mcp-core's local OAuth
 # AS in HTTP mode (browser paste form + OTP /otp endpoint), not by the
 # config tool.
+
+
+@pytest.mark.asyncio
+async def test_unknown_action_suggestion(mock_backend):
+    result = json.loads(await handle_config(mock_backend, "statu"))
+    assert "error" in result
+    assert "Did you mean 'status'?" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_set_invalid_int(mock_backend):
+    result = json.loads(
+        await handle_config(mock_backend, "set", message_limit="invalid")
+    )
+    assert "error" in result
+    assert "ValueError" in result["error"]
