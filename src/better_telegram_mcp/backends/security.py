@@ -13,7 +13,7 @@ class SecurityError(Exception):
 
 
 # Private/internal IP ranges that should not be accessed via SSRF
-_BLOCKED_NETWORKS = [
+_BLOCKED_NETWORKS = (
     ipaddress.ip_network("0.0.0.0/8"),
     ipaddress.ip_network("127.0.0.0/8"),
     ipaddress.ip_network("10.0.0.0/8"),
@@ -24,7 +24,7 @@ _BLOCKED_NETWORKS = [
     ipaddress.ip_network("::ffff:0:0/96"),
     ipaddress.ip_network("fc00::/7"),
     ipaddress.ip_network("fe80::/10"),
-]
+)
 
 
 def validate_url(url: str) -> None:
