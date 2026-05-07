@@ -193,9 +193,7 @@ async def test_download_no_output_dir(mock_backend):
         )
     )
     assert result["path"] == "/tmp/file.jpg"
-    mock_backend.download_media.assert_awaited_once_with(
-        123, 10, output_dir=None
-    )
+    mock_backend.download_media.assert_awaited_once_with(123, 10, output_dir=None)
 
 
 @pytest.mark.asyncio
