@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -9,6 +10,7 @@ import pytest
 
 from better_telegram_mcp.credential_state import (
     CredentialState,
+    _current_sub,
     get_setup_url,
     get_state,
     reset_state,
@@ -83,8 +85,6 @@ def test_set_setup_url():
 
 def test_current_sub_contextvar():
     """Verify _current_sub contextvar isolation."""
-    import asyncio
-    from better_telegram_mcp.credential_state import _current_sub
 
     async def check_sub(val):
         _current_sub.set(val)
