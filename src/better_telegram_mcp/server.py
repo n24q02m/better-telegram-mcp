@@ -13,7 +13,7 @@ from .backends.base import TelegramBackend
 from .config import Settings
 from .tools.chats import ChatOptions, handle_chats
 from .tools.config_tool import handle_config
-from .tools.contacts import ContactsOptions, handle_contacts
+from .tools.contacts import ContactRequest, handle_contacts
 from .tools.help_tool import handle_help
 from .tools.media import MediaOptions, handle_media
 from .tools.messages import MessagesArgs, handle_messages
@@ -368,15 +368,7 @@ async def media(
         openWorldHint=True,
     )
 )
-async def contact(
-    action: str,
-    query: str | None = None,
-    phone: str | None = None,
-    first_name: str | None = None,
-    last_name: str | None = None,
-    user_id: int | None = None,
-    unblock: bool = False,
-) -> str:
+async def contact(args: ContactRequest) -> str:
     """Manage contacts: list, search, add, and block/unblock users (user mode only).
 
     Actions:
@@ -388,15 +380,7 @@ async def contact(
     if _unconfigured or _pending_auth:
         return _not_ready_response()
 
-    opts = ContactsOptions(
-        query=query,
-        phone=phone,
-        first_name=first_name,
-        last_name=last_name,
-        user_id=user_id,
-        unblock=unblock,
-    )
-    return await handle_contacts(get_backend(), action, options=opts)
+    return await handle_contacts(get_backend(), args)
 
 
 @mcp.tool(
