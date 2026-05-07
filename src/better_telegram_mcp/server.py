@@ -425,108 +425,19 @@ async def config(
     - setup_reset: Clear saved credentials
     - setup_complete: Re-resolve credentials after relay config
     """
-    # Setup actions work regardless of configured state
-    match action:
-        case "setup_status":
-            from .credential_state import get_setup_url, get_state
+    backend = None
+    if not (_unconfigured or _pending_auth):
+        try:
+            backend = get_backend()
+        except RuntimeError:
+            pass
 
-            state = get_state()
-            return ok(
-                {
-                    "state": state.value,
-                    "setup_url": get_setup_url(),
-                    "configured": not _unconfigured,
-                    "pending_auth": _pending_auth,
-                    "env_keys": [
-                        k
-                        for k in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_PHONE")
-                        if os.environ.get(k)
-                    ],
-                }
-            )
-
-        case "setup_start":
-            from .credential_state import CredentialState, get_state
-
-            if get_state() == CredentialState.CONFIGURED and not (
-                key and key.lower() == "force"
-            ):
-                return ok(
-                    {
-                        "status": "already_configured",
-                        "message": "Already configured. Use key='force' to reconfigure.",
-                    }
-                )
-            # Per spec 2026-05-01-stdio-pure-http-multiuser.md: stdio mode does
-            # not spawn an in-process credential form. Browser-based setup is
-            # the responsibility of HTTP mode; this branch tells the user how
-            # to switch.
-            return ok(
-                {
-                    "status": "stdio_unsupported",
-                    "message": (
-                        "Browser-based setup is HTTP-mode only. "
-                        "For stdio mode, set TELEGRAM_BOT_TOKEN in your "
-                        "plugin/server config (get from @BotFather). "
-                        "For user-mode auth (phone+OTP), switch to HTTP mode "
-                        "(see docs/setup-manual.md)."
-                    ),
-                }
-            )
-
-        case "setup_reset":
-            from .credential_state import reset_state
-
-            reset_state()
-            return ok(
-                {
-                    "status": "ok",
-                    "message": "Credentials cleared. Use setup_start to reconfigure.",
-                }
-            )
-
-        case "setup_complete":
-            from .credential_state import (
-                CredentialState,
-                get_state,
-                resolve_credential_state,
-            )
-
-            resolve_credential_state()
-            state = get_state()
-            return ok(
-                {
-                    "status": "ok",
-                    "state": state.value,
-                    "message": "Credential state refreshed.",
-                }
-            )
-
-    if _unconfigured:
-        if action == "status":
-            return ok(
-                {
-                    "mode": None,
-                    "connected": False,
-                    "authorized": False,
-                    "configured": False,
-                    "config": _runtime_config,
-                    "setup": {
-                        "bot_mode": "Set TELEGRAM_BOT_TOKEN (get from @BotFather)",
-                        "user_mode": (
-                            "Set TELEGRAM_PHONE"
-                            " (API credentials have built-in defaults)"
-                        ),
-                    },
-                    "hint": "Use action='setup_start' to configure via browser relay.",
-                }
-            )
-        return _not_ready_response()
     return await handle_config(
-        get_backend(),
+        backend,
         action,
         message_limit=message_limit,
         timeout=timeout,
+        key=key,
     )
 
 
