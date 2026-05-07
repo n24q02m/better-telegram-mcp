@@ -643,11 +643,7 @@ class TestGetMembers:
 
         users = [_mock_user(user_id=i) for i in range(3)]
 
-        async def mock_iter(*args, **kwargs):
-            for u in users:
-                yield u
-
-        mock_client.iter_participants = mock_iter
+        mock_client.get_participants = AsyncMock(return_value=users)
 
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)
@@ -655,6 +651,7 @@ class TestGetMembers:
 
         result = await backend.get_members(123, limit=10)
 
+        mock_client.get_participants.assert_awaited_once_with(123, limit=10)
         assert len(result) == 3
         assert result[0]["first_name"] == "Test"
 
