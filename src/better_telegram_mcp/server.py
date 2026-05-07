@@ -439,7 +439,7 @@ async def config(
                     "pending_auth": _pending_auth,
                     "env_keys": [
                         k
-                        for k in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_PHONE")
+                        for k in {"TELEGRAM_BOT_TOKEN", "TELEGRAM_PHONE"}
                         if os.environ.get(k)
                     ],
                 }
