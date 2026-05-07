@@ -7,10 +7,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from better_telegram_mcp.server import (
+    create_http_mcp_server,
     get_backend,
     get_settings,
     main,
     mcp,
+    run_http,
 )
 
 
@@ -937,3 +939,31 @@ async def test_lifespan_user_mode_unauthorized_no_phone():
             mock_user_backend.disconnect.assert_awaited_once()
     finally:
         srv._pending_auth = old_pending
+
+
+def test_create_http_mcp_server():
+    """create_http_mcp_server sets _multi_user_mode and returns mcp."""
+    import better_telegram_mcp.server as srv
+
+    old_multi = srv._multi_user_mode
+    try:
+        srv._multi_user_mode = False
+        server = create_http_mcp_server()
+        assert server is mcp
+        assert srv._multi_user_mode is True
+    finally:
+        srv._multi_user_mode = old_multi
+
+
+@pytest.mark.asyncio
+async def test_run_http():
+    """run_http calls run_http_server with correct arguments."""
+    with patch(
+        "mcp_core.transport.local_server.run_http_server", new_callable=AsyncMock
+    ) as mock_run:
+        await run_http(port=8080)
+        mock_run.assert_called_once()
+        args, kwargs = mock_run.call_args
+        assert args[0] is mcp
+        assert kwargs["server_name"] == "better-telegram-mcp"
+        assert kwargs["port"] == 8080
