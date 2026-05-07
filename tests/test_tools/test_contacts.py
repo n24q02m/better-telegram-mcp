@@ -30,7 +30,9 @@ async def test_search(mock_backend):
 
 @pytest.mark.asyncio
 async def test_search_missing_params(mock_backend):
-    result = json.loads(await handle_contacts(mock_backend, ContactRequest(action="search")))
+    result = json.loads(
+        await handle_contacts(mock_backend, ContactRequest(action="search"))
+    )
     assert "error" in result
 
 
@@ -56,9 +58,7 @@ async def test_add(mock_backend):
 @pytest.mark.asyncio
 async def test_add_missing_params(mock_backend):
     result = json.loads(
-        await handle_contacts(
-            mock_backend, ContactRequest(action="add", phone="+123")
-        )
+        await handle_contacts(mock_backend, ContactRequest(action="add", phone="+123"))
     )
     assert "error" in result
 
@@ -73,9 +73,7 @@ async def test_add_missing_params(mock_backend):
 @pytest.mark.asyncio
 async def test_block(mock_backend):
     result = json.loads(
-        await handle_contacts(
-            mock_backend, ContactRequest(action="block", user_id=123)
-        )
+        await handle_contacts(mock_backend, ContactRequest(action="block", user_id=123))
     )
     assert result["blocked"] is True
 

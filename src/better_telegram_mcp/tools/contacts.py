@@ -45,9 +45,7 @@ async def handle_contacts(
             case "block":
                 if args.user_id is None:
                     return err("'block' requires user_id")
-                result = await backend.block_user(
-                    args.user_id, unblock=args.unblock
-                )
+                result = await backend.block_user(args.user_id, unblock=args.unblock)
                 action_word = "unblocked" if args.unblock else "blocked"
                 return ok({action_word: result})
 

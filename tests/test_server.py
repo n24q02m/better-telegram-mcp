@@ -123,6 +123,7 @@ async def test_contact_list(mock_backend):
         srv._backend = mock_backend
         srv._pending_auth = False
         from better_telegram_mcp.tools.contacts import ContactRequest
+
         result = await contact(ContactRequest(action="list"))
         assert "contacts" in result
     finally:
@@ -322,6 +323,7 @@ async def test_contact_blocked_during_pending_auth(mock_backend):
         srv._backend = mock_backend
         srv._pending_auth = True
         from better_telegram_mcp.tools.contacts import ContactRequest
+
         result = json.loads(await contact(ContactRequest(action="list")))
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
@@ -525,6 +527,7 @@ async def test_contact_returns_setup_hint_when_unconfigured():
     try:
         srv._unconfigured = True
         from better_telegram_mcp.tools.contacts import ContactRequest
+
         result = json.loads(await contact(ContactRequest(action="list")))
         assert result["error"] == "Not configured"
         assert "setup" in result
