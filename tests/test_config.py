@@ -128,6 +128,7 @@ def test_secret_persistence(tmp_path):
     s2 = Settings(data_dir=tmp_path)
     assert s2.secret == secret1
 
+
 # --- Settings.from_relay_config ---
 
 

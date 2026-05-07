@@ -24,7 +24,6 @@ def test_mcp_has_7_tools():
         "contact",
         "config",
         "help",
-
     }
     assert expected.issubset(set(tools.keys()))
 
@@ -401,7 +400,6 @@ async def test_tools_list_works_without_credentials():
         "contact",
         "config",
         "help",
-
     }
     assert expected.issubset(set(tools.keys()))
 
@@ -937,6 +935,7 @@ async def test_lifespan_user_mode_unauthorized_no_phone():
             mock_user_backend.disconnect.assert_awaited_once()
     finally:
         srv._pending_auth = old_pending
+
 
 # --- Lifespan integration ---
 
