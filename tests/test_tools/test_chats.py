@@ -233,3 +233,59 @@ async def test_general_exception(mock_backend):
     )
     assert "error" in result
     assert "RuntimeError" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_unknown_action_suggestion(mock_backend):
+    result = json.loads(await handle_chats(mock_backend, "lisst", ChatOptions()))
+    assert "error" in result
+    assert "Did you mean 'list'?" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_settings_title_only(mock_backend):
+    result = json.loads(
+        await handle_chats(
+            mock_backend,
+            "settings",
+            ChatOptions(chat_id=123, title="Only Title"),
+        )
+    )
+    assert result["updated"] is True
+    mock_backend.update_chat_settings.assert_awaited_once_with(123, title="Only Title")
+
+
+@pytest.mark.asyncio
+async def test_settings_description_only(mock_backend):
+    result = json.loads(
+        await handle_chats(
+            mock_backend,
+            "settings",
+            ChatOptions(chat_id=123, description="Only Desc"),
+        )
+    )
+    assert result["updated"] is True
+    mock_backend.update_chat_settings.assert_awaited_once_with(
+        123, description="Only Desc"
+    )
+
+
+@pytest.mark.asyncio
+async def test_topics_complex(mock_backend):
+    mock_backend.manage_topics.return_value = {"ok": True}
+    result = json.loads(
+        await handle_chats(
+            mock_backend,
+            "topics",
+            ChatOptions(
+                chat_id=123,
+                topic_action="rename",
+                topic_id=42,
+                topic_name="New Name",
+            ),
+        )
+    )
+    assert result["ok"] is True
+    mock_backend.manage_topics.assert_awaited_once_with(
+        123, "rename", topic_id=42, name="New Name"
+    )
