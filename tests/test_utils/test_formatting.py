@@ -41,6 +41,26 @@ def test_ok_unserializable_objects():
     assert parsed["custom"] == "CustomObjectString"
 
 
+def test_ok_edge_cases():
+    assert ok(None) == "null"
+    assert ok([]) == "[]"
+    assert ok({}) == "{}"
+
+
+def test_ok_collections():
+    # set is not JSON serializable, should use str() via default=str
+    data = {"s": {1, 2, 3}}
+    result = ok(data)
+    parsed = json.loads(result)
+    # set str representation contains 1, 2, 3 and is wrapped in {}
+    assert isinstance(parsed["s"], str)
+    assert "1" in parsed["s"]
+    assert "2" in parsed["s"]
+    assert "3" in parsed["s"]
+    assert parsed["s"].startswith("{")
+    assert parsed["s"].endswith("}")
+
+
 def test_err_basic_serialization():
     message = "Something went wrong"
     result = err(message)
@@ -58,6 +78,12 @@ def test_err_unicode_handling():
 
     parsed = json.loads(result)
     assert parsed["error"] == message
+
+
+def test_err_non_string_input():
+    # err() expects a str, but json.dumps handles other types too
+    result = err(123)  # type: ignore
+    assert json.loads(result) == {"error": 123}
 
 
 def test_safe_error_allowed_exceptions():
@@ -100,3 +126,17 @@ def test_safe_error_generic_exceptions():
 
         # Ensure internal details are NOT leaked
         assert str(exc) not in result
+
+
+def test_safe_error_empty_message():
+    # Allowed exception with empty message
+    exc = ValueError("")
+    result = safe_error(exc)
+    assert json.loads(result) == {"error": ""}
+
+    # Generic exception with empty message
+    exc = Exception("")
+    result = safe_error(exc)
+    assert json.loads(result) == {
+        "error": "Exception: Operation failed. Check server logs for details."
+    }
