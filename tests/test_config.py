@@ -127,3 +127,47 @@ def test_secret_persistence(tmp_path):
     # Reload settings with same data_dir
     s2 = Settings(data_dir=tmp_path)
     assert s2.secret == secret1
+
+# --- Settings.from_relay_config ---
+
+
+def test_from_relay_config_bot_mode():
+    """Create Settings from relay config with bot token."""
+    config = {"TELEGRAM_BOT_TOKEN": "123456:ABC-DEF"}
+    s = Settings.from_relay_config(config)
+    assert s.bot_token == "123456:ABC-DEF"
+    assert s.mode == "bot"
+    assert s.is_configured is True
+
+
+def test_from_relay_config_user_mode():
+    """Create Settings from relay config with user credentials."""
+    config = {
+        "TELEGRAM_API_ID": "12345",
+        "TELEGRAM_API_HASH": "abcdef123456",
+        "TELEGRAM_PHONE": "+84912345678",
+    }
+    s = Settings.from_relay_config(config)
+    assert s.api_id == 12345
+    assert s.api_hash == "abcdef123456"
+    assert s.phone == "+84912345678"
+    assert s.mode == "user"
+    assert s.is_configured is True
+
+
+def test_from_relay_config_empty_values():
+    """Empty values in relay config should result in unconfigured state."""
+    config = {"TELEGRAM_BOT_TOKEN": ""}
+    s = Settings.from_relay_config(config)
+    assert s.bot_token is None  # _empty_to_none normalizes it
+    assert s.is_configured is False
+
+
+def test_from_relay_config_missing_keys():
+    """Missing keys should use built-in defaults for api_id/api_hash."""
+    config = {}
+    s = Settings.from_relay_config(config)
+    assert s.bot_token is None
+    assert s.api_id == 37984984  # built-in default
+    assert s.api_hash == "2f5f4c76c4de7c07302380c788390100"  # built-in default
+    assert s.is_configured is False  # no phone, no bot_token
