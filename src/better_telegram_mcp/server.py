@@ -219,20 +219,7 @@ register_open_relay_tool(mcp, "better-telegram-mcp", _PUBLIC_URL)
         openWorldHint=True,
     )
 )
-async def message(
-    action: str,
-    chat_id: str | int | None = None,
-    text: str | None = None,
-    message_id: int | None = None,
-    reply_to: int | None = None,
-    parse_mode: str | None = None,
-    from_chat: str | int | None = None,
-    to_chat: str | int | None = None,
-    emoji: str | None = None,
-    query: str | None = None,
-    limit: int = 20,
-    offset_id: int | None = None,
-) -> str:
+async def message(args: MessagesArgs) -> str:
     """Send, edit, delete, forward, pin, react, search, and get message history.
 
     Actions (chat_id: "@username" | int):
@@ -248,20 +235,6 @@ async def message(
     if _unconfigured or _pending_auth:
         return _not_ready_response()
 
-    args = MessagesArgs(
-        action=action,
-        chat_id=chat_id,
-        text=text,
-        message_id=message_id,
-        reply_to=reply_to,
-        parse_mode=parse_mode,
-        from_chat=from_chat,
-        to_chat=to_chat,
-        emoji=emoji,
-        query=query,
-        limit=limit,
-        offset_id=offset_id,
-    )
     return await handle_messages(get_backend(), args)
 
 

@@ -60,14 +60,14 @@ def test_get_settings_not_initialized():
 @pytest.mark.asyncio
 async def test_message_send(mock_backend):
     import better_telegram_mcp.server as srv
-    from better_telegram_mcp.server import message
+    from better_telegram_mcp.server import MessagesArgs, message
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = await message(action="send", chat_id=123, text="hi")
+        result = await message(MessagesArgs(action="send", chat_id=123, text="hi"))
         assert "message_id" in result
     finally:
         srv._backend = old_backend
@@ -132,14 +132,14 @@ async def test_contact_list(mock_backend):
 @pytest.mark.asyncio
 async def test_message_unknown_action(mock_backend):
     import better_telegram_mcp.server as srv
-    from better_telegram_mcp.server import message
+    from better_telegram_mcp.server import MessagesArgs, message
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = json.loads(await message(action="nonexistent"))
+        result = json.loads(await message(MessagesArgs(action="nonexistent")))
         assert "error" in result
         assert "Unknown action" in result["error"]
     finally:
@@ -253,14 +253,16 @@ async def test_lifespan_user_mode():
 @pytest.mark.asyncio
 async def test_message_blocked_during_pending_auth(mock_backend):
     import better_telegram_mcp.server as srv
-    from better_telegram_mcp.server import message
+    from better_telegram_mcp.server import MessagesArgs, message
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        result = json.loads(await message(action="send", chat_id=123, text="hi"))
+        result = json.loads(
+            await message(MessagesArgs(action="send", chat_id=123, text="hi"))
+        )
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
     finally:
@@ -422,14 +424,16 @@ async def test_help_works_without_credentials():
 async def test_message_returns_setup_hint_when_unconfigured():
     """message tool returns actionable setup instructions when unconfigured."""
     import better_telegram_mcp.server as srv
-    from better_telegram_mcp.server import message
+    from better_telegram_mcp.server import MessagesArgs, message
 
     old_unconfigured = srv._unconfigured
     old_pending = srv._pending_auth
     try:
         srv._unconfigured = True
         srv._pending_auth = False
-        result = json.loads(await message(action="send", chat_id=123, text="hi"))
+        result = json.loads(
+            await message(MessagesArgs(action="send", chat_id=123, text="hi"))
+        )
         assert "error" in result
         assert result["error"] == "Not configured"
         assert "setup" in result
