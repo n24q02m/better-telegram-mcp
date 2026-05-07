@@ -10,6 +10,7 @@ import pytest
 from better_telegram_mcp.config import Settings
 from better_telegram_mcp.transports.http import (
     _current_backend,
+    _is_multi_user_mode,
     _per_request_sub_scope,
     get_current_backend,
     start_http,
@@ -29,8 +30,14 @@ def settings(data_dir: Path) -> Settings:
 
 
 class TestGetCurrentBackend:
+    def test_get_current_backend_uninitialized(self) -> None:
+        """Should return None if context variable is not set at all."""
+        # Note: In some environments the ContextVar might have been set by other tests.
+        # We ensure it returns the default None.
+        assert get_current_backend() is None
+
     def test_get_current_backend_none(self) -> None:
-        """Should return None if context variable is not set."""
+        """Should return None if context variable is set to None."""
         token = _current_backend.set(None)
         try:
             assert get_current_backend() is None
@@ -45,6 +52,40 @@ class TestGetCurrentBackend:
             assert get_current_backend() == mock_backend
         finally:
             _current_backend.reset(token)
+
+
+class TestIsMultiUserMode:
+    def test_is_multi_user_mode_true(self, settings: Settings) -> None:
+        """Returns True when DCR_SERVER_SECRET and PUBLIC_URL are set."""
+        env = {
+            "DCR_SERVER_SECRET": "secret",
+            "PUBLIC_URL": "https://mcp.example.com",
+        }
+        with patch.dict("os.environ", env, clear=True):
+            # settings has api_id/api_hash by default
+            assert _is_multi_user_mode(settings) is True
+
+    def test_is_multi_user_mode_false_missing_dcr(self, settings: Settings) -> None:
+        """Returns False when DCR_SERVER_SECRET is missing."""
+        env = {"PUBLIC_URL": "https://mcp.example.com"}
+        with patch.dict("os.environ", env, clear=True):
+            assert _is_multi_user_mode(settings) is False
+
+    def test_is_multi_user_mode_false_missing_url(self, settings: Settings) -> None:
+        """Returns False when PUBLIC_URL is missing."""
+        env = {"DCR_SERVER_SECRET": "secret"}
+        with patch.dict("os.environ", env, clear=True):
+            assert _is_multi_user_mode(settings) is False
+
+    def test_is_multi_user_mode_false_missing_api(self, tmp_path: Path) -> None:
+        """Returns False when api_id/api_hash are missing in settings."""
+        env = {
+            "DCR_SERVER_SECRET": "secret",
+            "PUBLIC_URL": "https://mcp.example.com",
+        }
+        settings_no_api = Settings(data_dir=tmp_path, api_id=0, api_hash="")
+        with patch.dict("os.environ", env, clear=True):
+            assert _is_multi_user_mode(settings_no_api) is False
 
 
 class TestStartHttp:
