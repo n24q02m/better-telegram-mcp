@@ -26,7 +26,7 @@ async def _handle_set(backend: TelegramBackend, **kwargs: Any) -> str:
     from ..server import _runtime_config
 
     updated: dict[str, int] = {}
-    for key in ("message_limit", "timeout"):
+    for key in {"message_limit", "timeout"}:
         if key in kwargs and kwargs[key] is not None:
             _runtime_config[key] = int(kwargs[key])
             updated[key] = _runtime_config[key]
