@@ -143,88 +143,63 @@ def resolve_credential_state() -> CredentialState:
     return _state
 
 
-async def save_credentials(
-    config: dict[str, str], context: dict[str, str]
+async def _handle_multi_user_save(
+    provider, sub: str, config: dict[str, str], is_user_mode: bool
 ) -> dict | None:
-    """Persist credentials from the local OAuth form and drive Telethon auth.
-
-    Called by ``mcp_core``'s local OAuth AS when the user submits credentials
-    via the browser form. Handles both bot mode and user mode.
-
-    Bot mode: validates token (single-user persists to config.enc;
-    multi-user registers a per-sub Telethon backend), returns ``None``.
-    User mode: triggers Telethon ``send_code``, returns ``otp_required`` so
-    the form prompts for the OTP. OTP verification happens via
-    ``on_step_submitted`` (bound to ``POST /otp``).
-
-    ``context`` carries the per-authorize ``sub``. In multi-user mode (when
-    ``transports/http._start_multi_user_http`` has registered a global
-    :class:`TelegramAuthProvider`), credentials are stored per-``sub`` in
-    that provider so concurrent users get isolated Telethon sessions. In
-    single-user mode the sub is ignored and a single ``config.enc`` on the
-    host is reused (existing behaviour, ``feedback_remote_relay_multi_user_enforcement.md``
-    refuse-guard ensures this only happens on private networks).
-    """
+    """Handle multi-user credential logic."""
     global _state
+    _current_sub.set(sub)
 
-    from .auth.telegram_auth_provider import get_global_provider
+    if is_user_mode:
+        _state = CredentialState.SETUP_IN_PROGRESS
+        phone = config.get("TELEGRAM_PHONE", "")
+        logger.info("Multi-user: starting OTP flow for sub={}", sub[:8])
 
-    provider = get_global_provider()
-    sub = (context or {}).get("sub")
-
-    is_user_mode = bool(config.get("TELEGRAM_PHONE")) and not config.get(
-        "TELEGRAM_BOT_TOKEN"
-    )
-
-    # ----- Multi-user branch: per-sub TelegramAuthProvider -----
-    if provider is not None and sub:
-        _current_sub.set(sub)
-
-        if is_user_mode:
-            _state = CredentialState.SETUP_IN_PROGRESS
-            phone = config.get("TELEGRAM_PHONE", "")
-            logger.info("Multi-user: starting OTP flow for sub={}", sub[:8])
-
-            try:
-                result = await provider.start_user_auth(sub, phone)
-                # Provider stores backend internally keyed by sub. Stash the
-                # phone so the OTP step can reference it.
-                _per_sub_steps[sub] = (None, phone, None)
-            except ValueError as e:
-                logger.error("Multi-user OTP start failed: {}", e)
-                return {
-                    "type": "error",
-                    "text": f"Failed to send OTP: {_sanitize_error(str(e))}",
-                }
-            else:
-                _ = result  # bearer/phone_code_hash retained inside provider
-                return {
-                    "type": "otp_required",
-                    "text": "Enter the OTP code sent to your Telegram app",
-                    "field": "otp_code",
-                    "input_type": "text",
-                }
-
-        # Bot mode (multi-user): register backend keyed by sub.
-        bot_token = config.get("TELEGRAM_BOT_TOKEN", "")
-        if not bot_token:
-            return {
-                "type": "error",
-                "text": "Either bot token or phone number is required.",
-            }
         try:
-            await provider.register_bot(sub, bot_token)
+            result = await provider.start_user_auth(sub, phone)
+            # Provider stores backend internally keyed by sub. Stash the
+            # phone so the OTP step can reference it.
+            _per_sub_steps[sub] = (None, phone, None)
         except ValueError as e:
-            logger.error("Multi-user bot registration failed: {}", e)
+            logger.error("Multi-user OTP start failed: {}", e)
             return {
                 "type": "error",
-                "text": _sanitize_error(str(e)),
+                "text": f"Failed to send OTP: {_sanitize_error(str(e))}",
             }
-        _state = CredentialState.CONFIGURED
-        logger.info("Multi-user: bot backend registered for sub={}", sub[:8])
-        return None
+        else:
+            _ = result  # bearer/phone_code_hash retained inside provider
+            return {
+                "type": "otp_required",
+                "text": "Enter the OTP code sent to your Telegram app",
+                "field": "otp_code",
+                "input_type": "text",
+            }
 
-    # ----- Single-user branch: shared config.enc + global backend -----
+    # Bot mode (multi-user): register backend keyed by sub.
+    bot_token = config.get("TELEGRAM_BOT_TOKEN", "")
+    if not bot_token:
+        return {
+            "type": "error",
+            "text": "Either bot token or phone number is required.",
+        }
+    try:
+        await provider.register_bot(sub, bot_token)
+    except ValueError as e:
+        logger.error("Multi-user bot registration failed: {}", e)
+        return {
+            "type": "error",
+            "text": _sanitize_error(str(e)),
+        }
+    _state = CredentialState.CONFIGURED
+    logger.info("Multi-user: bot backend registered for sub={}", sub[:8])
+    return None
+
+
+async def _handle_single_user_save(
+    config: dict[str, str], is_user_mode: bool
+) -> dict | None:
+    """Handle single-user credential logic."""
+    global _state
     from mcp_core.storage.config_file import write_config
 
     write_config(SERVER_NAME, config)
@@ -275,6 +250,45 @@ async def save_credentials(
             logger.warning("Backend reinit after save failed: {}", e)
 
     return None
+
+
+async def save_credentials(
+    config: dict[str, str], context: dict[str, str]
+) -> dict | None:
+    """Persist credentials from the local OAuth form and drive Telethon auth.
+
+    Called by ``mcp_core``'s local OAuth AS when the user submits credentials
+    via the browser form. Handles both bot mode and user mode.
+
+    Bot mode: validates token (single-user persists to config.enc;
+    multi-user registers a per-sub Telethon backend), returns ``None``.
+    User mode: triggers Telethon ``send_code``, returns ``otp_required`` so
+    the form prompts for the OTP. OTP verification happens via
+    ``on_step_submitted`` (bound to ``POST /otp``).
+
+    ``context`` carries the per-authorize ``sub``. In multi-user mode (when
+    ``transports/http._start_multi_user_http`` has registered a global
+    :class:`TelegramAuthProvider`), credentials are stored per-``sub`` in
+    that provider so concurrent users get isolated Telethon sessions. In
+    single-user mode the sub is ignored and a single ``config.enc`` on the
+    host is reused (existing behaviour, ``feedback_remote_relay_multi_user_enforcement.md``
+    refuse-guard ensures this only happens on private networks).
+    """
+    from .auth.telegram_auth_provider import get_global_provider
+
+    provider = get_global_provider()
+    sub = (context or {}).get("sub")
+
+    is_user_mode = bool(config.get("TELEGRAM_PHONE")) and not config.get(
+        "TELEGRAM_BOT_TOKEN"
+    )
+
+    # ----- Multi-user branch: per-sub TelegramAuthProvider -----
+    if provider is not None and sub:
+        return await _handle_multi_user_save(provider, sub, config, is_user_mode)
+
+    # ----- Single-user branch: shared config.enc + global backend -----
+    return await _handle_single_user_save(config, is_user_mode)
 
 
 def set_on_configured(callback: Callable[[], Awaitable[None]]) -> None:
