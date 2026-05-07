@@ -90,6 +90,12 @@ def get_setup_url() -> str | None:
     return _setup_url
 
 
+def set_setup_url(url: str | None) -> None:
+    """For testing and setup tool actions."""
+    global _setup_url
+    _setup_url = url
+
+
 def resolve_credential_state() -> CredentialState:
     """Fast, synchronous credential check. Called during lifespan startup.
 
