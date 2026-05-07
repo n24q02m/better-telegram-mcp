@@ -321,7 +321,7 @@ async def on_step_submitted(
     if 2FA is needed, or ``{"type": "error", ...}`` on failure (allows retry).
 
     ``context`` carries the per-authorize ``sub`` (the same subject passed
-    to ``save_credentials``). In multi-user mode we route OTP / 2FA
+    to ``save_credentials`"). In multi-user mode we route OTP / 2FA
     submissions through the per-sub :class:`TelegramAuthProvider` so each
     user's Telethon backend stays isolated. Single-user mode keeps the
     legacy module-global ``_step_*`` state.
@@ -331,67 +331,77 @@ async def on_step_submitted(
     provider = get_global_provider()
     sub = (context or {}).get("sub")
 
-    # ----- Multi-user branch -----
     if provider is not None and sub:
-        if "otp_code" in step_data:
-            otp_code = step_data["otp_code"].strip()
-            try:
-                await provider.complete_user_auth(sub, otp_code)
-            except ValueError as e:
-                error_msg = str(e)
-                if _needs_2fa_password(error_msg):
-                    # Stash the otp_code so the password step can re-issue
-                    # ``sign_in`` with it (Telethon requires both).
-                    if sub in _per_sub_steps:
-                        backend, phone, _ = _per_sub_steps[sub]
-                        _per_sub_steps[sub] = (backend, phone, otp_code)
-                    else:
-                        _per_sub_steps[sub] = (None, "", otp_code)
-                    return {
-                        "type": "password_required",
-                        "text": (
-                            "Your account has two-factor authentication. "
-                            "Enter your 2FA password."
-                        ),
-                        "field": "password",
-                        "input_type": "password",
-                    }
-                _per_sub_steps.pop(sub, None)
-                return {
-                    "type": "error",
-                    "text": f"Authentication failed: {_sanitize_error(error_msg)}",
-                }
-            else:
-                _per_sub_steps.pop(sub, None)
-                global _state
-                _state = CredentialState.CONFIGURED
-                return None
+        return await _handle_multi_user_step(provider, sub, step_data)
 
-        if "password" in step_data:
-            password = step_data["password"]
-            stash = _per_sub_steps.get(sub)
-            if stash is None or stash[2] is None:
-                return {
-                    "type": "error",
-                    "text": "OTP code missing. Please restart setup.",
-                }
-            otp_code = stash[2]
-            try:
-                await provider.complete_user_auth(sub, otp_code, password=password)
-            except ValueError as e:
-                _per_sub_steps.pop(sub, None)
-                return {
-                    "type": "error",
-                    "text": f"2FA failed: {_sanitize_error(str(e))}",
-                }
-            else:
-                _per_sub_steps.pop(sub, None)
-                _state = CredentialState.CONFIGURED
-                return None
+    return await _handle_single_user_step(step_data)
 
-        return {"type": "error", "text": "Unexpected input."}
 
-    # ----- Single-user branch -----
+async def _handle_multi_user_step(
+    provider: object, sub: str, step_data: dict[str, str]
+) -> dict | None:
+    """Process OTP or password for multi-user authentication."""
+    if "otp_code" in step_data:
+        otp_code = step_data["otp_code"].strip()
+        try:
+            await provider.complete_user_auth(sub, otp_code)
+        except ValueError as e:
+            error_msg = str(e)
+            if _needs_2fa_password(error_msg):
+                # Stash the otp_code so the password step can re-issue
+                # ``sign_in`` with it (Telethon requires both).
+                if sub in _per_sub_steps:
+                    backend, phone, _ = _per_sub_steps[sub]
+                    _per_sub_steps[sub] = (backend, phone, otp_code)
+                else:
+                    _per_sub_steps[sub] = (None, "", otp_code)
+                return {
+                    "type": "password_required",
+                    "text": (
+                        "Your account has two-factor authentication. "
+                        "Enter your 2FA password."
+                    ),
+                    "field": "password",
+                    "input_type": "password",
+                }
+            _per_sub_steps.pop(sub, None)
+            return {
+                "type": "error",
+                "text": f"Authentication failed: {_sanitize_error(error_msg)}",
+            }
+        else:
+            _per_sub_steps.pop(sub, None)
+            global _state
+            _state = CredentialState.CONFIGURED
+            return None
+
+    if "password" in step_data:
+        password = step_data["password"]
+        stash = _per_sub_steps.get(sub)
+        if stash is None or stash[2] is None:
+            return {
+                "type": "error",
+                "text": "OTP code missing. Please restart setup.",
+            }
+        otp_code = stash[2]
+        try:
+            await provider.complete_user_auth(sub, otp_code, password=password)
+        except ValueError as e:
+            _per_sub_steps.pop(sub, None)
+            return {
+                "type": "error",
+                "text": f"2FA failed: {_sanitize_error(str(e))}",
+            }
+        else:
+            _per_sub_steps.pop(sub, None)
+            _state = CredentialState.CONFIGURED
+            return None
+
+    return {"type": "error", "text": "Unexpected input."}
+
+
+async def _handle_single_user_step(step_data: dict[str, str]) -> dict | None:
+    """Process OTP or password for single-user authentication."""
     global _step_backend, _step_phone, _step_otp_code
 
     if _step_backend is None:
