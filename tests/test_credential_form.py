@@ -189,3 +189,23 @@ def test_phone_prefill_marks_phone_required_only() -> None:
     bot_input = html.split('name="TELEGRAM_BOT_TOKEN"')[1].split("/>")[0]
     assert "required" in phone_input
     assert "required" not in bot_input
+
+
+def test_bot_mode_marks_bot_token_required_only() -> None:
+    """Bot mode (default): only bot token input has ``required`` attr."""
+    html = render_telegram_credential_form(SCHEMA, "/auth")
+    phone_input = html.split('name="TELEGRAM_PHONE"')[1].split("/>")[0]
+    bot_input = html.split('name="TELEGRAM_BOT_TOKEN"')[1].split("/>")[0]
+    assert "required" in bot_input
+    assert "required" not in phone_input
+
+
+def test_bot_token_only_prefill_marks_bot_token_required_only() -> None:
+    """Bot mode with prefill: only bot token input has ``required`` attr."""
+    html = render_telegram_credential_form(
+        SCHEMA, "/auth", prefill={"TELEGRAM_BOT_TOKEN": "abc"}
+    )
+    phone_input = html.split('name="TELEGRAM_PHONE"')[1].split("/>")[0]
+    bot_input = html.split('name="TELEGRAM_BOT_TOKEN"')[1].split("/>")[0]
+    assert "required" in bot_input
+    assert "required" not in phone_input
