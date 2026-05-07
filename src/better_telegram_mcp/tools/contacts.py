@@ -6,7 +6,8 @@ from ..backends.base import ModeError, TelegramBackend
 from ..utils.formatting import err, ok, safe_error
 
 
-class ContactsOptions(BaseModel):
+class ContactRequest(BaseModel):
+    action: str = Field(description="Action to perform: list, search, add, block")
     query: str | None = Field(default=None, description="Query to search for")
     phone: str | None = Field(default=None, description="Phone number to add")
     first_name: str | None = Field(
@@ -19,48 +20,43 @@ class ContactsOptions(BaseModel):
 
 async def handle_contacts(
     backend: TelegramBackend,
-    action: str,
-    options: ContactsOptions | None = None,
+    args: ContactRequest,
 ) -> str:
-    if options is None:
-        options = ContactsOptions()
     try:
-        match action:
+        match args.action:
             case "list":
                 results = await backend.list_contacts()
                 return ok({"contacts": results, "count": len(results)})
 
             case "search":
-                if not options.query:
+                if not args.query:
                     return err("'search' requires query")
-                results = await backend.search_contacts(options.query)
+                results = await backend.search_contacts(args.query)
                 return ok({"contacts": results, "count": len(results)})
 
             case "add":
-                if not options.phone or not options.first_name:
+                if not args.phone or not args.first_name:
                     return err("'add' requires phone and first_name")
                 result = await backend.add_contact(
-                    options.phone, options.first_name, last_name=options.last_name
+                    args.phone, args.first_name, last_name=args.last_name
                 )
                 return ok({"added": result})
 
             case "block":
-                if options.user_id is None:
+                if args.user_id is None:
                     return err("'block' requires user_id")
-                result = await backend.block_user(
-                    options.user_id, unblock=options.unblock
-                )
-                action_word = "unblocked" if options.unblock else "blocked"
+                result = await backend.block_user(args.user_id, unblock=args.unblock)
+                action_word = "unblocked" if args.unblock else "blocked"
                 return ok({action_word: result})
 
             case _:
                 import difflib
 
                 valid = ["add", "block", "list", "search"]
-                closest = difflib.get_close_matches(action, valid, n=1)
+                closest = difflib.get_close_matches(args.action, valid, n=1)
                 suggestion = f" Did you mean '{closest[0]}'?" if closest else ""
                 return err(
-                    f"Unknown action '{action}'.{suggestion} Valid: {'|'.join(valid)}"
+                    f"Unknown action '{args.action}'.{suggestion} Valid: {'|'.join(valid)}"
                 )
     except ModeError as e:
         return err(str(e))
