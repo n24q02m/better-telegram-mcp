@@ -13,6 +13,7 @@ from better_telegram_mcp.credential_state import (
     get_state,
     reset_state,
     resolve_credential_state,
+    set_setup_url,
     set_state,
 )
 
@@ -73,6 +74,28 @@ def test_set_state():
 def test_set_state_setup_in_progress():
     set_state(CredentialState.SETUP_IN_PROGRESS)
     assert get_state() == CredentialState.SETUP_IN_PROGRESS
+
+
+def test_set_setup_url():
+    set_setup_url("http://localhost/setup")
+    assert get_setup_url() == "http://localhost/setup"
+
+
+def test_current_sub_contextvar():
+    """Verify _current_sub contextvar isolation."""
+    import asyncio
+    from better_telegram_mcp.credential_state import _current_sub
+
+    async def check_sub(val):
+        _current_sub.set(val)
+        await asyncio.sleep(0.01)
+        return _current_sub.get()
+
+    async def run_test():
+        results = await asyncio.gather(check_sub("sub1"), check_sub("sub2"))
+        assert results == ["sub1", "sub2"]
+
+    asyncio.run(run_test())
 
 
 def test_reset_state():
