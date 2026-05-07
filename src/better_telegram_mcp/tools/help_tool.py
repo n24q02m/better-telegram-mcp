@@ -12,7 +12,7 @@ _DOC_CACHE: dict[str, str] = {}
 
 
 async def handle_help(topic: str | None = None) -> str:
-    if topic is None or topic in ("all", "telegram"):
+    if topic is None or topic in {"all", "telegram"}:
         # Bolt: Load all documentation files concurrently to reduce I/O wait time
         tasks = [_load_doc(t) for t in sorted(_VALID_TOPICS)]
         results = await asyncio.gather(*tasks)
