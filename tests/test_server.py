@@ -95,6 +95,7 @@ async def test_chat_list(mock_backend):
 async def test_media_send_photo(mock_backend):
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import media
+    from better_telegram_mcp.tools.media import MediaOptions
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
@@ -103,8 +104,10 @@ async def test_media_send_photo(mock_backend):
         srv._pending_auth = False
         result = await media(
             action="send_photo",
-            chat_id=123,
-            file_path_or_url="https://example.com/photo.jpg",
+            options=MediaOptions(
+                chat_id=123,
+                file_path_or_url="https://example.com/photo.jpg",
+            ),
         )
         assert "message_id" in result
     finally:
@@ -290,6 +293,7 @@ async def test_chat_blocked_during_pending_auth(mock_backend):
 async def test_media_blocked_during_pending_auth(mock_backend):
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import media
+    from better_telegram_mcp.tools.media import MediaOptions
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
@@ -299,8 +303,10 @@ async def test_media_blocked_during_pending_auth(mock_backend):
         result = json.loads(
             await media(
                 action="send_photo",
-                chat_id=123,
-                file_path_or_url="https://example.com/photo.jpg",
+                options=MediaOptions(
+                    chat_id=123,
+                    file_path_or_url="https://example.com/photo.jpg",
+                ),
             )
         )
         assert "error" in result
@@ -496,6 +502,7 @@ async def test_media_returns_setup_hint_when_unconfigured():
     """media tool returns setup instructions when unconfigured."""
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import media
+    from better_telegram_mcp.tools.media import MediaOptions
 
     old = srv._unconfigured
     try:
@@ -503,8 +510,10 @@ async def test_media_returns_setup_hint_when_unconfigured():
         result = json.loads(
             await media(
                 action="send_photo",
-                chat_id=123,
-                file_path_or_url="https://example.com/photo.jpg",
+                options=MediaOptions(
+                    chat_id=123,
+                    file_path_or_url="https://example.com/photo.jpg",
+                ),
             )
         )
         assert result["error"] == "Not configured"
