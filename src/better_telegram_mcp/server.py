@@ -274,20 +274,7 @@ async def message(
         openWorldHint=True,
     )
 )
-async def chat(
-    action: str,
-    chat_id: str | int | None = None,
-    title: str | None = None,
-    description: str | None = None,
-    is_channel: bool = False,
-    link_or_hash: str | None = None,
-    user_id: int | None = None,
-    demote: bool = False,
-    limit: int = 50,
-    topic_action: str | None = None,
-    topic_id: int | None = None,
-    topic_name: str | None = None,
-) -> str:
+async def chat(args: ChatOptions) -> str:
     """List, create, join, leave, manage members, settings, and topics.
 
     Actions:
@@ -304,20 +291,7 @@ async def chat(
     if _unconfigured or _pending_auth:
         return _not_ready_response()
 
-    opts = ChatOptions(
-        chat_id=chat_id,
-        title=title,
-        description=description,
-        is_channel=is_channel,
-        link_or_hash=link_or_hash,
-        user_id=user_id,
-        demote=demote,
-        limit=limit,
-        topic_action=topic_action,
-        topic_id=topic_id,
-        topic_name=topic_name,
-    )
-    return await handle_chats(get_backend(), action, opts)
+    return await handle_chats(get_backend(), args)
 
 
 @mcp.tool(
