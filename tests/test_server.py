@@ -260,7 +260,9 @@ async def test_message_blocked_during_pending_auth(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        result = json.loads(await message(MessagesArgs(action="send", chat_id=123, text="hi")))
+        result = json.loads(
+            await message(MessagesArgs(action="send", chat_id=123, text="hi"))
+        )
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
     finally:
@@ -429,7 +431,9 @@ async def test_message_returns_setup_hint_when_unconfigured():
     try:
         srv._unconfigured = True
         srv._pending_auth = False
-        result = json.loads(await message(MessagesArgs(action="send", chat_id=123, text="hi")))
+        result = json.loads(
+            await message(MessagesArgs(action="send", chat_id=123, text="hi"))
+        )
         assert "error" in result
         assert result["error"] == "Not configured"
         assert "setup" in result
