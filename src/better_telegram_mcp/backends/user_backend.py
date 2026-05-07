@@ -263,11 +263,11 @@ class UserBackend(TelegramBackend):
     # --- Chats ---
     async def list_chats(self, *, limit: int = 50) -> list[dict[str, Any]]:
         client = self._ensure_client()
-        # Bolt: using iter_dialogs in an async comprehension is faster and uses less
-        # memory than get_dialogs(), which creates an intermediate TotalList.
-        return [
-            self._serialize_dialog(d) async for d in client.iter_dialogs(limit=limit)
-        ]
+        # Bolt: Using get_dialogs() is more efficient for simple listings as it
+        # fetches all results in a single request, avoiding N+1 sequential I/O
+        # overhead from async iteration over the stream.
+        dialogs = await client.get_dialogs(limit=limit)
+        return [self._serialize_dialog(d) for d in dialogs]
 
     async def get_chat_info(self, chat_id: str | int) -> dict[str, Any]:
         client = self._ensure_client()

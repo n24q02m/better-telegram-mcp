@@ -400,11 +400,7 @@ class TestListChats:
 
         dialogs = [_mock_dialog(i, f"Chat {i}") for i in range(3)]
 
-        async def mock_iter_dialogs(*args, **kwargs):
-            for d in dialogs:
-                yield d
-
-        mock_client.iter_dialogs = MagicMock(side_effect=mock_iter_dialogs)
+        mock_client.get_dialogs = AsyncMock(return_value=dialogs)
 
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)
@@ -414,7 +410,7 @@ class TestListChats:
 
         assert len(result) == 3
         assert result[1]["title"] == "Chat 1"
-        mock_client.iter_dialogs.assert_called_once_with(limit=10)
+        mock_client.get_dialogs.assert_awaited_once_with(limit=10)
 
 
 class TestGetChatInfo:
