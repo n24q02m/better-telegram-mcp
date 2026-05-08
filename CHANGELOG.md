@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.11.0-beta.2 (2026-05-08)
+
+### Bug Fixes
+
+- **deps**: Regenerate uv.lock without path sources for Docker compatibility
+  ([`05962da`](https://github.com/n24q02m/better-telegram-mcp/commit/05962da0f26eb84f5c96f397adc5a38d3c58a583))
+
+
 ## v4.11.0-beta.1 (2026-05-08)
 
 ### Bug Fixes
