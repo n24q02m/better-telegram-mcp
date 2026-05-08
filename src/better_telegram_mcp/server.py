@@ -469,7 +469,7 @@ async def config(
                         "For stdio mode, set TELEGRAM_BOT_TOKEN in your "
                         "plugin/server config (get from @BotFather). "
                         "For user-mode auth (phone+OTP), switch to HTTP mode "
-                        "(see docs/setup-manual.md)."
+                        "(see https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/)."
                     ),
                 }
             )
@@ -613,9 +613,9 @@ def main() -> None:
                 "  1. Set TELEGRAM_BOT_TOKEN in plugin config "
                 "(get from @BotFather)\n"
                 "  2. Switch to HTTP mode for user mode auth "
-                "(see docs/setup-manual.md)\n"
+                "(see https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/)\n"
                 "\n"
-                "Documentation: https://github.com/n24q02m/better-telegram-mcp#setup\n"
+                "Documentation: https://mcp.n24q02m.com/servers/better-telegram-mcp/\n"
             )
             sys.stderr.write(msg)
             sys.exit(1)
