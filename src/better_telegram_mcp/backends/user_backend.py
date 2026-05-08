@@ -253,12 +253,10 @@ class UserBackend(TelegramBackend):
         kwargs: dict[str, Any] = {"limit": limit}
         if offset_id is not None:
             kwargs["offset_id"] = offset_id
-        # Bolt: using iter_messages in an async comprehension is faster and uses less
-        # memory than get_messages(), which creates an intermediate TotalList.
-        return [
-            self._serialize_message(m)
-            async for m in client.iter_messages(chat_id, **kwargs)
-        ]
+        # Bolt: using get_messages() is more efficient for fetching a specific
+        # number of messages as it avoids the overhead of async iteration.
+        messages = await client.get_messages(chat_id, **kwargs)
+        return [self._serialize_message(m) for m in messages]
 
     # --- Chats ---
     async def list_chats(self, *, limit: int = 50) -> list[dict[str, Any]]:
