@@ -5,8 +5,7 @@ import json
 import pytest
 
 from better_telegram_mcp.backends.base import ModeError
-from better_telegram_mcp.server import MessagesArgs
-from better_telegram_mcp.tools.messages import handle_messages
+from better_telegram_mcp.tools.messages import MessagesArgs, handle_messages
 
 
 @pytest.mark.asyncio
@@ -237,3 +236,15 @@ async def test_general_exception(mock_backend):
     )
     assert "error" in result
     assert "RuntimeError" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_unknown_action_suggestion(mock_backend):
+    # 'sendd' should suggest 'send'
+    result = json.loads(
+        await handle_messages(mock_backend, MessagesArgs(action="sendd"))
+    )
+    assert "error" in result
+    assert "Unknown action 'sendd'." in result["error"]
+    assert "Did you mean 'send'?" in result["error"]
+    assert "Valid: delete|edit|forward|history|pin|react|search|send" in result["error"]
