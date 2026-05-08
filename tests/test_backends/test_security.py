@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import os
 import socket
 import sys
+from pathlib import Path
 
 import pytest
 
 from better_telegram_mcp.backends.security import (
     SecurityError,
+    _normalize_for_prefix_check,
     validate_file_path,
     validate_output_dir,
     validate_url,
@@ -101,6 +104,18 @@ class TestValidateUrl:
         with pytest.raises(SecurityError, match="internal/private"):
             validate_url("http://malicious-domain-resolving-to-local.com/admin")
 
+    def test_dns_resolution_blocks_mixed_ips(self, monkeypatch):
+        """Hostnames resolving to multiple IPs (one public, one private) must be blocked."""
+        monkeypatch.setattr(
+            "socket.getaddrinfo",
+            lambda host, port: [
+                (2, 1, 6, "", ("93.184.216.34", 80)),
+                (2, 1, 6, "", ("10.0.0.1", 80)),
+            ],
+        )
+        with pytest.raises(SecurityError, match="internal/private"):
+            validate_url("http://mixed-ips.attacker.com/")
+
     def test_dns_resolution_allows_external(self, monkeypatch):
         # Mock socket.getaddrinfo to simulate benign domain resolving to public IP
         monkeypatch.setattr(
@@ -151,6 +166,14 @@ class TestValidateFilePath:
         result = validate_file_path(str(photo))
         assert result == photo.resolve()
 
+    def test_macos_firmlink_normalization(self):
+        """Verify _normalize_for_prefix_check handles /private prefix."""
+        # This covers the line 77 coverage gap
+        assert (
+            _normalize_for_prefix_check(Path("/private/etc/passwd")) == "/etc/passwd/"
+        )
+        assert _normalize_for_prefix_check(Path("/etc/passwd")) == "/etc/passwd/"
+
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_etc_passwd_blocked(self):
         with pytest.raises(SecurityError, match="/etc/"):
@@ -175,6 +198,20 @@ class TestValidateFilePath:
         with pytest.raises(SecurityError, match="/etc/"):
             validate_file_path("/tmp/../etc/passwd")
 
+    @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only symlinks")
+    def test_symlink_traversal_blocked(self, tmp_path):
+        """Test that a symlink pointing to a blocked path is correctly rejected."""
+        link = tmp_path / "malicious_link"
+        # We can't easily create a link to /etc/passwd in some restricted environments,
+        # but we can try to link to any path that starts with a blocked prefix.
+        try:
+            os.symlink("/etc/passwd", link)
+        except OSError:
+            pytest.skip("Cannot create symlinks in this environment")
+
+        with pytest.raises(SecurityError, match="/etc/"):
+            validate_file_path(str(link))
+
     def test_allowed_dir_enforcement(self, tmp_path):
         photo = tmp_path / "photo.jpg"
         allowed = tmp_path / "uploads"
@@ -185,6 +222,28 @@ class TestValidateFilePath:
         photo = tmp_path / "photo.jpg"
         result = validate_file_path(str(photo), allowed_dir=tmp_path)
         assert result == photo.resolve()
+
+    def test_complex_allowed_dir_containment(self, tmp_path):
+        """Test containment check with complex paths."""
+        allowed = tmp_path / "data"
+        allowed.mkdir()
+        sub_dir = allowed / "nested/folder"
+        sub_dir.mkdir(parents=True)
+        target = sub_dir / "file.txt"
+
+        # Valid nested path
+        result = validate_file_path(str(target), allowed_dir=allowed)
+        assert result == target.resolve()
+
+        # Path with .. that stays inside
+        result = validate_file_path(
+            str(sub_dir / "../folder/file.txt"), allowed_dir=allowed
+        )
+        assert result == target.resolve()
+
+        # Path with .. that escapes
+        with pytest.raises(SecurityError, match="must be within"):
+            validate_file_path(str(allowed / "../other.txt"), allowed_dir=allowed)
 
     def test_tilde_expansion_blocked(self):
         """Test that paths starting with ~ are expanded and properly blocked."""
@@ -229,6 +288,20 @@ class TestValidateOutputDir:
         base = tmp_path / "downloads"
         with pytest.raises(SecurityError, match="must be within"):
             validate_output_dir(str(data), base_dir=base)
+
+    def test_complex_base_dir_containment(self, tmp_path):
+        """Test containment check for output directory."""
+        base = tmp_path / "app"
+        base.mkdir()
+        target = base / "logs/daily"
+
+        # Valid nested path
+        result = validate_output_dir(str(target), base_dir=base)
+        assert result == target.resolve()
+
+        # Escape via ..
+        with pytest.raises(SecurityError, match="must be within"):
+            validate_output_dir(str(base / "../../etc"), base_dir=base)
 
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_var_spool_blocked(self):
