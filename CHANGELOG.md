@@ -2,6 +2,99 @@
 
 <!-- version list -->
 
+## v4.11.0-beta.1 (2026-05-08)
+
+### Bug Fixes
+
+- Add disabled states and form locking during credential submission
+  ([`ed9e8f0`](https://github.com/n24q02m/better-telegram-mcp/commit/ed9e8f0d07f6c498a9c0a8e2a369de6d6a6ad11b))
+
+- Add server.json title for Glama display name
+  ([`573a0a6`](https://github.com/n24q02m/better-telegram-mcp/commit/573a0a6919ba419d3906a2adaf2ee244143abb58))
+
+- Extract helpers from _lifespan
+  ([`4ab81bc`](https://github.com/n24q02m/better-telegram-mcp/commit/4ab81bc5f3b985c221c096a8dc0aa71ba817d30b))
+
+- Extract helpers from start_user_auth
+  ([`8860214`](https://github.com/n24q02m/better-telegram-mcp/commit/8860214afc64b4d8c5e19d7ba8cf9e5337dd870c))
+
+- Replace iter_dialogs with get_dialogs in list_chats
+  ([`f3b8aeb`](https://github.com/n24q02m/better-telegram-mcp/commit/f3b8aeb07270876b9fd988db73d4508c98b42179))
+
+- Replace iter_messages with get_messages in get_history
+  ([`784867d`](https://github.com/n24q02m/better-telegram-mcp/commit/784867da199d25d36d4c12a4c3ee45dadd8f0971))
+
+- Replace iter_participants with get_participants in get_members
+  ([`75d36f5`](https://github.com/n24q02m/better-telegram-mcp/commit/75d36f56c74a3598f70b837d0bd35c9ef2483366))
+
+- Switch tuple membership tests to sets across 4 files
+  ([`6d237b2`](https://github.com/n24q02m/better-telegram-mcp/commit/6d237b2e2943f341347abf00c324ab5d76561ead))
+
+- Update setup-manual.md refs in error messages to mcp.n24q02m.com
+  ([`dea58f9`](https://github.com/n24q02m/better-telegram-mcp/commit/dea58f991cc312a0e2683d9b8cee84bcd6c6e8c1))
+
+- Use set for help topic membership test
+  ([`cd4e100`](https://github.com/n24q02m/better-telegram-mcp/commit/cd4e100b8669badcbb70f323dce6d3bfc00e33bd))
+
+- **deps**: Bump n24q02m-mcp-core to 1.14.0
+  ([`f816f1e`](https://github.com/n24q02m/better-telegram-mcp/commit/f816f1ebb324e8bccc7281d59f59136bf968b35f))
+
+### Features
+
+- Add bot-mode required-attr tests for credential form
+  ([`4ce1bcc`](https://github.com/n24q02m/better-telegram-mcp/commit/4ce1bcc8fa9d8d4233b37853496486474dc392f6))
+
+- Add edge-case tests for formatting utilities
+  ([`b2f00db`](https://github.com/n24q02m/better-telegram-mcp/commit/b2f00db16aa0a5297932ab70d019051d9c661be7))
+
+- Add help_tool cache-hit test
+  ([`7ac1c2a`](https://github.com/n24q02m/better-telegram-mcp/commit/7ac1c2a62ec58617f79bf321ffaff747b14fc64d))
+
+- Add set_setup_url helper and tests for credential_state
+  ([`242edbc`](https://github.com/n24q02m/better-telegram-mcp/commit/242edbcd88345a2079fd610a40c293b078fff615))
+
+- Add Table of contents heading + auto-generated link list (Spec E Wave 2)
+  ([`469ba3b`](https://github.com/n24q02m/better-telegram-mcp/commit/469ba3b107fbdf199375c41fed09813a62678d9a))
+
+- Add tests for create_http_mcp_server and run_http
+  ([`93ce5fa`](https://github.com/n24q02m/better-telegram-mcp/commit/93ce5fad115f0ea8dd01aa7b2a7f137becaeb2ba))
+
+- Add typo-suggestion and SecurityError tests for contacts
+  ([`bf16bda`](https://github.com/n24q02m/better-telegram-mcp/commit/bf16bda8d62df8a2f251115c5713e1a40f28c2e3))
+
+- Add typo-suggestion and settings tests for chats
+  ([`6a6a64c`](https://github.com/n24q02m/better-telegram-mcp/commit/6a6a64c8821540f095f44393d03b756a49c4eb01))
+
+- Add typo-suggestion tests for messages tool
+  ([`180d572`](https://github.com/n24q02m/better-telegram-mcp/commit/180d572e7a19ad5846c7347176e7cd19762755b6))
+
+- Add unit tests for resource registration
+  ([`68483c4`](https://github.com/n24q02m/better-telegram-mcp/commit/68483c49e32206d8929ddd8f220b7635562d87ee))
+
+- Cover SSRF mixed-IP and macOS firmlink paths
+  ([`5ce37ae`](https://github.com/n24q02m/better-telegram-mcp/commit/5ce37ae59f5b93a7aeda69431bc68277f24afd52))
+
+- Link to mcp.n24q02m.com unified docs site (Spec F Phase 4)
+  ([`a725a00`](https://github.com/n24q02m/better-telegram-mcp/commit/a725a000c2c354a2b81bd722b7c4942fe423a8a7))
+
+- Organize transport tests under test_transports
+  ([`fc67847`](https://github.com/n24q02m/better-telegram-mcp/commit/fc678477c0f71567df5e02fc803ef8b42296e956))
+
+- Sync cross-promo section ([#505](https://github.com/n24q02m/better-telegram-mcp/pull/505),
+  [`415b319`](https://github.com/n24q02m/better-telegram-mcp/commit/415b319c70d9194e965b68b8ac43232388c6815c))
+
+- Tighten media tool error-message assertions
+  ([`8f7dc1e`](https://github.com/n24q02m/better-telegram-mcp/commit/8f7dc1ee5f507031476ce743a54db8286029c81e))
+
+### Testing
+
+- Improve coverage for credential_state.py
+  ([`242edbc`](https://github.com/n24q02m/better-telegram-mcp/commit/242edbcd88345a2079fd610a40c293b078fff615))
+
+- Improve coverage for credential_state.py and fix lint
+  ([`242edbc`](https://github.com/n24q02m/better-telegram-mcp/commit/242edbcd88345a2079fd610a40c293b078fff615))
+
+
 ## v4.10.0 (2026-05-06)
 
 
