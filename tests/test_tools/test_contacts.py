@@ -5,6 +5,7 @@ import json
 import pytest
 
 from better_telegram_mcp.backends.base import ModeError
+from better_telegram_mcp.backends.security import SecurityError
 from better_telegram_mcp.tools.contacts import ContactsOptions, handle_contacts
 
 
@@ -111,3 +112,18 @@ async def test_general_exception(mock_backend):
     )
     assert "error" in result
     assert "RuntimeError" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_unknown_action_suggestion(mock_backend):
+    result = json.loads(await handle_contacts(mock_backend, "lisst"))
+    assert "error" in result
+    assert "Did you mean 'list'?" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_security_error(mock_backend):
+    mock_backend.list_contacts.side_effect = SecurityError("Blocked")
+    result = json.loads(await handle_contacts(mock_backend, "list"))
+    assert "error" in result
+    assert "Blocked" in result["error"]
