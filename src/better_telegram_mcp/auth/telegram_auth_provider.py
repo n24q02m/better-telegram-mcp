@@ -195,6 +195,59 @@ class TelegramAuthProvider:
         logger.info("Registered bot session: {}", session_name[:8])
         return bearer
 
+    async def _init_user_backend(self, phone: str, session_name: str) -> UserBackend:
+        """Initialize and connect a UserBackend."""
+        if not self._api_id or not self._api_hash:
+            msg = "TELEGRAM_API_ID and TELEGRAM_API_HASH must be set for user mode"
+            raise ValueError(msg)
+
+        settings = Settings(
+            api_id=self._api_id,
+            api_hash=self._api_hash,
+            phone=phone,
+            session_name=session_name,
+            data_dir=self._data_dir / "user_sessions",
+        )
+        backend = UserBackend(settings)
+        await backend.connect()
+        return backend
+
+    async def _send_otp_request(self, backend: UserBackend, phone: str) -> str:
+        """Send OTP code request via the backend."""
+        try:
+            # Telethon's send_code_request returns a SentCode object with phone_code_hash
+            client = backend._ensure_client()
+            sent_code = await client.send_code_request(phone)
+            return sent_code.phone_code_hash
+        except Exception as exc:
+            await backend.disconnect()
+            msg = f"Failed to send code: {exc}"
+            raise ValueError(msg) from exc
+
+    async def _register_pending_otp(
+        self,
+        bearer: str,
+        backend: UserBackend,
+        phone: str,
+        phone_code_hash: str,
+        session_name: str,
+    ) -> None:
+        """Store pending OTP state and handle cleanup of existing entries."""
+        # Pop any existing entry first so the new entry is appended at the end,
+        # keeping dict insertion order aligned with chronological created_at.
+        # This enables O(1) early-exit cleanup in cleanup_expired().
+        if (existing := self._pending_otps.pop(bearer, None)) is not None:
+            await existing["backend"].disconnect()
+
+        self._pending_otps[bearer] = {
+            "bearer": bearer,
+            "backend": backend,
+            "phone": phone,
+            "phone_code_hash": phone_code_hash,
+            "session_name": session_name,
+            "created_at": time.time(),
+        }
+
     async def start_user_auth(self, bearer: str, phone: str) -> dict:
         """Start user authentication by sending OTP code.
 
@@ -211,47 +264,13 @@ class TelegramAuthProvider:
         if not bearer:
             bearer = self._generate_bearer()
 
-        if not self._api_id or not self._api_hash:
-            msg = "TELEGRAM_API_ID and TELEGRAM_API_HASH must be set for user mode"
-            raise ValueError(msg)
-
         session_name = self._session_name_from_bearer(bearer)
+        backend = await self._init_user_backend(phone, session_name)
+        phone_code_hash = await self._send_otp_request(backend, phone)
 
-        settings = Settings(
-            api_id=self._api_id,
-            api_hash=self._api_hash,
-            phone=phone,
-            session_name=session_name,
-            data_dir=self._data_dir / "user_sessions",
+        await self._register_pending_otp(
+            bearer, backend, phone, phone_code_hash, session_name
         )
-        backend = UserBackend(settings)
-        await backend.connect()
-
-        try:
-            # Telethon's send_code_request returns a SentCode object with phone_code_hash
-            client = backend._ensure_client()
-            sent_code = await client.send_code_request(phone)
-            phone_code_hash = sent_code.phone_code_hash
-        except Exception as exc:
-            await backend.disconnect()
-            msg = f"Failed to send code: {exc}"
-            raise ValueError(msg) from exc
-
-        # Store pending OTP state.
-        # Pop any existing entry first so the new entry is appended at the end,
-        # keeping dict insertion order aligned with chronological created_at.
-        # This enables O(1) early-exit cleanup in cleanup_expired().
-        if (existing := self._pending_otps.pop(bearer, None)) is not None:
-            await existing["backend"].disconnect()
-
-        self._pending_otps[bearer] = {
-            "bearer": bearer,
-            "backend": backend,
-            "phone": phone,
-            "phone_code_hash": phone_code_hash,
-            "session_name": session_name,
-            "created_at": time.time(),
-        }
 
         return {
             "bearer": bearer,
