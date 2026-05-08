@@ -71,8 +71,10 @@ def render_telegram_credential_form(
     # ``required`` is set on the active panel's inputs only; the inactive
     # panel's required attr is removed so the form doesn't reject submits
     # because of a hidden field.
-    bot_token_required = " required" if initial_tab == "bot" else ""
-    phone_required = " required" if initial_tab == "user" else ""
+    bot_token_required = (
+        ' required aria-required="true"' if initial_tab == "bot" else ""
+    )
+    phone_required = ' required aria-required="true"' if initial_tab == "user" else ""
 
     description_html = (
         f'<p class="server-description">{description}</p>' if description else ""
@@ -468,11 +470,13 @@ def render_telegram_credential_form(
                     form.querySelectorAll(".field-input").forEach(function (i) {{
                         i.removeAttribute("aria-invalid");
                         i.removeAttribute("required");
+                        i.removeAttribute("aria-required");
                     }});
                     // Set required on the active panel's inputs
                     if (panel) {{
                         panel.querySelectorAll(".field-input").forEach(function (i) {{
                             i.setAttribute("required", "");
+                            i.setAttribute("aria-required", "true");
                         }});
                     }}
                 }});
