@@ -87,6 +87,7 @@ async def test_send_photo_missing_params(mock_backend):
         await handle_media(mock_backend, "send_photo", MediaOptions(chat_id=123))
     )
     assert "error" in result
+    assert "requires chat_id and file_path_or_url" in result["error"]
 
     result = json.loads(
         await handle_media(
@@ -98,6 +99,7 @@ async def test_send_photo_missing_params(mock_backend):
         )
     )
     assert "error" in result
+    assert "requires chat_id and file_path_or_url" in result["error"]
 
 
 @pytest.mark.asyncio
@@ -122,18 +124,20 @@ async def test_download_missing_params(mock_backend):
         await handle_media(mock_backend, "download", MediaOptions(chat_id=123))
     )
     assert "error" in result
+    assert "requires chat_id and message_id" in result["error"]
 
     result = json.loads(
         await handle_media(mock_backend, "download", MediaOptions(message_id=10))
     )
     assert "error" in result
+    assert "requires chat_id and message_id" in result["error"]
 
 
 @pytest.mark.asyncio
 async def test_unknown_action(mock_backend):
     result = json.loads(await handle_media(mock_backend, "unknown", MediaOptions()))
     assert "error" in result
-    assert "Unknown action" in result["error"]
+    assert "Unknown action 'unknown'" in result["error"]
 
 
 @pytest.mark.asyncio
@@ -163,3 +167,48 @@ async def test_general_exception(mock_backend):
     )
     assert "error" in result
     assert "RuntimeError" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_unknown_action_suggestion(mock_backend):
+    result = json.loads(await handle_media(mock_backend, "send_phot", MediaOptions()))
+    assert "error" in result
+    assert "Did you mean 'send_photo'?" in result["error"]
+
+    result = json.loads(await handle_media(mock_backend, "downlo", MediaOptions()))
+    assert "error" in result
+    assert "Did you mean 'download'?" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_download_no_output_dir(mock_backend):
+    result = json.loads(
+        await handle_media(
+            mock_backend,
+            "download",
+            MediaOptions(
+                chat_id=123,
+                message_id=10,
+            ),
+        )
+    )
+    assert result["path"] == "/tmp/file.jpg"
+    mock_backend.download_media.assert_awaited_once_with(123, 10, output_dir=None)
+
+
+@pytest.mark.asyncio
+async def test_send_photo_string_chat_id(mock_backend):
+    result = json.loads(
+        await handle_media(
+            mock_backend,
+            "send_photo",
+            MediaOptions(
+                chat_id="@username",
+                file_path_or_url="https://example.com/photo.jpg",
+            ),
+        )
+    )
+    assert result["message_id"] == 3
+    mock_backend.send_media.assert_awaited_once_with(
+        "@username", "photo", "https://example.com/photo.jpg", caption=None
+    )
