@@ -42,6 +42,18 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 </details>
 <!-- END: AUTO-GENERATED-CROSS-PROMO -->
 
+## Table of contents
+
+- [Features](#features)
+- [Status](#status)
+- [Documentation](#documentation)
+- [Tools](#tools)
+- [Security](#security)
+- [Build from Source](#build-from-source)
+- [Trust Model](#trust-model)
+- [License](#license)
+
+
 
 <a href="https://glama.ai/mcp/servers/n24q02m/better-telegram-mcp">
   <img width="380" height="200" src="https://glama.ai/mcp/servers/n24q02m/better-telegram-mcp/badge" alt="better-telegram-mcp MCP server" />
