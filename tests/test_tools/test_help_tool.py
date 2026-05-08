@@ -110,3 +110,17 @@ async def test_help_all_no_docs(monkeypatch):
     result = await handle_help("all")
     parsed = json.loads(result)
     assert "error" in parsed
+
+
+@pytest.mark.asyncio
+async def test_help_cache_hit():
+    """Verify that _load_doc returns content from _DOC_CACHE if available."""
+    import better_telegram_mcp.tools.help_tool
+
+    # Manually populate cache with a sentinel value
+    topic = "messages"
+    sentinel = "CACHED_CONTENT_SENTINEL"
+    better_telegram_mcp.tools.help_tool._DOC_CACHE[topic] = sentinel
+
+    result = await handle_help(topic)
+    assert result == sentinel
