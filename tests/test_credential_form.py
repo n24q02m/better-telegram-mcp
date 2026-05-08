@@ -49,7 +49,10 @@ def test_supports_otp_multi_step() -> None:
     assert "otp_required" in html
     assert "password_required" in html
     assert "/otp" in html
-    assert 'ns.type === "otp_required" ? "one-time-code" : ns.type === "password_required" ? "current-password" : "off"' in html
+    assert (
+        'ns.type === "otp_required" ? "one-time-code" : ns.type === "password_required" ? "current-password" : "off"'
+        in html
+    )
 
 
 def test_uses_safe_dom_methods() -> None:
