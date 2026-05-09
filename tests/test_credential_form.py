@@ -209,3 +209,10 @@ def test_bot_token_only_prefill_marks_bot_token_required_only() -> None:
     bot_input = html.split('name="TELEGRAM_BOT_TOKEN"')[1].split("/>")[0]
     assert "required" in bot_input
     assert "required" not in phone_input
+
+
+def test_inputs_have_correct_autocomplete() -> None:
+    html = render_telegram_credential_form(SCHEMA, "/auth")
+    assert 'autocomplete="current-password"' in html
+    assert 'autocomplete="tel"' in html
+    assert 'setAttribute("autocomplete", "one-time-code")' in html
