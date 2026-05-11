@@ -4,3 +4,6 @@
 ## 2024-05-05 - Focus First Invalid Input on Form Validation Failure
 **Learning:** Bringing focus to the first invalid input when client-side form validation fails is a low-effort, high-impact a11y/UX pattern that works natively without relying solely on screen reader ARIA live regions to announce errors.
 **Action:** Always add `.focus()` calls when interrupting form submissions with JS validation logic.
+## 2024-07-28 - Improve Autofill with appropriate autocomplete attributes
+**Learning:** For inputs where we request sensitive and short-lived or predictable strings (like phone numbers, OTP codes, and passwords), explicitly defining the `autocomplete` attribute provides huge UX wins. Browsers and password managers can automatically pick up SMS verification codes (`autocomplete="one-time-code"`) or phone numbers (`autocomplete="tel"`), skipping tedious copy-paste.
+**Action:** Always set `autocomplete="tel"` for phone fields, `autocomplete="one-time-code"` for OTPs, and `autocomplete="current-password"` for passwords, particularly on dynamically generated form fields in JS.
