@@ -36,6 +36,7 @@ def test_contains_phone_field() -> None:
     html = render_telegram_credential_form(SCHEMA, "/auth")
     assert "TELEGRAM_PHONE" in html
     assert "MTProto" in html
+    assert 'autocomplete="tel"' in html
 
 
 def test_posts_to_submit_url() -> None:
@@ -209,3 +210,9 @@ def test_bot_token_only_prefill_marks_bot_token_required_only() -> None:
     bot_input = html.split('name="TELEGRAM_BOT_TOKEN"')[1].split("/>")[0]
     assert "required" in bot_input
     assert "required" not in phone_input
+
+
+def test_contains_autocomplete_js_logic() -> None:
+    html = render_telegram_credential_form(SCHEMA, "/auth")
+    assert "one-time-code" in html
+    assert "current-password" in html

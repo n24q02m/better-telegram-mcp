@@ -414,7 +414,7 @@ def render_telegram_credential_form(
                             type="tel"
                             placeholder="+84..."
                             class="field-input"
-                            autocomplete="off"
+                            autocomplete="tel"
                             autocorrect="off"
                             autocapitalize="off"
                             spellcheck="false"{phone_value_attr}
@@ -573,12 +573,20 @@ def render_telegram_credential_form(
                         }}
                     }});
                 }}
-
                 promptEl.textContent = ns.text || "";
                 inputEl.setAttribute("type", ns.input_type || "text");
                 inputEl.setAttribute("placeholder", ns.placeholder || "");
                 inputEl.dataset.field = ns.field || "value";
+                if (ns.type === "otp_required") {{
+                    inputEl.setAttribute("autocomplete", "one-time-code");
+                }} else if (ns.type === "password_required") {{
+                    inputEl.setAttribute("autocomplete", "current-password");
+                }} else {{
+                    inputEl.setAttribute("autocomplete", "off");
+                }}
                 inputEl.focus();
+
+
             }}
 
             function submitStep() {{
