@@ -390,7 +390,7 @@ def render_telegram_credential_form(
                             type="password"
                             placeholder="123456:ABC-DEF..."
                             class="field-input"
-                            autocomplete="off"
+                            autocomplete="current-password"
                             autocorrect="off"
                             autocapitalize="off"
                             spellcheck="false"{bot_token_value_attr}
@@ -414,7 +414,7 @@ def render_telegram_credential_form(
                             type="tel"
                             placeholder="+84..."
                             class="field-input"
-                            autocomplete="off"
+                            autocomplete="tel"
                             autocorrect="off"
                             autocapitalize="off"
                             spellcheck="false"{phone_value_attr}
@@ -538,7 +538,7 @@ def render_telegram_credential_form(
                     inputEl = document.createElement("input");
                     inputEl.id = "step-input";
                     inputEl.className = "field-input";
-                    inputEl.setAttribute("autocomplete", "off");
+                    inputEl.setAttribute("autocomplete", "one-time-code");
                     inputEl.setAttribute("autocorrect", "off");
                     inputEl.setAttribute("autocapitalize", "off");
                     inputEl.setAttribute("spellcheck", "false");
