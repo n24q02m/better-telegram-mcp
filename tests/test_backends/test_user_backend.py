@@ -359,7 +359,15 @@ class TestGetHistory:
 
         msgs = [_mock_message(msg_id=i) for i in range(5)]
 
-        mock_client.get_messages = AsyncMock(return_value=msgs)
+        called_args = {}
+
+        async def mock_iter(entity, **kwargs):
+            called_args["entity"] = entity
+            called_args["kwargs"] = kwargs
+            for m in msgs:
+                yield m
+
+        mock_client.iter_messages = mock_iter
 
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)
@@ -368,14 +376,23 @@ class TestGetHistory:
         result = await backend.get_history(123, limit=5)
 
         assert len(result) == 5
-        mock_client.get_messages.assert_awaited_once_with(123, limit=5)
+        assert called_args["entity"] == 123
+        assert called_args["kwargs"] == {"limit": 5}
 
     async def test_get_history_with_offset(
         self, tmp_path, mock_client, mock_client_class
     ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
-        mock_client.get_messages = AsyncMock(return_value=[])
+        called_args = {}
+
+        async def mock_iter(entity, **kwargs):
+            called_args["entity"] = entity
+            called_args["kwargs"] = kwargs
+            for m in []:
+                yield m
+
+        mock_client.iter_messages = mock_iter
 
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)
@@ -383,7 +400,8 @@ class TestGetHistory:
 
         await backend.get_history(123, limit=10, offset_id=50)
 
-        mock_client.get_messages.assert_awaited_once_with(123, limit=10, offset_id=50)
+        assert called_args["entity"] == 123
+        assert called_args["kwargs"] == {"limit": 10, "offset_id": 50}
 
 
 class TestListChats:
