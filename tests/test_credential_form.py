@@ -38,6 +38,18 @@ def test_contains_phone_field() -> None:
     assert "MTProto" in html
 
 
+def test_telephone_input_autocomplete() -> None:
+    html = render_telegram_credential_form(SCHEMA, "/auth")
+    assert 'autocomplete="tel"' in html
+    assert 'name="TELEGRAM_PHONE"' in html
+
+
+def test_show_step_input_dynamic_autocomplete() -> None:
+    html = render_telegram_credential_form(SCHEMA, "/auth")
+    assert 'inputEl.setAttribute("autocomplete", "one-time-code")' in html
+    assert 'inputEl.setAttribute("autocomplete", "current-password")' in html
+
+
 def test_posts_to_submit_url() -> None:
     html = render_telegram_credential_form(SCHEMA, "/authorize?nonce=xyz")
     assert "/authorize?nonce=xyz" in html
