@@ -200,6 +200,20 @@ def test_bot_mode_marks_bot_token_required_only() -> None:
     assert "required" not in phone_input
 
 
+def test_autocomplete_attributes() -> None:
+    html = render_telegram_credential_form(SCHEMA, "/auth")
+    phone_input = html.split('name="TELEGRAM_PHONE"')[1].split("/>")[0]
+    bot_input = html.split('name="TELEGRAM_BOT_TOKEN"')[1].split("/>")[0]
+    assert 'autocomplete="tel"' in phone_input
+    assert 'autocomplete="off"' in bot_input
+
+
+def test_dynamic_autocomplete_attributes() -> None:
+    html = render_telegram_credential_form(SCHEMA, "/auth")
+    assert 'inputEl.setAttribute("autocomplete", "one-time-code");' in html
+    assert 'inputEl.setAttribute("autocomplete", "current-password");' in html
+
+
 def test_bot_token_only_prefill_marks_bot_token_required_only() -> None:
     """Bot mode with prefill: only bot token input has ``required`` attr."""
     html = render_telegram_credential_form(
