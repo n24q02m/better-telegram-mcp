@@ -317,7 +317,10 @@ class TestSearchMessages:
 
         msgs = [_mock_message(msg_id=i, text=f"msg{i}") for i in range(3)]
 
+        mock_iter_messages = MagicMock()
+
         async def mock_iter(*args, **kwargs):
+            mock_iter_messages(*args, **kwargs)
             for m in msgs:
                 yield m
 
@@ -359,7 +362,14 @@ class TestGetHistory:
 
         msgs = [_mock_message(msg_id=i) for i in range(5)]
 
-        mock_client.get_messages = AsyncMock(return_value=msgs)
+        mock_iter_messages = MagicMock()
+
+        async def mock_iter(*args, **kwargs):
+            mock_iter_messages(*args, **kwargs)
+            for m in msgs:
+                yield m
+
+        mock_client.iter_messages = mock_iter
 
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)
@@ -368,14 +378,21 @@ class TestGetHistory:
         result = await backend.get_history(123, limit=5)
 
         assert len(result) == 5
-        mock_client.get_messages.assert_awaited_once_with(123, limit=5)
+        mock_iter_messages.assert_called_once_with(123, limit=5)
 
     async def test_get_history_with_offset(
         self, tmp_path, mock_client, mock_client_class
     ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
-        mock_client.get_messages = AsyncMock(return_value=[])
+        mock_iter_messages = MagicMock()
+
+        async def mock_iter(*args, **kwargs):
+            mock_iter_messages(*args, **kwargs)
+            if False:
+                yield None
+
+        mock_client.iter_messages = mock_iter
 
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)
@@ -383,7 +400,7 @@ class TestGetHistory:
 
         await backend.get_history(123, limit=10, offset_id=50)
 
-        mock_client.get_messages.assert_awaited_once_with(123, limit=10, offset_id=50)
+        mock_iter_messages.assert_called_once_with(123, limit=10, offset_id=50)
 
 
 class TestListChats:
