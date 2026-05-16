@@ -27,7 +27,7 @@ def _secure_write(path: Path, data: bytes | str) -> None:
     Uses os.open with O_CREAT and 0o600 to prevent TOCTOU window where file
     could be briefly readable by others before chmod.
     """
-    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_BINARY", 0)
     mode = stat.S_IRUSR | stat.S_IWUSR  # 0o600
     fd = os.open(path, flags, mode)
     try:
