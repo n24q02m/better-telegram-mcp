@@ -212,17 +212,3 @@ class TestCredentialStore:
         salt_path = data_dir / ".salt"
         assert salt_path.exists()
         assert len(store._salt) == 16
-
-    def test_chmod_failure_swallowed(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
-        """Test that OSError during chmod is silently ignored."""
-
-        def mock_chmod(*args, **kwargs):
-            raise OSError("chmod failed")
-
-        monkeypatch.setattr("pathlib.Path.chmod", mock_chmod)
-
-        store = CredentialStore(tmp_path)
-        # Store writing triggers credential chmod
-        store.store({"api_id": "123"})

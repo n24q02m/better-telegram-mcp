@@ -29,6 +29,24 @@ _KDF_ITERATIONS = 600_000
 _NONCE_SIZE = 12
 
 
+def _secure_write(path: Path, data: bytes | str) -> None:
+    """Write data to a file securely, ensuring strict permissions on creation.
+
+    Uses os.open with O_CREAT and 0o600 to prevent TOCTOU window where file
+    could be briefly readable by others before chmod.
+    """
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    mode = stat.S_IRUSR | stat.S_IWUSR  # 0o600
+    fd = os.open(path, flags, mode)
+    try:
+        if isinstance(data, str):
+            os.write(fd, data.encode("utf-8"))
+        else:
+            os.write(fd, data)
+    finally:
+        os.close(fd)
+
+
 @dataclass
 class SessionInfo:
     """Per-user session metadata."""
@@ -76,11 +94,7 @@ class PerUserSessionStore:
     def _persist_salt(self, salt: bytes) -> None:
         """Save random salt to disk (called on first store)."""
         self._salt_path.parent.mkdir(parents=True, exist_ok=True)
-        self._salt_path.write_bytes(salt)
-        try:
-            self._salt_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
-        except OSError:
-            pass
+        _secure_write(self._salt_path, salt)
 
     @staticmethod
     def _resolve_or_generate_secret(data_dir: Path) -> str:
@@ -90,11 +104,7 @@ class PerUserSessionStore:
             return secret_path.read_text().strip()
         data_dir.mkdir(parents=True, exist_ok=True)
         secret = os.urandom(32).hex()
-        secret_path.write_text(secret)
-        try:
-            secret_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
-        except OSError:
-            pass  # Windows may not support chmod
+        _secure_write(secret_path, secret)
         return secret
 
     def _derive_key(self) -> bytes:
@@ -145,11 +155,7 @@ class PerUserSessionStore:
         self._cached_sessions = copy.deepcopy(sessions)
         plaintext = json.dumps(sessions).encode()
         encrypted = self._encrypt(plaintext)
-        self._path.write_bytes(encrypted)
-        try:
-            self._path.chmod(stat.S_IRUSR | stat.S_IWUSR)
-        except OSError:
-            pass
+        _secure_write(self._path, encrypted)
 
     def store(self, bearer: str, info: SessionInfo) -> None:
         """Store a session for the given bearer token."""

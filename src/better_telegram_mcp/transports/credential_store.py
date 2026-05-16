@@ -21,6 +21,24 @@ _KDF_ITERATIONS = 600_000
 _NONCE_SIZE = 12
 
 
+def _secure_write(path: Path, data: bytes | str) -> None:
+    """Write data to a file securely, ensuring strict permissions on creation.
+
+    Uses os.open with O_CREAT and 0o600 to prevent TOCTOU window where file
+    could be briefly readable by others before chmod.
+    """
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    mode = stat.S_IRUSR | stat.S_IWUSR  # 0o600
+    fd = os.open(path, flags, mode)
+    try:
+        if isinstance(data, str):
+            os.write(fd, data.encode("utf-8"))
+        else:
+            os.write(fd, data)
+    finally:
+        os.close(fd)
+
+
 class CredentialStore:
     """Server-side encrypted credential storage.
 
@@ -51,11 +69,7 @@ class CredentialStore:
         # New installation: generate random salt
         salt = os.urandom(16)
         self._salt_path.parent.mkdir(parents=True, exist_ok=True)
-        self._salt_path.write_bytes(salt)
-        try:
-            self._salt_path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
-        except OSError:
-            pass
+        _secure_write(self._salt_path, salt)
         return salt
 
     @staticmethod
@@ -66,11 +80,7 @@ class CredentialStore:
             return secret_path.read_text().strip()
         data_dir.mkdir(parents=True, exist_ok=True)
         secret = os.urandom(32).hex()
-        secret_path.write_text(secret)
-        try:
-            secret_path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
-        except OSError:
-            pass  # Windows may not support chmod
+        _secure_write(secret_path, secret)
         return secret
 
     def _derive_key(self) -> bytes:
@@ -92,11 +102,7 @@ class CredentialStore:
         # Migrate from legacy hardcoded salt to random salt on re-encryption
         if self._salt == _LEGACY_SALT:
             new_salt = os.urandom(16)
-            self._salt_path.write_bytes(new_salt)
-            try:
-                self._salt_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
-            except OSError:
-                pass
+            _secure_write(self._salt_path, new_salt)
             self._salt = new_salt
             self._cached_key = None  # Force re-derivation
 
@@ -106,11 +112,7 @@ class CredentialStore:
         plaintext = json.dumps(credentials).encode()
         ciphertext = aesgcm.encrypt(nonce, plaintext, None)
         self._cached_credentials = copy.deepcopy(credentials)
-        self._path.write_bytes(nonce + ciphertext)
-        try:
-            self._path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
-        except OSError:
-            pass  # Windows may not support chmod
+        _secure_write(self._path, nonce + ciphertext)
 
     def load(self) -> dict[str, str] | None:
         """Load and decrypt credentials. Returns None if not found."""
