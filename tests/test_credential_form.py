@@ -30,12 +30,22 @@ def test_contains_bot_token_field() -> None:
     html = render_telegram_credential_form(SCHEMA, "/auth")
     assert "TELEGRAM_BOT_TOKEN" in html
     assert "BotFather" in html
+    assert 'autocomplete="current-password"' in html
 
 
 def test_contains_phone_field() -> None:
     html = render_telegram_credential_form(SCHEMA, "/auth")
     assert "TELEGRAM_PHONE" in html
     assert "MTProto" in html
+    assert 'autocomplete="tel"' in html
+
+
+def test_dynamic_autocomplete_script() -> None:
+    html = render_telegram_credential_form(SCHEMA, "/auth")
+    assert (
+        'ns.type === "otp_required" ? "one-time-code" : ns.type === "password_required" ? "current-password" : "off"'
+        in html
+    )
 
 
 def test_posts_to_submit_url() -> None:
