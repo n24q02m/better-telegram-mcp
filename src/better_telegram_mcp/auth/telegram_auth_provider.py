@@ -15,6 +15,7 @@ value is the ``sub`` in the new wiring.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import secrets
 import time
@@ -381,18 +382,26 @@ class TelegramAuthProvider:
 
     async def shutdown(self) -> None:
         """Disconnect all active backends. Call on server shutdown."""
-        for bearer, backend in list(self.active_clients.items()):
+
+        async def _safe_disconnect(
+            bearer: str, backend: TelegramBackend, is_pending: bool = False
+        ) -> None:
             try:
                 await backend.disconnect()
             except Exception:
-                logger.warning("Error disconnecting backend {}", bearer[:8])
+                context = "pending OTP backend" if is_pending else "backend"
+                logger.warning(f"Error disconnecting {context} {{}}", bearer[:8])
+
+        tasks = []
+        for bearer, backend in list(self.active_clients.items()):
+            tasks.append(_safe_disconnect(bearer, backend))
+
+        for bearer, pending in list(self._pending_otps.items()):
+            tasks.append(_safe_disconnect(bearer, pending["backend"], is_pending=True))
+
+        if tasks:
+            await asyncio.gather(*tasks)
+
         self.active_clients.clear()
         self.session_owners.clear()
-
-        # Disconnect pending OTP backends
-        for bearer, pending in list(self._pending_otps.items()):
-            try:
-                await pending["backend"].disconnect()
-            except Exception:
-                logger.warning("Error disconnecting pending OTP backend {}", bearer[:8])
         self._pending_otps.clear()
