@@ -428,7 +428,7 @@ def render_telegram_credential_form(
 
                 <button type="submit" class="submit-btn" id="submit-btn">Connect</button>
 
-                <div class="status-box" id="status-box" role="alert"></div>
+                <div class="status-box" id="status-box" role="alert" aria-live="polite"></div>
             </form>
         </div>
     </div>
@@ -558,6 +558,7 @@ def render_telegram_credential_form(
                     errorEl.id = "step-error";
                     errorEl.className = "status-box error";
                     errorEl.setAttribute("role", "alert");
+                    errorEl.setAttribute("aria-live", "assertive");
                     errorEl.style.display = "none";
                     container.appendChild(errorEl);
 
@@ -622,6 +623,8 @@ def render_telegram_credential_form(
                                     }}
                                     var done = document.createElement("div");
                                     done.className = "status-box success";
+                                    done.setAttribute("role", "status");
+                                    done.setAttribute("aria-live", "polite");
                                     done.style.display = "block";
                                     if (typeof pendingRedirectUrl === "string" && pendingRedirectUrl.length > 0) {{
                                         done.textContent = "Setup complete! Redirecting...";

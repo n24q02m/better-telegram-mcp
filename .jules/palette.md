@@ -4,3 +4,6 @@
 ## 2024-05-05 - Focus First Invalid Input on Form Validation Failure
 **Learning:** Bringing focus to the first invalid input when client-side form validation fails is a low-effort, high-impact a11y/UX pattern that works natively without relying solely on screen reader ARIA live regions to announce errors.
 **Action:** Always add `.focus()` calls when interrupting form submissions with JS validation logic.
+## 2026-05-18 - Adding ARIA Live Regions to Dynamic Form Elements
+**Learning:** When using vanilla JavaScript to dynamically inject status and error messages into the DOM, simply setting `display: block` or creating a new element is insufficient for screen readers. The parent container must have an appropriate ARIA role (`status` or `alert`) and `aria-live` attribute (`polite` or `assertive`) to trigger assistive technology announcements.
+**Action:** Proactively assign `role="status"` and `aria-live="polite"` for non-interruptive success/info messages, and `role="alert"` and `aria-live="assertive"` for critical errors when dynamically creating or updating elements in pure JS components.
