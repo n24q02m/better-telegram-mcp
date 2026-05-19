@@ -383,7 +383,9 @@ class TelegramAuthProvider:
         """Disconnect all active backends. Call on server shutdown."""
         import asyncio
 
-        async def _safe_disconnect(backend: TelegramBackend, bearer: str, label: str) -> None:
+        async def _safe_disconnect(
+            backend: TelegramBackend, bearer: str, label: str
+        ) -> None:
             try:
                 await backend.disconnect()
             except Exception:
@@ -396,7 +398,9 @@ class TelegramAuthProvider:
         for bearer, backend in list(self.active_clients.items()):
             tasks.append(_safe_disconnect(backend, bearer, "backend"))
         for bearer, pending in list(self._pending_otps.items()):
-            tasks.append(_safe_disconnect(pending["backend"], bearer, "pending OTP backend"))
+            tasks.append(
+                _safe_disconnect(pending["backend"], bearer, "pending OTP backend")
+            )
 
         if tasks:
             await asyncio.gather(*tasks)
