@@ -4,3 +4,6 @@
 ## 2024-05-05 - Focus First Invalid Input on Form Validation Failure
 **Learning:** Bringing focus to the first invalid input when client-side form validation fails is a low-effort, high-impact a11y/UX pattern that works natively without relying solely on screen reader ARIA live regions to announce errors.
 **Action:** Always add `.focus()` calls when interrupting form submissions with JS validation logic.
+## 2026-05-19 - Improve autofill accessibility in credential form
+**Learning:** Adding the `autocomplete` attribute to form inputs with semantically correct values (like `current-password` and `tel`) is a high-impact micro-UX improvement. It drastically improves browser and password manager integration, enabling seamless autofill functionality, especially on mobile devices.
+**Action:** When designing or maintaining authentication forms (like `credential_form.py`), always verify that static and dynamically generated inputs have the appropriate `autocomplete` attributes, moving away from default `"off"` values where contextually relevant.

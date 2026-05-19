@@ -209,3 +209,23 @@ def test_bot_token_only_prefill_marks_bot_token_required_only() -> None:
     bot_input = html.split('name="TELEGRAM_BOT_TOKEN"')[1].split("/>")[0]
     assert "required" in bot_input
     assert "required" not in phone_input
+
+
+def test_autocomplete_attributes() -> None:
+    """Inputs should have semantic autocomplete attributes."""
+    html = render_telegram_credential_form(SCHEMA, "/auth")
+
+    # Static bot mode input
+    bot_input = html.split('name="TELEGRAM_BOT_TOKEN"')[1].split("/>")[0]
+    assert 'autocomplete="current-password"' in bot_input
+
+    # Static user mode input
+    phone_input = html.split('name="TELEGRAM_PHONE"')[1].split("/>")[0]
+    assert 'autocomplete="tel"' in phone_input
+
+    # Should have dynamic JS assignment
+    assert 'inputEl.setAttribute("autocomplete", "one-time-code");' in html
+    assert 'inputEl.setAttribute("autocomplete", "current-password");' in html
+
+    # And a fallback for other types
+    assert 'inputEl.setAttribute("autocomplete", "off");' in html
