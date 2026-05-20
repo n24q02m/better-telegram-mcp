@@ -4,3 +4,6 @@
 ## 2024-05-05 - Focus First Invalid Input on Form Validation Failure
 **Learning:** Bringing focus to the first invalid input when client-side form validation fails is a low-effort, high-impact a11y/UX pattern that works natively without relying solely on screen reader ARIA live regions to announce errors.
 **Action:** Always add `.focus()` calls when interrupting form submissions with JS validation logic.
+## 2024-05-20 - Improve Form Accessibility via Dynamic Autocomplete Attributes
+**Learning:** For dynamic step inputs (like OTP or password inputs in an authentication flow), adding appropriate native `autocomplete` attributes significantly enhances mobile usability and accessibility. It allows native autofill systems to populate one-time codes or current passwords.
+**Action:** When creating or modifying dynamic input fields, dynamically apply `autocomplete="one-time-code"`, `autocomplete="current-password"`, or `autocomplete="tel"` depending on the requested input type.
