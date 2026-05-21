@@ -15,6 +15,7 @@ value is the ``sub`` in the new wiring.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import secrets
 import time
@@ -380,19 +381,44 @@ class TelegramAuthProvider:
         return removed
 
     async def shutdown(self) -> None:
-        """Disconnect all active backends. Call on server shutdown."""
-        for bearer, backend in list(self.active_clients.items()):
+        """Disconnect all active backends concurrently. Call on server shutdown.
+
+        Each Telethon ``disconnect()`` waits for an MTProto roundtrip; running
+        them sequentially turns a fast shutdown into ``len(clients) * RTT``.
+        ``asyncio.gather(..., return_exceptions=True)`` parallelises them and
+        keeps the "best-effort cleanup" semantics — any individual disconnect
+        failure is logged but does not abort the rest.
+        """
+        active_items = list(self.active_clients.items())
+        pending_items = list(self._pending_otps.items())
+
+        async def _disconnect_active(bearer: str, backend: object) -> None:
             try:
-                await backend.disconnect()
-            except Exception:
-                logger.warning("Error disconnecting backend {}", bearer[:8])
+                await backend.disconnect()  # type: ignore[attr-defined]
+            except Exception as exc:
+                logger.warning("Error disconnecting backend {}: {}", bearer[:8], exc)
+
+        async def _disconnect_pending(bearer: str, pending: dict) -> None:
+            try:
+                await pending["backend"].disconnect()
+            except Exception as exc:
+                logger.warning(
+                    "Error disconnecting pending OTP backend {}: {}",
+                    bearer[:8],
+                    exc,
+                )
+
+        if active_items:
+            await asyncio.gather(
+                *(_disconnect_active(b, c) for b, c in active_items),
+                return_exceptions=True,
+            )
         self.active_clients.clear()
         self.session_owners.clear()
 
-        # Disconnect pending OTP backends
-        for bearer, pending in list(self._pending_otps.items()):
-            try:
-                await pending["backend"].disconnect()
-            except Exception:
-                logger.warning("Error disconnecting pending OTP backend {}", bearer[:8])
+        if pending_items:
+            await asyncio.gather(
+                *(_disconnect_pending(b, p) for b, p in pending_items),
+                return_exceptions=True,
+            )
         self._pending_otps.clear()

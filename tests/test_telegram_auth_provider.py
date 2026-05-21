@@ -446,3 +446,89 @@ class TestShutdown:
 
         assert len(provider.active_clients) == 0
         assert len(provider.session_owners) == 0
+
+    async def test_shutdown_disconnects_concurrently(
+        self, provider: TelegramAuthProvider
+    ) -> None:
+        """Disconnects should run in parallel (asyncio.gather), not serially.
+
+        We inject slow disconnect()s into multiple registered backends; if
+        shutdown ran them sequentially total wall time would be ~N*delay,
+        whereas with gather it should be ~delay.
+        """
+        import asyncio
+        import time
+
+        # Register N backends with a deliberately slow mock disconnect.
+        N = 5
+        delay = 0.1  # seconds per disconnect
+
+        with patch(
+            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend"
+        ) as MockBot:
+            disconnects: list[AsyncMock] = []
+
+            def make_backend(*_args, **_kwargs):
+                inst = MockBot.return_value.__class__()
+                inst.connect = AsyncMock()
+
+                async def slow_disconnect() -> None:
+                    await asyncio.sleep(delay)
+
+                inst.disconnect = AsyncMock(side_effect=slow_disconnect)
+                disconnects.append(inst.disconnect)
+                return inst
+
+            MockBot.side_effect = make_backend
+            for i in range(N):
+                await provider.register_bot(f"b{i}", f"token{i}")
+
+        assert len(provider.active_clients) == N
+
+        start = time.perf_counter()
+        await provider.shutdown()
+        elapsed = time.perf_counter() - start
+
+        # All disconnect() were awaited.
+        assert all(d.called for d in disconnects)
+        # Concurrent: must be substantially less than N * delay.
+        # Allow generous slack for CI jitter -- but still well under serial.
+        assert elapsed < N * delay * 0.7, (
+            f"shutdown took {elapsed:.3f}s for {N}x{delay:.3f}s tasks -- "
+            "looks like disconnects ran serially instead of via asyncio.gather"
+        )
+        assert len(provider.active_clients) == 0
+
+    async def test_shutdown_continues_on_disconnect_error(
+        self, provider: TelegramAuthProvider
+    ) -> None:
+        """A single failing disconnect must not stop the others.
+
+        ``asyncio.gather(..., return_exceptions=True)`` collects errors
+        instead of cancelling siblings -- this is the contract we rely on.
+        """
+        with patch(
+            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend"
+        ) as MockBot:
+            instances: list = []
+
+            def make_backend(*_args, **_kwargs):
+                inst = MockBot.return_value.__class__()
+                inst.connect = AsyncMock()
+                inst.disconnect = AsyncMock()
+                instances.append(inst)
+                return inst
+
+            MockBot.side_effect = make_backend
+            await provider.register_bot("ok-1", "t1")
+            await provider.register_bot("bad", "t2")
+            await provider.register_bot("ok-2", "t3")
+
+        # Make the middle backend's disconnect raise.
+        instances[1].disconnect.side_effect = RuntimeError("network down")
+
+        # Must not raise; all three disconnect() must be awaited.
+        await provider.shutdown()
+        for inst in instances:
+            inst.disconnect.assert_called_once()
+        assert len(provider.active_clients) == 0
