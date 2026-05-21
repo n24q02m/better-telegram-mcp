@@ -15,6 +15,7 @@ value is the ``sub`` in the new wiring.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import secrets
 import time
@@ -91,8 +92,6 @@ class TelegramAuthProvider:
 
         Returns the number of successfully restored sessions.
         """
-        import asyncio
-
         sessions = self._store.load_all()
         now = time.time()
 
@@ -380,19 +379,41 @@ class TelegramAuthProvider:
         return removed
 
     async def shutdown(self) -> None:
-        """Disconnect all active backends. Call on server shutdown."""
-        for bearer, backend in list(self.active_clients.items()):
-            try:
-                await backend.disconnect()
-            except Exception:
-                logger.warning("Error disconnecting backend {}", bearer[:8])
+        """Disconnect all active backends. Call on server shutdown.
+
+        ⚡ Bolt Performance Optimization:
+        We use `asyncio.gather` to disconnect all active and pending backends
+        concurrently rather than sequentially awaiting them in a loop.
+        Expected impact: Reduces O(N) sequential network latency overhead
+        to ~O(1) concurrent blocking time during server shutdown.
+        """
+        active_items = list(self.active_clients.items())
+        pending_items = list(self._pending_otps.items())
+
+        tasks = []
+        # Active backends
+        for _bearer, backend in active_items:
+            tasks.append(backend.disconnect())
+
+        # Pending OTP backends
+        for _bearer, pending in pending_items:
+            tasks.append(pending["backend"].disconnect())
+
+        if tasks:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            # Log any exceptions
+            for idx, result in enumerate(results):
+                if isinstance(result, Exception):
+                    if idx < len(active_items):
+                        bearer = active_items[idx][0]
+                        logger.warning("Error disconnecting backend {}", bearer[:8])
+                    else:
+                        bearer = pending_items[idx - len(active_items)][0]
+                        logger.warning(
+                            "Error disconnecting pending OTP backend {}", bearer[:8]
+                        )
+
         self.active_clients.clear()
         self.session_owners.clear()
-
-        # Disconnect pending OTP backends
-        for bearer, pending in list(self._pending_otps.items()):
-            try:
-                await pending["backend"].disconnect()
-            except Exception:
-                logger.warning("Error disconnecting pending OTP backend {}", bearer[:8])
         self._pending_otps.clear()
