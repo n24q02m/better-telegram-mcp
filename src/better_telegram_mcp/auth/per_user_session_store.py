@@ -14,7 +14,6 @@ from __future__ import annotations
 import copy
 import json
 import os
-import stat
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -23,6 +22,8 @@ from typing import Literal
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+from ..transports.credential_store import _atomic_write_bytes_0600
 
 _LEGACY_SALT = b"mcp-telegram-sessions"
 _KDF_ITERATIONS = 600_000
@@ -74,27 +75,17 @@ class PerUserSessionStore:
         return _LEGACY_SALT
 
     def _persist_salt(self, salt: bytes) -> None:
-        """Save random salt to disk (called on first store)."""
-        self._salt_path.parent.mkdir(parents=True, exist_ok=True)
-        self._salt_path.write_bytes(salt)
-        try:
-            self._salt_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
-        except OSError:
-            pass
+        """Save random salt to disk (atomic 0o600 write, no TOCTOU window)."""
+        _atomic_write_bytes_0600(self._salt_path, salt)
 
     @staticmethod
     def _resolve_or_generate_secret(data_dir: Path) -> str:
-        """Load persisted secret or generate a new one."""
+        """Load persisted secret or generate a new one (atomic 0o600 write)."""
         secret_path = data_dir / ".secret"
         if secret_path.exists():
             return secret_path.read_text().strip()
-        data_dir.mkdir(parents=True, exist_ok=True)
         secret = os.urandom(32).hex()
-        secret_path.write_text(secret)
-        try:
-            secret_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
-        except OSError:
-            pass  # Windows may not support chmod
+        _atomic_write_bytes_0600(secret_path, secret.encode())
         return secret
 
     def _derive_key(self) -> bytes:
@@ -134,22 +125,17 @@ class PerUserSessionStore:
         return copy.deepcopy(self._cached_sessions)
 
     def _write_all(self, sessions: dict[str, dict]) -> None:
-        """Encrypt and write all sessions to disk."""
+        """Encrypt and write all sessions to disk (atomic 0o600 write)."""
         # Migrate from legacy salt to random salt on first write
         if self._salt == _LEGACY_SALT and not self._salt_path.exists():
             new_salt = os.urandom(16)
             self._persist_salt(new_salt)
             self._salt = new_salt
             self._cached_key = None  # Invalidate cached key
-        self._path.parent.mkdir(parents=True, exist_ok=True)
         self._cached_sessions = copy.deepcopy(sessions)
         plaintext = json.dumps(sessions).encode()
         encrypted = self._encrypt(plaintext)
-        self._path.write_bytes(encrypted)
-        try:
-            self._path.chmod(stat.S_IRUSR | stat.S_IWUSR)
-        except OSError:
-            pass
+        _atomic_write_bytes_0600(self._path, encrypted)
 
     def store(self, bearer: str, info: SessionInfo) -> None:
         """Store a session for the given bearer token."""

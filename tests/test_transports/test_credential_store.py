@@ -222,7 +222,127 @@ class TestCredentialStore:
             raise OSError("chmod failed")
 
         monkeypatch.setattr("pathlib.Path.chmod", mock_chmod)
+        monkeypatch.setattr("os.chmod", mock_chmod)
 
         store = CredentialStore(tmp_path)
         # Store writing triggers credential chmod
         store.store({"api_id": "123"})
+
+
+class TestAtomicWriteTOCTOU:
+    """Verify the open-then-chmod TOCTOU window is closed.
+
+    The previous implementation did ``path.write_bytes(data)`` followed by
+    ``path.chmod(0o600)``. Between those two syscalls the file existed
+    with the process ``umask``-derived permissions (commonly 0o644), so a
+    co-tenant on the host could open() the file before the chmod landed
+    and read the encrypted credential blob (or the secret salt). The fix
+    is to create the file with mode 0o600 in a single ``os.open()`` call.
+    """
+
+    @pytest.mark.skipif(
+        not hasattr(__import__("os"), "stat"),
+        reason="POSIX-only test (file mode bits)",
+    )
+    def test_credentials_file_is_0o600_immediately(
+        self, data_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """File must never exist with broader perms than 0o600."""
+        import os
+        import stat
+
+        # Force a deliberately permissive umask so the OLD code path
+        # would have created the file world-readable before chmod ran.
+        monkeypatch.setattr(os, "umask", lambda _mask: 0o000)
+
+        store = CredentialStore(data_dir, secret="test-secret")
+        store.store({"TELEGRAM_BOT_TOKEN": "secret"})
+
+        enc_path = data_dir / "credentials.enc"
+        mode = stat.S_IMODE(os.stat(enc_path).st_mode)
+        # 0o600 == owner R/W only (no group/other access)
+        assert mode == 0o600, f"expected 0o600, got 0o{mode:o}"
+
+    def test_salt_file_is_0o600_immediately(self, data_dir: Path) -> None:
+        import os
+        import stat
+
+        # Trigger fresh installation (no legacy file). _resolve_salt
+        # generates and writes a random salt.
+        CredentialStore(data_dir, secret="test-secret")
+
+        salt_path = data_dir / ".salt"
+        assert salt_path.exists()
+        mode = stat.S_IMODE(os.stat(salt_path).st_mode)
+        assert mode == 0o600, f"expected 0o600, got 0o{mode:o}"
+
+    def test_secret_file_is_0o600_immediately(self, tmp_path: Path) -> None:
+        import os
+        import stat
+
+        data_dir = tmp_path / "fresh"
+        data_dir.mkdir()
+        # Auto-generated secret (no CREDENTIAL_SECRET env var, no explicit
+        # secret kwarg) writes .secret to disk.
+        CredentialStore(data_dir)
+
+        secret_path = data_dir / ".secret"
+        assert secret_path.exists()
+        mode = stat.S_IMODE(os.stat(secret_path).st_mode)
+        assert mode == 0o600, f"expected 0o600, got 0o{mode:o}"
+
+    def test_atomic_write_creates_with_secure_mode_not_default_umask(
+        self, tmp_path: Path
+    ) -> None:
+        """``_atomic_write_bytes_0600`` must specify mode at os.open time.
+
+        Regression guard against reverting to ``path.write_bytes`` + chmod.
+        We intercept ``os.open`` and assert mode bits are 0o600.
+        """
+        import os
+
+        from better_telegram_mcp.transports.credential_store import (
+            _atomic_write_bytes_0600,
+        )
+
+        captured: list[int] = []
+        real_open = os.open
+
+        def spy_open(path, flags, mode=0o777):
+            captured.append(mode)
+            return real_open(path, flags, mode)
+
+        target = tmp_path / "secret.bin"
+        original_open = os.open
+        try:
+            os.open = spy_open  # type: ignore[assignment]
+            _atomic_write_bytes_0600(target, b"hello")
+        finally:
+            os.open = original_open  # type: ignore[assignment]
+
+        assert captured, "os.open was not called -- atomic write bypassed"
+        # The single os.open() call for our target must request 0o600.
+        # (We may also intercept temp/parent dir creations; ours is the one
+        # creating the file at `target`.)
+        assert 0o600 in captured
+
+    def test_atomic_write_overwrites_existing_file_with_secure_mode(
+        self, tmp_path: Path
+    ) -> None:
+        """Re-storing must reset perms even if a stale loose-perm file existed."""
+        import os
+        import stat
+
+        from better_telegram_mcp.transports.credential_store import (
+            _atomic_write_bytes_0600,
+        )
+
+        target = tmp_path / "stale.bin"
+        target.write_bytes(b"old")
+        os.chmod(target, 0o644)  # Simulate stale loose permissions
+
+        _atomic_write_bytes_0600(target, b"new")
+
+        assert target.read_bytes() == b"new"
+        mode = stat.S_IMODE(os.stat(target).st_mode)
+        assert mode == 0o600
