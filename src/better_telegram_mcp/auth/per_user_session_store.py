@@ -73,28 +73,48 @@ class PerUserSessionStore:
         # Legacy: use hardcoded salt for backward compat on first read
         return _LEGACY_SALT
 
+    @classmethod
+    def _secure_write(cls, path: Path, data: bytes) -> None:
+        """Securely write data to a file with 0o600 permissions to prevent TOCTOU."""
+        flags = os.O_CREAT | os.O_WRONLY | os.O_TRUNC
+        mode = stat.S_IRUSR | stat.S_IWUSR  # 0o600
+        try:
+            fd = os.open(path, flags, mode)
+        except OSError:
+            # Fallback if os.open fails (e.g. unusual platform restrictions)
+            path.write_bytes(data)
+            try:
+                path.chmod(mode)
+            except OSError:
+                pass
+            return
+
+        try:
+            # os.open mode only applies to new files; enforce on existing files
+            try:
+                os.chmod(path, mode)
+            except OSError:
+                pass
+            with os.fdopen(fd, "wb") as f:
+                f.write(data)
+        except Exception:
+            os.close(fd)
+            raise
+
     def _persist_salt(self, salt: bytes) -> None:
         """Save random salt to disk (called on first store)."""
         self._salt_path.parent.mkdir(parents=True, exist_ok=True)
-        self._salt_path.write_bytes(salt)
-        try:
-            self._salt_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
-        except OSError:
-            pass
+        self._secure_write(self._salt_path, salt)
 
-    @staticmethod
-    def _resolve_or_generate_secret(data_dir: Path) -> str:
+    @classmethod
+    def _resolve_or_generate_secret(cls, data_dir: Path) -> str:
         """Load persisted secret or generate a new one."""
         secret_path = data_dir / ".secret"
         if secret_path.exists():
             return secret_path.read_text().strip()
         data_dir.mkdir(parents=True, exist_ok=True)
         secret = os.urandom(32).hex()
-        secret_path.write_text(secret)
-        try:
-            secret_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
-        except OSError:
-            pass  # Windows may not support chmod
+        cls._secure_write(secret_path, secret.encode("utf-8"))
         return secret
 
     def _derive_key(self) -> bytes:
@@ -145,11 +165,7 @@ class PerUserSessionStore:
         self._cached_sessions = copy.deepcopy(sessions)
         plaintext = json.dumps(sessions).encode()
         encrypted = self._encrypt(plaintext)
-        self._path.write_bytes(encrypted)
-        try:
-            self._path.chmod(stat.S_IRUSR | stat.S_IWUSR)
-        except OSError:
-            pass
+        self._secure_write(self._path, encrypted)
 
     def store(self, bearer: str, info: SessionInfo) -> None:
         """Store a session for the given bearer token."""
