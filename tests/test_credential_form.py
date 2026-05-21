@@ -209,3 +209,47 @@ def test_bot_token_only_prefill_marks_bot_token_required_only() -> None:
     bot_input = html.split('name="TELEGRAM_BOT_TOKEN"')[1].split("/>")[0]
     assert "required" in bot_input
     assert "required" not in phone_input
+
+
+def test_inputs_have_semantic_autocomplete_hints() -> None:
+    """Mobile autofill / password managers expect specific autocomplete tokens.
+
+    - Bot token: ``current-password`` (it's a long opaque secret most users
+      copy from BotFather then paste; password-manager autofill should work).
+    - Phone: ``tel`` (so iOS/Android offer phone autofill from contacts).
+    """
+    html = render_telegram_credential_form(SCHEMA, "/auth")
+    bot_input = html.split('name="TELEGRAM_BOT_TOKEN"')[1].split("/>")[0]
+    phone_input = html.split('name="TELEGRAM_PHONE"')[1].split("/>")[0]
+    assert 'autocomplete="current-password"' in bot_input
+    assert 'autocomplete="tel"' in phone_input
+    assert 'inputmode="tel"' in phone_input
+
+
+def test_step_input_uses_one_time_code_autocomplete_for_otp() -> None:
+    """OTP step gets ``autocomplete="one-time-code"`` so SMS autofill works.
+
+    The 2FA password step gets ``current-password`` instead. The JS that
+    drives step-input rendering must set both hints based on ``input_type``.
+    """
+    html = render_telegram_credential_form(SCHEMA, "/auth")
+    # OTP path
+    assert 'inputEl.setAttribute("autocomplete", "one-time-code")' in html
+    assert 'inputEl.setAttribute("inputmode", "numeric")' in html
+    # Password (2FA) path
+    assert 'inputEl.setAttribute("autocomplete", "current-password")' in html
+
+
+def test_form_has_xss_safe_submit_url_handling() -> None:
+    """Submit URL is HTML-escaped on insertion (defense in depth).
+
+    A malicious nonce containing ``"`` must not break out of the JS string
+    literal. The form uses Python ``html.escape(..., quote=True)`` which
+    converts ``"`` to ``&quot;`` before insertion.
+    """
+    evil_url = '/authorize?nonce="><script>alert(1)</script>'
+    html = render_telegram_credential_form(SCHEMA, evil_url)
+    # Must NOT contain the raw evil URL anywhere
+    assert '"><script>' not in html
+    # Should contain the escaped form
+    assert "&quot;&gt;&lt;script&gt;" in html

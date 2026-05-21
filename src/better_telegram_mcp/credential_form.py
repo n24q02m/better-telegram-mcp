@@ -390,10 +390,11 @@ def render_telegram_credential_form(
                             type="password"
                             placeholder="123456:ABC-DEF..."
                             class="field-input"
-                            autocomplete="off"
+                            autocomplete="current-password"
                             autocorrect="off"
                             autocapitalize="off"
-                            spellcheck="false"{bot_token_value_attr}
+                            spellcheck="false"
+                            inputmode="text"{bot_token_value_attr}
                             aria-describedby="help-bot-token status-box"{bot_token_required}
                         />
                         <p id="help-bot-token" class="help-text">
@@ -414,7 +415,8 @@ def render_telegram_credential_form(
                             type="tel"
                             placeholder="+84..."
                             class="field-input"
-                            autocomplete="off"
+                            autocomplete="tel"
+                            inputmode="tel"
                             autocorrect="off"
                             autocapitalize="off"
                             spellcheck="false"{phone_value_attr}
@@ -575,9 +577,22 @@ def render_telegram_credential_form(
                 }}
 
                 promptEl.textContent = ns.text || "";
-                inputEl.setAttribute("type", ns.input_type || "text");
+                var stepType = ns.input_type || "text";
+                inputEl.setAttribute("type", stepType);
                 inputEl.setAttribute("placeholder", ns.placeholder || "");
                 inputEl.dataset.field = ns.field || "value";
+                // Semantic autofill hints. OTP step gets `one-time-code` so
+                // mobile keyboards offer the SMS autofill bubble; the 2FA
+                // password step gets `current-password` so password managers
+                // can fill from a saved Telegram 2FA entry.
+                if (stepType === "password") {{
+                    inputEl.setAttribute("autocomplete", "current-password");
+                    inputEl.setAttribute("inputmode", "text");
+                }} else {{
+                    inputEl.setAttribute("autocomplete", "one-time-code");
+                    inputEl.setAttribute("inputmode", "numeric");
+                    inputEl.setAttribute("pattern", "[0-9]*");
+                }}
                 inputEl.focus();
             }}
 
