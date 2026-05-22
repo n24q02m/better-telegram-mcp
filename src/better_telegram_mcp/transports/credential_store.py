@@ -20,6 +20,52 @@ _LEGACY_SALT = b"mcp-telegram-creds"
 _KDF_ITERATIONS = 600_000
 _NONCE_SIZE = 12
 
+# POSIX: 0o600 (owner-only RW). Used by atomic_write_bytes_0600 so we never
+# leave a window where the file exists with broader permissions.
+_OWNER_RW = stat.S_IRUSR | stat.S_IWUSR
+
+
+def _atomic_write_bytes_0600(path: Path, data: bytes) -> None:
+    """Write ``data`` to ``path`` atomically with 0o600 permissions.
+
+    Eliminates the open-then-chmod TOCTOU race that was flagged by code
+    scanning: the previous flow was ``path.write_bytes(data); path.chmod(0o600)``,
+    which briefly leaves the file world-readable on POSIX (the default umask
+    interacts with the create syscall before chmod gets to tighten the mode).
+
+    Strategy:
+      1. ``os.open(O_CREAT|O_WRONLY|O_TRUNC, mode=0o600)`` creates the file
+         with the secure mode in a single syscall (no race window). ``umask``
+         can still narrow but not widen the permissions.
+      2. ``O_BINARY`` is OR-ed in on Windows so the raw ``os.write`` does not
+         perform LF->CRLF translation — the payload here is AES-GCM
+         ciphertext and any such translation corrupts it (``pathlib``'s
+         ``write_bytes`` was implicitly binary; ``os.open`` defaults to text
+         mode on Windows).
+      3. After write+close, ``os.chmod`` to 0o600 enforces the exact mode
+         even when ``umask`` was unusually permissive or when the file
+         already existed (O_CREAT|O_TRUNC truncates but preserves perms).
+         ``os.chmod`` failure on non-POSIX filesystems is harmless and
+         swallowed.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    # Windows: force binary mode so ciphertext bytes are written verbatim.
+    if hasattr(os, "O_BINARY"):
+        flags |= os.O_BINARY
+    if hasattr(os, "O_CLOEXEC"):
+        flags |= os.O_CLOEXEC
+    fd = os.open(str(path), flags, _OWNER_RW)
+    try:
+        os.write(fd, data)
+    finally:
+        os.close(fd)
+    try:
+        os.chmod(str(path), _OWNER_RW)
+    except OSError:
+        # Windows may not support chmod / non-POSIX FS
+        pass
+
 
 class CredentialStore:
     """Server-side encrypted credential storage.
@@ -48,29 +94,20 @@ class CredentialStore:
         if self._path.exists():
             return _LEGACY_SALT
 
-        # New installation: generate random salt
+        # New installation: generate random salt and persist atomically
+        # with 0o600 (no open->chmod TOCTOU window).
         salt = os.urandom(16)
-        self._salt_path.parent.mkdir(parents=True, exist_ok=True)
-        self._salt_path.write_bytes(salt)
-        try:
-            self._salt_path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
-        except OSError:
-            pass
+        _atomic_write_bytes_0600(self._salt_path, salt)
         return salt
 
     @staticmethod
     def _resolve_or_generate_secret(data_dir: Path) -> str:
-        """Load persisted secret or generate a new one."""
+        """Load persisted secret or generate a new one (atomic 0o600 write)."""
         secret_path = data_dir / ".secret"
         if secret_path.exists():
             return secret_path.read_text().strip()
-        data_dir.mkdir(parents=True, exist_ok=True)
         secret = os.urandom(32).hex()
-        secret_path.write_text(secret)
-        try:
-            secret_path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
-        except OSError:
-            pass  # Windows may not support chmod
+        _atomic_write_bytes_0600(secret_path, secret.encode())
         return secret
 
     def _derive_key(self) -> bytes:
@@ -86,17 +123,16 @@ class CredentialStore:
         return self._cached_key
 
     def store(self, credentials: dict[str, str]) -> None:
-        """Encrypt and save credentials."""
-        self._path.parent.mkdir(parents=True, exist_ok=True)
+        """Encrypt and save credentials atomically with 0o600 permissions.
 
-        # Migrate from legacy hardcoded salt to random salt on re-encryption
+        Replaces the prior write-then-chmod sequence (which left a TOCTOU
+        window where the encrypted blob existed with default umask perms
+        before chmod ran).
+        """
+        # Migrate from legacy hardcoded salt to random salt on re-encryption.
         if self._salt == _LEGACY_SALT:
             new_salt = os.urandom(16)
-            self._salt_path.write_bytes(new_salt)
-            try:
-                self._salt_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
-            except OSError:
-                pass
+            _atomic_write_bytes_0600(self._salt_path, new_salt)
             self._salt = new_salt
             self._cached_key = None  # Force re-derivation
 
@@ -106,11 +142,7 @@ class CredentialStore:
         plaintext = json.dumps(credentials).encode()
         ciphertext = aesgcm.encrypt(nonce, plaintext, None)
         self._cached_credentials = copy.deepcopy(credentials)
-        self._path.write_bytes(nonce + ciphertext)
-        try:
-            self._path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
-        except OSError:
-            pass  # Windows may not support chmod
+        _atomic_write_bytes_0600(self._path, nonce + ciphertext)
 
     def load(self) -> dict[str, str] | None:
         """Load and decrypt credentials. Returns None if not found."""
