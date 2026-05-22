@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -9,6 +10,15 @@ import pytest
 from cryptography.exceptions import InvalidTag
 
 from better_telegram_mcp.transports.credential_store import CredentialStore
+
+# POSIX file mode bits (0o600) are not meaningful on Windows -- os.chmod()
+# there only toggles the read-only bit. Tests that assert an exact mode are
+# POSIX-only; the atomic-write behaviour itself is still exercised on Windows
+# by test_atomic_write_creates_with_secure_mode_not_default_umask.
+posix_only = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="POSIX file mode bits (0o600) are not enforced on Windows",
+)
 
 
 @pytest.fixture
@@ -240,10 +250,7 @@ class TestAtomicWriteTOCTOU:
     is to create the file with mode 0o600 in a single ``os.open()`` call.
     """
 
-    @pytest.mark.skipif(
-        not hasattr(__import__("os"), "stat"),
-        reason="POSIX-only test (file mode bits)",
-    )
+    @posix_only
     def test_credentials_file_is_0o600_immediately(
         self, data_dir: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -263,6 +270,7 @@ class TestAtomicWriteTOCTOU:
         # 0o600 == owner R/W only (no group/other access)
         assert mode == 0o600, f"expected 0o600, got 0o{mode:o}"
 
+    @posix_only
     def test_salt_file_is_0o600_immediately(self, data_dir: Path) -> None:
         import os
         import stat
@@ -276,6 +284,7 @@ class TestAtomicWriteTOCTOU:
         mode = stat.S_IMODE(os.stat(salt_path).st_mode)
         assert mode == 0o600, f"expected 0o600, got 0o{mode:o}"
 
+    @posix_only
     def test_secret_file_is_0o600_immediately(self, tmp_path: Path) -> None:
         import os
         import stat
@@ -326,6 +335,7 @@ class TestAtomicWriteTOCTOU:
         # creating the file at `target`.)
         assert 0o600 in captured
 
+    @posix_only
     def test_atomic_write_overwrites_existing_file_with_secure_mode(
         self, tmp_path: Path
     ) -> None:

@@ -1,6 +1,6 @@
 {
   "name": "better-telegram-mcp",
-  "description": "Telegram dual-mode (Bot API + MTProto) \u2014 messages, chats, media, contacts",
+  "description": "Telegram dual-mode (Bot API + MTProto) — messages, chats, media, contacts",
   "version": "4.12.0-beta.1",
   "userConfig": {
     "TELEGRAM_BOT_TOKEN": {
