@@ -485,6 +485,14 @@ def render_telegram_credential_form(
                 statusBox.className = "status-box " + type;
                 statusBox.textContent = message;
                 statusBox.style.display = "block";
+
+                if (type === "error") {{
+                    statusBox.setAttribute("role", "alert");
+                    statusBox.setAttribute("aria-live", "assertive");
+                }} else {{
+                    statusBox.setAttribute("role", "status");
+                    statusBox.setAttribute("aria-live", "polite");
+                }}
             }}
 
             // Derive /otp endpoint URL from submitUrl (replaces /authorize... with /otp).
@@ -560,6 +568,7 @@ def render_telegram_credential_form(
                     errorEl.id = "step-error";
                     errorEl.className = "status-box error";
                     errorEl.setAttribute("role", "alert");
+                    errorEl.setAttribute("aria-live", "assertive");
                     errorEl.style.display = "none";
                     container.appendChild(errorEl);
 
@@ -637,6 +646,8 @@ def render_telegram_credential_form(
                                     }}
                                     var done = document.createElement("div");
                                     done.className = "status-box success";
+                                    done.setAttribute("role", "status");
+                                    done.setAttribute("aria-live", "polite");
                                     done.style.display = "block";
                                     if (typeof pendingRedirectUrl === "string" && pendingRedirectUrl.length > 0) {{
                                         done.textContent = "Setup complete! Redirecting...";
