@@ -37,14 +37,22 @@ def _atomic_write_bytes_0600(path: Path, data: bytes) -> None:
       1. ``os.open(O_CREAT|O_WRONLY|O_TRUNC, mode=0o600)`` creates the file
          with the secure mode in a single syscall (no race window). ``umask``
          can still narrow but not widen the permissions.
-      2. After write+close, ``os.chmod`` to 0o600 enforces the exact mode
+      2. ``O_BINARY`` is OR-ed in on Windows so the raw ``os.write`` does not
+         perform LF->CRLF translation — the payload here is AES-GCM
+         ciphertext and any such translation corrupts it (``pathlib``'s
+         ``write_bytes`` was implicitly binary; ``os.open`` defaults to text
+         mode on Windows).
+      3. After write+close, ``os.chmod`` to 0o600 enforces the exact mode
          even when ``umask`` was unusually permissive or when the file
          already existed (O_CREAT|O_TRUNC truncates but preserves perms).
-      3. Falls back to ``write_bytes`` on Windows (``OSError`` from chmod is
-         harmless) so behaviour matches the previous implementation there.
+         ``os.chmod`` failure on non-POSIX filesystems is harmless and
+         swallowed.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    # Windows: force binary mode so ciphertext bytes are written verbatim.
+    if hasattr(os, "O_BINARY"):
+        flags |= os.O_BINARY
     if hasattr(os, "O_CLOEXEC"):
         flags |= os.O_CLOEXEC
     fd = os.open(str(path), flags, _OWNER_RW)
