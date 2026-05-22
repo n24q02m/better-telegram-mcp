@@ -317,11 +317,7 @@ class TestSearchMessages:
 
         msgs = [_mock_message(msg_id=i, text=f"msg{i}") for i in range(3)]
 
-        async def mock_iter(*args, **kwargs):
-            for m in msgs:
-                yield m
-
-        mock_client.iter_messages = mock_iter
+        mock_client.get_messages.return_value = msgs
 
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)
@@ -337,11 +333,7 @@ class TestSearchMessages:
 
         msgs = [_mock_message(msg_id=1, text="found")]
 
-        async def mock_iter(*args, **kwargs):
-            for m in msgs:
-                yield m
-
-        mock_client.iter_messages = mock_iter
+        mock_client.get_messages.return_value = msgs
 
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)
