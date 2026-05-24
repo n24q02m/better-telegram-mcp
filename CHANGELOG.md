@@ -2,6 +2,88 @@
 
 <!-- version list -->
 
+## v4.12.0-beta.1 (2026-05-24)
+
+### Bug Fixes
+
+- Close TOCTOU window in atomic file writes, parallelize shutdown
+  ([#543](https://github.com/n24q02m/better-telegram-mcp/pull/543),
+  [`c33653f`](https://github.com/n24q02m/better-telegram-mcp/commit/c33653ff39dcf082dc93cb7539fad833c7ceeee5))
+
+- **ci**: Open files in binary mode on Windows in atomic write helper
+  ([#543](https://github.com/n24q02m/better-telegram-mcp/pull/543),
+  [`c33653f`](https://github.com/n24q02m/better-telegram-mcp/commit/c33653ff39dcf082dc93cb7539fad833c7ceeee5))
+
+- **ci**: Skip POSIX mode-bit assertions on Windows
+  ([#543](https://github.com/n24q02m/better-telegram-mcp/pull/543),
+  [`c33653f`](https://github.com/n24q02m/better-telegram-mcp/commit/c33653ff39dcf082dc93cb7539fad833c7ceeee5))
+
+- **deps**: Bump idna to 3.16 + python-multipart to 0.0.29 (Dependabot security alerts)
+  ([`9279f38`](https://github.com/n24q02m/better-telegram-mcp/commit/9279f38c27349a13ddc7fa5fc5f57e4ecdbf3456))
+
+- **deps**: Pin pydantic <2.13 for mcp-core 1.14.0 compatibility
+  ([#509](https://github.com/n24q02m/better-telegram-mcp/pull/509),
+  [`88f3364`](https://github.com/n24q02m/better-telegram-mcp/commit/88f3364acdb3bcd2261456b80a8753d18d1db286))
+
+- **deps**: Update non-major dependencies
+  ([#509](https://github.com/n24q02m/better-telegram-mcp/pull/509),
+  [`88f3364`](https://github.com/n24q02m/better-telegram-mcp/commit/88f3364acdb3bcd2261456b80a8753d18d1db286))
+
+- **form**: Semantic autocomplete hints for mobile autofill + password managers
+  ([#543](https://github.com/n24q02m/better-telegram-mcp/pull/543),
+  [`c33653f`](https://github.com/n24q02m/better-telegram-mcp/commit/c33653ff39dcf082dc93cb7539fad833c7ceeee5))
+
+- **security**: Atomic 0o600 file creation to close TOCTOU race
+  ([#543](https://github.com/n24q02m/better-telegram-mcp/pull/543),
+  [`c33653f`](https://github.com/n24q02m/better-telegram-mcp/commit/c33653ff39dcf082dc93cb7539fad833c7ceeee5))
+
+### Chores
+
+- **deps**: Update actions/create-github-app-token digest to bcd2ba4
+  ([#519](https://github.com/n24q02m/better-telegram-mcp/pull/519),
+  [`c365848`](https://github.com/n24q02m/better-telegram-mcp/commit/c365848a2c122d488ee27516db9045f11701e9b2))
+
+- **deps**: Update actions/dependency-review-action action to v5
+  ([#510](https://github.com/n24q02m/better-telegram-mcp/pull/510),
+  [`afcca41`](https://github.com/n24q02m/better-telegram-mcp/commit/afcca41f0b2a71e6373ef2e958ea3981fc4548e3))
+
+- **deps**: Update codecov/codecov-action digest to e79a696
+  ([#544](https://github.com/n24q02m/better-telegram-mcp/pull/544),
+  [`fb9a751`](https://github.com/n24q02m/better-telegram-mcp/commit/fb9a75145a452e18a0f32a8b115831261968c948))
+
+- **deps**: Update docker/build-push-action digest to f9f3042
+  ([#545](https://github.com/n24q02m/better-telegram-mcp/pull/545),
+  [`d0b6c9f`](https://github.com/n24q02m/better-telegram-mcp/commit/d0b6c9fc7c9d1a5d587682bab440a60419cd8509))
+
+- **deps**: Update docker/login-action digest to 650006c
+  ([#546](https://github.com/n24q02m/better-telegram-mcp/pull/546),
+  [`dc8e1fb`](https://github.com/n24q02m/better-telegram-mcp/commit/dc8e1fbc8cbd6bc974549ee5a5f8c192b7746db6))
+
+- **deps**: Update docker/setup-buildx-action digest to d7f5e7f
+  ([#547](https://github.com/n24q02m/better-telegram-mcp/pull/547),
+  [`905c496`](https://github.com/n24q02m/better-telegram-mcp/commit/905c496b7f6ef90b12ba1d72c1bc686e3f22e2fc))
+
+- **deps**: Update python:3.13-slim-bookworm docker digest to e4fa1f9
+  ([#512](https://github.com/n24q02m/better-telegram-mcp/pull/512),
+  [`6447163`](https://github.com/n24q02m/better-telegram-mcp/commit/64471634c7ef73110b9b3d007bb37163a75d3ecd))
+
+- **deps**: Update step-security/harden-runner digest to ab7a940
+  ([#523](https://github.com/n24q02m/better-telegram-mcp/pull/523),
+  [`32cd58b`](https://github.com/n24q02m/better-telegram-mcp/commit/32cd58bec9f1ff9c92390e9e648d548fc88f6f72))
+
+### Features
+
+- **a11y**: Add aria-live and roles to dynamic status messages
+  ([#550](https://github.com/n24q02m/better-telegram-mcp/pull/550),
+  [`2d46d37`](https://github.com/n24q02m/better-telegram-mcp/commit/2d46d3769a1046ec606d8ac77d1f0018e3e32089))
+
+### Performance Improvements
+
+- **shutdown**: Disconnect Telegram backends concurrently via asyncio.gather
+  ([#543](https://github.com/n24q02m/better-telegram-mcp/pull/543),
+  [`c33653f`](https://github.com/n24q02m/better-telegram-mcp/commit/c33653ff39dcf082dc93cb7539fad833c7ceeee5))
+
+
 ## v4.11.0 (2026-05-09)
 
 
