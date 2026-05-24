@@ -237,10 +237,11 @@ class UserBackend(TelegramBackend):
     ) -> list[dict[str, Any]]:
         client = self._ensure_client()
         entity = chat_id if chat_id is not None else None
-        return [
-            self._serialize_message(msg)
-            async for msg in client.iter_messages(entity, search=query, limit=limit)
-        ]
+        # Bolt: Using get_messages() with search parameter is more efficient than
+        # async iteration (iter_messages) for retrieving a specific number of results,
+        # as it fetches them in a single bulk request.
+        messages = await client.get_messages(entity, search=query, limit=limit)
+        return [self._serialize_message(msg) for msg in messages]
 
     async def get_history(
         self,
