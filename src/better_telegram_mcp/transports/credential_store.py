@@ -56,15 +56,20 @@ def _atomic_write_bytes_0600(path: Path, data: bytes) -> None:
     if hasattr(os, "O_CLOEXEC"):
         flags |= os.O_CLOEXEC
     fd = os.open(str(path), flags, _OWNER_RW)
+
+    # os.open mode only applies to newly created files. We must explicitly chmod
+    # to enforce permissions on existing files before writing to avoid silent truncation.
     try:
-        os.write(fd, data)
-    finally:
-        os.close(fd)
-    try:
-        os.chmod(str(path), _OWNER_RW)
+        if hasattr(os, "fchmod"):
+            os.fchmod(fd, _OWNER_RW)
+        else:
+            os.chmod(str(path), _OWNER_RW)
     except OSError:
         # Windows may not support chmod / non-POSIX FS
         pass
+
+    with os.fdopen(fd, "wb") as f:
+        f.write(data)
 
 
 class CredentialStore:
