@@ -8,3 +8,7 @@
 ## 2024-06-25 - Focus Management in Async Forms
 **Learning:** In asynchronous form flows (e.g., fetch API calls in `credential_form.py`), failing to explicitly restore keyboard focus to the input field within error handling branches (like `.catch()` blocks) causes screen readers and keyboard users to lose their context upon network or validation failures. This creates a frustrating experience where users have to navigate back to the input to correct the issue.
 **Action:** Always ensure that keyboard focus is returned to the relevant interactive element (e.g., `inputEl.focus();`) after an asynchronous operation fails and the UI is reset.
+
+## 2024-07-28 - W3C ARIA Tablist Pattern Keyboard Navigation
+**Learning:** For custom tabbed interfaces (like the Bot Mode / User Mode toggle), setting `role="tablist"` and `role="tab"` is not enough for complete accessibility. Users relying on keyboard navigation expect the W3C ARIA Tablist pattern, which specifically dictates that `Tab` moves focus *into* the active tab, and `ArrowLeft` / `ArrowRight` navigate *between* tabs. Without this keyboard event handling, custom tab arrays remain difficult or confusing to navigate for screen reader and keyboard-only users.
+**Action:** When implementing custom tabs, always include a W3C-compliant roving `tabindex` (setting `tabindex="0"` on the active tab and `tabindex="-1"` on inactive tabs) and add `keydown` event listeners to handle `ArrowLeft` and `ArrowRight` keys for seamlessly shifting focus and selection between the tab buttons.
