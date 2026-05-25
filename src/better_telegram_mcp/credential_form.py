@@ -677,6 +677,7 @@ def render_telegram_credential_form(
                         buttonEl.disabled = false;
                         buttonEl.removeAttribute("aria-busy");
                         buttonEl.textContent = "Verify";
+                        inputEl.focus();
                     }});
             }}
 
