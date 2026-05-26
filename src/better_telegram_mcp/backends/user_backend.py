@@ -445,7 +445,7 @@ class UserBackend(TelegramBackend):
         elif media_type == "video":
             kwargs["video_note"] = False
 
-        if file_path_or_url.startswith(("http://", "https://")):
+        if file_path_or_url.lower().startswith(("http://", "https://")):
             validate_url(file_path_or_url)
         else:
             validate_file_path(file_path_or_url)
