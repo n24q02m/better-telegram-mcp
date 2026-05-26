@@ -66,6 +66,8 @@ def render_telegram_credential_form(
     user_tab_class = "tab active" if initial_tab == "user" else "tab"
     bot_tab_aria = "true" if initial_tab == "bot" else "false"
     user_tab_aria = "true" if initial_tab == "user" else "false"
+    bot_tab_tabindex = "0" if initial_tab == "bot" else "-1"
+    user_tab_tabindex = "0" if initial_tab == "user" else "-1"
     bot_panel_class = "tab-panel active" if initial_tab == "bot" else "tab-panel"
     user_panel_class = "tab-panel active" if initial_tab == "user" else "tab-panel"
     # ``required`` is set on the active panel's inputs only; the inactive
@@ -373,8 +375,8 @@ def render_telegram_credential_form(
             </div>
 
             <div class="tabs" role="tablist">
-                <button type="button" id="tab-bot" class="{bot_tab_class}" data-tab="bot" role="tab" aria-selected="{bot_tab_aria}" aria-controls="panel-bot">Bot Mode</button>
-                <button type="button" id="tab-user" class="{user_tab_class}" data-tab="user" role="tab" aria-selected="{user_tab_aria}" aria-controls="panel-user">User Mode</button>
+                <button type="button" id="tab-bot" class="{bot_tab_class}" data-tab="bot" role="tab" aria-selected="{bot_tab_aria}" tabindex="{bot_tab_tabindex}" aria-controls="panel-bot">Bot Mode</button>
+                <button type="button" id="tab-user" class="{user_tab_class}" data-tab="user" role="tab" aria-selected="{user_tab_aria}" tabindex="{user_tab_tabindex}" aria-controls="panel-user">User Mode</button>
             </div>
 
             <form id="credential-form" novalidate>
@@ -445,7 +447,9 @@ def render_telegram_credential_form(
 
             // --- Tab switching -------------------------------------------------
             var tabs = document.querySelectorAll(".tab");
-            tabs.forEach(function (tab) {{
+            var tabsArray = Array.prototype.slice.call(tabs);
+
+            tabs.forEach(function (tab, index) {{
                 tab.addEventListener("click", function () {{
                     if (tab.disabled) {{
                         return;
@@ -454,9 +458,11 @@ def render_telegram_credential_form(
                     tabs.forEach(function (t) {{
                         t.classList.remove("active");
                         t.setAttribute("aria-selected", "false");
+                        t.setAttribute("tabindex", "-1");
                     }});
                     tab.classList.add("active");
                     tab.setAttribute("aria-selected", "true");
+                    tab.setAttribute("tabindex", "0");
                     document.querySelectorAll(".tab-panel").forEach(function (p) {{
                         p.classList.remove("active");
                     }});
@@ -476,6 +482,24 @@ def render_telegram_credential_form(
                         panel.querySelectorAll(".field-input").forEach(function (i) {{
                             i.setAttribute("required", "");
                         }});
+                    }}
+                }});
+
+                // Keyboard navigation for W3C ARIA tablist pattern
+                tab.addEventListener("keydown", function(e) {{
+                    var targetIndex = -1;
+                    if (e.key === "ArrowRight") {{
+                        targetIndex = index + 1;
+                        if (targetIndex >= tabsArray.length) targetIndex = 0;
+                    }} else if (e.key === "ArrowLeft") {{
+                        targetIndex = index - 1;
+                        if (targetIndex < 0) targetIndex = tabsArray.length - 1;
+                    }}
+
+                    if (targetIndex !== -1) {{
+                        e.preventDefault();
+                        tabsArray[targetIndex].focus();
+                        tabsArray[targetIndex].click();
                     }}
                 }});
             }});
@@ -772,6 +796,15 @@ def render_telegram_credential_form(
                                 submitBtn.textContent = "Connect";
                                 form.querySelectorAll(".field-input").forEach(function (i) {{ i.disabled = false; }});
                                 tabs.forEach(function (t) {{ t.disabled = false; }});
+
+                                // Restore focus to the first visible input field so users can immediately correct it
+                                var activePanel = document.querySelector('.tab-panel.active');
+                                if (activePanel) {{
+                                    var firstInput = activePanel.querySelector('.field-input');
+                                    if (firstInput) {{
+                                        firstInput.focus();
+                                    }}
+                                }}
                             }}
                         }});
                     }})
@@ -782,6 +815,15 @@ def render_telegram_credential_form(
                         submitBtn.textContent = "Connect";
                         form.querySelectorAll(".field-input").forEach(function (i) {{ i.disabled = false; }});
                         tabs.forEach(function (t) {{ t.disabled = false; }});
+
+                        // Restore focus to the first visible input field so users can immediately correct it
+                        var activePanel = document.querySelector('.tab-panel.active');
+                        if (activePanel) {{
+                            var firstInput = activePanel.querySelector('.field-input');
+                            if (firstInput) {{
+                                firstInput.focus();
+                            }}
+                        }}
                     }});
             }});
         }})();
