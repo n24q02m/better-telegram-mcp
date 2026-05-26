@@ -141,6 +141,11 @@ def _start_single_user_http(settings: Settings) -> None:
     port = int(os.environ.get("PORT", "0"))
     host = os.environ.get("HOST")
 
+    # MCP_AUTH_DISABLE=1 skips Bearer JWT verification on /mcp -- for
+    # deployments behind an external auth boundary (reverse proxy / API
+    # gateway). See mcp-core BearerMCPApp.auth_disabled (>=1.15.0-beta.3).
+    auth_disabled = os.environ.get("MCP_AUTH_DISABLE") == "1"
+
     asyncio.run(
         run_http_server(
             mcp,
@@ -151,6 +156,7 @@ def _start_single_user_http(settings: Settings) -> None:
             on_credentials_saved=save_credentials,
             on_step_submitted=on_step_submitted,
             custom_credential_form_html=render_telegram_credential_form,
+            auth_disabled=auth_disabled,
         )
     )
 
@@ -288,6 +294,7 @@ def _start_multi_user_http(settings: Settings) -> None:
                 on_step_submitted=on_step_submitted,
                 custom_credential_form_html=render_telegram_credential_form,
                 auth_scope=_per_request_sub_scope,
+                auth_disabled=os.environ.get("MCP_AUTH_DISABLE") == "1",
             )
         finally:
             try:
