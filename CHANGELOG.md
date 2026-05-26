@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.12.0-beta.4 (2026-05-26)
+
+### Features
+
+- Wire MCP_AUTH_DISABLE env to run_http_server(auth_disabled=)
+  ([`983320f`](https://github.com/n24q02m/better-telegram-mcp/commit/983320f0f8d692a38321dcce212f8da1e5863115))
+
+
 ## v4.12.0-beta.3 (2026-05-26)
 
 ### Features
