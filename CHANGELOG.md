@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v4.12.0-beta.3 (2026-05-26)
+
+### Features
+
+- Add MCP_AUTH_DISABLE env flag for external auth boundary
+  ([`19ea02f`](https://github.com/n24q02m/better-telegram-mcp/commit/19ea02fdc5d935ff7854bdcae4a5874d7a31dd40))
+
+- **ux**: Improve credential form accessibility
+  ([#553](https://github.com/n24q02m/better-telegram-mcp/pull/553),
+  [`aa94c0f`](https://github.com/n24q02m/better-telegram-mcp/commit/aa94c0f5f923e336520b2a906c48b918cbdff77e))
+
+- **ux**: Restore focus on network error in credential form
+  ([#552](https://github.com/n24q02m/better-telegram-mcp/pull/552),
+  [`274f785`](https://github.com/n24q02m/better-telegram-mcp/commit/274f78546deb625adce551698b79e4619ad57ba1))
+
+
 ## v4.12.0-beta.2 (2026-05-24)
 
 ### Bug Fixes
