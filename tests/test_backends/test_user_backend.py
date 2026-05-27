@@ -913,7 +913,9 @@ class TestSendMedia:
             123, "https://example.com/photo.jpg", caption="Nice"
         )
 
-    async def test_send_media_mixed_case_url(self, tmp_path, mock_client, mock_client_class):
+    async def test_send_media_mixed_case_url(
+        self, tmp_path, mock_client, mock_client_class
+    ):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         mock_client.send_file = AsyncMock(return_value=_mock_message())
