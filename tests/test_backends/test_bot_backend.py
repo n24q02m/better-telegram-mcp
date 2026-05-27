@@ -297,6 +297,15 @@ async def test_send_media_url():
     assert result["message_id"] == 50
 
 
+async def test_send_media_mixed_case_url():
+    msg = {"message_id": 50}
+    bot = _make_bot(msg)
+    result = await bot.send_media(
+        123, "photo", "hTtPs://example.com/photo.jpg", caption="Nice"
+    )
+    assert result["message_id"] == 50
+
+
 async def test_send_media_file(tmp_path):
     f = tmp_path / "test.jpg"
     f.write_bytes(b"fake image data")
