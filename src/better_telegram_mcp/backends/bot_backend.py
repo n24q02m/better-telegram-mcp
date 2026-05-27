@@ -248,7 +248,7 @@ class BotBackend(TelegramBackend):
         }
         method = method_map.get(media_type, "sendDocument")
 
-        if file_path_or_url.startswith(("http://", "https://")):
+        if file_path_or_url.lower().startswith(("http://", "https://")):
             validate_url(file_path_or_url)
             field = media_type if media_type != "document" else "document"
             return await self._call(

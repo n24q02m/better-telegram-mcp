@@ -913,6 +913,24 @@ class TestSendMedia:
             123, "https://example.com/photo.jpg", caption="Nice"
         )
 
+    async def test_send_media_mixed_case_url(self, tmp_path, mock_client, mock_client_class):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_client.send_file = AsyncMock(return_value=_mock_message())
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        result = await backend.send_media(
+            123, "photo", "hTtPs://example.com/photo.jpg", caption="Nice"
+        )
+
+        assert result["message_id"] == 1
+        mock_client.send_file.assert_awaited_once_with(
+            123, "hTtPs://example.com/photo.jpg", caption="Nice"
+        )
+
     async def test_send_voice(self, tmp_path, mock_client, mock_client_class):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
