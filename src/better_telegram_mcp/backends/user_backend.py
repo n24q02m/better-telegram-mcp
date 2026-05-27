@@ -237,11 +237,13 @@ class UserBackend(TelegramBackend):
     ) -> list[dict[str, Any]]:
         client = self._ensure_client()
         entity = chat_id if chat_id is not None else None
-        # Bolt: Using get_messages() with search parameter is more efficient than
-        # async iteration (iter_messages) for retrieving a specific number of results,
-        # as it fetches them in a single bulk request.
-        messages = await client.get_messages(entity, search=query, limit=limit)
-        return [self._serialize_message(msg) for msg in messages]
+        # Bolt: Avoid the get_messages() anti-pattern, which just calls
+        # iter_messages(...).collect(). Using async comprehensions improves
+        # memory efficiency without worsening network latency.
+        return [
+            self._serialize_message(msg)
+            async for msg in client.iter_messages(entity, search=query, limit=limit)
+        ]
 
     async def get_history(
         self,
@@ -254,10 +256,13 @@ class UserBackend(TelegramBackend):
         kwargs: dict[str, Any] = {"limit": limit}
         if offset_id is not None:
             kwargs["offset_id"] = offset_id
-        # Bolt: using get_messages() is more efficient for fetching a specific
-        # number of messages as it avoids the overhead of async iteration.
-        messages = await client.get_messages(chat_id, **kwargs)
-        return [self._serialize_message(m) for m in messages]
+        # Bolt: Avoid the get_messages() anti-pattern, which just calls
+        # iter_messages(...).collect(). Using async comprehensions improves
+        # memory efficiency without worsening network latency.
+        return [
+            self._serialize_message(m)
+            async for m in client.iter_messages(chat_id, **kwargs)
+        ]
 
     # --- Chats ---
     async def list_chats(self, *, limit: int = 50) -> list[dict[str, Any]]:
