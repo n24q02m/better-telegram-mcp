@@ -450,6 +450,23 @@ def render_telegram_credential_form(
             var tabsArray = Array.prototype.slice.call(tabs);
 
             tabs.forEach(function (tab, index) {{
+                tab.addEventListener("keydown", function(e) {{
+                    var targetIndex = -1;
+                    if (e.key === "ArrowRight") {{
+                        targetIndex = index + 1;
+                        if (targetIndex >= tabsArray.length) targetIndex = 0;
+                    }} else if (e.key === "ArrowLeft") {{
+                        targetIndex = index - 1;
+                        if (targetIndex < 0) targetIndex = tabsArray.length - 1;
+                    }}
+
+                    if (targetIndex !== -1) {{
+                        e.preventDefault();
+                        tabsArray[targetIndex].focus();
+                        tabsArray[targetIndex].click();
+                    }}
+                }});
+
                 tab.addEventListener("click", function () {{
                     if (tab.disabled) {{
                         return;
