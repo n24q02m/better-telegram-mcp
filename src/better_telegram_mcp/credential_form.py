@@ -132,7 +132,7 @@ def render_telegram_credential_form(
 
         .server-id {{
             font-size: 0.8125rem;
-            color: #666;
+            color: #999;
             font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
             margin-bottom: 0.5rem;
         }}
@@ -213,6 +213,7 @@ def render_telegram_credential_form(
             font-weight: 500;
             color: #ccc;
             margin-bottom: 0.375rem;
+            cursor: pointer;
         }}
 
         .required-badge {{
@@ -253,7 +254,7 @@ def render_telegram_credential_form(
         }}
 
         .field-input::placeholder {{
-            color: #555;
+            color: #888;
         }}
 
         .field-input:disabled {{
@@ -264,7 +265,7 @@ def render_telegram_credential_form(
 
         .help-text {{
             font-size: 0.8125rem;
-            color: #666;
+            color: #999;
             margin-top: 0.375rem;
         }}
 
