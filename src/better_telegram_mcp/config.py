@@ -1,10 +1,8 @@
-from __future__ import annotations
-
 import functools
 import os
 from functools import cached_property
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Self
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings
@@ -51,7 +49,7 @@ class Settings(BaseSettings):
         )
 
     @model_validator(mode="after")
-    def _detect_mode(self) -> Settings:
+    def _detect_mode(self) -> Self:
         # Normalize empty strings to None (plugin.json sets env vars to "" by default)
         self.bot_token = _empty_to_none(self.bot_token)
         self.api_hash = _empty_to_none(self.api_hash)
@@ -82,7 +80,7 @@ class Settings(BaseSettings):
         )
 
     @classmethod
-    def from_relay_config(cls, config: dict[str, str]) -> Settings:
+    def from_relay_config(cls, config: dict[str, str]) -> Self:
         """Create Settings from relay config dict (from config file or relay setup).
 
         Args:
