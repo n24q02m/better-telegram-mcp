@@ -329,14 +329,7 @@ async def chat(
         openWorldHint=True,
     )
 )
-async def media(
-    action: str,
-    chat_id: str | int | None = None,
-    file_path_or_url: str | None = None,
-    message_id: int | None = None,
-    caption: str | None = None,
-    output_dir: str | None = None,
-) -> str:
+async def media(options: MediaOptions) -> str:
     """Send photos, files, voice, video, and download media from messages.
 
     Actions (file_path_or_url: local path or URL):
@@ -349,14 +342,10 @@ async def media(
     if _unconfigured or _pending_auth:
         return _not_ready_response()
 
-    opts = MediaOptions(
-        chat_id=chat_id,
-        file_path_or_url=file_path_or_url,
-        message_id=message_id,
-        caption=caption,
-        output_dir=output_dir,
-    )
-    return await handle_media(get_backend(), action, opts)
+    try:
+        return await handle_media(get_backend(), options)
+    except Exception as e:
+        return str(e)
 
 
 @mcp.tool(

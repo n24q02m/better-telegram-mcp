@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import difflib
+
 from pydantic import BaseModel, Field
 
 from ..backends.base import ModeError, TelegramBackend
@@ -7,6 +9,9 @@ from ..utils.formatting import err, ok, safe_error
 
 
 class MediaOptions(BaseModel):
+    action: str = Field(
+        description="Action: send_photo, send_file, send_voice, send_video, download"
+    )
     chat_id: str | int | None = Field(default=None, description="ID of the chat")
     file_path_or_url: str | None = Field(
         default=None, description="Path or URL of the file to send"
@@ -30,10 +35,10 @@ _ACTION_TO_MEDIA_TYPE = {
 
 async def handle_media(
     backend: TelegramBackend,
-    action: str,
     options: MediaOptions,
 ) -> str:
     try:
+        action = options.action
         if action in _ACTION_TO_MEDIA_TYPE:
             if not options.chat_id or not options.file_path_or_url:
                 return err(
@@ -57,8 +62,6 @@ async def handle_media(
                 options.chat_id, options.message_id, output_dir=options.output_dir
             )
             return ok({"path": path})
-
-        import difflib
 
         valid = sorted([*_ACTION_TO_MEDIA_TYPE, "download"])
         closest = difflib.get_close_matches(action, valid, n=1)

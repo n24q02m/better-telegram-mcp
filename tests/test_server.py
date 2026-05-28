@@ -103,10 +103,14 @@ async def test_media_send_photo(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
+        from better_telegram_mcp.tools.media import MediaOptions
+
         result = await media(
-            action="send_photo",
-            chat_id=123,
-            file_path_or_url="https://example.com/photo.jpg",
+            MediaOptions(
+                action="send_photo",
+                chat_id=123,
+                file_path_or_url="https://example.com/photo.jpg",
+            )
         )
         assert "message_id" in result
     finally:
@@ -298,11 +302,15 @@ async def test_media_blocked_during_pending_auth(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
+        from better_telegram_mcp.tools.media import MediaOptions
+
         result = json.loads(
             await media(
-                action="send_photo",
-                chat_id=123,
-                file_path_or_url="https://example.com/photo.jpg",
+                MediaOptions(
+                    action="send_photo",
+                    chat_id=123,
+                    file_path_or_url="http://example.com/p.jpg",
+                )
             )
         )
         assert "error" in result
@@ -502,11 +510,15 @@ async def test_media_returns_setup_hint_when_unconfigured():
     old = srv._unconfigured
     try:
         srv._unconfigured = True
+        from better_telegram_mcp.tools.media import MediaOptions
+
         result = json.loads(
             await media(
-                action="send_photo",
-                chat_id=123,
-                file_path_or_url="https://example.com/photo.jpg",
+                MediaOptions(
+                    action="send_photo",
+                    chat_id=123,
+                    file_path_or_url="http://example.com/p.jpg",
+                )
             )
         )
         assert result["error"] == "Not configured"
@@ -967,3 +979,35 @@ async def test_run_http():
         assert args[0] is mcp
         assert kwargs["server_name"] == "better-telegram-mcp"
         assert kwargs["port"] == 8080
+
+
+@pytest.mark.asyncio
+async def test_media_unexpected_exception_handling(mock_backend):
+    """media tool catches unexpected exceptions and returns them as strings."""
+    from unittest.mock import patch
+
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import media
+    from better_telegram_mcp.tools.media import MediaOptions
+
+    old_backend = srv._backend
+    old_pending = srv._pending_auth
+    try:
+        srv._backend = mock_backend
+        srv._pending_auth = False
+
+        with patch(
+            "better_telegram_mcp.server.handle_media",
+            side_effect=Exception("unexpected crash"),
+        ):
+            result = await media(
+                MediaOptions(
+                    action="send_photo",
+                    chat_id=123,
+                    file_path_or_url="https://example.com/photo.jpg",
+                )
+            )
+            assert "unexpected crash" in result
+    finally:
+        srv._backend = old_backend
+        srv._pending_auth = old_pending
