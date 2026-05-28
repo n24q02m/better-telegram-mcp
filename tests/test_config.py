@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from better_telegram_mcp.config import Settings
 
 
@@ -86,14 +88,20 @@ def test_session_path(monkeypatch):
     assert str(s.session_path).endswith("default.session")
 
 
-def test_empty_to_none():
+@pytest.mark.parametrize(
+    "input_val, expected",
+    [
+        (None, None),
+        ("", None),
+        ("   ", None),
+        ("valid", "valid"),
+        ("  valid  ", "  valid  "),
+    ],
+)
+def test_empty_to_none(input_val, expected):
     from better_telegram_mcp.config import _empty_to_none
 
-    assert _empty_to_none(None) is None
-    assert _empty_to_none("") is None
-    assert _empty_to_none("   ") is None
-    assert _empty_to_none("valid") == "valid"
-    assert _empty_to_none("  valid  ") == "  valid  "
+    assert _empty_to_none(input_val) == expected
 
 
 def test_secret_priority_env_credential(monkeypatch):
@@ -127,3 +135,35 @@ def test_secret_persistence(tmp_path):
     # Reload settings with same data_dir
     s2 = Settings(data_dir=tmp_path)
     assert s2.secret == secret1
+
+
+def test_trusted_proxy_list():
+    # Empty
+    s = Settings(trusted_proxies=None)
+    assert s.trusted_proxy_list == frozenset()
+
+    s = Settings(trusted_proxies="")
+    assert s.trusted_proxy_list == frozenset()
+
+    # Populated
+    s = Settings(trusted_proxies="127.0.0.1, 10.0.0.1 , , 192.168.1.1")
+    assert s.trusted_proxy_list == frozenset({"127.0.0.1", "10.0.0.1", "192.168.1.1"})
+
+
+def test_from_relay_config():
+    config = {
+        "TELEGRAM_BOT_TOKEN": "123:ABC",
+        "TELEGRAM_PHONE": "+123456789",
+        "TELEGRAM_API_ID": "98765",
+        "TELEGRAM_API_HASH": "hash123",
+    }
+    s = Settings.from_relay_config(config)
+    assert s.bot_token == "123:ABC"
+    assert s.phone == "+123456789"
+    assert s.api_id == 98765
+    assert s.api_hash == "hash123"
+
+    # Defaults
+    s2 = Settings.from_relay_config({})
+    assert s2.api_id == 37984984
+    assert s2.api_hash == "2f5f4c76c4de7c07302380c788390100"
