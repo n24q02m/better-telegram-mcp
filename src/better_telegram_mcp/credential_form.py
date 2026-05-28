@@ -10,8 +10,6 @@ form (same ``showStepInput``/``submitStep`` behavior, same ``/otp`` endpoint
 derivation) so the chained OTP flow works transparently.
 """
 
-from __future__ import annotations
-
 import html as html_module
 from typing import Any
 
