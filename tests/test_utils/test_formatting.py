@@ -64,10 +64,11 @@ def test_ok_collections():
 def test_err_basic_serialization():
     message = "Something went wrong"
     result = err(message)
-    assert result == '{"error": "Something went wrong"}'
+    assert result == '{"status": "error", "message": "Something went wrong"}'
 
     parsed = json.loads(result)
-    assert parsed["error"] == message
+    assert parsed["status"] == "error"
+    assert parsed["message"] == message
 
 
 def test_err_unicode_handling():
@@ -77,13 +78,14 @@ def test_err_unicode_handling():
     assert "Ошибка: ❌" in result
 
     parsed = json.loads(result)
-    assert parsed["error"] == message
+    assert parsed["status"] == "error"
+    assert parsed["message"] == message
 
 
 def test_err_non_string_input():
     # err() expects a str, but json.dumps handles other types too
     result = err(123)  # type: ignore
-    assert json.loads(result) == {"error": 123}
+    assert json.loads(result) == {"status": "error", "message": 123}
 
 
 def test_safe_error_allowed_exceptions():
@@ -102,7 +104,8 @@ def test_safe_error_allowed_exceptions():
     for exc, expected_msg in allowed_exceptions:
         result = safe_error(exc)
         parsed = json.loads(result)
-        assert parsed["error"] == expected_msg
+        assert parsed["status"] == "error"
+        assert parsed["message"] == expected_msg
 
 
 def test_safe_error_generic_exceptions():
@@ -122,7 +125,8 @@ def test_safe_error_generic_exceptions():
         expected_msg = (
             f"{type(exc).__name__}: Operation failed. Check server logs for details."
         )
-        assert parsed["error"] == expected_msg
+        assert parsed["status"] == "error"
+        assert parsed["message"] == expected_msg
 
         # Ensure internal details are NOT leaked
         assert str(exc) not in result
@@ -132,11 +136,12 @@ def test_safe_error_empty_message():
     # Allowed exception with empty message
     exc = ValueError("")
     result = safe_error(exc)
-    assert json.loads(result) == {"error": ""}
+    assert json.loads(result) == {"status": "error", "message": ""}
 
     # Generic exception with empty message
     exc = Exception("")
     result = safe_error(exc)
     assert json.loads(result) == {
-        "error": "Exception: Operation failed. Check server logs for details."
+        "status": "error",
+        "message": "Exception: Operation failed. Check server logs for details.",
     }
