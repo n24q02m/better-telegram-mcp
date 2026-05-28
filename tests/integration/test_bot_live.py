@@ -192,7 +192,9 @@ async def test_config_set_and_read_back(bot: BotBackend):
 
     original_limit = _runtime_config["message_limit"]
     try:
-        result_str = await handle_config(bot, ConfigOptions(action="set", message_limit=42))
+        result_str = await handle_config(
+            bot, ConfigOptions(action="set", message_limit=42)
+        )
         result = json.loads(result_str)
         assert result["updated"]["message_limit"] == 42
         assert result["current"]["message_limit"] == 42
