@@ -11,8 +11,6 @@ verified through the ``/otp`` endpoint (see ``credential_state.save_credentials`
 and ``credential_state.on_step_submitted``).
 """
 
-from __future__ import annotations
-
 import re
 from pathlib import Path
 
