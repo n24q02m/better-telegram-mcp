@@ -146,7 +146,7 @@ class TestFullBotMessages:
                     )
                     data = _parse(result)
                     assert isinstance(data, dict), f"Expected dict, got {data}"
-                    assert "error" not in data, f"Send failed: {data}"
+                    assert "status" not in data, f"Send failed: {data}"
                     msg_id = data.get("message_id")
                     assert msg_id is not None, f"No message_id: {data}"
                 finally:
@@ -178,7 +178,7 @@ class TestFullBotMessages:
                         },
                     )
                     data = _parse(result)
-                    assert "error" not in data, f"Send failed: {data}"
+                    assert "status" not in data, f"Send failed: {data}"
                     msg_id = data["message_id"]
 
                     result = await session.call_tool(
@@ -192,7 +192,7 @@ class TestFullBotMessages:
                     )
                     data = _parse(result)
                     assert isinstance(data, dict)
-                    assert "error" not in data, f"Edit failed: {data}"
+                    assert "status" not in data, f"Edit failed: {data}"
                     assert data.get("text") == "[test] after edit"
                 finally:
                     if msg_id:
@@ -224,7 +224,7 @@ class TestFullBotMessages:
                         },
                     )
                     data = _parse(result)
-                    assert "error" not in data, f"Send failed: {data}"
+                    assert "status" not in data, f"Send failed: {data}"
                     msg_id = data["message_id"]
 
                     result = await session.call_tool(
@@ -238,7 +238,7 @@ class TestFullBotMessages:
                     )
                     data = _parse(result)
                     assert isinstance(data, dict)
-                    assert "error" not in data, f"Forward failed: {data}"
+                    assert "status" not in data, f"Forward failed: {data}"
                     fwd_id = data.get("message_id")
                 finally:
                     for mid in (msg_id, fwd_id):
@@ -270,7 +270,7 @@ class TestFullBotMessages:
                         },
                     )
                     data = _parse(result)
-                    assert "error" not in data, f"Send failed: {data}"
+                    assert "status" not in data, f"Send failed: {data}"
                     msg_id = data["message_id"]
 
                     # Pin -- may fail in private chats, acceptable
@@ -354,7 +354,7 @@ class TestFullBotChats:
                 )
                 data = _parse(result)
                 assert isinstance(data, dict)
-                assert "error" not in data, f"Info failed: {data}"
+                assert "status" not in data, f"Info failed: {data}"
                 assert data.get("id") == bot_id
                 assert data.get("type") == "private"
 
@@ -372,8 +372,8 @@ class TestFullBotChats:
                 data = _parse(result)
                 assert isinstance(data, dict)
                 # Private chats have no admins -- expect error or empty result
-                if "error" in data:
-                    assert isinstance(data["error"], str)
+                if data.get("status") == "error":
+                    assert isinstance(data["message"], str)
                 elif "members" in data:
                     assert isinstance(data["members"], list)
 
@@ -429,7 +429,7 @@ class TestFullBotMedia:
                         )
                         data = _parse(result)
                         assert isinstance(data, dict)
-                        assert "error" not in data, f"Send photo failed: {data}"
+                        assert "status" not in data, f"Send photo failed: {data}"
                         msg_id = data.get("message_id")
                         assert msg_id is not None
                     finally:
@@ -541,7 +541,7 @@ class TestFullConfig:
                 )
                 data = _parse(result)
                 assert isinstance(data, dict)
-                assert "error" not in data, f"Set failed: {data}"
+                assert "status" not in data, f"Set failed: {data}"
                 assert data.get("updated", {}).get("message_limit") == 99
 
     @pytest.mark.timeout(30)
@@ -553,7 +553,7 @@ class TestFullConfig:
                 result = await session.call_tool("config", {"action": "cache_clear"})
                 data = _parse(result)
                 assert isinstance(data, dict)
-                assert "error" not in data
+                assert "status" not in data
                 assert data.get("message") == "Cache cleared."
 
     @pytest.mark.timeout(30)
@@ -566,7 +566,7 @@ class TestFullConfig:
                 data = _parse(result)
                 assert isinstance(data, dict)
                 assert data.get("status") == "error" and "message" in data
-                assert "Unknown action" in data["error"]
+                assert "Unknown action" in data["message"]
 
 
 # ---------------------------------------------------------------------------
@@ -590,7 +590,7 @@ class TestFullHelp:
                 if isinstance(data, str):
                     assert len(data) > 100, "Expected substantial docs"
                 else:
-                    assert "error" not in data
+                    assert "status" not in data
 
     @pytest.mark.timeout(30)
     async def test_help_messages(self):
@@ -657,7 +657,7 @@ class TestFullHelp:
                 data = _parse(result)
                 assert isinstance(data, dict)
                 assert data.get("status") == "error" and "message" in data
-                assert "Unknown topic" in data["error"]
+                assert "Unknown topic" in data["message"]
 
 
 # ---------------------------------------------------------------------------

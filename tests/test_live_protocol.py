@@ -79,7 +79,7 @@ class TestNoAuth:
                 if isinstance(data, str):
                     assert len(data) > 100, "Expected non-empty docs"
                 else:
-                    assert "error" not in data
+                    assert data.get("status") != "error"
 
     async def test_help_messages(self):
         """help topic=messages returns messages documentation."""
@@ -157,7 +157,7 @@ class TestNoAuth:
                 data = _parse_result(result)
                 assert isinstance(data, dict)
                 # Should return "Not configured" setup hints
-                assert "setup" in data or "error" in data
+                assert "setup" in data or data.get("status") == "error"
 
     # ------------------------------------------------------------------
     # 4. Unconfigured telegram tool returns setup hints (NOT crash)
@@ -173,7 +173,7 @@ class TestNoAuth:
                 )
                 data = _parse_result(result)
                 assert isinstance(data, dict)
-                assert "setup" in data or "error" in data
+                assert "setup" in data or data.get("status") == "error"
 
     async def test_chat_list_unconfigured(self):
         """chat list without auth returns structured setup hints."""
@@ -183,7 +183,7 @@ class TestNoAuth:
                 result = await session.call_tool("chat", {"action": "list"})
                 data = _parse_result(result)
                 assert isinstance(data, dict)
-                assert "setup" in data or "error" in data
+                assert "setup" in data or data.get("status") == "error"
 
     async def test_media_send_photo_unconfigured(self):
         """media send_photo without auth returns structured setup hints."""
@@ -200,7 +200,7 @@ class TestNoAuth:
                 )
                 data = _parse_result(result)
                 assert isinstance(data, dict)
-                assert "setup" in data or "error" in data
+                assert "setup" in data or data.get("status") == "error"
 
     async def test_contact_list_unconfigured(self):
         """contact list without auth returns structured setup hints."""
@@ -210,7 +210,7 @@ class TestNoAuth:
                 result = await session.call_tool("contact", {"action": "list"})
                 data = _parse_result(result)
                 assert isinstance(data, dict)
-                assert "setup" in data or "error" in data
+                assert "setup" in data or data.get("status") == "error"
 
     # ------------------------------------------------------------------
     # 5. Setup hints structure validation
@@ -278,7 +278,7 @@ class TestWithAuth:
                 result = await session.call_tool("config", {"action": "cache_clear"})
                 data = _parse_result(result)
                 assert isinstance(data, dict)
-                assert "message" in data or "error" not in data
+                assert "message" in data or data.get("status") != "error"
 
     async def test_config_unknown_action(self):
         """config with unknown action returns error."""
@@ -313,7 +313,12 @@ class TestWithAuth:
                 data = _parse_result(result)
                 assert isinstance(data, dict)
                 # Either returns data or a structured error (NOT a crash)
-                assert data.get("status") == "error" and "message" in data or "messages" in data or isinstance(data, dict)
+                assert (
+                    data.get("status") == "error"
+                    and "message" in data
+                    or "messages" in data
+                    or isinstance(data, dict)
+                )
 
     async def test_chat_list_bot_mode_error(self):
         """chat list in bot mode returns mode error."""
