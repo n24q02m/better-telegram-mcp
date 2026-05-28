@@ -77,6 +77,29 @@ async def test_message_send(mock_backend):
 
 
 @pytest.mark.asyncio
+async def test_message_backend_exception(mock_backend):
+    """message tool returns error string when backend raises an exception."""
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import message
+
+    old_backend = srv._backend
+    old_pending = srv._pending_auth
+    try:
+        srv._backend = mock_backend
+        srv._pending_auth = False
+        mock_backend.send_message.side_effect = RuntimeError("Backend failure")
+
+        result_str = await message(action="send", chat_id=123, text="hi")
+        result = json.loads(result_str)
+        assert "error" in result
+        assert "RuntimeError" in result["error"]
+        assert "Operation failed" in result["error"]
+    finally:
+        srv._backend = old_backend
+        srv._pending_auth = old_pending
+
+
+@pytest.mark.asyncio
 async def test_chat_list(mock_backend):
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import chat
