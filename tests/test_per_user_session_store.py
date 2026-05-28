@@ -242,3 +242,31 @@ class TestPerUserSessionStore:
             all_s = store.load_all()
             assert "b1" in all_s
             assert mock_read.call_count == 1
+
+
+def test_new_install_generates_random_salt(data_dir: Path):
+    """If no salt file and no session file exist, generate and persist a new salt."""
+    from better_telegram_mcp.auth.per_user_session_store import _LEGACY_SALT
+
+    store = PerUserSessionStore(data_dir, secret="test")
+
+    # Verify a new salt was generated and persisted
+    assert store._salt != _LEGACY_SALT
+    assert len(store._salt) == 16
+    assert (data_dir / ".session-salt").exists()
+    assert (data_dir / ".session-salt").read_bytes() == store._salt
+
+
+def test_legacy_install_uses_legacy_salt(data_dir: Path):
+    """If no salt file exists but a session file exists, use the legacy salt."""
+    from better_telegram_mcp.auth.per_user_session_store import _LEGACY_SALT
+
+    # Simulate legacy session file
+    (data_dir / "sessions.enc").write_bytes(b"some-encrypted-data")
+
+    store = PerUserSessionStore(data_dir, secret="test")
+
+    # Verify it falls back to legacy salt
+    assert store._salt == _LEGACY_SALT
+    # It should NOT persist the legacy salt to the salt file automatically during resolution
+    assert not (data_dir / ".session-salt").exists()
