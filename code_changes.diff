@@ -1,0 +1,64 @@
+diff --git a/code_changes.diff b/code_changes.diff
+new file mode 100644
+index 0000000..0998bee
+--- /dev/null
++++ b/code_changes.diff
+@@ -0,0 +1,30 @@
++diff --git a/src/better_telegram_mcp/auth/per_user_session_store.py b/src/better_telegram_mcp/auth/per_user_session_store.py
++index c96ff57..e3def2b 100644
++--- a/src/better_telegram_mcp/auth/per_user_session_store.py
+++++ b/src/better_telegram_mcp/auth/per_user_session_store.py
++@@ -9,15 +9,13 @@
++ Reuses the key derivation pattern from transports/credential_store.py.
++ """
++
++-from __future__ import annotations
++-
++ import copy
++ import json
++ import os
++ import time
++ from dataclasses import asdict, dataclass, field
++ from pathlib import Path
++-from typing import Literal
+++from typing import Literal, Self
++
++ from cryptography.hazmat.primitives import hashes
++ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
++@@ -46,7 +44,7 @@ def to_dict(self) -> dict:
++         return asdict(self)
++
++     @classmethod
++-    def from_dict(cls, data: dict) -> SessionInfo:
+++    def from_dict(cls, data: dict) -> Self:
++         return cls(**data)
++
++
+diff --git a/src/better_telegram_mcp/auth/per_user_session_store.py b/src/better_telegram_mcp/auth/per_user_session_store.py
+index c96ff57..e3def2b 100644
+--- a/src/better_telegram_mcp/auth/per_user_session_store.py
++++ b/src/better_telegram_mcp/auth/per_user_session_store.py
+@@ -9,15 +9,13 @@
+ Reuses the key derivation pattern from transports/credential_store.py.
+ """
+
+-from __future__ import annotations
+-
+ import copy
+ import json
+ import os
+ import time
+ from dataclasses import asdict, dataclass, field
+ from pathlib import Path
+-from typing import Literal
++from typing import Literal, Self
+
+ from cryptography.hazmat.primitives import hashes
+ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+@@ -46,7 +44,7 @@ def to_dict(self) -> dict:
+         return asdict(self)
+
+     @classmethod
+-    def from_dict(cls, data: dict) -> SessionInfo:
++    def from_dict(cls, data: dict) -> Self:
+         return cls(**data)
