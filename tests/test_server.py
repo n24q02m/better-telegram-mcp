@@ -47,16 +47,38 @@ def test_get_backend_not_initialized():
         srv._backend = old
 
 
-def test_get_settings_not_initialized():
+def test_get_settings_lazy_initialization():
+    """get_settings() initializes Settings if it is None."""
     import better_telegram_mcp.server as srv
 
-    old = srv._settings
+    old = srv._cached_settings
     try:
-        srv._settings = None
-        with pytest.raises(RuntimeError, match="Settings not initialized"):
-            get_settings()
+        srv._cached_settings = None
+        # Mock Settings to return a dummy
+        dummy_settings = MagicMock()
+        with patch("better_telegram_mcp.server.Settings", return_value=dummy_settings):
+            result = get_settings()
+            assert result is dummy_settings
+            assert srv._cached_settings is dummy_settings
     finally:
-        srv._settings = old
+        srv._cached_settings = old
+
+
+def test_get_settings_error():
+    """get_settings() propagates exceptions from Settings constructor."""
+    import better_telegram_mcp.server as srv
+
+    old = srv._cached_settings
+    try:
+        srv._cached_settings = None
+        with patch(
+            "better_telegram_mcp.server.Settings",
+            side_effect=ValueError("Simulated error"),
+        ):
+            with pytest.raises(ValueError, match="Simulated error"):
+                get_settings()
+    finally:
+        srv._cached_settings = old
 
 
 @pytest.mark.asyncio
@@ -180,11 +202,11 @@ async def test_lifespan_bot_mode(mock_backend):
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import _lifespan
 
-    with patch.object(srv, "Settings") as mock_settings_cls:
-        mock_settings = mock_settings_cls.return_value
-        mock_settings.is_configured = True
-        mock_settings.mode = "bot"
-        mock_settings.bot_token = "fake:token"
+    with patch.object(srv, "Settings") as mock_cached_settings_cls:
+        mock_cached_settings = mock_cached_settings_cls.return_value
+        mock_cached_settings.is_configured = True
+        mock_cached_settings.mode = "bot"
+        mock_cached_settings.bot_token = "fake:token"
 
         with patch(
             "better_telegram_mcp.server.BotBackend",
@@ -219,18 +241,18 @@ async def test_lifespan_user_mode():
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import _lifespan
 
-    mock_settings = MagicMock()
-    mock_settings.is_configured = True
-    mock_settings.mode = "user"
-    mock_settings.api_id = 12345
-    mock_settings.api_hash = "testhash"
-    mock_settings.phone = "+84912345678"
+    mock_cached_settings = MagicMock()
+    mock_cached_settings.is_configured = True
+    mock_cached_settings.mode = "user"
+    mock_cached_settings.api_id = 12345
+    mock_cached_settings.api_hash = "testhash"
+    mock_cached_settings.phone = "+84912345678"
 
     mock_user_backend = AsyncMock()
     mock_user_backend.is_authorized = AsyncMock(return_value=True)
 
     with (
-        patch.object(srv, "Settings", return_value=mock_settings),
+        patch.object(srv, "Settings", return_value=mock_cached_settings),
         patch.dict(
             "sys.modules",
             {
@@ -576,14 +598,14 @@ async def test_lifespan_unconfigured_mode():
     srv._multi_user_mode = False
     try:
         with (
-            patch.object(srv, "Settings") as mock_settings_cls,
+            patch.object(srv, "Settings") as mock_cached_settings_cls,
             patch(
                 "better_telegram_mcp.credential_state.resolve_credential_state",
                 return_value=CredentialState.AWAITING_SETUP,
             ),
         ):
-            mock_settings = mock_settings_cls.return_value
-            mock_settings.is_configured = False
+            mock_cached_settings = mock_cached_settings_cls.return_value
+            mock_cached_settings.is_configured = False
 
             async with _lifespan(mcp):
                 assert srv._unconfigured is True
@@ -761,13 +783,13 @@ async def test_lifespan_resolves_credentials_when_unconfigured():
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import _lifespan
 
-    mock_settings_initial = MagicMock()
-    mock_settings_initial.is_configured = False
+    mock_cached_settings_initial = MagicMock()
+    mock_cached_settings_initial.is_configured = False
 
-    mock_settings_reconfigured = MagicMock()
-    mock_settings_reconfigured.is_configured = True
-    mock_settings_reconfigured.mode = "bot"
-    mock_settings_reconfigured.bot_token = "resolved:token"
+    mock_cached_settings_reconfigured = MagicMock()
+    mock_cached_settings_reconfigured.is_configured = True
+    mock_cached_settings_reconfigured.mode = "bot"
+    mock_cached_settings_reconfigured.bot_token = "resolved:token"
 
     mock_bot = AsyncMock()
     mock_bot.is_authorized = AsyncMock(return_value=True)
@@ -778,8 +800,8 @@ async def test_lifespan_resolves_credentials_when_unconfigured():
         nonlocal settings_call_count
         settings_call_count += 1
         if settings_call_count == 1:
-            return mock_settings_initial
-        return mock_settings_reconfigured
+            return mock_cached_settings_initial
+        return mock_cached_settings_reconfigured
 
     from better_telegram_mcp.credential_state import CredentialState
 
@@ -801,7 +823,7 @@ async def test_lifespan_resolves_credentials_when_unconfigured():
         ),
     ):
         async with _lifespan(mcp):
-            assert srv._settings is mock_settings_reconfigured
+            assert srv._cached_settings is mock_cached_settings_reconfigured
             mock_bot.connect.assert_awaited_once()
 
         mock_bot.disconnect.assert_awaited_once()
@@ -817,11 +839,11 @@ async def test_lifespan_multi_user_mode_unconfigured():
     try:
         srv._multi_user_mode = True
 
-        mock_settings = MagicMock()
-        mock_settings.is_configured = False
+        mock_cached_settings = MagicMock()
+        mock_cached_settings.is_configured = False
 
         with (
-            patch.object(srv, "Settings", return_value=mock_settings),
+            patch.object(srv, "Settings", return_value=mock_cached_settings),
             patch(
                 "better_telegram_mcp.credential_state.resolve_credential_state",
                 return_value=MagicMock(value="awaiting_setup"),
@@ -907,12 +929,12 @@ async def test_lifespan_user_mode_unauthorized_no_phone():
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import _lifespan
 
-    mock_settings = MagicMock()
-    mock_settings.is_configured = True
-    mock_settings.mode = "user"
-    mock_settings.api_id = 12345
-    mock_settings.api_hash = "testhash"
-    mock_settings.phone = None  # No phone set
+    mock_cached_settings = MagicMock()
+    mock_cached_settings.is_configured = True
+    mock_cached_settings.mode = "user"
+    mock_cached_settings.api_id = 12345
+    mock_cached_settings.api_hash = "testhash"
+    mock_cached_settings.phone = None  # No phone set
 
     mock_user_backend = AsyncMock()
     mock_user_backend.is_authorized = AsyncMock(return_value=False)
@@ -920,7 +942,7 @@ async def test_lifespan_user_mode_unauthorized_no_phone():
     old_pending = srv._pending_auth
     try:
         with (
-            patch.object(srv, "Settings", return_value=mock_settings),
+            patch.object(srv, "Settings", return_value=mock_cached_settings),
             patch.dict(
                 "sys.modules",
                 {
