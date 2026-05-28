@@ -12,8 +12,6 @@ See ~/projects/.superpower/mcp-core/specs/2026-04-30-trust-model-alignment.md
 § 4.D3 + § 5.A8.
 """
 
-from __future__ import annotations
-
 import copy
 
 from .per_user_session_store import SessionInfo
