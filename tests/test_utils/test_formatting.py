@@ -82,7 +82,7 @@ def test_err_unicode_handling():
 
 def test_err_non_string_input():
     # err() expects a str, but json.dumps handles other types too
-    result = err(123)  # type: ignore
+    result = err(123)
     assert json.loads(result) == {"error": 123}
 
 
