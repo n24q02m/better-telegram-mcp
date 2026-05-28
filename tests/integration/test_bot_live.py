@@ -13,7 +13,7 @@ import pytest
 
 from better_telegram_mcp.backends.base import ModeError
 from better_telegram_mcp.backends.bot_backend import BotBackend, TelegramAPIError
-from better_telegram_mcp.tools.config_tool import handle_config
+from better_telegram_mcp.tools.config_tool import ConfigOptions, handle_config
 from better_telegram_mcp.tools.help_tool import handle_help
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
@@ -179,7 +179,7 @@ async def test_clear_cache_noop(bot: BotBackend):
 
 async def test_config_status_connected(bot: BotBackend):
     """config status action returns connected=True for a live bot."""
-    result_str = await handle_config(bot, "status")
+    result_str = await handle_config(bot, ConfigOptions(action="status"))
     result = json.loads(result_str)
     assert result["mode"] == "bot"
     assert result["connected"] is True
@@ -192,7 +192,7 @@ async def test_config_set_and_read_back(bot: BotBackend):
 
     original_limit = _runtime_config["message_limit"]
     try:
-        result_str = await handle_config(bot, "set", message_limit=42)
+        result_str = await handle_config(bot, ConfigOptions(action="set", message_limit=42))
         result = json.loads(result_str)
         assert result["updated"]["message_limit"] == 42
         assert result["current"]["message_limit"] == 42
@@ -202,14 +202,14 @@ async def test_config_set_and_read_back(bot: BotBackend):
 
 async def test_config_cache_clear(bot: BotBackend):
     """config cache_clear action succeeds."""
-    result_str = await handle_config(bot, "cache_clear")
+    result_str = await handle_config(bot, ConfigOptions(action="cache_clear"))
     result = json.loads(result_str)
     assert result["message"] == "Cache cleared."
 
 
 async def test_config_unknown_action(bot: BotBackend):
     """config with unknown action returns error."""
-    result_str = await handle_config(bot, "nonexistent")
+    result_str = await handle_config(bot, ConfigOptions(action="nonexistent"))
     result = json.loads(result_str)
     assert "error" in result
 

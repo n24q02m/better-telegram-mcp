@@ -15,7 +15,7 @@ import pytest
 
 from better_telegram_mcp.backends.user_backend import UserBackend
 from better_telegram_mcp.config import Settings
-from better_telegram_mcp.tools.config_tool import handle_config
+from better_telegram_mcp.tools.config_tool import ConfigOptions, handle_config
 from better_telegram_mcp.tools.help_tool import handle_help
 
 API_ID = os.environ.get("TELEGRAM_API_ID", "")
@@ -190,7 +190,7 @@ async def test_clear_cache_no_error(user: UserBackend):
 
 async def test_config_status_user_mode(user: UserBackend):
     """config status reports mode=user, connected=True, authorized=True."""
-    result_str = await handle_config(user, "status")
+    result_str = await handle_config(user, ConfigOptions(action="status"))
     result = json.loads(result_str)
     assert result["mode"] == "user"
     assert result["connected"] is True
@@ -200,14 +200,14 @@ async def test_config_status_user_mode(user: UserBackend):
 
 async def test_config_cache_clear(user: UserBackend):
     """config cache_clear action succeeds in user mode."""
-    result_str = await handle_config(user, "cache_clear")
+    result_str = await handle_config(user, ConfigOptions(action="cache_clear"))
     result = json.loads(result_str)
     assert result["message"] == "Cache cleared."
 
 
 async def test_config_unknown_action(user: UserBackend):
     """config with unknown action returns error in user mode."""
-    result_str = await handle_config(user, "nonexistent")
+    result_str = await handle_config(user, ConfigOptions(action="nonexistent"))
     result = json.loads(result_str)
     assert "error" in result
 
