@@ -124,7 +124,9 @@ def _register_hot_reload() -> None:
         _cached_settings = _ensure_settings()
         if not _cached_settings.is_configured:
             return
-        logger.info("Hot-reloading backend from relay config ({})", _cached_settings.mode)
+        logger.info(
+            "Hot-reloading backend from relay config ({})", _cached_settings.mode
+        )
         _cached_backend = _create_backend_instance(_cached_settings)
         await _cached_backend.connect()
         _unconfigured = False
