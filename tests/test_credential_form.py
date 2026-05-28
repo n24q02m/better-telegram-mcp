@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from better_telegram_mcp.credential_form import render_telegram_credential_form
+from better_telegram_mcp.credential_form import _escape, render_telegram_credential_form
 
 SCHEMA: dict = {
     "server": "better-telegram-mcp",
@@ -253,3 +253,13 @@ def test_form_has_xss_safe_submit_url_handling() -> None:
     assert '"><script>' not in html
     # Should contain the escaped form
     assert "&quot;&gt;&lt;script&gt;" in html
+
+
+def test_escape_logic() -> None:
+    """Directly test the _escape helper function."""
+    assert _escape(None) == ""
+    assert _escape(123) == "123"
+    assert _escape("hello") == "hello"
+    assert _escape("<script>") == "&lt;script&gt;"
+    assert _escape('token="abc"') == "token=&quot;abc&quot;"
+    assert _escape("A & B") == "A &amp; B"
