@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.12.1 (2026-05-28)
+
+### Bug Fixes
+
+- Drop local path source for mcp-core to align with PyPI-only pattern
+  ([`c7209fd`](https://github.com/n24q02m/better-telegram-mcp/commit/c7209fdf7612c602c0bb1c41f5cb37ed0a240bb4))
+
+
 ## v4.12.1-beta.1 (2026-05-28)
 
 ### Bug Fixes
