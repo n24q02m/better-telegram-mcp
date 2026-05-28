@@ -11,7 +11,6 @@ import pytest
 
 from better_telegram_mcp.backends.security import (
     SecurityError,
-    _normalize_for_prefix_check,
     validate_file_path,
     validate_output_dir,
     validate_url,
@@ -166,14 +165,6 @@ class TestValidateFilePath:
         result = validate_file_path(str(photo))
         assert result == photo.resolve()
 
-    def test_macos_firmlink_normalization(self):
-        """Verify _normalize_for_prefix_check handles /private prefix."""
-        # This covers the line 77 coverage gap
-        assert (
-            _normalize_for_prefix_check(Path("/private/etc/passwd")) == "/etc/passwd/"
-        )
-        assert _normalize_for_prefix_check(Path("/etc/passwd")) == "/etc/passwd/"
-
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_etc_passwd_blocked(self):
         with pytest.raises(SecurityError, match="/etc/"):
@@ -318,3 +309,28 @@ class TestValidateOutputDir:
         """Test that paths like ~/../../etc/cron.d are expanded and blocked."""
         with pytest.raises(SecurityError, match="/etc/"):
             validate_output_dir("~/../../etc/cron.d")
+
+
+def test_mocked_mac_firmlink_bypass(monkeypatch, tmp_path):
+    # Create a fake structure
+    real_etc = tmp_path / "System/Volumes/Data/private/etc"
+    real_etc.mkdir(parents=True)
+    passwd = real_etc / "passwd"
+    passwd.write_text("root:x:0:0:root:/root:/bin/bash")
+
+    # Mock Path.resolve so that Path("/etc/passwd").resolve() returns our fake passwd
+    original_resolve = Path.resolve
+
+    def mock_resolve(self, strict=False):
+        if str(self) == "/etc" or str(self) == "/etc/":
+            return real_etc
+        if str(self) == "/etc/passwd":
+            return passwd
+        return original_resolve(self, strict=strict)
+
+    monkeypatch.setattr(Path, "resolve", mock_resolve)
+
+    # Now, if we try to validate the "real" path, it should be blocked because
+    # Path("/etc/").resolve() is real_etc, and passwd is in real_etc.
+    with pytest.raises(SecurityError, match="Access to /etc/ is blocked"):
+        validate_file_path(str(passwd))

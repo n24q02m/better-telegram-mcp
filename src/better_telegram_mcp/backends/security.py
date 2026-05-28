@@ -64,26 +64,14 @@ def validate_url(url: str) -> None:
         raise SecurityError(msg) from e
 
 
-def _normalize_for_prefix_check(path: Path) -> str:
-    """Return a forward-slash path string suitable for blocked-prefix matching.
-
-    Handles the macOS firmlink quirk where `/etc`, `/var`, `/tmp` resolve to
-    `/private/etc`, `/private/var`, `/private/tmp`. We strip a leading `/private`
-    so the same blocklist works identically on Linux and macOS.
-    """
-    path_str = str(path).replace("\\", "/")
-    if path_str.startswith("/private/"):
-        # /private/etc -> /etc, /private/var -> /var, /private/tmp -> /tmp
-        path_str = path_str[len("/private") :]
-    return path_str if path_str.endswith("/") else path_str + "/"
-
-
 def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Path:
     """Validate local file path is safe (no traversal to sensitive files)."""
     # Sentinel: Expand user (`~`) before resolving to prevent TOCTOU bypasses where
     # `~` is treated as a literal local directory `~/...` during validation but expanded
     # by downstream APIs to the actual home directory `/home/user/...`.
-    path = Path(file_path).expanduser().resolve()
+    raw_path = Path(file_path).expanduser()
+    path = raw_path.resolve()
+
     # Block known sensitive paths
     _blocked_prefixes = (
         "/etc/",
@@ -94,22 +82,46 @@ def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Pa
         "/var/log/",
         "/root/",
     )
-    # Check BOTH the lexical (pre-resolve) and resolved paths. On macOS
-    # `/etc` resolves to `/private/etc` via firmlinks, so we must check the
-    # raw input as well, and normalize `/private/*` in the resolved path.
-    lexical_str = Path(file_path).expanduser().as_posix()
+
+    # 1. Lexical check (pre-resolve) for defense-in-depth
+    lexical_str = raw_path.as_posix()
     lexical_check = lexical_str if lexical_str.endswith("/") else lexical_str + "/"
-    resolved_check = _normalize_for_prefix_check(path)
+
     for prefix in _blocked_prefixes:
-        if lexical_check.startswith(prefix) or resolved_check.startswith(prefix):
+        # Check lexical path
+        if lexical_check.startswith(prefix):
             msg = f"Access to {prefix} is blocked for security"
             raise SecurityError(msg)
+
+        # 2. Canonical check (post-resolve)
+        # Check resolved path against both literal prefix and canonical prefix.
+        # This handles macOS firmlinks and complex symlinks.
+        try:
+            # Resolve prefix to its real location (e.g. /etc -> /private/etc on macOS)
+            canonical_prefix = Path(prefix).resolve()
+            if path.is_relative_to(canonical_prefix):
+                msg = f"Access to {prefix} is blocked for security"
+                raise SecurityError(msg)
+        except (OSError, RuntimeError):
+            pass
+
+        # Fallback: simple prefix match on resolved path if is_relative_to didn't catch it
+        # or if resolution failed.
+        resolved_str = path.as_posix()
+        resolved_check = (
+            resolved_str if resolved_str.endswith("/") else resolved_str + "/"
+        )
+        if resolved_check.startswith(prefix):
+            msg = f"Access to {prefix} is blocked for security"
+            raise SecurityError(msg)
+
     # Block dotfiles in home directories (SSH keys, secrets, etc.)
     parts = path.parts
     for part in parts:
         if part.startswith(".") and part not in {".", ".."}:
             msg = f"Access to hidden files/directories ({part}) is blocked"
             raise SecurityError(msg)
+
     # If an allowed_dir is specified, enforce containment
     if allowed_dir is not None:
         allowed = allowed_dir.resolve()
@@ -124,7 +136,9 @@ def validate_output_dir(output_dir: str, *, base_dir: Path | None = None) -> Pat
     # Sentinel: Expand user (`~`) before resolving to prevent TOCTOU bypasses where
     # `~` is treated as a literal local directory `~/...` during validation but expanded
     # by downstream APIs to the actual home directory `/home/user/...`.
-    path = Path(output_dir).expanduser().resolve()
+    raw_path = Path(output_dir).expanduser()
+    path = raw_path.resolve()
+
     # Block writing to system directories
     _blocked_prefixes = (
         "/etc/",
@@ -141,21 +155,41 @@ def validate_output_dir(output_dir: str, *, base_dir: Path | None = None) -> Pat
         "/boot/",
         "/lib/",
     )
-    # Check BOTH the lexical (pre-resolve) and resolved paths. On macOS
-    # `/etc` resolves to `/private/etc` via firmlinks, so we must check the
-    # raw input as well, and normalize `/private/*` in the resolved path.
-    lexical_str = Path(output_dir).expanduser().as_posix()
+
+    # 1. Lexical check (pre-resolve) for defense-in-depth
+    lexical_str = raw_path.as_posix()
     lexical_check = lexical_str if lexical_str.endswith("/") else lexical_str + "/"
-    resolved_check = _normalize_for_prefix_check(path)
+
     for prefix in _blocked_prefixes:
-        if lexical_check.startswith(prefix) or resolved_check.startswith(prefix):
+        # Check lexical path
+        if lexical_check.startswith(prefix):
             msg = f"Writing to {prefix} is blocked for security"
             raise SecurityError(msg)
+
+        # 2. Canonical check (post-resolve)
+        try:
+            canonical_prefix = Path(prefix).resolve()
+            if path.is_relative_to(canonical_prefix):
+                msg = f"Writing to {prefix} is blocked for security"
+                raise SecurityError(msg)
+        except (OSError, RuntimeError):
+            pass
+
+        # Fallback
+        resolved_str = path.as_posix()
+        resolved_check = (
+            resolved_str if resolved_str.endswith("/") else resolved_str + "/"
+        )
+        if resolved_check.startswith(prefix):
+            msg = f"Writing to {prefix} is blocked for security"
+            raise SecurityError(msg)
+
     # Block hidden directories
     for part in path.parts:
         if part.startswith(".") and part not in {".", ".."}:
             msg = f"Writing to hidden directories ({part}) is blocked"
             raise SecurityError(msg)
+
     if base_dir is not None:
         allowed = base_dir.resolve()
         if not path.is_relative_to(allowed):
