@@ -17,7 +17,7 @@ from .tools.contacts import ContactsOptions, handle_contacts
 from .tools.help_tool import handle_help
 from .tools.media import MediaOptions, handle_media
 from .tools.messages import MessagesArgs, handle_messages
-from .utils.formatting import err, ok
+from .utils.formatting import err, ok, safe_error
 
 # Silence httpx INFO-level request logs so the bot token in the request URL
 # (https://api.telegram.org/bot<TOKEN>/...) cannot leak into stderr.
@@ -317,7 +317,10 @@ async def chat(
         topic_id=topic_id,
         topic_name=topic_name,
     )
-    return await handle_chats(get_backend(), action, opts)
+    try:
+        return await handle_chats(get_backend(), action, opts)
+    except Exception as e:
+        return safe_error(e)
 
 
 @mcp.tool(

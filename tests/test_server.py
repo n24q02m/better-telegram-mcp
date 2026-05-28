@@ -967,3 +967,27 @@ async def test_run_http():
         assert args[0] is mcp
         assert kwargs["server_name"] == "better-telegram-mcp"
         assert kwargs["port"] == 8080
+
+
+@pytest.mark.asyncio
+async def test_chat_error_handling(mock_backend):
+    """chat tool returns error string when handle_chats fails."""
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import chat
+
+    old_backend = srv._backend
+    old_pending = srv._pending_auth
+    try:
+        srv._backend = mock_backend
+        srv._pending_auth = False
+        with patch(
+            "better_telegram_mcp.server.handle_chats",
+            side_effect=Exception("Tool failure"),
+        ):
+            result = await chat(action="list")
+            assert "error" in result
+            assert "Exception" in result
+            assert "Operation failed" in result
+    finally:
+        srv._backend = old_backend
+        srv._pending_auth = old_pending
