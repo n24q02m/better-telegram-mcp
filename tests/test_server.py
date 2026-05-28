@@ -35,44 +35,20 @@ def test_main_exists():
     assert callable(main)
 
 
-def test_get_backend_not_initialized():
-    import better_telegram_mcp.server as srv
-
-    old = srv._backend
-    try:
-        srv._backend = None
-        with pytest.raises(RuntimeError, match="Backend not initialized"):
-            get_backend()
-    finally:
-        srv._backend = old
-
-
-def test_get_settings_not_initialized():
-    import better_telegram_mcp.server as srv
-
-    old = srv._settings
-    try:
-        srv._settings = None
-        with pytest.raises(RuntimeError, match="Settings not initialized"):
-            get_settings()
-    finally:
-        srv._settings = old
-
-
 @pytest.mark.asyncio
 async def test_message_send(mock_backend):
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import message
 
-    old_backend = srv._backend
+    old_backend = srv._cached_backend
     old_pending = srv._pending_auth
     try:
-        srv._backend = mock_backend
+        srv._cached_backend = mock_backend
         srv._pending_auth = False
         result = await message(action="send", chat_id=123, text="hi")
         assert "message_id" in result
     finally:
-        srv._backend = old_backend
+        srv._cached_backend = old_backend
         srv._pending_auth = old_pending
 
 
@@ -81,15 +57,15 @@ async def test_chat_list(mock_backend):
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import chat
 
-    old_backend = srv._backend
+    old_backend = srv._cached_backend
     old_pending = srv._pending_auth
     try:
-        srv._backend = mock_backend
+        srv._cached_backend = mock_backend
         srv._pending_auth = False
         result = await chat(action="list")
         assert "chats" in result
     finally:
-        srv._backend = old_backend
+        srv._cached_backend = old_backend
         srv._pending_auth = old_pending
 
 
@@ -98,10 +74,10 @@ async def test_media_send_photo(mock_backend):
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import media
 
-    old_backend = srv._backend
+    old_backend = srv._cached_backend
     old_pending = srv._pending_auth
     try:
-        srv._backend = mock_backend
+        srv._cached_backend = mock_backend
         srv._pending_auth = False
         result = await media(
             action="send_photo",
@@ -110,7 +86,7 @@ async def test_media_send_photo(mock_backend):
         )
         assert "message_id" in result
     finally:
-        srv._backend = old_backend
+        srv._cached_backend = old_backend
         srv._pending_auth = old_pending
 
 
@@ -119,15 +95,15 @@ async def test_contact_list(mock_backend):
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import contact
 
-    old_backend = srv._backend
+    old_backend = srv._cached_backend
     old_pending = srv._pending_auth
     try:
-        srv._backend = mock_backend
+        srv._cached_backend = mock_backend
         srv._pending_auth = False
         result = await contact(action="list")
         assert "contacts" in result
     finally:
-        srv._backend = old_backend
+        srv._cached_backend = old_backend
         srv._pending_auth = old_pending
 
 
@@ -136,16 +112,16 @@ async def test_message_unknown_action(mock_backend):
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import message
 
-    old_backend = srv._backend
+    old_backend = srv._cached_backend
     old_pending = srv._pending_auth
     try:
-        srv._backend = mock_backend
+        srv._cached_backend = mock_backend
         srv._pending_auth = False
         result = json.loads(await message(action="nonexistent"))
         assert "error" in result
         assert "Unknown action" in result["error"]
     finally:
-        srv._backend = old_backend
+        srv._cached_backend = old_backend
         srv._pending_auth = old_pending
 
 
@@ -154,9 +130,9 @@ async def test_config_tool(mock_backend):
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import config
 
-    old = srv._backend
+    old = srv._cached_backend
     try:
-        srv._backend = mock_backend
+        srv._cached_backend = mock_backend
         result = await config(action="status")
         assert "mode" in result
 
@@ -164,7 +140,7 @@ async def test_config_tool(mock_backend):
         result = await config(action="set", message_limit=42)
         assert "updated" in result
     finally:
-        srv._backend = old
+        srv._cached_backend = old
 
 
 @pytest.mark.asyncio
@@ -208,7 +184,7 @@ async def test_lifespan_bot_mode(mock_backend):
                     },
                 ):
                     async with _lifespan(mcp):
-                        assert srv._backend is mock_bot
+                        assert srv._cached_backend is mock_bot
                         mock_bot.connect.assert_awaited_once()
 
                     mock_bot.disconnect.assert_awaited_once()
@@ -243,7 +219,7 @@ async def test_lifespan_user_mode():
         ),
     ):
         async with _lifespan(mcp):
-            assert srv._backend is mock_user_backend
+            assert srv._cached_backend is mock_user_backend
             mock_user_backend.connect.assert_awaited_once()
 
         mock_user_backend.disconnect.assert_awaited_once()
@@ -257,16 +233,16 @@ async def test_message_blocked_during_pending_auth(mock_backend):
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import message
 
-    old_backend = srv._backend
+    old_backend = srv._cached_backend
     old_pending = srv._pending_auth
     try:
-        srv._backend = mock_backend
+        srv._cached_backend = mock_backend
         srv._pending_auth = True
         result = json.loads(await message(action="send", chat_id=123, text="hi"))
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
     finally:
-        srv._backend = old_backend
+        srv._cached_backend = old_backend
         srv._pending_auth = old_pending
 
 
@@ -275,16 +251,16 @@ async def test_chat_blocked_during_pending_auth(mock_backend):
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import chat
 
-    old_backend = srv._backend
+    old_backend = srv._cached_backend
     old_pending = srv._pending_auth
     try:
-        srv._backend = mock_backend
+        srv._cached_backend = mock_backend
         srv._pending_auth = True
         result = json.loads(await chat(action="list"))
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
     finally:
-        srv._backend = old_backend
+        srv._cached_backend = old_backend
         srv._pending_auth = old_pending
 
 
@@ -293,10 +269,10 @@ async def test_media_blocked_during_pending_auth(mock_backend):
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import media
 
-    old_backend = srv._backend
+    old_backend = srv._cached_backend
     old_pending = srv._pending_auth
     try:
-        srv._backend = mock_backend
+        srv._cached_backend = mock_backend
         srv._pending_auth = True
         result = json.loads(
             await media(
@@ -308,7 +284,7 @@ async def test_media_blocked_during_pending_auth(mock_backend):
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
     finally:
-        srv._backend = old_backend
+        srv._cached_backend = old_backend
         srv._pending_auth = old_pending
 
 
@@ -317,16 +293,16 @@ async def test_contact_blocked_during_pending_auth(mock_backend):
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import contact
 
-    old_backend = srv._backend
+    old_backend = srv._cached_backend
     old_pending = srv._pending_auth
     try:
-        srv._backend = mock_backend
+        srv._cached_backend = mock_backend
         srv._pending_auth = True
         result = json.loads(await contact(action="list"))
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
     finally:
-        srv._backend = old_backend
+        srv._cached_backend = old_backend
         srv._pending_auth = old_pending
 
 
@@ -336,16 +312,16 @@ async def test_config_works_during_pending_auth(mock_backend):
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import config
 
-    old_backend = srv._backend
+    old_backend = srv._cached_backend
     old_pending = srv._pending_auth
     try:
-        srv._backend = mock_backend
+        srv._cached_backend = mock_backend
         srv._pending_auth = True
         result = json.loads(await config(action="status"))
         assert "mode" in result
         assert result["pending_auth"] is True
     finally:
-        srv._backend = old_backend
+        srv._cached_backend = old_backend
         srv._pending_auth = old_pending
 
 
@@ -801,7 +777,7 @@ async def test_lifespan_resolves_credentials_when_unconfigured():
         ),
     ):
         async with _lifespan(mcp):
-            assert srv._settings is mock_settings_reconfigured
+            assert srv._cached_settings is mock_settings_reconfigured
             mock_bot.connect.assert_awaited_once()
 
         mock_bot.disconnect.assert_awaited_once()
@@ -842,7 +818,7 @@ def test_get_backend_multi_user_mode():
     import better_telegram_mcp.server as srv
 
     old_multi = srv._multi_user_mode
-    old_backend = srv._backend
+    old_backend = srv._cached_backend
     try:
         srv._multi_user_mode = True
         mock_per_user = MagicMock()
@@ -855,7 +831,7 @@ def test_get_backend_multi_user_mode():
             assert result is mock_per_user
     finally:
         srv._multi_user_mode = old_multi
-        srv._backend = old_backend
+        srv._cached_backend = old_backend
 
 
 def test_get_backend_multi_user_mode_fallback():
@@ -863,20 +839,20 @@ def test_get_backend_multi_user_mode_fallback():
     import better_telegram_mcp.server as srv
 
     old_multi = srv._multi_user_mode
-    old_backend = srv._backend
+    old_backend = srv._cached_backend
     try:
         srv._multi_user_mode = True
-        srv._backend = MagicMock()
+        srv._cached_backend = MagicMock()
 
         with patch(
             "better_telegram_mcp.transports.http.get_current_backend",
             return_value=None,
         ):
             result = get_backend()
-            assert result is srv._backend
+            assert result is srv._cached_backend
     finally:
         srv._multi_user_mode = old_multi
-        srv._backend = old_backend
+        srv._cached_backend = old_backend
 
 
 # --- main() HTTP transport ---
@@ -967,3 +943,69 @@ async def test_run_http():
         assert args[0] is mcp
         assert kwargs["server_name"] == "better-telegram-mcp"
         assert kwargs["port"] == 8080
+
+
+def test_get_backend_lazy_init():
+    """get_backend initializes the backend on the first call in stdio mode."""
+    import better_telegram_mcp.server as srv
+
+    old_backend = srv._cached_backend
+    old_settings = srv._cached_settings
+    srv._cached_backend = None
+    srv._cached_settings = None
+
+    try:
+        mock_backend = MagicMock()
+        mock_settings = MagicMock()
+
+        with (
+            patch(
+                "better_telegram_mcp.server.get_settings", return_value=mock_settings
+            ),
+            patch(
+                "better_telegram_mcp.server._create_backend_instance",
+                return_value=mock_backend,
+            ) as mock_create,
+        ):
+            result = get_backend()
+            assert result is mock_backend
+            mock_create.assert_called_once_with(mock_settings)
+            assert srv._cached_backend is mock_backend
+    finally:
+        srv._cached_backend = old_backend
+        srv._cached_settings = old_settings
+
+
+def test_get_backend_cached():
+    """get_backend returns the same instance on subsequent calls."""
+    import better_telegram_mcp.server as srv
+
+    old_backend = srv._cached_backend
+    mock_backend = MagicMock()
+    srv._cached_backend = mock_backend
+
+    try:
+        result = get_backend()
+        assert result is mock_backend
+    finally:
+        srv._cached_backend = old_backend
+
+
+def test_get_settings_lazy_init():
+    """get_settings initializes settings on the first call."""
+    import better_telegram_mcp.server as srv
+
+    old_settings = srv._cached_settings
+    srv._cached_settings = None
+
+    try:
+        mock_settings = MagicMock()
+        with patch(
+            "better_telegram_mcp.server._ensure_settings", return_value=mock_settings
+        ) as mock_ensure:
+            result = get_settings()
+            assert result is mock_settings
+            mock_ensure.assert_called_once()
+            assert srv._cached_settings is mock_settings
+    finally:
+        srv._cached_settings = old_settings
