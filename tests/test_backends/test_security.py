@@ -308,6 +308,7 @@ class TestValidateOutputDir:
             validate_output_dir("~/../../etc/cron.d")
 
 
+@pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only firmlink test")
 def test_mocked_mac_firmlink_bypass(monkeypatch, tmp_path):
     """Verify bypass fix for macOS firmlink-style structures."""
     # Create a fake structure
