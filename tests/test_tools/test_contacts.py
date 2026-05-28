@@ -28,7 +28,7 @@ async def test_search(mock_backend):
 @pytest.mark.asyncio
 async def test_search_missing_params(mock_backend):
     result = json.loads(await handle_contacts(mock_backend, "search"))
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 @pytest.mark.asyncio
@@ -55,12 +55,12 @@ async def test_add_missing_params(mock_backend):
     result = json.loads(
         await handle_contacts(mock_backend, "add", ContactsOptions(phone="+123"))
     )
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
     result = json.loads(
         await handle_contacts(mock_backend, "add", ContactsOptions(first_name="John"))
     )
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 @pytest.mark.asyncio
@@ -84,22 +84,22 @@ async def test_unblock(mock_backend):
 @pytest.mark.asyncio
 async def test_block_missing_params(mock_backend):
     result = json.loads(await handle_contacts(mock_backend, "block"))
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 @pytest.mark.asyncio
 async def test_unknown_action(mock_backend):
     result = json.loads(await handle_contacts(mock_backend, "unknown"))
-    assert "error" in result
-    assert "Unknown action" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "Unknown action" in result["message"]
 
 
 @pytest.mark.asyncio
 async def test_mode_error(mock_backend):
     mock_backend.list_contacts.side_effect = ModeError("user")
     result = json.loads(await handle_contacts(mock_backend, "list"))
-    assert "error" in result
-    assert "user mode" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "user mode" in result["message"]
 
 
 @pytest.mark.asyncio
@@ -110,20 +110,20 @@ async def test_general_exception(mock_backend):
             mock_backend, "add", ContactsOptions(phone="+1", first_name="X")
         )
     )
-    assert "error" in result
-    assert "RuntimeError" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "RuntimeError" in result["message"]
 
 
 @pytest.mark.asyncio
 async def test_unknown_action_suggestion(mock_backend):
     result = json.loads(await handle_contacts(mock_backend, "lisst"))
-    assert "error" in result
-    assert "Did you mean 'list'?" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "Did you mean 'list'?" in result["message"]
 
 
 @pytest.mark.asyncio
 async def test_security_error(mock_backend):
     mock_backend.list_contacts.side_effect = SecurityError("Blocked")
     result = json.loads(await handle_contacts(mock_backend, "list"))
-    assert "error" in result
-    assert "Blocked" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "Blocked" in result["message"]

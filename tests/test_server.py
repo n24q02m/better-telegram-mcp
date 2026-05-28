@@ -142,8 +142,8 @@ async def test_message_unknown_action(mock_backend):
         srv._backend = mock_backend
         srv._pending_auth = False
         result = json.loads(await message(action="nonexistent"))
-        assert "error" in result
-        assert "Unknown action" in result["error"]
+        assert result.get("status") == "error" and "message" in result
+        assert "Unknown action" in result["message"]
     finally:
         srv._backend = old_backend
         srv._pending_auth = old_pending
@@ -263,8 +263,8 @@ async def test_message_blocked_during_pending_auth(mock_backend):
         srv._backend = mock_backend
         srv._pending_auth = True
         result = json.loads(await message(action="send", chat_id=123, text="hi"))
-        assert "error" in result
-        assert "not authenticated" in result["error"].lower()
+        assert result.get("status") == "error" and "message" in result
+        assert "not authenticated" in result["message"].lower()
     finally:
         srv._backend = old_backend
         srv._pending_auth = old_pending
@@ -281,8 +281,8 @@ async def test_chat_blocked_during_pending_auth(mock_backend):
         srv._backend = mock_backend
         srv._pending_auth = True
         result = json.loads(await chat(action="list"))
-        assert "error" in result
-        assert "not authenticated" in result["error"].lower()
+        assert result.get("status") == "error" and "message" in result
+        assert "not authenticated" in result["message"].lower()
     finally:
         srv._backend = old_backend
         srv._pending_auth = old_pending
@@ -305,8 +305,8 @@ async def test_media_blocked_during_pending_auth(mock_backend):
                 file_path_or_url="https://example.com/photo.jpg",
             )
         )
-        assert "error" in result
-        assert "not authenticated" in result["error"].lower()
+        assert result.get("status") == "error" and "message" in result
+        assert "not authenticated" in result["message"].lower()
     finally:
         srv._backend = old_backend
         srv._pending_auth = old_pending
@@ -323,8 +323,8 @@ async def test_contact_blocked_during_pending_auth(mock_backend):
         srv._backend = mock_backend
         srv._pending_auth = True
         result = json.loads(await contact(action="list"))
-        assert "error" in result
-        assert "not authenticated" in result["error"].lower()
+        assert result.get("status") == "error" and "message" in result
+        assert "not authenticated" in result["message"].lower()
     finally:
         srv._backend = old_backend
         srv._pending_auth = old_pending
@@ -432,8 +432,8 @@ async def test_message_returns_setup_hint_when_unconfigured():
         srv._unconfigured = True
         srv._pending_auth = False
         result = json.loads(await message(action="send", chat_id=123, text="hi"))
-        assert "error" in result
-        assert result["error"] == "Not configured"
+        assert result.get("status") == "error" and "message" in result
+        assert result["message"] == "Not configured"
         assert "setup" in result
         assert "bot_mode" in result["setup"]
         assert "TELEGRAM_BOT_TOKEN" in result["setup"]["bot_mode"]["env_var"]
@@ -453,7 +453,7 @@ async def test_chat_returns_setup_hint_when_unconfigured():
     try:
         srv._unconfigured = True
         result = json.loads(await chat(action="list"))
-        assert result["error"] == "Not configured"
+        assert result["message"] == "Not configured"
         assert "setup" in result
     finally:
         srv._unconfigured = old
@@ -468,7 +468,7 @@ async def test_not_ready_response_unconfigured():
         server._unconfigured = True
         response = server._not_ready_response()
         data = json.loads(response)
-        assert data["error"] == "Not configured"
+        assert data["status"] == "error" and data["message"] == "Not configured"
         assert "bot_mode" in data["setup"]
         assert "user_mode" in data["setup"]
     finally:
@@ -486,8 +486,8 @@ async def test_not_ready_response_pending_auth():
         server._pending_auth = True
         response = server._not_ready_response()
         data = json.loads(response)
-        assert "error" in data
-        assert "not authenticated" in data["error"].lower()
+        assert data.get("status") == "error" and "message" in data
+        assert "not authenticated" in data["message"].lower()
     finally:
         server._unconfigured = old_unconfigured
         server._pending_auth = old_pending
@@ -509,7 +509,7 @@ async def test_media_returns_setup_hint_when_unconfigured():
                 file_path_or_url="https://example.com/photo.jpg",
             )
         )
-        assert result["error"] == "Not configured"
+        assert result["message"] == "Not configured"
         assert "setup" in result
     finally:
         srv._unconfigured = old
@@ -525,7 +525,7 @@ async def test_contact_returns_setup_hint_when_unconfigured():
     try:
         srv._unconfigured = True
         result = json.loads(await contact(action="list"))
-        assert result["error"] == "Not configured"
+        assert result["message"] == "Not configured"
         assert "setup" in result
     finally:
         srv._unconfigured = old
@@ -558,7 +558,7 @@ async def test_config_set_blocked_when_unconfigured():
     try:
         srv._unconfigured = True
         result = json.loads(await config(action="set", message_limit=42))
-        assert result["error"] == "Not configured"
+        assert result["message"] == "Not configured"
     finally:
         srv._unconfigured = old
 

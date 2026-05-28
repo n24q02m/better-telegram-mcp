@@ -209,7 +209,7 @@ async def test_config_unknown_action(user: UserBackend):
     """config with unknown action returns error in user mode."""
     result_str = await handle_config(user, "nonexistent")
     result = json.loads(result_str)
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 # --- Help tool ---

@@ -66,7 +66,8 @@ def _not_ready_response() -> str:
     if _unconfigured:
         return ok(
             {
-                "error": "Not configured",
+                "status": "error",
+                "message": "Not configured",
                 "setup": {
                     "relay": "Use config(action='setup_start') to configure via browser",
                     "bot_mode": {

@@ -212,8 +212,9 @@ class BotBackend(TelegramBackend):
         match action:
             case "list":
                 return {
-                    "error": "Bot API does not support listing forum topics. "
-                    "Use user mode for full topic access."
+                    "status": "error",
+                    "message": "Bot API does not support listing forum topics. "
+                    "Use user mode for full topic access.",
                 }
             case "create":
                 return await self._call(
@@ -229,7 +230,7 @@ class BotBackend(TelegramBackend):
                 )
                 return {"closed": True}
             case _:
-                return {"error": f"Unknown topic action: {action}"}
+                return {"status": "error", "message": f"Unknown topic action: {action}"}
 
     # --- Media ---
     async def send_media(

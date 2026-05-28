@@ -27,7 +27,7 @@ async def test_info(mock_backend):
 @pytest.mark.asyncio
 async def test_info_missing_params(mock_backend):
     result = json.loads(await handle_chats(mock_backend, "info", ChatOptions()))
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 @pytest.mark.asyncio
@@ -44,7 +44,7 @@ async def test_create(mock_backend):
 @pytest.mark.asyncio
 async def test_create_missing_params(mock_backend):
     result = json.loads(await handle_chats(mock_backend, "create", ChatOptions()))
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 @pytest.mark.asyncio
@@ -58,7 +58,7 @@ async def test_join(mock_backend):
 @pytest.mark.asyncio
 async def test_join_missing_params(mock_backend):
     result = json.loads(await handle_chats(mock_backend, "join", ChatOptions()))
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 @pytest.mark.asyncio
@@ -72,7 +72,7 @@ async def test_leave(mock_backend):
 @pytest.mark.asyncio
 async def test_leave_missing_params(mock_backend):
     result = json.loads(await handle_chats(mock_backend, "leave", ChatOptions()))
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 @pytest.mark.asyncio
@@ -87,7 +87,7 @@ async def test_members(mock_backend):
 @pytest.mark.asyncio
 async def test_members_missing_params(mock_backend):
     result = json.loads(await handle_chats(mock_backend, "members", ChatOptions()))
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 @pytest.mark.asyncio
@@ -113,7 +113,7 @@ async def test_admin_missing_params(mock_backend):
     result = json.loads(
         await handle_chats(mock_backend, "admin", ChatOptions(chat_id=123))
     )
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 @pytest.mark.asyncio
@@ -137,7 +137,7 @@ async def test_settings_missing_chat_id(mock_backend):
     result = json.loads(
         await handle_chats(mock_backend, "settings", ChatOptions(title="X"))
     )
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 @pytest.mark.asyncio
@@ -145,7 +145,7 @@ async def test_settings_no_fields(mock_backend):
     result = json.loads(
         await handle_chats(mock_backend, "settings", ChatOptions(chat_id=123))
     )
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 @pytest.mark.asyncio
@@ -199,7 +199,7 @@ async def test_topics_missing_chat_id(mock_backend):
     result = json.loads(
         await handle_chats(mock_backend, "topics", ChatOptions(topic_action="list"))
     )
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 @pytest.mark.asyncio
@@ -207,22 +207,22 @@ async def test_topics_missing_action(mock_backend):
     result = json.loads(
         await handle_chats(mock_backend, "topics", ChatOptions(chat_id=123))
     )
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 @pytest.mark.asyncio
 async def test_unknown_action(mock_backend):
     result = json.loads(await handle_chats(mock_backend, "unknown", ChatOptions()))
-    assert "error" in result
-    assert "Unknown action" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "Unknown action" in result["message"]
 
 
 @pytest.mark.asyncio
 async def test_mode_error(mock_backend):
     mock_backend.list_chats.side_effect = ModeError("user")
     result = json.loads(await handle_chats(mock_backend, "list", ChatOptions()))
-    assert "error" in result
-    assert "user mode" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "user mode" in result["message"]
 
 
 @pytest.mark.asyncio
@@ -231,15 +231,15 @@ async def test_general_exception(mock_backend):
     result = json.loads(
         await handle_chats(mock_backend, "info", ChatOptions(chat_id=123))
     )
-    assert "error" in result
-    assert "RuntimeError" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "RuntimeError" in result["message"]
 
 
 @pytest.mark.asyncio
 async def test_unknown_action_suggestion(mock_backend):
     result = json.loads(await handle_chats(mock_backend, "lisst", ChatOptions()))
-    assert "error" in result
-    assert "Did you mean 'list'?" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "Did you mean 'list'?" in result["message"]
 
 
 @pytest.mark.asyncio

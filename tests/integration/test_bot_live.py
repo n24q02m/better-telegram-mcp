@@ -211,7 +211,7 @@ async def test_config_unknown_action(bot: BotBackend):
     """config with unknown action returns error."""
     result_str = await handle_config(bot, "nonexistent")
     result = json.loads(result_str)
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 # --- Help tool ---
@@ -258,7 +258,7 @@ async def test_help_invalid_topic():
     """help tool returns error for invalid topic."""
     result = await handle_help("nonexistent")
     result_data = json.loads(result)
-    assert "error" in result_data
+    assert result.get("status") == "error" and "message" in result_data
 
 
 @pytest.mark.asyncio
@@ -279,5 +279,5 @@ async def test_bot_mode_is_bot(bot: BotBackend):
 async def test_manage_topics_list_returns_error(bot: BotBackend):
     """manage_topics('list') returns error in bot mode (not supported)."""
     result = await bot.manage_topics(123, "list")
-    assert "error" in result
-    assert "Bot API does not support listing forum topics" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "Bot API does not support listing forum topics" in result["message"]

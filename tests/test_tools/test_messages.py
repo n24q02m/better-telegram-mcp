@@ -46,12 +46,12 @@ async def test_send_missing_params(mock_backend):
     result = json.loads(
         await handle_messages(mock_backend, MessagesArgs(action="send"))
     )
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
     result = json.loads(
         await handle_messages(mock_backend, MessagesArgs(action="send", chat_id=123))
     )
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 @pytest.mark.asyncio
@@ -75,14 +75,14 @@ async def test_edit_missing_params(mock_backend):
             mock_backend, MessagesArgs(action="edit", chat_id=123, text="x")
         )
     )
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
     result = json.loads(
         await handle_messages(
             mock_backend, MessagesArgs(action="edit", chat_id=123, message_id=1)
         )
     )
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 @pytest.mark.asyncio
@@ -100,7 +100,7 @@ async def test_delete_missing_params(mock_backend):
     result = json.loads(
         await handle_messages(mock_backend, MessagesArgs(action="delete", chat_id=123))
     )
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 @pytest.mark.asyncio
@@ -126,7 +126,7 @@ async def test_forward_missing_params(mock_backend):
             mock_backend, MessagesArgs(action="forward", from_chat=1, to_chat=2)
         )
     )
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 @pytest.mark.asyncio
@@ -144,7 +144,7 @@ async def test_pin_missing_params(mock_backend):
     result = json.loads(
         await handle_messages(mock_backend, MessagesArgs(action="pin", chat_id=123))
     )
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 @pytest.mark.asyncio
@@ -165,7 +165,7 @@ async def test_react_missing_params(mock_backend):
             mock_backend, MessagesArgs(action="react", chat_id=123, message_id=1)
         )
     )
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 @pytest.mark.asyncio
@@ -184,7 +184,7 @@ async def test_search_missing_params(mock_backend):
     result = json.loads(
         await handle_messages(mock_backend, MessagesArgs(action="search"))
     )
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 @pytest.mark.asyncio
@@ -204,7 +204,7 @@ async def test_history_missing_params(mock_backend):
     result = json.loads(
         await handle_messages(mock_backend, MessagesArgs(action="history"))
     )
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 @pytest.mark.asyncio
@@ -212,8 +212,8 @@ async def test_unknown_action(mock_backend):
     result = json.loads(
         await handle_messages(mock_backend, MessagesArgs(action="unknown"))
     )
-    assert "error" in result
-    assert "Unknown action" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "Unknown action" in result["message"]
 
 
 @pytest.mark.asyncio
@@ -222,8 +222,8 @@ async def test_mode_error(mock_backend):
     result = json.loads(
         await handle_messages(mock_backend, MessagesArgs(action="search", query="test"))
     )
-    assert "error" in result
-    assert "user mode" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "user mode" in result["message"]
 
 
 @pytest.mark.asyncio
@@ -234,8 +234,8 @@ async def test_general_exception(mock_backend):
             mock_backend, MessagesArgs(action="send", chat_id=1, text="x")
         )
     )
-    assert "error" in result
-    assert "RuntimeError" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "RuntimeError" in result["message"]
 
 
 @pytest.mark.asyncio
@@ -244,7 +244,9 @@ async def test_unknown_action_suggestion(mock_backend):
     result = json.loads(
         await handle_messages(mock_backend, MessagesArgs(action="sendd"))
     )
-    assert "error" in result
-    assert "Unknown action 'sendd'." in result["error"]
-    assert "Did you mean 'send'?" in result["error"]
-    assert "Valid: delete|edit|forward|history|pin|react|search|send" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "Unknown action 'sendd'." in result["message"]
+    assert "Did you mean 'send'?" in result["message"]
+    assert (
+        "Valid: delete|edit|forward|history|pin|react|search|send" in result["message"]
+    )

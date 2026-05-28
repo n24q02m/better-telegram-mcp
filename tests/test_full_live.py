@@ -328,7 +328,7 @@ class TestFullBotMessages:
                 )
                 data = _parse(result)
                 assert isinstance(data, dict)
-                assert "error" in data
+                assert data.get("status") == "error" and "message" in data
 
 
 # ---------------------------------------------------------------------------
@@ -389,7 +389,7 @@ class TestFullBotChats:
                 )
                 data = _parse(result)
                 assert isinstance(data, dict)
-                assert "error" in data
+                assert data.get("status") == "error" and "message" in data
 
 
 # ---------------------------------------------------------------------------
@@ -463,7 +463,7 @@ class TestFullBotMedia:
                 )
                 data = _parse(result)
                 assert isinstance(data, dict)
-                assert "error" in data
+                assert data.get("status") == "error" and "message" in data
 
 
 # ---------------------------------------------------------------------------
@@ -488,7 +488,7 @@ class TestFullBotContacts:
                 )
                 data = _parse(result)
                 assert isinstance(data, dict)
-                assert "error" in data
+                assert data.get("status") == "error" and "message" in data
 
     @pytest.mark.timeout(30)
     async def test_contacts_search_mode_error(self):
@@ -502,7 +502,7 @@ class TestFullBotContacts:
                 )
                 data = _parse(result)
                 assert isinstance(data, dict)
-                assert "error" in data
+                assert data.get("status") == "error" and "message" in data
 
 
 # ---------------------------------------------------------------------------
@@ -565,7 +565,7 @@ class TestFullConfig:
                 result = await session.call_tool("config", {"action": "nonexistent"})
                 data = _parse(result)
                 assert isinstance(data, dict)
-                assert "error" in data
+                assert data.get("status") == "error" and "message" in data
                 assert "Unknown action" in data["error"]
 
 
@@ -656,7 +656,7 @@ class TestFullHelp:
                 result = await session.call_tool("help", {"topic": "nonexistent"})
                 data = _parse(result)
                 assert isinstance(data, dict)
-                assert "error" in data
+                assert data.get("status") == "error" and "message" in data
                 assert "Unknown topic" in data["error"]
 
 

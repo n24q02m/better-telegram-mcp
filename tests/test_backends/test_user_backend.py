@@ -921,7 +921,7 @@ class TestManageTopics:
 
         result = await backend.manage_topics(123, "unknown")
 
-        assert "error" in result
+        assert result.get("status") == "error" and "message" in result
 
 
 class TestSendMedia:

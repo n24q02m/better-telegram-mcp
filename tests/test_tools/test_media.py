@@ -86,8 +86,8 @@ async def test_send_photo_missing_params(mock_backend):
     result = json.loads(
         await handle_media(mock_backend, "send_photo", MediaOptions(chat_id=123))
     )
-    assert "error" in result
-    assert "requires chat_id and file_path_or_url" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "requires chat_id and file_path_or_url" in result["message"]
 
     result = json.loads(
         await handle_media(
@@ -98,8 +98,8 @@ async def test_send_photo_missing_params(mock_backend):
             ),
         )
     )
-    assert "error" in result
-    assert "requires chat_id and file_path_or_url" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "requires chat_id and file_path_or_url" in result["message"]
 
 
 @pytest.mark.asyncio
@@ -123,21 +123,21 @@ async def test_download_missing_params(mock_backend):
     result = json.loads(
         await handle_media(mock_backend, "download", MediaOptions(chat_id=123))
     )
-    assert "error" in result
-    assert "requires chat_id and message_id" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "requires chat_id and message_id" in result["message"]
 
     result = json.loads(
         await handle_media(mock_backend, "download", MediaOptions(message_id=10))
     )
-    assert "error" in result
-    assert "requires chat_id and message_id" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "requires chat_id and message_id" in result["message"]
 
 
 @pytest.mark.asyncio
 async def test_unknown_action(mock_backend):
     result = json.loads(await handle_media(mock_backend, "unknown", MediaOptions()))
-    assert "error" in result
-    assert "Unknown action 'unknown'" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "Unknown action 'unknown'" in result["message"]
 
 
 @pytest.mark.asyncio
@@ -153,8 +153,8 @@ async def test_mode_error(mock_backend):
             ),
         )
     )
-    assert "error" in result
-    assert "user mode" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "user mode" in result["message"]
 
 
 @pytest.mark.asyncio
@@ -165,19 +165,19 @@ async def test_general_exception(mock_backend):
             mock_backend, "download", MediaOptions(chat_id=123, message_id=10)
         )
     )
-    assert "error" in result
-    assert "RuntimeError" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "RuntimeError" in result["message"]
 
 
 @pytest.mark.asyncio
 async def test_unknown_action_suggestion(mock_backend):
     result = json.loads(await handle_media(mock_backend, "send_phot", MediaOptions()))
-    assert "error" in result
-    assert "Did you mean 'send_photo'?" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "Did you mean 'send_photo'?" in result["message"]
 
     result = json.loads(await handle_media(mock_backend, "downlo", MediaOptions()))
-    assert "error" in result
-    assert "Did you mean 'download'?" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "Did you mean 'download'?" in result["message"]
 
 
 @pytest.mark.asyncio

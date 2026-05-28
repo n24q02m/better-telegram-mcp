@@ -73,8 +73,8 @@ async def test_help_telegram_topic():
 async def test_help_unknown_topic():
     result = await handle_help("nonexistent")
     parsed = json.loads(result)
-    assert "error" in parsed
-    assert "Unknown topic" in parsed["error"]
+    assert parsed.get("status") == "error" and "message" in parsed
+    assert "Unknown topic" in parsed["message"]
 
 
 @pytest.mark.asyncio
@@ -91,8 +91,8 @@ async def test_help_missing_doc_file(monkeypatch):
 
     result = await handle_help("messages")
     parsed = json.loads(result)
-    assert "error" in parsed
-    assert "not found" in parsed["error"]
+    assert parsed.get("status") == "error" and "message" in parsed
+    assert "not found" in parsed["message"]
 
 
 @pytest.mark.asyncio
@@ -109,7 +109,7 @@ async def test_help_all_no_docs(monkeypatch):
 
     result = await handle_help("all")
     parsed = json.loads(result)
-    assert "error" in parsed
+    assert parsed.get("status") == "error" and "message" in parsed
 
 
 @pytest.mark.asyncio

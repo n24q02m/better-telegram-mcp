@@ -430,7 +430,7 @@ class UserBackend(TelegramBackend):
                 )
                 return {"closed": True}
             case _:
-                return {"error": f"Unknown topic action: {action}"}
+                return {"status": "error", "message": f"Unknown topic action: {action}"}
 
     # --- Media ---
     async def send_media(

@@ -129,7 +129,7 @@ class TestNoAuth:
                 result = await session.call_tool("help", {"topic": "nonexistent"})
                 data = _parse_result(result)
                 if isinstance(data, dict):
-                    assert "error" in data
+                    assert data.get("status") == "error" and "message" in data
 
     # ------------------------------------------------------------------
     # 3. Config tool -- status works unconfigured
@@ -288,7 +288,7 @@ class TestWithAuth:
                 result = await session.call_tool("config", {"action": "nonexistent"})
                 data = _parse_result(result)
                 assert isinstance(data, dict)
-                assert "error" in data
+                assert data.get("status") == "error" and "message" in data
 
     async def test_help_all_with_auth(self):
         """help returns full documentation when authenticated."""
@@ -313,7 +313,7 @@ class TestWithAuth:
                 data = _parse_result(result)
                 assert isinstance(data, dict)
                 # Either returns data or a structured error (NOT a crash)
-                assert "error" in data or "messages" in data or isinstance(data, dict)
+                assert data.get("status") == "error" and "message" in data or "messages" in data or isinstance(data, dict)
 
     async def test_chat_list_bot_mode_error(self):
         """chat list in bot mode returns mode error."""
@@ -324,7 +324,7 @@ class TestWithAuth:
                 data = _parse_result(result)
                 assert isinstance(data, dict)
                 # Bot mode cannot list chats - should return error
-                assert "error" in data
+                assert data.get("status") == "error" and "message" in data
 
     async def test_contact_list_bot_mode_error(self):
         """contact list in bot mode returns mode error."""
@@ -334,4 +334,4 @@ class TestWithAuth:
                 result = await session.call_tool("contact", {"action": "list"})
                 data = _parse_result(result)
                 assert isinstance(data, dict)
-                assert "error" in data
+                assert data.get("status") == "error" and "message" in data

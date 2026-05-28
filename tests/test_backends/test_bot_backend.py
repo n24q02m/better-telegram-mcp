@@ -262,8 +262,8 @@ async def test_update_chat_settings_description():
 async def test_manage_topics_list():
     bot = _make_bot()
     result = await bot.manage_topics(123, "list")
-    assert "error" in result
-    assert "Bot API does not support listing forum topics" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "Bot API does not support listing forum topics" in result["message"]
 
 
 async def test_manage_topics_create():
@@ -282,7 +282,7 @@ async def test_manage_topics_close():
 async def test_manage_topics_unknown():
     bot = _make_bot()
     result = await bot.manage_topics(123, "unknown")
-    assert "error" in result
+    assert result.get("status") == "error" and "message" in result
 
 
 # --- Media ---

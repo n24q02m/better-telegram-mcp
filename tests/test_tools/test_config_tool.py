@@ -65,8 +65,8 @@ async def test_set_both(mock_backend):
 @pytest.mark.asyncio
 async def test_set_no_params(mock_backend):
     result = json.loads(await handle_config(mock_backend, "set"))
-    assert "error" in result
-    assert "set requires" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "set requires" in result["message"]
 
 
 @pytest.mark.asyncio
@@ -74,8 +74,8 @@ async def test_set_none_params(mock_backend):
     result = json.loads(
         await handle_config(mock_backend, "set", message_limit=None, timeout=None)
     )
-    assert "error" in result
-    assert "set requires" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "set requires" in result["message"]
 
 
 @pytest.mark.asyncio
@@ -103,16 +103,16 @@ async def test_cache_clear_user_mode(mock_user_backend):
 @pytest.mark.asyncio
 async def test_unknown_action(mock_backend):
     result = json.loads(await handle_config(mock_backend, "unknown"))
-    assert "error" in result
-    assert "Unknown action" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "Unknown action" in result["message"]
 
 
 @pytest.mark.asyncio
 async def test_general_exception(mock_backend):
     mock_backend.is_connected.side_effect = RuntimeError("fail")
     result = json.loads(await handle_config(mock_backend, "status"))
-    assert "error" in result
-    assert "RuntimeError" in result["error"]
+    assert result.get("status") == "error" and "message" in result
+    assert "RuntimeError" in result["message"]
 
 
 # Auth/send_code actions removed — auth handled by mcp-core's local OAuth

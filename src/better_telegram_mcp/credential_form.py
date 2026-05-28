@@ -683,7 +683,7 @@ def render_telegram_credential_form(
                                     }}
                                 }}
                             }} else {{
-                                errorEl.textContent = data.error || data.error_description || "Verification failed.";
+                                errorEl.textContent = data.message || data.error || data.error_description || "Verification failed.";
                                 errorEl.style.display = "block";
                                 inputEl.disabled = false;
                                 inputEl.setAttribute("aria-invalid", "true");
@@ -791,7 +791,7 @@ def render_telegram_credential_form(
                                     showStatus("success", successMsg);
                                 }}
                             }} else {{
-                                showStatus("error", data.error || data.error_description || "Request failed.");
+                                showStatus("error", data.message || data.error || data.error_description || "Request failed.");
                                 submitBtn.disabled = false;
                                 submitBtn.removeAttribute("aria-busy");
                                 submitBtn.textContent = "Connect";
