@@ -26,21 +26,37 @@ class BotBackend(TelegramBackend):
         self._connected = False
         self._bot_info: dict[str, Any] = {}
 
+    def _redact(self, message: str) -> str:
+        if not self._token:
+            return message
+        return message.replace(self._token, "[REDACTED]")
+
     async def _call(self, method: str, **params: Any) -> Any:
-        data = {k: v for k, v in params.items() if v is not None}
-        resp = await self._client.post(method, json=data)
-        body = resp.json()
+        try:
+            data = {k: v for k, v in params.items() if v is not None}
+            resp = await self._client.post(method, json=data)
+            body = resp.json()
+        except Exception as e:
+            raise TelegramAPIError(self._redact(str(e))) from e
+
         if not body.get("ok"):
             desc = body.get("description", "Unknown error")
-            raise TelegramAPIError(desc, body.get("error_code", resp.status_code))
+            raise TelegramAPIError(
+                self._redact(desc), body.get("error_code", resp.status_code)
+            )
         return body.get("result")
 
     async def _call_form(self, method: str, files: dict, **params: Any) -> Any:
-        data = {k: str(v) for k, v in params.items() if v is not None}
-        resp = await self._client.post(method, data=data, files=files)
-        body = resp.json()
+        try:
+            data = {k: str(v) for k, v in params.items() if v is not None}
+            resp = await self._client.post(method, data=data, files=files)
+            body = resp.json()
+        except Exception as e:
+            raise TelegramAPIError(self._redact(str(e))) from e
+
         if not body.get("ok"):
-            raise TelegramAPIError(body.get("description", "Unknown error"))
+            desc = body.get("description", "Unknown error")
+            raise TelegramAPIError(self._redact(desc))
         return body.get("result")
 
     # --- Connection ---
@@ -55,7 +71,9 @@ class BotBackend(TelegramBackend):
                     "https://t.me/BotFather"
                 )
                 raise TelegramAPIError(msg) from e
-            raise ConnectionError(f"Failed to connect to Bot API: {e}") from e
+            raise ConnectionError(
+                self._redact(f"Failed to connect to Bot API: {e}")
+            ) from e
 
     async def disconnect(self) -> None:
         await self._client.aclose()
