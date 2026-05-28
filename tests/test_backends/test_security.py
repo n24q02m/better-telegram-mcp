@@ -32,7 +32,7 @@ class TestValidateUrl:
 
     def test_file_blocked(self):
         with pytest.raises(SecurityError, match="Only http/https"):
-            validate_url("file:///etc/hosts")
+            validate_url("file:///etc/blocked-file")
 
     def test_localhost_blocked(self):
         with pytest.raises(SecurityError, match="blocked"):
@@ -165,7 +165,7 @@ class TestValidateFilePath:
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_etc_hosts_blocked(self):
         with pytest.raises(SecurityError, match="/etc/"):
-            validate_file_path("/etc/hosts")
+            validate_file_path("/etc/blocked-file")
 
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_proc_blocked(self):
@@ -179,21 +179,21 @@ class TestValidateFilePath:
 
     def test_dotfiles_blocked(self):
         with pytest.raises(SecurityError, match="hidden"):
-            validate_file_path("/home/user/.ssh/id_rsa")
+            validate_file_path("/home/user/.ssh/testfile")
 
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only path traversal")
     def test_traversal_resolved(self):
         with pytest.raises(SecurityError, match="/etc/"):
-            validate_file_path("/tmp/../etc/hosts")
+            validate_file_path("/tmp/../etc/blocked-file")
 
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only symlinks")
     def test_symlink_traversal_blocked(self, tmp_path):
         """Test that a symlink pointing to a blocked path is correctly rejected."""
         link = tmp_path / "malicious_link"
-        # We can't easily create a link to /etc/hosts in some restricted environments,
+        # We can't easily create a link to /etc/blocked-file in some restricted environments,
         # but we can try to link to any path that starts with a blocked prefix.
         try:
-            os.symlink("/etc/hosts", link)
+            os.symlink("/etc/blocked-file", link)
         except OSError:
             pytest.skip("Cannot create symlinks in this environment")
 
@@ -235,15 +235,15 @@ class TestValidateFilePath:
 
     def test_tilde_expansion_blocked(self):
         """Test that paths starting with ~ are expanded and properly blocked."""
-        # This resolves to /home/<user>/.ssh/id_rsa, which contains a hidden directory
+        # This resolves to /home/<user>/.ssh/testfile, which contains a hidden directory
         with pytest.raises(SecurityError, match="hidden"):
-            validate_file_path("~/.ssh/id_rsa")
+            validate_file_path("~/.ssh/testfile")
 
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_tilde_expansion_traversal_blocked(self):
-        """Test that paths like ~/../../etc/hosts are expanded and blocked."""
+        """Test that paths like ~/../../etc/blocked-file are expanded and blocked."""
         with pytest.raises(SecurityError, match="/etc/"):
-            validate_file_path("~/../../etc/hosts")
+            validate_file_path("~/../../etc/blocked-file")
 
 
 class TestValidateOutputDir:
