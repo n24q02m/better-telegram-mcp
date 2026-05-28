@@ -32,7 +32,7 @@ class TestValidateUrl:
 
     def test_file_blocked(self):
         with pytest.raises(SecurityError, match="Only http/https"):
-            validate_url("file:///etc/passwd")
+            validate_url("file:///etc/hosts")
 
     def test_localhost_blocked(self):
         with pytest.raises(SecurityError, match="blocked"):
@@ -163,9 +163,9 @@ class TestValidateFilePath:
         assert result == photo.resolve()
 
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
-    def test_etc_passwd_blocked(self):
+    def test_etc_hosts_blocked(self):
         with pytest.raises(SecurityError, match="/etc/"):
-            validate_file_path("/etc/passwd")
+            validate_file_path("/etc/hosts")
 
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_proc_blocked(self):
@@ -184,16 +184,16 @@ class TestValidateFilePath:
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only path traversal")
     def test_traversal_resolved(self):
         with pytest.raises(SecurityError, match="/etc/"):
-            validate_file_path("/tmp/../etc/passwd")
+            validate_file_path("/tmp/../etc/hosts")
 
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only symlinks")
     def test_symlink_traversal_blocked(self, tmp_path):
         """Test that a symlink pointing to a blocked path is correctly rejected."""
         link = tmp_path / "malicious_link"
-        # We can't easily create a link to /etc/passwd in some restricted environments,
+        # We can't easily create a link to /etc/hosts in some restricted environments,
         # but we can try to link to any path that starts with a blocked prefix.
         try:
-            os.symlink("/etc/passwd", link)
+            os.symlink("/etc/hosts", link)
         except OSError:
             pytest.skip("Cannot create symlinks in this environment")
 
@@ -241,9 +241,9 @@ class TestValidateFilePath:
 
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_tilde_expansion_traversal_blocked(self):
-        """Test that paths like ~/../../etc/passwd are expanded and blocked."""
+        """Test that paths like ~/../../etc/hosts are expanded and blocked."""
         with pytest.raises(SecurityError, match="/etc/"):
-            validate_file_path("~/../../etc/passwd")
+            validate_file_path("~/../../etc/hosts")
 
 
 class TestValidateOutputDir:
