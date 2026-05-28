@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 # Import E2E pytest_addoption hooks so --setup/--browser/--backend are registered
-from conftest_e2e import pytest_addoption as _e2e_addoption  # noqa: F401
+try:
+    from conftest_e2e import pytest_addoption as _e2e_addoption  # noqa: F401
+except ImportError:
+
+    def _e2e_addoption(parser):
+        pass
+
 
 from better_telegram_mcp.backends.base import TelegramBackend
 
@@ -21,7 +27,7 @@ def pytest_addoption(parser):
             default="bot",
             help="Telegram backend mode: bot (Bot API) or user (MTProto)",
         )
-    except ValueError:
+    except (ValueError, Exception):
         pass  # Already added
 
 
@@ -157,7 +163,6 @@ def mock_user_backend():
 @pytest.fixture(autouse=True)
 def mock_try_open_browser():
     """Globally mock try_open_browser to prevent orphan processes in CI."""
-    from unittest.mock import patch
 
     with patch("mcp_core.try_open_browser") as mock_browser:
         yield mock_browser
@@ -166,7 +171,23 @@ def mock_try_open_browser():
 @pytest.fixture(autouse=True)
 def mock_webbrowser_open():
     """Globally mock webbrowser.open to prevent orphan processes in CI."""
-    from unittest.mock import patch
 
     with patch("webbrowser.open") as mock_browser:
         yield mock_browser
+
+
+@pytest.fixture(autouse=True)
+def mock_fetch_url_safely():
+    """Globally mock fetch_url_safely to avoid network requests during tests."""
+
+    with patch(
+        "better_telegram_mcp.backends.bot_backend.fetch_url_safely",
+        new_callable=AsyncMock,
+    ) as mock_fetch_bot:
+        with patch(
+            "better_telegram_mcp.backends.user_backend.fetch_url_safely",
+            new_callable=AsyncMock,
+        ) as mock_fetch_user:
+            mock_fetch_bot.return_value = b"mock content"
+            mock_fetch_user.return_value = b"mock content"
+            yield (mock_fetch_bot, mock_fetch_user)

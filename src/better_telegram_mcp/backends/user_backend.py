@@ -16,7 +16,11 @@ from telethon.tl.types import Channel, Chat, InputPhoneContact, User
 
 from ..config import Settings
 from .base import TelegramBackend
-from .security import validate_file_path, validate_output_dir, validate_url
+from .security import (
+    fetch_url_safely,
+    validate_file_path,
+    validate_output_dir,
+)
 
 
 class UserBackend(TelegramBackend):
@@ -451,10 +455,10 @@ class UserBackend(TelegramBackend):
             kwargs["video_note"] = False
 
         if file_path_or_url.lower().startswith(("http://", "https://")):
-            validate_url(file_path_or_url)
+            file_to_send = await fetch_url_safely(file_path_or_url)
         else:
-            validate_file_path(file_path_or_url)
-        msg = await client.send_file(chat_id, file_path_or_url, **kwargs)
+            file_to_send = validate_file_path(file_path_or_url)
+        msg = await client.send_file(chat_id, file_to_send, **kwargs)
         return self._serialize_message(msg)
 
     async def download_media(

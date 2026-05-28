@@ -155,9 +155,55 @@ class TestValidateUrl:
         assert excinfo.value.__cause__ is original_err
 
     def test_dns_resolution_empty_result_allowed(self, monkeypatch):
-        """If hostname resolves to empty result list, it passes validation."""
+        """If hostname resolves to empty result list, it is blocked (resolution failure)."""
         monkeypatch.setattr("socket.getaddrinfo", lambda host, port: [])
-        validate_url("http://resolves-to-nothing.com/")
+        with pytest.raises(SecurityError, match="Failed to resolve hostname"):
+            validate_url("http://resolves-to-nothing.com/")
+
+    @pytest.mark.asyncio
+    async def test_fetch_url_safely_prevents_rebinding(self, monkeypatch):
+        """Test that fetch_url_safely uses the validated IP and ignores subsequent DNS changes."""
+        from unittest.mock import AsyncMock, patch
+
+        import httpx
+
+        from better_telegram_mcp.backends.security import fetch_url_safely
+
+        target_hostname = "rebinding.attacker.com"
+        safe_ip = "93.184.216.34"
+        malicious_ip = "127.0.0.1"
+
+        # State to simulate rebinding: first call returns safe IP, subsequent returns malicious IP
+        resolution_count = 0
+
+        def mock_getaddrinfo(host, port, *args, **kwargs):
+            nonlocal resolution_count
+            resolution_count += 1
+            if resolution_count == 1:
+                return [(2, 1, 6, "", (safe_ip, 80))]
+            return [(2, 1, 6, "", (malicious_ip, 80))]
+
+        monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
+
+        # Mock httpx.AsyncClient.get to verify the URL used
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+            # Return a real Response object with a request to allow raise_for_status()
+            resp = httpx.Response(200, content=b"content")
+            resp._request = httpx.Request("GET", f"http://{safe_ip}/data")
+            mock_get.return_value = resp
+
+            await fetch_url_safely(f"http://{target_hostname}/data")
+
+            # Verify that the URL passed to httpx uses the SAFE IP, not the hostname or malicious IP
+            args, kwargs = mock_get.call_args
+            requested_url = str(args[0])
+            assert safe_ip in requested_url
+            assert target_hostname not in requested_url
+            assert malicious_ip not in requested_url
+
+            # Verify headers and extensions preserve the hostname for SNI/Host
+            assert kwargs["headers"]["Host"] == target_hostname
+            assert kwargs["extensions"]["sni_hostname"] == target_hostname
 
 
 class TestValidateFilePath:
