@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v4.12.1-beta.1 (2026-05-28)
+
+### Bug Fixes
+
+- **deps**: Pin pydantic to <2.13 to match mcp-core 1.15.0 transitive cap
+  ([`36c01e0`](https://github.com/n24q02m/better-telegram-mcp/commit/36c01e0f3dc0afb81ce0342ef85cb17b45168b23))
+
+- **deps**: Update non-major dependencies
+  ([#558](https://github.com/n24q02m/better-telegram-mcp/pull/558),
+  [`2ff9084`](https://github.com/n24q02m/better-telegram-mcp/commit/2ff9084f0175066c1cffd90fd066dd20b29946ee))
+
+### Performance Improvements
+
+- **backend**: Revert get_messages to iter_messages to save memory
+  ([#560](https://github.com/n24q02m/better-telegram-mcp/pull/560),
+  [`77a220e`](https://github.com/n24q02m/better-telegram-mcp/commit/77a220e22acf298dc9162a7f64c8560a256a6659))
+
+
 ## v4.12.0 (2026-05-26)
 
 
