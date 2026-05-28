@@ -28,7 +28,7 @@ class TestValidateUrl:
 
     def test_ftp_blocked(self):
         with pytest.raises(SecurityError, match="Only http/https"):
-            validate_url("ftp://example.com/file")
+            validate_url("ftp://example.com/photo.jpg")
 
     def test_file_blocked(self):
         with pytest.raises(SecurityError, match="Only http/https"):
@@ -36,11 +36,11 @@ class TestValidateUrl:
 
     def test_localhost_blocked(self):
         with pytest.raises(SecurityError, match="blocked"):
-            validate_url("http://localhost/admin")
+            validate_url("http://localhost/")
 
     def test_127_blocked(self):
         with pytest.raises(SecurityError, match="internal/private"):
-            validate_url("http://127.0.0.1/admin")
+            validate_url("http://127.0.0.1/")
 
     def test_metadata_endpoint_blocked(self):
         with pytest.raises(SecurityError, match="metadata"):
@@ -56,30 +56,27 @@ class TestValidateUrl:
 
     def test_private_192_blocked(self):
         with pytest.raises(SecurityError, match="internal/private"):
-            validate_url("http://192.168.1.1/")
+            validate_url("http://192.168.0.1/")
 
     def test_link_local_blocked(self):
         with pytest.raises(SecurityError, match="internal/private"):
-            validate_url("http://169.254.169.254/latest/meta-data/")
+            validate_url("http://169.254.169.254/")
 
     def test_ipv6_loopback_blocked(self):
         with pytest.raises(SecurityError, match="internal/private"):
             validate_url("http://[::1]/")
 
-    def test_ipv4_mapped_ipv6_loopback_blocked(self, monkeypatch):
-        """IPv4-mapped IPv6 like ::ffff:127.0.0.1 must be blocked (issue #42)."""
-        monkeypatch.setattr(
-            "socket.getaddrinfo",
-            lambda host, port: [(10, 1, 6, "", ("::ffff:127.0.0.1", 80, 0, 0))],
-        )
+    def test_ipv4_mapped_ipv6_loopback_blocked(self):
         with pytest.raises(SecurityError, match="internal/private"):
-            validate_url("http://ipv4mapped.attacker.com/")
+            validate_url("http://[::ffff:127.0.0.1]/")
 
     def test_ipv4_mapped_ipv6_private_blocked(self, monkeypatch):
-        """IPv4-mapped IPv6 like ::ffff:10.0.0.1 must be blocked (issue #42)."""
+        # Mock getaddrinfo to return an IPv4-mapped IPv6 private address
         monkeypatch.setattr(
             "socket.getaddrinfo",
-            lambda host, port: [(10, 1, 6, "", ("::ffff:10.0.0.1", 80, 0, 0))],
+            lambda host, port: [
+                (socket.AF_INET6, 1, 6, "", ("::ffff:10.0.0.1", 80, 0, 0))
+            ],
         )
         with pytest.raises(SecurityError, match="internal/private"):
             validate_url("http://ipv4mapped-private.attacker.com/")
@@ -312,25 +309,26 @@ class TestValidateOutputDir:
 
 
 def test_mocked_mac_firmlink_bypass(monkeypatch, tmp_path):
+    """Verify bypass fix for macOS firmlink-style structures."""
     # Create a fake structure
     real_etc = tmp_path / "System/Volumes/Data/private/etc"
     real_etc.mkdir(parents=True)
-    passwd = real_etc / "passwd"
-    passwd.write_text("dummy-content-for-security-test")
+    blocked_file = real_etc / "testfile"
+    blocked_file.write_text("generic content")
 
-    # Mock Path.resolve so that Path("/etc/passwd").resolve() returns our fake passwd
+    # Mock Path.resolve so that Path("/etc/testfile").resolve() returns our fake blocked_file
     original_resolve = Path.resolve
 
     def mock_resolve(self, strict=False):
         if str(self) == "/etc" or str(self) == "/etc/":
             return real_etc
-        if str(self) == "/etc/passwd":
-            return passwd
+        if str(self) == "/etc/testfile":
+            return blocked_file
         return original_resolve(self, strict=strict)
 
     monkeypatch.setattr(Path, "resolve", mock_resolve)
 
     # Now, if we try to validate the "real" path, it should be blocked because
-    # Path("/etc/").resolve() is real_etc, and passwd is in real_etc.
+    # Path("/etc/").resolve() is real_etc, and blocked_file is in real_etc.
     with pytest.raises(SecurityError, match="Access to /etc/ is blocked"):
-        validate_file_path(str(passwd))
+        validate_file_path(str(blocked_file))
