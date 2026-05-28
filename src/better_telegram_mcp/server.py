@@ -385,18 +385,21 @@ async def contact(
     - add (phone, first_name -> last_name)
     - block (user_id -> unblock=true)
     """
-    if _unconfigured or _pending_auth:
-        return _not_ready_response()
+    try:
+        if _unconfigured or _pending_auth:
+            return _not_ready_response()
 
-    opts = ContactsOptions(
-        query=query,
-        phone=phone,
-        first_name=first_name,
-        last_name=last_name,
-        user_id=user_id,
-        unblock=unblock,
-    )
-    return await handle_contacts(get_backend(), action, options=opts)
+        opts = ContactsOptions(
+            query=query,
+            phone=phone,
+            first_name=first_name,
+            last_name=last_name,
+            user_id=user_id,
+            unblock=unblock,
+        )
+        return await handle_contacts(get_backend(), action, options=opts)
+    except Exception as e:
+        return str(e)
 
 
 @mcp.tool(

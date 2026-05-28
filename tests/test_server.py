@@ -132,6 +132,28 @@ async def test_contact_list(mock_backend):
 
 
 @pytest.mark.asyncio
+async def test_contact_error(mock_backend):
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import contact
+
+    old_backend = srv._backend
+    old_pending = srv._pending_auth
+    try:
+        srv._backend = mock_backend
+        srv._pending_auth = False
+        with patch(
+            "better_telegram_mcp.server.handle_contacts",
+            side_effect=Exception("mock error"),
+        ):
+            # Currently this will raise Exception, later it will return "mock error"
+            result = await contact(action="list")
+            assert result == "mock error"
+    finally:
+        srv._backend = old_backend
+        srv._pending_auth = old_pending
+
+
+@pytest.mark.asyncio
 async def test_message_unknown_action(mock_backend):
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import message
