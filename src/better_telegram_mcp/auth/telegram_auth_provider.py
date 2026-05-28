@@ -353,32 +353,43 @@ class TelegramAuthProvider:
     async def cleanup_expired(self) -> int:
         """Remove expired sessions. Returns count of removed sessions."""
         sessions = self._store.load_all()
-        removed = 0
         now = time.time()
 
-        for bearer, info in sessions.items():
-            if now - info.created_at > _SESSION_TTL:
-                await self.revoke_session(bearer)
-                removed += 1
+        to_revoke = [
+            bearer
+            for bearer, info in sessions.items()
+            if now - info.created_at > _SESSION_TTL
+        ]
+        if to_revoke:
+            await asyncio.gather(*(self.revoke_session(b) for b in to_revoke))
 
         # Clean up stale pending OTPs (5 min TTL) using chronological insertion order.
         # Since start_user_auth pops-then-reinserts each bearer, the oldest entries
         # are always at the front, so we can stop at the first non-stale entry instead
         # of scanning the full dict on every cleanup tick.
+        to_disconnect_pending = []
         while self._pending_otps:
             bearer, pending = next(iter(self._pending_otps.items()))
             if now - pending["created_at"] <= 300:
                 break
             self._pending_otps.pop(bearer)
-            try:
-                await pending["backend"].disconnect()
-            except Exception as exc:  # pragma: no cover - best-effort cleanup
-                logger.warning(
-                    "Error disconnecting stale OTP backend {}: {}", bearer[:8], exc
-                )
-            removed += 1
+            to_disconnect_pending.append((bearer, pending))
 
-        return removed
+        if to_disconnect_pending:
+
+            async def _disconnect_stale(bearer: str, pending: dict) -> None:
+                try:
+                    await pending["backend"].disconnect()
+                except Exception as exc:  # pragma: no cover - best-effort cleanup
+                    logger.warning(
+                        "Error disconnecting stale OTP backend {}: {}", bearer[:8], exc
+                    )
+
+            await asyncio.gather(
+                *(_disconnect_stale(b, p) for b, p in to_disconnect_pending)
+            )
+
+        return len(to_revoke) + len(to_disconnect_pending)
 
     async def shutdown(self) -> None:
         """Disconnect all active backends concurrently. Call on server shutdown.
