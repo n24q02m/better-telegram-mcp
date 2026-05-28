@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import logging
 import os
 from collections.abc import AsyncIterator
@@ -22,7 +20,6 @@ from .utils.formatting import err, ok
 # Silence httpx INFO-level request logs so the bot token in the request URL
 # (https://api.telegram.org/bot<TOKEN>/...) cannot leak into stderr.
 logging.getLogger("httpx").setLevel(logging.WARNING)
-
 _backend: TelegramBackend | None = None
 _settings: Settings | None = None
 _pending_auth: bool = False
@@ -31,14 +28,12 @@ _runtime_config: dict[str, int] = {
     "message_limit": 20,
     "timeout": 30,
 }
-
 # Track whether we're in multi-user HTTP mode
 _multi_user_mode: bool = False
 
 
 def get_backend() -> TelegramBackend:
     """Get the active backend.
-
     In multi-user HTTP mode: returns the per-user backend from ContextVar.
     In stdio/single-user mode: returns the global _backend.
     """
@@ -48,7 +43,6 @@ def get_backend() -> TelegramBackend:
         backend = get_current_backend()
         if backend is not None:
             return backend
-
     if _backend is None:
         msg = "Backend not initialized. Server lifespan not started."
         raise RuntimeError(msg)
@@ -138,7 +132,6 @@ def _register_hot_reload() -> None:
 async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
     global _backend, _settings, _pending_auth, _unconfigured
     _settings = _ensure_settings()
-
     if not _settings.is_configured:
         if _multi_user_mode:
             # Multi-user HTTP mode: per-user backends injected via ContextVar.
@@ -149,16 +142,13 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
             finally:
                 pass
             return
-
         _unconfigured = True
         logger.warning(
             "No Telegram credentials configured. "
             "help and config tools available; other tools will show setup instructions. "
             "Set TELEGRAM_BOT_TOKEN or TELEGRAM_API_ID + TELEGRAM_API_HASH to enable all tools."
         )
-
         _register_hot_reload()
-
         try:
             yield
         finally:
@@ -168,12 +158,10 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
                 await _backend.disconnect()
                 logger.info("Disconnected from Telegram")
         return
-
     logger.info("Mode: {}", _settings.mode)
     _backend = _create_backend_instance(_settings)
     await _backend.connect()
     logger.info("Connected to Telegram ({})", _settings.mode)
-
     if _settings.mode == "user" and not await _backend.is_authorized():
         _pending_auth = True
         logger.warning(
@@ -181,7 +169,6 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
             "Remove credential env vars and restart to trigger relay setup "
             "(relay handles OTP/2FA via bidirectional messaging)."
         )
-
     try:
         yield
     finally:
@@ -193,7 +180,6 @@ mcp = FastMCP(
     "better-telegram-mcp",
     lifespan=_lifespan,
 )
-
 # Register the standard `config__open_relay` MCP tool so the LLM can re-trigger
 # the relay form via tool call when credentials are missing or expired. In
 # stdio mode (PUBLIC_URL unset), the tool returns ``stdio_unsupported`` so
@@ -208,8 +194,6 @@ register_open_relay_tool(mcp, "better-telegram-mcp", _PUBLIC_URL)
 
 
 # --- Tools ---
-
-
 @mcp.tool(
     annotations=ToolAnnotations(
         title="Telegram Messages",
@@ -234,7 +218,6 @@ async def message(
     offset_id: int | None = None,
 ) -> str:
     """Send, edit, delete, forward, pin, react, search, and get message history.
-
     Actions (chat_id: "@username" | int):
     - send (chat_id, text -> reply_to, parse_mode)
     - edit (chat_id, message_id, text -> parse_mode)
@@ -247,7 +230,6 @@ async def message(
     """
     if _unconfigured or _pending_auth:
         return _not_ready_response()
-
     args = MessagesArgs(
         action=action,
         chat_id=chat_id,
@@ -289,7 +271,6 @@ async def chat(
     topic_name: str | None = None,
 ) -> str:
     """List, create, join, leave, manage members, settings, and topics.
-
     Actions:
     - list (-> limit=50)
     - info (chat_id)
@@ -303,7 +284,6 @@ async def chat(
     """
     if _unconfigured or _pending_auth:
         return _not_ready_response()
-
     opts = ChatOptions(
         chat_id=chat_id,
         title=title,
@@ -338,7 +318,6 @@ async def media(
     output_dir: str | None = None,
 ) -> str:
     """Send photos, files, voice, video, and download media from messages.
-
     Actions (file_path_or_url: local path or URL):
     - send_photo (chat_id, file_path_or_url -> caption)
     - send_file (chat_id, file_path_or_url -> caption)
@@ -348,7 +327,6 @@ async def media(
     """
     if _unconfigured or _pending_auth:
         return _not_ready_response()
-
     opts = MediaOptions(
         chat_id=chat_id,
         file_path_or_url=file_path_or_url,
@@ -378,7 +356,6 @@ async def contact(
     unblock: bool = False,
 ) -> str:
     """Manage contacts: list, search, add, and block/unblock users (user mode only).
-
     Actions:
     - list: Show all contacts
     - search (query): Find contacts by name
@@ -387,7 +364,6 @@ async def contact(
     """
     if _unconfigured or _pending_auth:
         return _not_ready_response()
-
     opts = ContactsOptions(
         query=query,
         phone=phone,
@@ -415,7 +391,6 @@ async def config(
     key: str | None = None,
 ) -> str:
     """Server configuration and runtime settings.
-
     Actions (required params):
     - status: Show connection state, mode, and current config
     - set (message_limit|timeout): Update runtime limits
@@ -444,7 +419,6 @@ async def config(
                     ],
                 }
             )
-
         case "setup_start":
             from .credential_state import CredentialState, get_state
 
@@ -473,7 +447,6 @@ async def config(
                     ),
                 }
             )
-
         case "setup_reset":
             from .credential_state import reset_state
 
@@ -484,7 +457,6 @@ async def config(
                     "message": "Credentials cleared. Use setup_start to reconfigure.",
                 }
             )
-
         case "setup_complete":
             from .credential_state import (
                 CredentialState,
@@ -501,7 +473,6 @@ async def config(
                     "message": "Credential state refreshed.",
                 }
             )
-
     if _unconfigured:
         if action == "status":
             return ok(
@@ -541,7 +512,6 @@ async def config(
 )
 async def help(topic: str | None = None) -> str:
     """Get full documentation for any topic.
-
     Topics: telegram | messages | chats | media | contacts | all (default: all)
     """
     return await handle_help(topic)
@@ -555,7 +525,6 @@ register_resources(mcp)
 
 def create_http_mcp_server() -> FastMCP:
     """Create a FastMCP server instance for multi-user HTTP mode.
-
     Returns the existing mcp instance (tools are shared across sessions).
     Per-user backend is injected via ContextVar per request.
     """
@@ -573,7 +542,6 @@ async def run_http(port: int = 0) -> None:
     from .relay_schema import RELAY_SCHEMA
 
     host = os.environ.get("HOST")
-
     await run_http_server(
         mcp,
         server_name="better-telegram-mcp",
@@ -594,7 +562,6 @@ def main() -> None:
         or os.environ.get("MCP_TRANSPORT") == "http"
         or os.environ.get("TRANSPORT_MODE") == "http"
     )
-
     if not is_http:
         # Stdio mode (default): run FastMCP stdio server directly. No bridge layer.
         # Universal MCP client compatibility (Claude Code, Cursor, VS Code Copilot, etc.).
@@ -621,7 +588,6 @@ def main() -> None:
             sys.exit(1)
         mcp.run(transport="stdio")
         return
-
     # HTTP mode (opt-in via --http or MCP_TRANSPORT=http or TRANSPORT_MODE=http):
     # dispatch through transports/http.py so the multi-user OAuth 2.1 branch,
     # the refuse-guard for broken single-user-on-public deploys, and the
