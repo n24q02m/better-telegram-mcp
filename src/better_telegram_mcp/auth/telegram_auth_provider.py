@@ -13,8 +13,6 @@ isolating concurrent users). The argument names retain the historical
 value is the ``sub`` in the new wiring.
 """
 
-from __future__ import annotations
-
 import asyncio
 import hashlib
 import secrets
@@ -29,24 +27,6 @@ from ..backends.user_backend import UserBackend
 from ..config import Settings
 from .in_memory_session_store import InMemorySessionStore
 from .per_user_session_store import SessionInfo
-
-# Module-level singleton for cross-component access from save_credentials,
-# on_step_submitted, and the auth_scope middleware. Set at HTTP-server
-# startup in ``_start_multi_user_http``; left as ``None`` in stdio /
-# single-user HTTP modes (which use the global ``_backend`` in server.py).
-_global_provider: TelegramAuthProvider | None = None
-
-
-def set_global_provider(provider: TelegramAuthProvider | None) -> None:
-    """Register the process-global TelegramAuthProvider for multi-user HTTP."""
-    global _global_provider
-    _global_provider = provider
-
-
-def get_global_provider() -> TelegramAuthProvider | None:
-    """Return the process-global provider, or ``None`` outside multi-user HTTP."""
-    return _global_provider
-
 
 # Session expiry: 30 days
 _SESSION_TTL = 30 * 24 * 60 * 60
@@ -92,8 +72,6 @@ class TelegramAuthProvider:
 
         Returns the number of successfully restored sessions.
         """
-        import asyncio
-
         sessions = self._store.load_all()
         now = time.time()
 
@@ -130,10 +108,20 @@ class TelegramAuthProvider:
         if not sessions:
             return 0
 
-        results = await asyncio.gather(
-            *(_restore_single(bearer, info) for bearer, info in sessions.items())
-        )
-        return sum(results)
+        tasks = [_restore_single(bearer, info) for bearer, info in sessions.items()]
+        results = await asyncio.gather(*tasks)
+        return sum(1 for r in results if r)
+
+    async def get_backend(self, bearer: str) -> TelegramBackend | None:
+        """Get or restore the TelegramBackend for a bearer token."""
+        if bearer in self.active_clients:
+            return self.active_clients[bearer]
+
+        info = self._store.load(bearer)
+        if info is None:
+            return None
+
+        return await self._create_backend(info)
 
     async def _create_backend(self, info: SessionInfo) -> TelegramBackend:
         """Create and connect a backend from session info."""
@@ -422,3 +410,21 @@ class TelegramAuthProvider:
                 return_exceptions=True,
             )
         self._pending_otps.clear()
+
+
+# Module-level singleton for cross-component access from save_credentials,
+# on_step_submitted, and the auth_scope middleware. Set at HTTP-server
+# startup in ``_start_multi_user_http``; left as ``None`` in stdio /
+# single-user HTTP modes (which use the global ``_backend`` in server.py).
+_global_provider: TelegramAuthProvider | None = None
+
+
+def set_global_provider(provider: TelegramAuthProvider | None) -> None:
+    """Register the process-global TelegramAuthProvider for multi-user HTTP."""
+    global _global_provider
+    _global_provider = provider
+
+
+def get_global_provider() -> TelegramAuthProvider | None:
+    """Return the process-global provider, or ``None`` outside multi-user HTTP."""
+    return _global_provider
