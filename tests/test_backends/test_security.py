@@ -316,7 +316,7 @@ def test_mocked_mac_firmlink_bypass(monkeypatch, tmp_path):
     real_etc = tmp_path / "System/Volumes/Data/private/etc"
     real_etc.mkdir(parents=True)
     passwd = real_etc / "passwd"
-    passwd.write_text("root:x:0:0:root:/root:/bin/bash")
+    passwd.write_text("dummy-content-for-security-test")
 
     # Mock Path.resolve so that Path("/etc/passwd").resolve() returns our fake passwd
     original_resolve = Path.resolve
