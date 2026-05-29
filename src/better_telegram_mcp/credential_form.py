@@ -142,6 +142,7 @@ def render_telegram_credential_form(
         }}
 
         .form-title {{
+            display: block;
             font-size: 0.875rem;
             font-weight: 500;
             color: #aaa;
@@ -560,9 +561,10 @@ def render_telegram_credential_form(
                     container = document.createElement("div");
                     container.id = "step-container";
 
-                    promptEl = document.createElement("p");
+                    promptEl = document.createElement("label");
                     promptEl.id = "step-prompt";
                     promptEl.className = "form-title";
+                    promptEl.setAttribute("for", "step-input");
                     container.appendChild(promptEl);
 
                     var fieldGroup = document.createElement("div");
@@ -574,7 +576,6 @@ def render_telegram_credential_form(
                     inputEl.setAttribute("autocorrect", "off");
                     inputEl.setAttribute("autocapitalize", "off");
                     inputEl.setAttribute("spellcheck", "false");
-                    inputEl.setAttribute("aria-labelledby", "step-prompt");
                     inputEl.setAttribute("aria-describedby", "step-error");
                     fieldGroup.appendChild(inputEl);
                     container.appendChild(fieldGroup);

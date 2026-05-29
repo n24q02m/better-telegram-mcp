@@ -1,0 +1,3 @@
+## 2024-05-29 - Accessibility Pattern: Semantic labels vs block elements with aria-labelledby
+**Learning:** When constructing dynamic HTML form inputs (e.g., in `credential_form.py`), using native semantic `<label for="...">` elements is significantly better than visual block elements like `<p>` paired with `aria-labelledby`.
+**Action:** Replace `promptEl = document.createElement("p");` and `inputEl.setAttribute("aria-labelledby", "step-prompt");` with a semantic `<label>` element linked to the input via the `for` attribute (or `htmlFor` in React). Native labels improve screen reader support, increase the clickable area, and render the ARIA attribute redundant.
