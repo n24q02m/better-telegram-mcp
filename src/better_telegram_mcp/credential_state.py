@@ -15,8 +15,6 @@ Hot-reload: after credentials land, the ``on_configured`` callback
 work immediately without restart.
 """
 
-from __future__ import annotations
-
 import contextvars
 import os
 from collections.abc import Awaitable, Callable
