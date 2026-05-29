@@ -252,6 +252,25 @@ class TestSanitizeError:
     def test_passthrough_unknown_error(self):
         assert _sanitize_error("Some unknown error") == "Some unknown error"
 
+    def test_sanitize_error_empty(self):
+        assert _sanitize_error("") == ""
+
+    def test_sanitize_error_whitespace(self):
+        assert _sanitize_error("   ") == ""
+
+    def test_sanitize_error_long_string(self):
+        long_msg = "A" * 1000
+        assert _sanitize_error(long_msg) == long_msg
+
+    def test_sanitize_error_special_chars(self):
+        msg = "Error! @#$%^&*()_+"
+        assert _sanitize_error(msg) == msg
+
+    def test_sanitize_error_caused_by_variations(self):
+        assert _sanitize_error("Fail (CAUSED BY Error)") == "Fail"
+        assert _sanitize_error("Fail(caused by Error) ") == "Fail"
+        assert _sanitize_error("Fail (caused by 123)") == "Fail"
+
 
 # --- _needs_2fa_password ---
 
