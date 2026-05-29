@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v4.12.2 (2026-05-29)
+
+### Bug Fixes
+
+- Canonicalize blocked-path check to close firmlink bypass
+  ([#606](https://github.com/n24q02m/better-telegram-mcp/pull/606),
+  [`ce26113`](https://github.com/n24q02m/better-telegram-mcp/commit/ce261133a33878b55628b77d221288f446a0e5aa))
+
+- Pin mcp-core 1.17.0 (stable OAuth refresh_token)
+  ([`1cb7ebf`](https://github.com/n24q02m/better-telegram-mcp/commit/1cb7ebfd298853860e70f09e4924ad939c591f11))
+
+- Redact Telegram bot token from error messages
+  ([#605](https://github.com/n24q02m/better-telegram-mcp/pull/605),
+  [`7d020d7`](https://github.com/n24q02m/better-telegram-mcp/commit/7d020d7ea2cf461b949816a77af2e4f2e43ec190))
+
+
 ## v4.12.2-beta.1 (2026-05-29)
 
 ### Bug Fixes
