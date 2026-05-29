@@ -4,8 +4,6 @@ Credentials stored at: DATA_DIR/credentials.enc
 Key derived from server secret (CREDENTIAL_SECRET env var or auto-generated).
 """
 
-from __future__ import annotations
-
 import copy
 import json
 import os
