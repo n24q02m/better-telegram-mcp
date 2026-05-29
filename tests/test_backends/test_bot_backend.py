@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -290,7 +291,8 @@ async def test_manage_topics_unknown():
 
 async def test_send_media_url():
     msg = {"message_id": 50}
-    bot = _make_bot(msg)
+    bot = _make_bot()
+    bot._call_form = AsyncMock(return_value=msg)
     result = await bot.send_media(
         123, "photo", "https://example.com/photo.jpg", caption="Nice"
     )
@@ -299,7 +301,8 @@ async def test_send_media_url():
 
 async def test_send_media_mixed_case_url():
     msg = {"message_id": 50}
-    bot = _make_bot(msg)
+    bot = _make_bot()
+    bot._call_form = AsyncMock(return_value=msg)
     result = await bot.send_media(
         123, "photo", "hTtPs://example.com/photo.jpg", caption="Nice"
     )
@@ -386,7 +389,8 @@ async def test_get_members_non_list_result():
 async def test_send_media_document_type():
     """Verify document media type uses correct field name."""
     msg = {"message_id": 52}
-    bot = _make_bot(msg)
+    bot = _make_bot()
+    bot._call_form = AsyncMock(return_value=msg)
     result = await bot.send_media(
         123, "document", "https://example.com/doc.pdf", caption="Doc"
     )

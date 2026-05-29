@@ -27,7 +27,7 @@ _BLOCKED_NETWORKS = (
 )
 
 
-def validate_url(url: str) -> None:
+def validate_url(url: str) -> str:
     """Validate URL is safe (no SSRF to internal networks)."""
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"}:
@@ -57,6 +57,10 @@ def validate_url(url: str) -> None:
                 if addr in network:
                     msg = f"Access to internal/private IP {ip_str} ({hostname}) is blocked"
                     raise SecurityError(msg)
+        if not addr_info:
+            msg = f"Failed to resolve hostname {hostname}"
+            raise SecurityError(msg)
+        return addr_info[0][4][0]
     except OSError as e:
         # If hostname resolution fails, deny access instead of silently passing
         # to prevent bypassing SSRF checks via transient failures or DNS rebinding
@@ -162,3 +166,36 @@ def validate_output_dir(output_dir: str, *, base_dir: Path | None = None) -> Pat
             msg = f"Output path must be within {base_dir}"
             raise SecurityError(msg)
     return path
+
+
+async def fetch_url_safely(url: str, timeout: float = 30.0) -> bytes:
+    """Fetch URL content safely by pinning the IP to prevent DNS rebinding."""
+    from urllib.parse import urlunparse
+
+    import httpx
+
+    ip_addr = validate_url(url)
+    parsed = urlparse(url)
+
+    # Construct a new URL using the IP address
+    # We must preserve the original scheme, path, query, etc.
+    # parsed.netloc might contain port, so we handle that
+    netloc_parts = parsed.netloc.split("@")[-1].split(":")
+    port = f":{netloc_parts[1]}" if len(netloc_parts) > 1 else ""
+
+    new_netloc = f"{ip_addr}{port}"
+    new_url = urlunparse(parsed._replace(netloc=new_netloc))
+
+    headers = {"Host": parsed.hostname}
+    extensions = {"sni_hostname": parsed.hostname}
+
+    async with httpx.AsyncClient(verify=True) as client:
+        resp = await client.get(
+            new_url,
+            headers=headers,
+            extensions=extensions,
+            timeout=timeout,
+            follow_redirects=False,  # Redirects could lead to rebinding or other SSRF
+        )
+        resp.raise_for_status()
+        return resp.content

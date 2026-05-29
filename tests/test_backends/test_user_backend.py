@@ -940,7 +940,7 @@ class TestSendMedia:
 
         assert result["message_id"] == 1
         mock_client.send_file.assert_awaited_once_with(
-            123, "https://example.com/photo.jpg", caption="Nice"
+            123, b"mock content", caption="Nice"
         )
 
     async def test_send_media_mixed_case_url(
@@ -960,7 +960,7 @@ class TestSendMedia:
 
         assert result["message_id"] == 1
         mock_client.send_file.assert_awaited_once_with(
-            123, "hTtPs://example.com/photo.jpg", caption="Nice"
+            123, b"mock content", caption="Nice"
         )
 
     async def test_send_voice(self, tmp_path, mock_client, mock_client_class):
@@ -975,8 +975,10 @@ class TestSendMedia:
         result = await backend.send_media(123, "voice", "/tmp/voice.ogg")
 
         assert result["message_id"] == 1
+        from pathlib import Path
+
         mock_client.send_file.assert_awaited_once_with(
-            123, "/tmp/voice.ogg", voice_note=True
+            123, Path("/tmp/voice.ogg").resolve(), voice_note=True
         )
 
     async def test_send_video(self, tmp_path, mock_client, mock_client_class):
@@ -991,8 +993,10 @@ class TestSendMedia:
         result = await backend.send_media(123, "video", "/tmp/video.mp4")
 
         assert result["message_id"] == 1
+        from pathlib import Path
+
         mock_client.send_file.assert_awaited_once_with(
-            123, "/tmp/video.mp4", video_note=False
+            123, Path("/tmp/video.mp4").resolve(), video_note=False
         )
 
     async def test_send_document(self, tmp_path, mock_client, mock_client_class):

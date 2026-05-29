@@ -6,7 +6,7 @@ from typing import Any
 import httpx
 
 from .base import TelegramBackend
-from .security import validate_file_path, validate_url
+from .security import fetch_url_safely, validate_file_path
 
 API_BASE = "https://api.telegram.org/bot{}/"
 
@@ -249,12 +249,13 @@ class BotBackend(TelegramBackend):
         method = method_map.get(media_type, "sendDocument")
 
         if file_path_or_url.lower().startswith(("http://", "https://")):
-            validate_url(file_path_or_url)
+            content = await fetch_url_safely(file_path_or_url)
             field = media_type if media_type != "document" else "document"
-            return await self._call(
+            filename = file_path_or_url.split("/")[-1] or "file"
+            return await self._call_form(
                 method,
+                files={field: (filename, content)},
                 chat_id=chat_id,
-                **{field: file_path_or_url},
                 caption=caption,
             )
 
