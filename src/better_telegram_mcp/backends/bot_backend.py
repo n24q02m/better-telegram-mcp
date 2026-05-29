@@ -261,10 +261,10 @@ class BotBackend(TelegramBackend):
         }
         method = method_map.get(media_type, "sendDocument")
 
-        if file_path_or_url.lower().startswith(("http://", "https://")):
-            content = await fetch_url_safely(file_path_or_url)
+        if file_path_or_url.strip().lower().startswith(("http://", "https://")):
+            content = await fetch_url_safely(file_path_or_url.strip())
             field = media_type if media_type != "document" else "document"
-            filename = file_path_or_url.split("/")[-1] or "file"
+            filename = file_path_or_url.strip().split("/")[-1] or "file"
             return await self._call_form(
                 method,
                 files={field: (filename, content)},
