@@ -356,27 +356,37 @@ class TelegramAuthProvider:
         removed = 0
         now = time.time()
 
+        # ⚡ Bolt: Execute cleanup tasks concurrently
+        # Network disconnects can block the loop; gathering them makes it O(1) latency instead of O(N)
+        tasks = []
+
         for bearer, info in sessions.items():
             if now - info.created_at > _SESSION_TTL:
-                await self.revoke_session(bearer)
+                tasks.append(self.revoke_session(bearer))
                 removed += 1
 
         # Clean up stale pending OTPs (5 min TTL) using chronological insertion order.
         # Since start_user_auth pops-then-reinserts each bearer, the oldest entries
         # are always at the front, so we can stop at the first non-stale entry instead
         # of scanning the full dict on every cleanup tick.
+        async def _disconnect_stale_otp(bearer_id: str, backend: object) -> None:
+            try:
+                await backend.disconnect()  # type: ignore[attr-defined]
+            except Exception as exc:  # pragma: no cover - best-effort cleanup
+                logger.warning(
+                    "Error disconnecting stale OTP backend {}: {}", bearer_id[:8], exc
+                )
+
         while self._pending_otps:
             bearer, pending = next(iter(self._pending_otps.items()))
             if now - pending["created_at"] <= 300:
                 break
             self._pending_otps.pop(bearer)
-            try:
-                await pending["backend"].disconnect()
-            except Exception as exc:  # pragma: no cover - best-effort cleanup
-                logger.warning(
-                    "Error disconnecting stale OTP backend {}: {}", bearer[:8], exc
-                )
+            tasks.append(_disconnect_stale_otp(bearer, pending["backend"]))
             removed += 1
+
+        if tasks:
+            await asyncio.gather(*tasks)
 
         return removed
 

@@ -1,0 +1,3 @@
+## 2025-02-23 - Concurrent Task Execution in Auth Cleanup
+**Learning:** Found a performance bottleneck where `cleanup_expired` in `TelegramAuthProvider` would sequentially iterate through expired sessions and stale OTPs, using `await backend.disconnect()` for each. Because disconnecting requires a network roundtrip, this resulted in O(N) network latency, blocking the server's main loop and slowing down execution.
+**Action:** When a method needs to call an asynchronous cleanup task (e.g., disconnecting a client) over multiple items, gather the coroutines in a list and run them concurrently using `asyncio.gather()`. This reduces latency drastically.
