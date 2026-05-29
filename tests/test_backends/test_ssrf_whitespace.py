@@ -1,10 +1,10 @@
-import pytest
 from unittest.mock import AsyncMock, patch
-from pathlib import Path
+
+import pytest
 
 from better_telegram_mcp.backends.bot_backend import BotBackend
 from better_telegram_mcp.backends.user_backend import UserBackend
-from better_telegram_mcp.backends.security import SecurityError
+
 
 @pytest.mark.asyncio
 async def test_bot_backend_ssrf_whitespace_url():
