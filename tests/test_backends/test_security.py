@@ -258,6 +258,36 @@ class TestValidateFilePath:
         with pytest.raises(SecurityError, match="/etc/"):
             validate_file_path(str(link))
 
+    @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only symlinks/firmlinks")
+    def test_symlink_to_blocked_dir_canonicalized(self, tmp_path):
+        """A symlinked directory pointing at /etc must be blocked after realpath.
+
+        This is the macOS-firmlink / symlink bypass: the symlink itself lives in
+        an allowed location, so a lexical check passes, but canonicalizing the
+        target reveals it lands under a blocked prefix (/etc, which on macOS is
+        the firmlink /private/etc).
+        """
+        link = tmp_path / "etc_link"
+        try:
+            os.symlink("/etc", link)
+        except OSError:
+            pytest.skip("Cannot create symlinks in this environment")
+
+        with pytest.raises(SecurityError, match="/etc/"):
+            validate_file_path(str(link / "passwd"))
+
+    @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
+    def test_sibling_prefix_not_blocked(self):
+        """A path that merely shares a name prefix with a blocked dir is allowed.
+
+        The containment check is per path-segment (is_relative_to), so
+        ``/etc-decoy`` is NOT treated as being under ``/etc``.
+        """
+        # Non-existent sibling-prefix path resolves lexically and must pass the
+        # blocked-prefix gate (it is rejected later only if it hits another rule).
+        result = validate_file_path("/etcdecoy/file.txt")
+        assert str(result).endswith("file.txt")
+
     def test_allowed_dir_enforcement(self, tmp_path):
         photo = tmp_path / "photo.jpg"
         allowed = tmp_path / "uploads"
