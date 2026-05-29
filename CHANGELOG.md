@@ -2,6 +2,99 @@
 
 <!-- version list -->
 
+## v4.12.2-beta.1 (2026-05-29)
+
+### Bug Fixes
+
+- Add backend exception test for server.message
+  ([#584](https://github.com/n24q02m/better-telegram-mcp/pull/584),
+  [`2256c2c`](https://github.com/n24q02m/better-telegram-mcp/commit/2256c2c52e031348569c7503ec696a8c9c72ada8))
+
+- Add edge case tests for _sanitize_error
+  ([#570](https://github.com/n24q02m/better-telegram-mcp/pull/570),
+  [`2d2de96`](https://github.com/n24q02m/better-telegram-mcp/commit/2d2de964d4812dd32200b466228e6b0008209f55))
+
+- Add edge case tests for format safe_error
+  ([#590](https://github.com/n24q02m/better-telegram-mcp/pull/590),
+  [`e9860ee`](https://github.com/n24q02m/better-telegram-mcp/commit/e9860eeb245592520d8b68daafc3a8880a8acfbd))
+
+- Add tests for _not_ready_response
+  ([#567](https://github.com/n24q02m/better-telegram-mcp/pull/567),
+  [`03bb146`](https://github.com/n24q02m/better-telegram-mcp/commit/03bb146fe92c5244e5caec07c6327649b5dc806a))
+
+- Add tests for config helpers ([#573](https://github.com/n24q02m/better-telegram-mcp/pull/573),
+  [`fae196b`](https://github.com/n24q02m/better-telegram-mcp/commit/fae196b2c4e1ec0d22712977054c52b5f28777af))
+
+- Bump mcp-core to 1.17.0-beta.1 for OAuth refresh_token
+  ([`8213a6e`](https://github.com/n24q02m/better-telegram-mcp/commit/8213a6e9703175a75c8e9f60875670ac016455d8))
+
+- Lock file maintenance ([#604](https://github.com/n24q02m/better-telegram-mcp/pull/604),
+  [`ea94742`](https://github.com/n24q02m/better-telegram-mcp/commit/ea94742e02a4753051bcbd3d0dedf7b38207f8a9))
+
+- Parametrize 2fa password detection tests
+  ([#576](https://github.com/n24q02m/better-telegram-mcp/pull/576),
+  [`5e2097c`](https://github.com/n24q02m/better-telegram-mcp/commit/5e2097c2c1717d232f37486b594b2bf0db9f3e90))
+
+- Prevent SSRF via DNS rebinding by pinning resolved IP on media fetch
+  ([#600](https://github.com/n24q02m/better-telegram-mcp/pull/600),
+  [`e4fae7a`](https://github.com/n24q02m/better-telegram-mcp/commit/e4fae7afea7878de950c24428a6e7b6dbeb3d525))
+
+- Remove unused __future__ annotations import in __main__
+  ([#568](https://github.com/n24q02m/better-telegram-mcp/pull/568),
+  [`f4cc003`](https://github.com/n24q02m/better-telegram-mcp/commit/f4cc00396f0ac6157acd2b1554690cf759252de2))
+
+- Remove unused __future__ annotations import in auth/in_memory_session_store
+  ([#572](https://github.com/n24q02m/better-telegram-mcp/pull/572),
+  [`20e7860`](https://github.com/n24q02m/better-telegram-mcp/commit/20e786082a91ea42c9706644f7acfdb73833811f))
+
+- Remove unused __future__ annotations import in credential_form
+  ([#574](https://github.com/n24q02m/better-telegram-mcp/pull/574),
+  [`66c0053`](https://github.com/n24q02m/better-telegram-mcp/commit/66c005336ceff710f2758f79ad66b8e70f8ea2a7))
+
+- Remove unused __future__ annotations import in credential_state
+  ([#580](https://github.com/n24q02m/better-telegram-mcp/pull/580),
+  [`cd84e1a`](https://github.com/n24q02m/better-telegram-mcp/commit/cd84e1aea72c49a87e7819c4ea735fee52394a1f))
+
+- Remove unused __future__ annotations import in tools/chats
+  ([#591](https://github.com/n24q02m/better-telegram-mcp/pull/591),
+  [`02f9601`](https://github.com/n24q02m/better-telegram-mcp/commit/02f960141d513c980a668214bdb9e270d37a8fe2))
+
+- Remove unused __future__ annotations import in tools/config_tool
+  ([#577](https://github.com/n24q02m/better-telegram-mcp/pull/577),
+  [`ede4930`](https://github.com/n24q02m/better-telegram-mcp/commit/ede4930fc2d47d73748bbddbfd47e5ea27415cb5))
+
+- Remove unused __future__ annotations import in transports/credential_store
+  ([#563](https://github.com/n24q02m/better-telegram-mcp/pull/563),
+  [`0e952c5`](https://github.com/n24q02m/better-telegram-mcp/commit/0e952c51d9e1defb7cc14cf0f6b6f2c34b2fc2eb))
+
+- Remove unused __future__ annotations import in transports/http
+  ([#581](https://github.com/n24q02m/better-telegram-mcp/pull/581),
+  [`7129ea2`](https://github.com/n24q02m/better-telegram-mcp/commit/7129ea2aa43c897f0309056f0c1795f377b7cafa))
+
+- Remove unused annotations import in contacts
+  ([#571](https://github.com/n24q02m/better-telegram-mcp/pull/571),
+  [`ba2b05f`](https://github.com/n24q02m/better-telegram-mcp/commit/ba2b05fad9d94e6da3420d13bb338b6f937fdb6e))
+
+- Remove unused annotations import in formatting
+  ([#578](https://github.com/n24q02m/better-telegram-mcp/pull/578),
+  [`01f4b62`](https://github.com/n24q02m/better-telegram-mcp/commit/01f4b6246a7a87d8eabb4a0297e9db6c216bf005))
+
+- Remove unused annotations import in messages
+  ([#575](https://github.com/n24q02m/better-telegram-mcp/pull/575),
+  [`514cddc`](https://github.com/n24q02m/better-telegram-mcp/commit/514cddc34b6d8f09e4a212c453f553819439c675))
+
+- Remove unused annotations import in resources
+  ([#564](https://github.com/n24q02m/better-telegram-mcp/pull/564),
+  [`fb87ad5`](https://github.com/n24q02m/better-telegram-mcp/commit/fb87ad588e8b42bf3c378dbb7ec1a3c3962e0f40))
+
+- Update non-major dependencies ([#603](https://github.com/n24q02m/better-telegram-mcp/pull/603),
+  [`4c6db2a`](https://github.com/n24q02m/better-telegram-mcp/commit/4c6db2a08c2264f40af29c96e372b5b5c93fbffc))
+
+- Use random per-install salt for PBKDF2 key derivation
+  ([#593](https://github.com/n24q02m/better-telegram-mcp/pull/593),
+  [`87dd227`](https://github.com/n24q02m/better-telegram-mcp/commit/87dd2276cd7b45fbb358a59a671ec70d746ec9a9))
+
+
 ## v4.12.1 (2026-05-28)
 
 ### Bug Fixes
