@@ -82,7 +82,7 @@ def test_err_unicode_handling():
 
 def test_err_non_string_input():
     # err() expects a str, but json.dumps handles other types too
-    result = err(123)  # type: ignore
+    result = err(123)
     assert json.loads(result) == {"error": 123}
 
 
@@ -140,3 +140,54 @@ def test_safe_error_empty_message():
     assert json.loads(result) == {
         "error": "Exception: Operation failed. Check server logs for details."
     }
+
+
+def test_safe_error_subclasses_allowed():
+    class CustomValueError(ValueError):
+        pass
+
+    exc = CustomValueError("custom message")
+    result = safe_error(exc)
+    assert json.loads(result) == {"error": "custom message"}
+
+
+def test_safe_error_disallowed_oserror():
+    # PermissionError is an OSError but not FileNotFoundError
+    exc = PermissionError("access denied")
+    result = safe_error(exc)
+    parsed = json.loads(result)
+    assert (
+        parsed["error"]
+        == "PermissionError: Operation failed. Check server logs for details."
+    )
+    assert "access denied" not in result
+
+
+def test_safe_error_base_exception():
+    # Although the type hint says Exception, in practice someone might pass BaseException
+    # safe_error should still handle it if it makes it through
+    exc = KeyboardInterrupt("stop")
+    # KeyboardInterrupt is NOT a subclass of Exception, it's a sibling.
+    # The code uses isinstance(e, (...)) and it doesn't match, so it falls through.
+    result = safe_error(exc)
+    parsed = json.loads(result)
+    assert (
+        parsed["error"]
+        == "KeyboardInterrupt: Operation failed. Check server logs for details."
+    )
+    assert "stop" not in result
+
+
+def test_ok_nested_mixed_types():
+    data = {
+        "str": "text",
+        "nested": {"val": 1, "exc": ValueError("nested error")},
+        "list": [1, {"a": 1}],
+    }
+    result = ok(data)
+    parsed = json.loads(result)
+    assert parsed["str"] == "text"
+    assert parsed["nested"]["val"] == 1
+    assert parsed["nested"]["exc"] == "nested error"
+    assert parsed["list"][0] == 1
+    assert parsed["list"][1]["a"] == 1
