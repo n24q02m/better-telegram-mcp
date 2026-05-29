@@ -71,8 +71,15 @@ class PerUserSessionStore:
         """Load persisted salt, fallback to legacy, or generate new one."""
         if self._salt_path.exists():
             return self._salt_path.read_bytes()
-        # Legacy: use hardcoded salt for backward compat on first read
-        return _LEGACY_SALT
+
+        # Backward compatibility: existing sessions use legacy hardcoded salt
+        if self._path.exists():
+            return _LEGACY_SALT
+
+        # New installation: generate random salt and persist atomically
+        salt = os.urandom(16)
+        self._persist_salt(salt)
+        return salt
 
     def _persist_salt(self, salt: bytes) -> None:
         """Save random salt to disk (atomic 0o600 write, no TOCTOU window)."""
