@@ -51,3 +51,51 @@ async def test_shutdown_logs_pending_otp_disconnect_error(
         assert "Error disconnecting pending OTP backend test-bea" in caplog.text
     finally:
         logger.remove(handler_id)
+
+
+async def test_cleanup_expired_concurrently(
+    provider: TelegramAuthProvider,
+) -> None:
+    """Disconnects should run in parallel (asyncio.gather), not serially."""
+    import asyncio
+    import time
+
+    N = 5
+    delay = 0.1  # seconds per disconnect
+
+    # Register N pending OTPs with a slow mock disconnect
+    disconnects: list[AsyncMock] = []
+
+    for i in range(N):
+        mock_backend = AsyncMock()
+
+        async def slow_disconnect() -> None:
+            await asyncio.sleep(delay)
+
+        mock_backend.disconnect = AsyncMock(side_effect=slow_disconnect)
+        disconnects.append(mock_backend.disconnect)
+
+        provider._pending_otps[f"stale-{i}"] = {
+            "bearer": f"stale-{i}",
+            "backend": mock_backend,
+            "phone": "+1234567890",
+            "phone_code_hash": "hash",
+            "session_name": f"test-session-{i}",
+            "created_at": time.time() - 301,  # Expired
+        }
+
+    assert len(provider._pending_otps) == N
+
+    start = time.perf_counter()
+    await provider.cleanup_expired()
+    elapsed = time.perf_counter() - start
+
+    # All disconnect() were awaited.
+    assert all(d.called for d in disconnects)
+
+    # Concurrent: must be substantially less than N * delay.
+    assert elapsed < N * delay * 0.7, (
+        f"cleanup_expired took {elapsed:.3f}s for {N}x{delay:.3f}s tasks -- "
+        "looks like disconnects ran serially instead of via asyncio.gather"
+    )
+    assert len(provider._pending_otps) == 0

@@ -355,11 +355,20 @@ class TelegramAuthProvider:
         sessions = self._store.load_all()
         removed = 0
         now = time.time()
+        tasks = []
 
         for bearer, info in sessions.items():
             if now - info.created_at > _SESSION_TTL:
-                await self.revoke_session(bearer)
+                tasks.append(self.revoke_session(bearer))
                 removed += 1
+
+        async def _disconnect_pending(bearer: str, pending: dict) -> None:
+            try:
+                await pending["backend"].disconnect()
+            except Exception as exc:  # pragma: no cover - best-effort cleanup
+                logger.warning(
+                    "Error disconnecting stale OTP backend {}: {}", bearer[:8], exc
+                )
 
         # Clean up stale pending OTPs (5 min TTL) using chronological insertion order.
         # Since start_user_auth pops-then-reinserts each bearer, the oldest entries
@@ -370,13 +379,14 @@ class TelegramAuthProvider:
             if now - pending["created_at"] <= 300:
                 break
             self._pending_otps.pop(bearer)
-            try:
-                await pending["backend"].disconnect()
-            except Exception as exc:  # pragma: no cover - best-effort cleanup
-                logger.warning(
-                    "Error disconnecting stale OTP backend {}: {}", bearer[:8], exc
-                )
+            tasks.append(_disconnect_pending(bearer, pending))
             removed += 1
+
+        if tasks:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for r in results:
+                if isinstance(r, Exception):
+                    logger.warning(f"Error during cleanup_expired: {r}")
 
         return removed
 
