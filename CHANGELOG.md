@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.12.3 (2026-05-29)
+
+### Bug Fixes
+
+- Pin mcp-core 1.17.1 (BearerMCPApp resource_metadata #260)
+  ([`e87d0f5`](https://github.com/n24q02m/better-telegram-mcp/commit/e87d0f53a5241b0e27dcdca822242f55b3f0f43b))
+
+
 ## v4.12.2 (2026-05-29)
 
 ### Bug Fixes
