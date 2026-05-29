@@ -276,20 +276,23 @@ class TestSanitizeError:
 
 
 class TestNeeds2faPassword:
-    def test_password_keyword(self):
-        assert _needs_2fa_password("SessionPasswordNeeded") is True
-
-    def test_2fa_keyword(self):
-        assert _needs_2fa_password("2fa authentication required") is True
-
-    def test_two_factor_keyword(self):
-        assert _needs_2fa_password("Two-factor auth needed") is True
-
-    def test_srp_keyword(self):
-        assert _needs_2fa_password("SRP protocol required") is True
-
-    def test_no_match(self):
-        assert _needs_2fa_password("Invalid phone number") is False
+    @pytest.mark.parametrize(
+        "error_msg,expected",
+        [
+            ("SESSION_PASSWORD_NEEDED", True),
+            ("SessionPasswordNeeded", True),
+            ("password required", True),
+            ("2fa authentication required", True),
+            ("Two-factor auth needed", True),
+            ("SRP protocol required", True),
+            ("Needs TWO-FACTOR", True),
+            ("Invalid phone number", False),
+            ("CODE_INVALID", False),
+            ("", False),
+        ],
+    )
+    def test_needs_2fa_password(self, error_msg: str, expected: bool):
+        assert _needs_2fa_password(error_msg) is expected
 
 
 # --- _is_user_mode_config ---
