@@ -24,6 +24,12 @@ ALL_POSSIBLE_FIELDS = [
     "TELEGRAM_PHONE",
 ]
 
+# Telegram bot tokens have the shape "<bot_id>:<35-char secret>" and appear in
+# httpx request URLs (https://api.telegram.org/bot<token>/<method>), so they can
+# surface in transport-level exception messages. Mask them before logging or
+# returning any error string.
+_BOT_TOKEN_RE = re.compile(r"\d+:[A-Za-z0-9_-]{35,}")
+
 # Error sanitization patterns shared with credential_state.py.
 _CAUSED_BY_RE = re.compile(r"\s*\(caused by \w+\)\s*$", re.IGNORECASE)
 _ERROR_SIMPLIFICATIONS: list[tuple[re.Pattern[str], str]] = [
@@ -50,9 +56,21 @@ _ERROR_SIMPLIFICATIONS: list[tuple[re.Pattern[str], str]] = [
 ]
 
 
+def redact_bot_token(text: str) -> str:
+    """Mask any Telegram bot token embedded in ``text``.
+
+    Bot tokens can leak into transport-level error messages because httpx
+    includes the request URL (which carries the token) in its exceptions. The
+    bot id is preserved for debuggability while the secret is replaced.
+    """
+    return _BOT_TOKEN_RE.sub(
+        lambda m: m.group(0).split(":", 1)[0] + ":<redacted>", text
+    )
+
+
 def _sanitize_error(msg: str) -> str:
     """Simplify internal error messages to user-friendly text."""
-    cleaned = _CAUSED_BY_RE.sub("", msg).strip()
+    cleaned = redact_bot_token(_CAUSED_BY_RE.sub("", msg).strip())
     for pattern, friendly in _ERROR_SIMPLIFICATIONS:
         if pattern.match(cleaned):
             return friendly

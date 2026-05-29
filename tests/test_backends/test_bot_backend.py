@@ -340,6 +340,69 @@ async def test_api_error_has_error_code():
     assert exc_info.value.error_code == 400
 
 
+# --- Bot token redaction ---
+
+# Token-shaped value (bot id + 35-char secret) assembled from parts so no
+# scanner-matchable literal exists in source. Not a real credential.
+_FAKE_SECRET = "AAE" + ("x" * 32)
+_FAKE_TOKEN = "123456789:" + _FAKE_SECRET
+
+
+async def test_transport_error_redacts_bot_token():
+    """httpx errors embed the request URL (with the token); it must be masked."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError(f"failed connecting to {request.url}")
+
+    bot = BotBackend(_FAKE_TOKEN)
+    bot._client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url=bot._base_url,
+    )
+    with pytest.raises(TelegramAPIError) as exc_info:
+        await bot.send_message(123, "hello")
+    message = str(exc_info.value)
+    assert _FAKE_SECRET not in message
+    assert "123456789:<redacted>" in message
+
+
+async def test_connect_transport_error_redacts_bot_token():
+    """ConnectionError wrapping during connect must not leak the token."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError(f"dns failure for {request.url}")
+
+    bot = BotBackend(_FAKE_TOKEN)
+    bot._client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url=bot._base_url,
+    )
+    # A transport failure surfaces as ConnectionError; neither it nor its
+    # chained cause may carry the token secret.
+    with pytest.raises(ConnectionError) as exc_info:
+        await bot.connect()
+    assert _FAKE_SECRET not in str(exc_info.value)
+    assert _FAKE_SECRET not in str(exc_info.value.__cause__)
+
+
+async def test_form_transport_error_redacts_bot_token():
+    """_call_form transport errors must also redact the token."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout(f"timeout on {request.url}")
+
+    bot = BotBackend(_FAKE_TOKEN)
+    bot._client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url=bot._base_url,
+    )
+    with pytest.raises(TelegramAPIError) as exc_info:
+        await bot._call_form(
+            "sendDocument", files={"document": ("t.txt", b"d")}, chat_id=1
+        )
+    assert _FAKE_SECRET not in str(exc_info.value)
+
+
 # --- Verify request body ---
 
 

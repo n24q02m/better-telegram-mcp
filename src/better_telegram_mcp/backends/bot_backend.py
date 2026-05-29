@@ -5,6 +5,7 @@ from typing import Any
 
 import httpx
 
+from ..relay_setup import redact_bot_token
 from .base import TelegramBackend
 from .security import fetch_url_safely, validate_file_path
 
@@ -28,19 +29,29 @@ class BotBackend(TelegramBackend):
 
     async def _call(self, method: str, **params: Any) -> Any:
         data = {k: v for k, v in params.items() if v is not None}
-        resp = await self._client.post(method, json=data)
+        try:
+            resp = await self._client.post(method, json=data)
+        except httpx.HTTPError as e:
+            # httpx exceptions include the request URL, which carries the bot
+            # token; redact before re-raising so it cannot leak into logs.
+            raise TelegramAPIError(redact_bot_token(str(e))) from None
         body = resp.json()
         if not body.get("ok"):
-            desc = body.get("description", "Unknown error")
+            desc = redact_bot_token(body.get("description", "Unknown error"))
             raise TelegramAPIError(desc, body.get("error_code", resp.status_code))
         return body.get("result")
 
     async def _call_form(self, method: str, files: dict, **params: Any) -> Any:
         data = {k: str(v) for k, v in params.items() if v is not None}
-        resp = await self._client.post(method, data=data, files=files)
+        try:
+            resp = await self._client.post(method, data=data, files=files)
+        except httpx.HTTPError as e:
+            raise TelegramAPIError(redact_bot_token(str(e))) from None
         body = resp.json()
         if not body.get("ok"):
-            raise TelegramAPIError(body.get("description", "Unknown error"))
+            raise TelegramAPIError(
+                redact_bot_token(body.get("description", "Unknown error"))
+            )
         return body.get("result")
 
     # --- Connection ---
@@ -55,7 +66,9 @@ class BotBackend(TelegramBackend):
                     "https://t.me/BotFather"
                 )
                 raise TelegramAPIError(msg) from e
-            raise ConnectionError(f"Failed to connect to Bot API: {e}") from e
+            raise ConnectionError(
+                redact_bot_token(f"Failed to connect to Bot API: {e}")
+            ) from e
 
     async def disconnect(self) -> None:
         await self._client.aclose()
