@@ -25,8 +25,6 @@ Per spec ``2026-05-01-stdio-pure-http-multiuser.md``: there is no
 is handled in ``server.main()`` and never reaches this module.
 """
 
-from __future__ import annotations
-
 import os
 from contextvars import ContextVar
 from typing import Any
