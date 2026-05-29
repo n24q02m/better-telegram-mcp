@@ -11,7 +11,37 @@ from better_telegram_mcp.relay_setup import (
     _is_user_mode_config,
     _needs_2fa_password,
     _sanitize_error,
+    redact_bot_token,
 )
+
+# Token-shaped value (bot id + 35-char secret) assembled from parts so no
+# scanner-matchable literal exists in source. Not a real credential.
+_FAKE_SECRET = "AAE" + ("x" * 32)
+_FAKE_TOKEN = "123456789:" + _FAKE_SECRET
+
+
+def test_redact_bot_token_in_url():
+    text = f"error posting https://api.telegram.org/bot{_FAKE_TOKEN}/getMe"
+    redacted = redact_bot_token(text)
+    assert _FAKE_SECRET not in redacted
+    assert "123456789:<redacted>" in redacted
+
+
+def test_redact_bot_token_standalone():
+    redacted = redact_bot_token(f"token {_FAKE_TOKEN} leaked into logs")
+    assert _FAKE_SECRET not in redacted
+
+
+def test_redact_bot_token_noop_when_absent():
+    text = "Bad Request: chat not found"
+    assert redact_bot_token(text) == text
+
+
+def test_sanitize_error_redacts_bot_token():
+    # _sanitize_error feeds logs/return values, so it must also strip tokens.
+    redacted = _sanitize_error(f"Connection failed using {_FAKE_TOKEN}")
+    assert _FAKE_SECRET not in redacted
+
 
 # --- Settings.from_relay_config ---
 
