@@ -390,7 +390,9 @@ class TelegramAuthProvider:
             for bearer, result in zip(disconnect_bearers, results, strict=True):
                 if isinstance(result, Exception):  # pragma: no cover
                     logger.warning(
-                        "Error disconnecting stale OTP backend {}: {}", bearer[:8], result
+                        "Error disconnecting stale OTP backend {}: {}",
+                        bearer[:8],
+                        result,
                     )
 
         return removed
