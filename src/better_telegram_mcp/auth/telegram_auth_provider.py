@@ -356,27 +356,42 @@ class TelegramAuthProvider:
         removed = 0
         now = time.time()
 
+        revoke_tasks = []
+        revoke_bearers = []
         for bearer, info in sessions.items():
             if now - info.created_at > _SESSION_TTL:
-                await self.revoke_session(bearer)
+                revoke_tasks.append(self.revoke_session(bearer))
+                revoke_bearers.append(bearer)
+
+        if revoke_tasks:
+            results = await asyncio.gather(*revoke_tasks, return_exceptions=True)
+            for bearer, result in zip(revoke_bearers, results, strict=True):
+                if isinstance(result, Exception):
+                    logger.warning("Error revoking session {}: {}", bearer[:8], result)
                 removed += 1
 
         # Clean up stale pending OTPs (5 min TTL) using chronological insertion order.
         # Since start_user_auth pops-then-reinserts each bearer, the oldest entries
         # are always at the front, so we can stop at the first non-stale entry instead
         # of scanning the full dict on every cleanup tick.
+        disconnect_tasks = []
+        disconnect_bearers = []
         while self._pending_otps:
             bearer, pending = next(iter(self._pending_otps.items()))
             if now - pending["created_at"] <= 300:
                 break
             self._pending_otps.pop(bearer)
-            try:
-                await pending["backend"].disconnect()
-            except Exception as exc:  # pragma: no cover - best-effort cleanup
-                logger.warning(
-                    "Error disconnecting stale OTP backend {}: {}", bearer[:8], exc
-                )
+            disconnect_tasks.append(pending["backend"].disconnect())
+            disconnect_bearers.append(bearer)
             removed += 1
+
+        if disconnect_tasks:
+            results = await asyncio.gather(*disconnect_tasks, return_exceptions=True)
+            for bearer, result in zip(disconnect_bearers, results, strict=True):
+                if isinstance(result, Exception):  # pragma: no cover
+                    logger.warning(
+                        "Error disconnecting stale OTP backend {}: {}", bearer[:8], result
+                    )
 
         return removed
 
