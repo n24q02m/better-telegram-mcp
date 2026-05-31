@@ -16,3 +16,7 @@
 ## 2024-07-28 - Contrast Requirements for Dark Themes
 **Learning:** Text using color `#666` fails WCAG AA 4.5:1 contrast requirements when placed against dark-themed backgrounds such as `#1a1a1a`.
 **Action:** When designing dark themes, ensure that subtle or secondary text elements (like `.server-id` and `.help-text`) are upgraded to at least `#888` or `#999` to maintain readability and accessibility standards.
+
+## 2024-06-01 - Semantic Labels for Dynamically Created Inputs
+**Learning:** When dynamically generating inputs with JavaScript, it's easy to fall into the trap of using visually styled tags (like `<p>`) alongside `aria-labelledby` for screen readers. However, true semantic `<label for="...">` elements are inherently more accessible and provide a larger clickable area.
+**Action:** Always prefer native semantic tags over ARIA attributes where possible. Apply appropriate CSS (like `display: block;`) if replacing a block-level element with an inline label.
