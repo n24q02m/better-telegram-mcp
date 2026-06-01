@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.12.4 (2026-06-01)
+
+### Bug Fixes
+
+- Pin mcp-core 1.17.2 (stable)
+  ([`82868bc`](https://github.com/n24q02m/better-telegram-mcp/commit/82868bc2a1e67eae599987683db842b04bf8d916))
+
+
 ## v4.12.4-beta.1 (2026-06-01)
 
 ### Bug Fixes
