@@ -2,6 +2,37 @@
 
 <!-- version list -->
 
+## v4.12.4-beta.1 (2026-06-01)
+
+### Bug Fixes
+
+- Accept cross-stack MCP_DCR_SERVER_SECRET (legacy DCR_SERVER_SECRET still works)
+  ([#627](https://github.com/n24q02m/better-telegram-mcp/pull/627),
+  [`48ff4a4`](https://github.com/n24q02m/better-telegram-mcp/commit/48ff4a4cef06c39a4e02b0592fa7e869af7f1853))
+
+- Apply ruff format to new http transport tests
+  ([#627](https://github.com/n24q02m/better-telegram-mcp/pull/627),
+  [`48ff4a4`](https://github.com/n24q02m/better-telegram-mcp/commit/48ff4a4cef06c39a4e02b0592fa7e869af7f1853))
+
+- Bump mcp-core to 1.17.2-beta.1 for beta testing
+  ([`c6bd7b2`](https://github.com/n24q02m/better-telegram-mcp/commit/c6bd7b20b3065807f0e194cb31cab24494f10b72))
+
+- Strip whitespace before URL scheme check to close SSRF bypass
+  ([#620](https://github.com/n24q02m/better-telegram-mcp/pull/620),
+  [`b4c2457`](https://github.com/n24q02m/better-telegram-mcp/commit/b4c2457403a2ca8aa5111f399c625003775f98e9))
+
+- Sync docs to code (DCR_SERVER_SECRET env name, drop dead setup-manual link)
+  ([#626](https://github.com/n24q02m/better-telegram-mcp/pull/626),
+  [`fcb186f`](https://github.com/n24q02m/better-telegram-mcp/commit/fcb186fcfe989f0c28c233c2784d0ef5fae5508b))
+
+- Update non-major dependencies (mcp, starlette)
+  ([#612](https://github.com/n24q02m/better-telegram-mcp/pull/612),
+  [`7899030`](https://github.com/n24q02m/better-telegram-mcp/commit/7899030a9a5ab2a9280dad973e419fef93405e32))
+
+- Uv lock file maintenance ([#613](https://github.com/n24q02m/better-telegram-mcp/pull/613),
+  [`89ef4f9`](https://github.com/n24q02m/better-telegram-mcp/commit/89ef4f99c68c48cb106ff5a8a4dfbe455b3052dc))
+
+
 ## v4.12.3 (2026-05-29)
 
 ### Bug Fixes
