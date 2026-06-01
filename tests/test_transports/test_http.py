@@ -65,8 +65,32 @@ class TestIsMultiUserMode:
             # settings has api_id/api_hash by default
             assert _is_multi_user_mode(settings) is True
 
+    def test_is_multi_user_mode_true_mcp_prefixed_secret(
+        self, settings: Settings
+    ) -> None:
+        """Returns True when only MCP_DCR_SERVER_SECRET (cross-stack name)
+        is set — the primary env var, no legacy var needed."""
+        env = {
+            "MCP_DCR_SERVER_SECRET": "secret",
+            "PUBLIC_URL": "https://mcp.example.com",
+        }
+        with patch.dict("os.environ", env, clear=True):
+            assert _is_multi_user_mode(settings) is True
+
+    def test_is_multi_user_mode_true_legacy_secret(
+        self, settings: Settings
+    ) -> None:
+        """Back-compat: returns True when only the legacy DCR_SERVER_SECRET
+        is set (MCP_DCR_SERVER_SECRET absent)."""
+        env = {
+            "DCR_SERVER_SECRET": "secret",
+            "PUBLIC_URL": "https://mcp.example.com",
+        }
+        with patch.dict("os.environ", env, clear=True):
+            assert _is_multi_user_mode(settings) is True
+
     def test_is_multi_user_mode_false_missing_dcr(self, settings: Settings) -> None:
-        """Returns False when DCR_SERVER_SECRET is missing."""
+        """Returns False when both DCR secret names are missing."""
         env = {"PUBLIC_URL": "https://mcp.example.com"}
         with patch.dict("os.environ", env, clear=True):
             assert _is_multi_user_mode(settings) is False
@@ -193,6 +217,70 @@ class TestStartHttp:
         kwargs = mock_run.call_args.kwargs
         assert kwargs["port"] == 8080
         assert kwargs["host"] == "0.0.0.0"
+
+    def test_start_http_multi_user_mcp_prefixed_secret_no_runtimeerror(
+        self, tmp_path: Path
+    ) -> None:
+        """The gate passes (no RuntimeError, multi-user dispatched) when only
+        MCP_DCR_SERVER_SECRET is set with PUBLIC_URL."""
+        env = {
+            "MCP_DCR_SERVER_SECRET": "secret",
+            "PUBLIC_URL": "https://mcp.example.com",
+            "TELEGRAM_API_ID": "12345",
+            "TELEGRAM_API_HASH": "hash",
+        }
+        with (
+            patch.dict("os.environ", env, clear=True),
+            patch(
+                "mcp_core.transport.local_server.run_http_server",
+                new_callable=AsyncMock,
+            ) as mock_run,
+            patch(
+                "better_telegram_mcp.auth.telegram_auth_provider.TelegramAuthProvider"
+            ) as mock_provider_cls,
+        ):
+            mock_provider = mock_provider_cls.return_value
+            mock_provider.restore_sessions = AsyncMock(return_value=0)
+            mock_provider.shutdown = AsyncMock()
+            settings_with_api = Settings(
+                data_dir=tmp_path / "d", api_id=12345, api_hash="hash"
+            )
+            start_http(settings_with_api)
+
+        mock_run.assert_called_once()
+        assert mock_run.call_args.kwargs["auth_scope"] is _per_request_sub_scope
+
+    def test_start_http_multi_user_legacy_secret_no_runtimeerror(
+        self, tmp_path: Path
+    ) -> None:
+        """Back-compat: gate passes when only the legacy DCR_SERVER_SECRET
+        is set with PUBLIC_URL."""
+        env = {
+            "DCR_SERVER_SECRET": "secret",
+            "PUBLIC_URL": "https://mcp.example.com",
+            "TELEGRAM_API_ID": "12345",
+            "TELEGRAM_API_HASH": "hash",
+        }
+        with (
+            patch.dict("os.environ", env, clear=True),
+            patch(
+                "mcp_core.transport.local_server.run_http_server",
+                new_callable=AsyncMock,
+            ) as mock_run,
+            patch(
+                "better_telegram_mcp.auth.telegram_auth_provider.TelegramAuthProvider"
+            ) as mock_provider_cls,
+        ):
+            mock_provider = mock_provider_cls.return_value
+            mock_provider.restore_sessions = AsyncMock(return_value=0)
+            mock_provider.shutdown = AsyncMock()
+            settings_with_api = Settings(
+                data_dir=tmp_path / "d", api_id=12345, api_hash="hash"
+            )
+            start_http(settings_with_api)
+
+        mock_run.assert_called_once()
+        assert mock_run.call_args.kwargs["auth_scope"] is _per_request_sub_scope
 
     def test_start_http_refuses_public_url_without_multi_user(
         self, settings: Settings

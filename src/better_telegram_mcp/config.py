@@ -113,6 +113,7 @@ class Settings(BaseSettings):
         # 1. Check explicit env vars (prioritize CREDENTIAL_SECRET)
         secret = (
             os.environ.get("CREDENTIAL_SECRET")
+            or os.environ.get("MCP_DCR_SERVER_SECRET")
             or os.environ.get("DCR_SERVER_SECRET")
             or os.environ.get("MASTER_SECRET")
         )
