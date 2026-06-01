@@ -454,8 +454,8 @@ class UserBackend(TelegramBackend):
         elif media_type == "video":
             kwargs["video_note"] = False
 
-        if file_path_or_url.lower().startswith(("http://", "https://")):
-            file_to_send = await fetch_url_safely(file_path_or_url)
+        if file_path_or_url.strip().lower().startswith(("http://", "https://")):
+            file_to_send = await fetch_url_safely(file_path_or_url.strip())
         else:
             file_to_send = validate_file_path(file_path_or_url)
         msg = await client.send_file(chat_id, file_to_send, **kwargs)
