@@ -50,7 +50,8 @@ collects bot_token OR phone, posts to `/save`, and chains OTP / 2FA via
 
 - **Single-user**: writes to `config.enc`, hot-reloads the global Telethon
   backend in `server.py`.
-- **Multi-user remote** (`PUBLIC_URL` + `DCR_SERVER_SECRET` set): per-sub
+- **Multi-user remote** (`PUBLIC_URL` + `MCP_DCR_SERVER_SECRET` set; legacy
+  `DCR_SERVER_SECRET` still accepted): per-sub
   Telethon backends managed by `TelegramAuthProvider`; the auth_scope
   middleware (`_per_request_sub_scope`) pins the JWT sub + per-user
   backend into contextvars before each MCP tool call.
@@ -64,6 +65,7 @@ Session persist: `~/.better-telegram-mcp/<name>.session`, permission 600.
 - `TELEGRAM_PHONE` -- phone (required for auth web UI)
 - `TELEGRAM_AUTH_URL` -- `local` | remote URL (default: remote)
 - `TELEGRAM_SESSION_NAME`, `TELEGRAM_DATA_DIR` -- optional
+- `MCP_DCR_SERVER_SECRET` -- multi-user remote OAuth shared secret (with `PUBLIC_URL`); legacy `DCR_SERVER_SECRET` still accepted
 
 NO `TELEGRAM_PASSWORD` -- 2FA nhap qua web UI, KHONG luu env.
 
@@ -129,6 +131,6 @@ Tier policy:
 - **T2 non-interaction** (`make e2e-config CONFIG=<id>` locally) - driver pre-fills relay form from skret AWS SSM `/better-telegram-mcp/prod` (`ap-southeast-1`). No user gate.
 - **T2 interaction** - driver fills relay form, then prints upstream user-gate URL; user signs in / types OTP at provider. Driver enforces per-flow timeouts (device-code 900s, oauth-redirect 300s, browser-form 600s) and emits `[poll] elapsed=Xs remaining=Ys status=<body>` every 30s. On timeout, container logs + last `setup-status` are saved to `<tmp>/e2e-diag/` BEFORE teardown for post-mortem.
 
-Multi-user remote mode (deployment property; not a separate config) requires `DCR_SERVER_SECRET` in the same skret namespace - driver refuses to start the container without it when `PUBLIC_URL` is set.
+Multi-user remote mode (deployment property; not a separate config) requires `MCP_DCR_SERVER_SECRET` (legacy `DCR_SERVER_SECRET` still accepted) in the same skret namespace - driver refuses to start the container without it when `PUBLIC_URL` is set.
 
 References: `mcp-core/scripts/e2e/matrix.yaml`, `~/.claude/skills/mcp-dev/references/e2e-full-matrix.md` (harness-readiness gate), `~/.claude/skills/mcp-dev/references/secrets-skret.md` (per-server credential layout), `~/.claude/skills/mcp-dev/references/multi-user-pattern.md` (per-JWT-sub isolation).

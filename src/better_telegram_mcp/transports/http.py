@@ -2,7 +2,8 @@
 
 Two outcomes (both via mcp-core ``run_http_server``):
 
-- **Multi-user remote** when ``DCR_SERVER_SECRET`` + ``PUBLIC_URL`` + a
+- **Multi-user remote** when ``MCP_DCR_SERVER_SECRET`` (legacy
+  ``DCR_SERVER_SECRET`` still accepted) + ``PUBLIC_URL`` + a
   Telegram ``api_id``/``api_hash`` pair are present. mcp-core's local OAuth
   AS issues a per-authorize ``sub`` UUID, and the ``auth_scope`` middleware
   pins that sub into a contextvar so per-tool-call handlers resolve the
@@ -18,7 +19,8 @@ Two outcomes (both via mcp-core ``run_http_server``):
 
 The ``api_id``/``api_hash`` pair has built-in defaults in ``config.py``
 (public Telegram app registration) so a deployed container only needs
-``DCR_SERVER_SECRET`` + ``PUBLIC_URL`` set to flip on multi-user.
+``MCP_DCR_SERVER_SECRET`` (legacy ``DCR_SERVER_SECRET`` still accepted) +
+``PUBLIC_URL`` set to flip on multi-user.
 
 Per spec ``2026-05-01-stdio-pure-http-multiuser.md``: there is no
 ``MCP_MODE`` env var, no remote-relay client, no daemon-bridge. Stdio mode
@@ -56,17 +58,29 @@ def get_current_backend():
     return _current_backend.get(None)
 
 
+def _dcr_secret() -> str | None:
+    """Resolve the multi-user OAuth shared secret from env.
+
+    ``MCP_DCR_SERVER_SECRET`` is the cross-stack-standard name (wins);
+    legacy ``DCR_SERVER_SECRET`` is still accepted for back-compat.
+    """
+    return os.environ.get("MCP_DCR_SERVER_SECRET") or os.environ.get(
+        "DCR_SERVER_SECRET"
+    )
+
+
 def _is_multi_user_mode(settings: Settings | None = None) -> bool:
     """Check if multi-user HTTP mode is configured.
 
-    Multi-user requires: ``DCR_SERVER_SECRET`` (OAuth shared secret) +
-    ``PUBLIC_URL`` (deployed hostname) + a Telegram ``api_id`` / ``api_hash``
-    pair. The api_id/api_hash pair is satisfied either by the corresponding
-    env vars OR by the built-in Settings defaults (the code ships a public
-    app registration — see ``config.py``), so a deployed container only
-    needs to set the two "secret" variables to flip on multi-user mode.
+    Multi-user requires: ``MCP_DCR_SERVER_SECRET`` (OAuth shared secret;
+    legacy ``DCR_SERVER_SECRET`` still accepted) + ``PUBLIC_URL`` (deployed
+    hostname) + a Telegram ``api_id`` / ``api_hash`` pair. The
+    api_id/api_hash pair is satisfied either by the corresponding env vars
+    OR by the built-in Settings defaults (the code ships a public app
+    registration — see ``config.py``), so a deployed container only needs
+    to set the two "secret" variables to flip on multi-user mode.
     """
-    has_dcr = bool(os.environ.get("DCR_SERVER_SECRET"))
+    has_dcr = bool(_dcr_secret())
     has_public_url = bool(os.environ.get("PUBLIC_URL"))
     if settings is None:
         settings = Settings()
@@ -78,14 +92,16 @@ def start_http(settings: Settings) -> None:
     """Start MCP server in HTTP mode.
 
     Three outcomes:
-    - Full multi-user OAuth 2.1 when ``DCR_SERVER_SECRET`` + ``PUBLIC_URL``
+    - Full multi-user OAuth 2.1 when ``MCP_DCR_SERVER_SECRET`` (legacy
+      ``DCR_SERVER_SECRET`` still accepted) + ``PUBLIC_URL``
       are set and a ``api_id``/``api_hash`` pair is available (via env var
       or the built-in Settings defaults). Per-JWT-sub Telethon clients,
       isolated credentials, the intended public-deploy mode.
     - Single-user relay fallback when ``PUBLIC_URL`` is absent — that's
       self-host / localhost ``uvx`` usage and a single shared config is
       correct there.
-    - ``RuntimeError`` when ``PUBLIC_URL`` is set but ``DCR_SERVER_SECRET``
+    - ``RuntimeError`` when ``PUBLIC_URL`` is set but
+      ``MCP_DCR_SERVER_SECRET`` / ``DCR_SERVER_SECRET``
       or the api_id/api_hash pair is missing. Without all three, the
       fallback would serve a shared ``default.session`` + ``TELEGRAM_PHONE``
       across every visitor, which leaks credentials (the 2026-04-21
@@ -101,8 +117,8 @@ def start_http(settings: Settings) -> None:
     override = os.environ.get("TELEGRAM_ACCEPT_SHARED_SINGLE_USER") == "1"
     if public_url and not override:
         missing = []
-        if not os.environ.get("DCR_SERVER_SECRET"):
-            missing.append("DCR_SERVER_SECRET")
+        if not _dcr_secret():
+            missing.append("MCP_DCR_SERVER_SECRET (legacy DCR_SERVER_SECRET)")
         if not (settings.api_id and settings.api_hash):
             missing.append("TELEGRAM_API_ID and TELEGRAM_API_HASH")
         msg = (
@@ -239,8 +255,9 @@ def _start_multi_user_http(settings: Settings) -> None:
     ``TelegramAuthProvider`` so concurrent users do not share Telethon
     sessions.
 
-    The ``DCR_SERVER_SECRET`` env var is required by the upstream check
-    in :func:`_is_multi_user_mode`; mcp-core's local OAuth AS reuses it
+    The ``MCP_DCR_SERVER_SECRET`` env var (legacy ``DCR_SERVER_SECRET``
+    still accepted) is required by the upstream check in
+    :func:`_is_multi_user_mode`; mcp-core's local OAuth AS reuses it
     to mint per-user JWTs.
     """
     import asyncio

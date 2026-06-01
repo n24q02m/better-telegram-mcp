@@ -112,8 +112,20 @@ def test_secret_priority_env_credential(monkeypatch):
     assert s.secret == "env-cred"
 
 
-def test_secret_priority_env_dcr(monkeypatch):
+def test_secret_priority_env_mcp_dcr(monkeypatch):
+    """MCP_DCR_SERVER_SECRET (cross-stack name) wins over legacy DCR_SERVER_SECRET."""
     monkeypatch.delenv("CREDENTIAL_SECRET", raising=False)
+    monkeypatch.setenv("MCP_DCR_SERVER_SECRET", "env-mcp-dcr")
+    monkeypatch.setenv("DCR_SERVER_SECRET", "env-dcr")
+    monkeypatch.setenv("MASTER_SECRET", "env-master")
+    s = Settings()
+    assert s.secret == "env-mcp-dcr"
+
+
+def test_secret_priority_env_dcr(monkeypatch):
+    """Back-compat: legacy DCR_SERVER_SECRET still resolves when MCP_ name absent."""
+    monkeypatch.delenv("CREDENTIAL_SECRET", raising=False)
+    monkeypatch.delenv("MCP_DCR_SERVER_SECRET", raising=False)
     monkeypatch.setenv("DCR_SERVER_SECRET", "env-dcr")
     monkeypatch.setenv("MASTER_SECRET", "env-master")
     s = Settings()
@@ -124,7 +136,12 @@ def test_secret_persistence(tmp_path):
     # Test that it generates and persists a secret when no env vars are set
     import os
 
-    for env in ["CREDENTIAL_SECRET", "DCR_SERVER_SECRET", "MASTER_SECRET"]:
+    for env in [
+        "CREDENTIAL_SECRET",
+        "MCP_DCR_SERVER_SECRET",
+        "DCR_SERVER_SECRET",
+        "MASTER_SECRET",
+    ]:
         if env in os.environ:
             del os.environ[env]
 
