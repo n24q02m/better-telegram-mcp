@@ -77,9 +77,7 @@ class TestIsMultiUserMode:
         with patch.dict("os.environ", env, clear=True):
             assert _is_multi_user_mode(settings) is True
 
-    def test_is_multi_user_mode_true_legacy_secret(
-        self, settings: Settings
-    ) -> None:
+    def test_is_multi_user_mode_true_legacy_secret(self, settings: Settings) -> None:
         """Back-compat: returns True when only the legacy DCR_SERVER_SECRET
         is set (MCP_DCR_SERVER_SECRET absent)."""
         env = {
