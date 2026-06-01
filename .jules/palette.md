@@ -16,3 +16,6 @@
 ## 2024-07-28 - Contrast Requirements for Dark Themes
 **Learning:** Text using color `#666` fails WCAG AA 4.5:1 contrast requirements when placed against dark-themed backgrounds such as `#1a1a1a`.
 **Action:** When designing dark themes, ensure that subtle or secondary text elements (like `.server-id` and `.help-text`) are upgraded to at least `#888` or `#999` to maintain readability and accessibility standards.
+## 2024-05-18 - [Accessibility: Native Labels over ARIA in Form Inputs]
+**Learning:** When constructing HTML form inputs dynamically (e.g., in `credential_form.py`), using native semantic `<label for="...">` elements is superior to visual block elements like `<p>` paired with `aria-labelledby`. Native labels provide better screen reader support and inherently increase the clickable area without requiring extra ARIA attributes.
+**Action:** When creating form inputs, always use native `<label>` elements connected via the `for` attribute instead of non-semantic elements with `aria-labelledby`. If a block-level display is required, use CSS `display: block;` on the label rather than a block element like `<p>`.
