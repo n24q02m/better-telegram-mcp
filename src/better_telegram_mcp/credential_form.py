@@ -130,14 +130,14 @@ def render_telegram_credential_form(
 
         .server-id {{
             font-size: 0.8125rem;
-            color: #999;
+            color: #aaaaaa;
             font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
             margin-bottom: 0.5rem;
         }}
 
         .server-description {{
             font-size: 0.9rem;
-            color: #999;
+            color: #aaaaaa;
             margin-top: 0.5rem;
         }}
 
@@ -263,7 +263,7 @@ def render_telegram_credential_form(
 
         .help-text {{
             font-size: 0.8125rem;
-            color: #999;
+            color: #aaaaaa;
             margin-top: 0.375rem;
         }}
 
