@@ -653,7 +653,14 @@ class TestGetMembers:
 
         users = [_mock_user(user_id=i) for i in range(3)]
 
-        mock_client.get_participants = AsyncMock(return_value=users)
+        async def _mock_iter(*args, **kwargs):
+            for u in users:
+                yield u
+
+        # Mock iter_participants as a regular MagicMock that returns an async generator,
+        # instead of an AsyncMock which returns a coroutine.
+        from unittest.mock import MagicMock
+        mock_client.iter_participants = MagicMock(side_effect=_mock_iter)
 
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)
@@ -661,7 +668,7 @@ class TestGetMembers:
 
         result = await backend.get_members(123, limit=10)
 
-        mock_client.get_participants.assert_awaited_once_with(123, limit=10)
+        mock_client.iter_participants.assert_called_once_with(123, limit=10)
         assert len(result) == 3
         assert result[0]["first_name"] == "Test"
 
