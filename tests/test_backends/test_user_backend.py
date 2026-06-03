@@ -660,6 +660,7 @@ class TestGetMembers:
         # Mock iter_participants as a regular MagicMock that returns an async generator,
         # instead of an AsyncMock which returns a coroutine.
         from unittest.mock import MagicMock
+
         mock_client.iter_participants = MagicMock(side_effect=_mock_iter)
 
         settings = _make_settings(tmp_path)
