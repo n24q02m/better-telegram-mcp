@@ -332,23 +332,45 @@ class TelegramAuthProvider:
     async def revoke_session(self, bearer: str) -> bool:
         """Revoke a session and disconnect its backend.
 
-        Returns True if the session existed.
+        Returns True if the session (active, pending, or stored) existed.
         """
+        # Track if we actually found and removed anything
+        removed = False
+
+        # 1. Disconnect and remove active client
         backend = self.active_clients.pop(bearer, None)
         if backend is not None:
-            await backend.disconnect()
+            removed = True
+            try:
+                await backend.disconnect()
+            except Exception as exc:
+                logger.warning("Error disconnecting backend {}: {}", bearer[:8], exc)
 
-        # Remove pending OTP if any
+        # 2. Disconnect and remove pending OTP if any
         pending = self._pending_otps.pop(bearer, None)
         if pending is not None:
-            await pending["backend"].disconnect()
+            removed = True
+            try:
+                await pending["backend"].disconnect()
+            except Exception as exc:
+                logger.warning(
+                    "Error disconnecting pending OTP backend {}: {}",
+                    bearer[:8],
+                    exc,
+                )
 
-        # Remove from ownership map
+        # 3. Remove from ownership map
         to_remove = [sid for sid, b in self.session_owners.items() if b == bearer]
-        for sid in to_remove:
-            del self.session_owners[sid]
+        if to_remove:
+            removed = True
+            for sid in to_remove:
+                del self.session_owners[sid]
 
-        return self._store.delete(bearer)
+        # 4. Remove from persistent store
+        if self._store.delete(bearer):
+            removed = True
+
+        return removed
 
     async def cleanup_expired(self) -> int:
         """Remove expired sessions. Returns count of removed sessions."""
