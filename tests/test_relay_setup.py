@@ -282,6 +282,13 @@ class TestSanitizeError:
     def test_passthrough_unknown_error(self):
         assert _sanitize_error("Some unknown error") == "Some unknown error"
 
+    def test_sanitize_error_secret_redaction(self):
+        assert _sanitize_error("Your SECRET key is ABC") == "Your *** key is ABC"
+
+    def test_sanitize_error_unicode(self):
+        msg = "Error ❌ with unicode ✨"
+        assert _sanitize_error(msg) == msg
+
     def test_sanitize_error_empty(self):
         assert _sanitize_error("") == ""
 
