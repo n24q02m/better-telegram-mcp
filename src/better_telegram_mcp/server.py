@@ -124,6 +124,11 @@ def _register_hot_reload() -> None:
         _settings = _ensure_settings()
         if not _settings.is_configured:
             return
+
+        if _backend is not None:
+            logger.info("Disconnecting old backend before hot-reload")
+            await _backend.disconnect()
+
         logger.info("Hot-reloading backend from relay config ({})", _settings.mode)
         _backend = _create_backend_instance(_settings)
         await _backend.connect()
@@ -163,10 +168,17 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
             yield
         finally:
             _unconfigured = False
+            # Unregister hot-reload to avoid leaks and re-init on dead server
+            from .credential_state import set_on_configured
+
+            set_on_configured(None)
             # Disconnect backend if it was created via hot-reload
             if _backend is not None:
                 await _backend.disconnect()
+                _backend = None
                 logger.info("Disconnected from Telegram")
+            _settings = None
+            _pending_auth = False
         return
 
     logger.info("Mode: {}", _settings.mode)
@@ -186,6 +198,9 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
         yield
     finally:
         await _backend.disconnect()
+        _backend = None
+        _settings = None
+        _pending_auth = False
         logger.info("Disconnected from Telegram")
 
 

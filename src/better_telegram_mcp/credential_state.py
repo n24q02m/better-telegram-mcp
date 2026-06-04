@@ -281,7 +281,7 @@ async def save_credentials(
     return None
 
 
-def set_on_configured(callback: Callable[[], Awaitable[None]]) -> None:
+def set_on_configured(callback: Callable[[], Awaitable[None]] | None) -> None:
     """Register callback invoked after relay credentials are applied.
 
     ``server.py`` uses this to reinitialize the Telegram backend (hot-reload)
