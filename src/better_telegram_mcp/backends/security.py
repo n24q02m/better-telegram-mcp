@@ -1,7 +1,5 @@
 """Input validation for security-sensitive operations."""
 
-from __future__ import annotations
-
 import ipaddress
 import socket
 from pathlib import Path
