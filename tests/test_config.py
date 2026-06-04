@@ -185,6 +185,7 @@ def test_from_relay_config():
     assert s2.api_id == 37984984
     assert s2.api_hash == "2f5f4c76c4de7c07302380c788390100"
 
+
 def test_from_relay_config_robustness():
     # Whitespace should be treated as None
     config = {
