@@ -16,8 +16,9 @@ from typing import Any
 
 def _escape(value: Any) -> str:
     """Escape a value for safe HTML insertion."""
+    if value is None:
+        return ""
     return html_module.escape(str(value), quote=True)
-
 
 def render_telegram_credential_form(
     schema: dict[str, Any],

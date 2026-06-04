@@ -253,3 +253,23 @@ def test_form_has_xss_safe_submit_url_handling() -> None:
     assert '"><script>' not in html
     # Should contain the escaped form
     assert "&quot;&gt;&lt;script&gt;" in html
+
+def test_escape_handles_none() -> None:
+    from better_telegram_mcp.credential_form import _escape
+    assert _escape(None) == ""
+
+
+def test_escape_handles_special_characters() -> None:
+    from better_telegram_mcp.credential_form import _escape
+    assert _escape("&") == "&amp;"
+    assert _escape("<") == "&lt;"
+    assert _escape(">") == "&gt;"
+    assert _escape('"') == "&quot;"
+    assert _escape("'") == "&#x27;"
+    assert _escape("<b>") == "&lt;b&gt;"
+
+
+def test_escape_handles_normal_strings() -> None:
+    from better_telegram_mcp.credential_form import _escape
+    assert _escape("hello") == "hello"
+    assert _escape("123") == "123"
