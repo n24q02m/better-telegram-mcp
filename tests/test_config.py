@@ -92,6 +92,9 @@ def test_session_path(monkeypatch):
     "input_val, expected",
     [
         (None, None),
+        ("\t", None),
+        ("\n", None),
+        ("\r\n", None),
         ("", None),
         ("   ", None),
         ("valid", "valid"),
