@@ -9,8 +9,13 @@ from better_telegram_mcp.utils.formatting import err, ok, safe_error
 def test_ok_basic_serialization():
     data = {"key": "value", "number": 42}
     result = ok(data)
-    assert result == '{"key": "value", "number": 42}'
-    assert json.loads(result) == data
+    parsed = json.loads(result)
+    assert parsed["status"] == "ok"
+    assert parsed["ok"] is True
+    assert parsed["data"] == data
+    # Check spreading for backward compatibility
+    assert parsed["key"] == "value"
+    assert parsed["number"] == 42
 
 
 def test_ok_unicode_handling():
@@ -20,7 +25,8 @@ def test_ok_unicode_handling():
     assert "😊" in result
     assert "Привет" in result
     assert "你好" in result
-    assert json.loads(result) == data
+    parsed = json.loads(result)
+    assert parsed["data"] == data
 
 
 def test_ok_unserializable_objects():
@@ -37,14 +43,14 @@ def test_ok_unserializable_objects():
     assert '"custom": "CustomObjectString"' in result
 
     parsed = json.loads(result)
-    assert parsed["date"] == "2024-01-01 12:00:00"
-    assert parsed["custom"] == "CustomObjectString"
+    assert parsed["data"]["date"] == "2024-01-01 12:00:00"
+    assert parsed["data"]["custom"] == "CustomObjectString"
 
 
 def test_ok_edge_cases():
-    assert ok(None) == "null"
-    assert ok([]) == "[]"
-    assert ok({}) == "{}"
+    assert json.loads(ok(None)) == {"status": "ok", "ok": True, "data": None}
+    assert json.loads(ok([])) == {"status": "ok", "ok": True, "data": []}
+    assert json.loads(ok({})) == {"status": "ok", "ok": True, "data": {}}
 
 
 def test_ok_collections():
@@ -53,20 +59,51 @@ def test_ok_collections():
     result = ok(data)
     parsed = json.loads(result)
     # set str representation contains 1, 2, 3 and is wrapped in {}
-    assert isinstance(parsed["s"], str)
-    assert "1" in parsed["s"]
-    assert "2" in parsed["s"]
-    assert "3" in parsed["s"]
-    assert parsed["s"].startswith("{")
-    assert parsed["s"].endswith("}")
+    assert isinstance(parsed["data"]["s"], str)
+    assert "1" in parsed["data"]["s"]
+    assert "2" in parsed["data"]["s"]
+    assert "3" in parsed["data"]["s"]
+    assert parsed["data"]["s"].startswith("{")
+    assert parsed["data"]["s"].endswith("}")
+
+
+def test_ok_backward_compatibility_spreading():
+    # Ensure that top-level keys are preserved when data is a dict
+    data = {"message_id": 123, "text": "hello", "nested": {"a": 1}}
+    result = ok(data)
+    parsed = json.loads(result)
+    assert parsed["message_id"] == 123
+    assert parsed["text"] == "hello"
+    assert parsed["nested"] == {"a": 1}
+    assert parsed["data"] == data
+    assert parsed["status"] == "ok"
+    assert parsed["ok"] is True
+
+
+def test_ok_precedence_status():
+    # Ensure that data's status takes precedence over default 'ok'
+    data = {"status": "already_configured", "message": "already"}
+    result = ok(data)
+    parsed = json.loads(result)
+    assert parsed["status"] == "already_configured"
+    assert parsed["message"] == "already"
+    assert parsed["ok"] is True
+
+
+def test_ok_non_dict_data():
+    # Spreading should only happen for dicts
+    data = "simple string"
+    result = ok(data)
+    parsed = json.loads(result)
+    assert parsed == {"status": "ok", "ok": True, "data": "simple string"}
 
 
 def test_err_basic_serialization():
     message = "Something went wrong"
     result = err(message)
-    assert result == '{"error": "Something went wrong"}'
-
     parsed = json.loads(result)
+    assert parsed["status"] == "error"
+    assert parsed["message"] == message
     assert parsed["error"] == message
 
 
@@ -77,13 +114,13 @@ def test_err_unicode_handling():
     assert "Ошибка: ❌" in result
 
     parsed = json.loads(result)
-    assert parsed["error"] == message
+    assert parsed["message"] == message
 
 
 def test_err_non_string_input():
     # err() expects a str, but json.dumps handles other types too
     result = err(123)
-    assert json.loads(result) == {"error": 123}
+    assert json.loads(result) == {"status": "error", "message": 123, "error": 123}
 
 
 def test_safe_error_allowed_exceptions():
@@ -102,6 +139,8 @@ def test_safe_error_allowed_exceptions():
     for exc, expected_msg in allowed_exceptions:
         result = safe_error(exc)
         parsed = json.loads(result)
+        assert parsed["status"] == "error"
+        assert parsed["message"] == expected_msg
         assert parsed["error"] == expected_msg
 
 
@@ -122,7 +161,8 @@ def test_safe_error_generic_exceptions():
         expected_msg = (
             f"{type(exc).__name__}: Operation failed. Check server logs for details."
         )
-        assert parsed["error"] == expected_msg
+        assert parsed["status"] == "error"
+        assert parsed["message"] == expected_msg
 
         # Ensure internal details are NOT leaked
         assert str(exc) not in result
@@ -132,13 +172,15 @@ def test_safe_error_empty_message():
     # Allowed exception with empty message
     exc = ValueError("")
     result = safe_error(exc)
-    assert json.loads(result) == {"error": ""}
+    assert json.loads(result) == {"status": "error", "message": "", "error": ""}
 
     # Generic exception with empty message
     exc = Exception("")
     result = safe_error(exc)
     assert json.loads(result) == {
-        "error": "Exception: Operation failed. Check server logs for details."
+        "status": "error",
+        "message": "Exception: Operation failed. Check server logs for details.",
+        "error": "Exception: Operation failed. Check server logs for details.",
     }
 
 
@@ -148,7 +190,11 @@ def test_safe_error_subclasses_allowed():
 
     exc = CustomValueError("custom message")
     result = safe_error(exc)
-    assert json.loads(result) == {"error": "custom message"}
+    assert json.loads(result) == {
+        "status": "error",
+        "message": "custom message",
+        "error": "custom message",
+    }
 
 
 def test_safe_error_disallowed_oserror():
@@ -157,7 +203,7 @@ def test_safe_error_disallowed_oserror():
     result = safe_error(exc)
     parsed = json.loads(result)
     assert (
-        parsed["error"]
+        parsed["message"]
         == "PermissionError: Operation failed. Check server logs for details."
     )
     assert "access denied" not in result
@@ -172,7 +218,7 @@ def test_safe_error_base_exception():
     result = safe_error(exc)
     parsed = json.loads(result)
     assert (
-        parsed["error"]
+        parsed["message"]
         == "KeyboardInterrupt: Operation failed. Check server logs for details."
     )
     assert "stop" not in result
@@ -186,8 +232,8 @@ def test_ok_nested_mixed_types():
     }
     result = ok(data)
     parsed = json.loads(result)
-    assert parsed["str"] == "text"
-    assert parsed["nested"]["val"] == 1
-    assert parsed["nested"]["exc"] == "nested error"
-    assert parsed["list"][0] == 1
-    assert parsed["list"][1]["a"] == 1
+    assert parsed["data"]["str"] == "text"
+    assert parsed["data"]["nested"]["val"] == 1
+    assert parsed["data"]["nested"]["exc"] == "nested error"
+    assert parsed["data"]["list"][0] == 1
+    assert parsed["data"]["list"][1]["a"] == 1

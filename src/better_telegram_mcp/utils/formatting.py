@@ -3,11 +3,26 @@ from typing import Any
 
 
 def ok(data: Any) -> str:
-    return json.dumps(data, ensure_ascii=False, default=str)
+    """Return a successful response with standardized structure.
+
+    Includes 'status': 'ok' (if not already present in data) and wraps data in 'data' field.
+    Spreads data keys to top level for backward compatibility.
+    """
+    res = {"ok": True, "data": data}
+    if isinstance(data, dict):
+        res.update(data)
+    if "status" not in res:
+        res["status"] = "ok"
+    return json.dumps(res, ensure_ascii=False, default=str)
 
 
 def err(message: str) -> str:
-    return json.dumps({"error": message}, ensure_ascii=False)
+    """Return an error response with standardized structure."""
+    return json.dumps(
+        {"status": "error", "message": message, "error": message},
+        ensure_ascii=False,
+        default=str,
+    )
 
 
 def safe_error(e: Exception) -> str:
