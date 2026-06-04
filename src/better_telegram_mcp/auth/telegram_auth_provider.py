@@ -351,32 +351,63 @@ class TelegramAuthProvider:
         return self._store.delete(bearer)
 
     async def cleanup_expired(self) -> int:
-        """Remove expired sessions. Returns count of removed sessions."""
+        """Remove expired sessions and stale OTPs concurrently.
+
+        Each Telethon ``disconnect()`` waits for an MTProto roundtrip; running
+        them sequentially turns cleanup into ``len(expired) * RTT``.
+        ``asyncio.gather(..., return_exceptions=True)`` parallelises them.
+        """
         sessions = self._store.load_all()
         removed = 0
         now = time.time()
 
-        for bearer, info in sessions.items():
-            if now - info.created_at > _SESSION_TTL:
-                await self.revoke_session(bearer)
-                removed += 1
+        # 1. Identify and revoke expired sessions concurrently
+        expired_bearers = [
+            bearer
+            for bearer, info in sessions.items()
+            if now - info.created_at > _SESSION_TTL
+        ]
+        if expired_bearers:
+            results = await asyncio.gather(
+                *(self.revoke_session(b) for b in expired_bearers),
+                return_exceptions=True,
+            )
+            for r in results:
+                if isinstance(r, Exception):
+                    logger.warning("Error during session revocation: {}", r)
+                elif r is True:
+                    removed += 1
 
-        # Clean up stale pending OTPs (5 min TTL) using chronological insertion order.
+        # 2. Clean up stale pending OTPs (5 min TTL) concurrently
         # Since start_user_auth pops-then-reinserts each bearer, the oldest entries
-        # are always at the front, so we can stop at the first non-stale entry instead
-        # of scanning the full dict on every cleanup tick.
+        # are at the front, so we can stop at the first non-stale entry.
+        stale_otps = []
         while self._pending_otps:
             bearer, pending = next(iter(self._pending_otps.items()))
             if now - pending["created_at"] <= 300:
                 break
-            self._pending_otps.pop(bearer)
-            try:
-                await pending["backend"].disconnect()
-            except Exception as exc:  # pragma: no cover - best-effort cleanup
-                logger.warning(
-                    "Error disconnecting stale OTP backend {}: {}", bearer[:8], exc
-                )
-            removed += 1
+            stale_otps.append(self._pending_otps.pop(bearer))
+
+        if stale_otps:
+
+            async def _disconnect(p: dict) -> bool:
+                try:
+                    await p["backend"].disconnect()
+                    return True
+                except Exception as exc:
+                    logger.warning(
+                        "Error disconnecting stale OTP backend {}: {}",
+                        p["bearer"][:8],
+                        exc,
+                    )
+                    return False
+
+            await asyncio.gather(
+                *(_disconnect(p) for p in stale_otps),
+                return_exceptions=True,
+            )
+            # Both True and False from _disconnect mean it was "removed" from pending
+            removed += len(stale_otps)
 
         return removed
 
