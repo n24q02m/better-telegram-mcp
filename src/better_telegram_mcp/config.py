@@ -92,15 +92,28 @@ class Settings(BaseSettings):
         Returns:
             A configured Settings instance.
         """
-        kwargs: dict[str, object] = {
-            "bot_token": config.get("TELEGRAM_BOT_TOKEN"),
-            "phone": config.get("TELEGRAM_PHONE"),
+        # Mapping of relay config keys to Settings field names
+        mapping = {
+            "TELEGRAM_BOT_TOKEN": "bot_token",
+            "TELEGRAM_PHONE": "phone",
+            "TELEGRAM_API_ID": "api_id",
+            "TELEGRAM_API_HASH": "api_hash",
+            "TELEGRAM_SESSION_NAME": "session_name",
+            "TELEGRAM_AUTH_URL": "auth_url",
+            "TELEGRAM_DATA_DIR": "data_dir",
+            "TELEGRAM_TRUSTED_PROXIES": "trusted_proxies",
         }
-        # Only override defaults if relay explicitly provides values
-        if config.get("TELEGRAM_API_ID"):
-            kwargs["api_id"] = int(config["TELEGRAM_API_ID"])
-        if config.get("TELEGRAM_API_HASH"):
-            kwargs["api_hash"] = config["TELEGRAM_API_HASH"]
+
+        kwargs: dict[str, object] = {}
+        for config_key, field_name in mapping.items():
+            val = _empty_to_none(config.get(config_key))
+            if val is not None:
+                kwargs[field_name] = val
+            elif field_name in ("bot_token", "phone"):
+                # bot_token and phone are primary credentials; if relay lacks them,
+                # we explicitly pass None to override env vars (relay is the source of truth).
+                kwargs[field_name] = None
+
         return cls(**kwargs)
 
     @property

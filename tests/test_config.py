@@ -184,3 +184,30 @@ def test_from_relay_config():
     s2 = Settings.from_relay_config({})
     assert s2.api_id == 37984984
     assert s2.api_hash == "2f5f4c76c4de7c07302380c788390100"
+
+def test_from_relay_config_robustness():
+    # Whitespace should be treated as None
+    config = {
+        "TELEGRAM_BOT_TOKEN": "   ",
+        "TELEGRAM_PHONE": "",
+        "TELEGRAM_API_ID": " 12345 ",
+    }
+    s = Settings.from_relay_config(config)
+    assert s.bot_token is None
+    assert s.phone is None
+    assert s.api_id == 12345
+
+
+def test_from_relay_config_extended(tmp_path):
+    config = {
+        "TELEGRAM_SESSION_NAME": "custom_session",
+        "TELEGRAM_AUTH_URL": "https://example.com/auth",
+        "TELEGRAM_DATA_DIR": str(tmp_path),
+        "TELEGRAM_TRUSTED_PROXIES": "1.1.1.1,2.2.2.2",
+    }
+    s = Settings.from_relay_config(config)
+    assert s.session_name == "custom_session"
+    assert s.auth_url == "https://example.com/auth"
+    assert s.data_dir == tmp_path
+    assert s.trusted_proxies == "1.1.1.1,2.2.2.2"
+    assert s.trusted_proxy_list == frozenset({"1.1.1.1", "2.2.2.2"})
