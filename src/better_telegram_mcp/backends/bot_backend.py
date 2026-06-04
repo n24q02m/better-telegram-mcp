@@ -14,7 +14,8 @@ API_BASE = "https://api.telegram.org/bot{}/"
 
 class TelegramAPIError(Exception):
     def __init__(self, description: str, error_code: int = 0):
-        super().__init__(description)
+        # Redact before storing to ensure the token never leaks in logs or UI
+        super().__init__(redact_bot_token(description))
         self.error_code = error_code
 
 
@@ -34,10 +35,10 @@ class BotBackend(TelegramBackend):
         except httpx.HTTPError as e:
             # httpx exceptions include the request URL, which carries the bot
             # token; redact before re-raising so it cannot leak into logs.
-            raise TelegramAPIError(redact_bot_token(str(e))) from None
+            raise TelegramAPIError(str(e)) from None
         body = resp.json()
         if not body.get("ok"):
-            desc = redact_bot_token(body.get("description", "Unknown error"))
+            desc = body.get("description", "Unknown error")
             raise TelegramAPIError(desc, body.get("error_code", resp.status_code))
         return body.get("result")
 
@@ -46,12 +47,10 @@ class BotBackend(TelegramBackend):
         try:
             resp = await self._client.post(method, data=data, files=files)
         except httpx.HTTPError as e:
-            raise TelegramAPIError(redact_bot_token(str(e))) from None
+            raise TelegramAPIError(str(e)) from None
         body = resp.json()
         if not body.get("ok"):
-            raise TelegramAPIError(
-                redact_bot_token(body.get("description", "Unknown error"))
-            )
+            raise TelegramAPIError(body.get("description", "Unknown error"))
         return body.get("result")
 
     # --- Connection ---
@@ -66,9 +65,13 @@ class BotBackend(TelegramBackend):
                     "https://t.me/BotFather"
                 )
                 raise TelegramAPIError(msg) from e
-            raise ConnectionError(
-                redact_bot_token(f"Failed to connect to Bot API: {e}")
-            ) from e
+            # ConnectionError is caught by safe_error in handle_media etc,
+            # which might stringify it. We wrap in TelegramAPIError if we want
+            # automatic redaction, or we redact here. Since we want to simplify,
+            # let's rely on TelegramAPIError where possible.
+            # But here we are wrapping it in a built-in ConnectionError.
+            # However, 'e' is a TelegramAPIError, which is already redacted!
+            raise ConnectionError(f"Failed to connect to Bot API: {e}") from e
 
     async def disconnect(self) -> None:
         await self._client.aclose()
