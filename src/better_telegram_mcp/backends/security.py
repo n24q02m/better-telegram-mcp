@@ -42,11 +42,23 @@ def validate_url(url: str) -> str:
         msg = "Access to cloud metadata endpoints is blocked"
         raise SecurityError(msg)
     # Resolve and check IPs
-    # Not an IP literal -- resolve to prevent SSRF via DNS like 127.0.0.1.nip.io
+    # First check if hostname is an IP literal to avoid unnecessary DNS resolution
+    try:
+        addr = ipaddress.ip_address(hostname)
+        for network in _BLOCKED_NETWORKS:
+            if addr in network:
+                msg = f"Access to internal/private IP {hostname} is blocked"
+                raise SecurityError(msg)
+        return str(addr)
+    except ValueError:
+        # Not an IP literal -- resolve to prevent SSRF via DNS like 127.0.0.1.nip.io
+        pass
+
     # Block known dangerous hostnames as an early check
-    if hostname in {"localhost", "0.0.0.0"}:  # noqa: S104
+    if hostname.lower() in {"localhost", "0.0.0.0", "127.0.0.1", "::1"}:  # noqa: S104
         msg = f"Access to {hostname} is blocked"
         raise SecurityError(msg)
+
     try:
         # Get all IPs for this hostname
         addr_info = socket.getaddrinfo(hostname, None)
@@ -206,11 +218,21 @@ async def fetch_url_safely(url: str, timeout: float = 30.0) -> bytes:
 
     # Construct a new URL using the IP address
     # We must preserve the original scheme, path, query, etc.
-    # parsed.netloc might contain port, so we handle that
-    netloc_parts = parsed.netloc.split("@")[-1].split(":")
-    port = f":{netloc_parts[1]}" if len(netloc_parts) > 1 else ""
+    # For IPv6, we must wrap the IP in square brackets in the netloc
+    ip_repr = (
+        f"[{ip_addr}]" if ":" in ip_addr and not ip_addr.startswith("[") else ip_addr
+    )
 
-    new_netloc = f"{ip_addr}{port}"
+    # Reconstruct netloc with possible credentials and port
+    new_netloc = ip_repr
+    if parsed.port:
+        new_netloc = f"{new_netloc}:{parsed.port}"
+    if parsed.username:
+        auth = parsed.username
+        if parsed.password:
+            auth = f"{auth}:{parsed.password}"
+        new_netloc = f"{auth}@{new_netloc}"
+
     new_url = urlunparse(parsed._replace(netloc=new_netloc))
 
     headers = {"Host": parsed.hostname}
