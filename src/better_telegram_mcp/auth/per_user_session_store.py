@@ -9,15 +9,13 @@ Uses AES-256-GCM, key derived from CREDENTIAL_SECRET env var or auto-generated.
 Reuses the key derivation pattern from transports/credential_store.py.
 """
 
-from __future__ import annotations
-
 import copy
 import json
 import os
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Self
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -46,7 +44,7 @@ class SessionInfo:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict) -> SessionInfo:
+    def from_dict(cls, data: dict) -> Self:
         return cls(**data)
 
 
