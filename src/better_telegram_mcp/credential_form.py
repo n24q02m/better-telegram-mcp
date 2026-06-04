@@ -16,6 +16,8 @@ from typing import Any
 
 def _escape(value: Any) -> str:
     """Escape a value for safe HTML insertion."""
+    if value is None:
+        return ""
     return html_module.escape(str(value), quote=True)
 
 
@@ -43,9 +45,9 @@ def render_telegram_credential_form(
         to stay XSS-safe.
     """
     display_name = _escape(
-        schema.get("displayName", schema.get("server", "Telegram MCP"))
+        schema.get("displayName") or schema.get("server") or "Telegram MCP"
     )
-    server = _escape(schema.get("server", "better-telegram-mcp"))
+    server = _escape(schema.get("server") or "better-telegram-mcp")
     description = _escape(schema.get("description", ""))
     submit_url_escaped = _escape(submit_url)
 

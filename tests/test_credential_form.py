@@ -253,3 +253,49 @@ def test_form_has_xss_safe_submit_url_handling() -> None:
     assert '"><script>' not in html
     # Should contain the escaped form
     assert "&quot;&gt;&lt;script&gt;" in html
+
+
+def test_escapes_description_xss() -> None:
+    malicious = {
+        "server": "x",
+        "displayName": "d",
+        "description": "<img src=x onerror=alert(1)>",
+    }
+    html = render_telegram_credential_form(malicious, "/auth")
+    assert "<img src=x onerror=alert(1)>" not in html
+    assert "&lt;img src=x onerror=alert(1)&gt;" in html
+
+
+def test_escapes_server_xss() -> None:
+    malicious = {
+        "server": '"><svg/onload=alert(1)>',
+        "displayName": "d",
+        "description": "desc",
+    }
+    html = render_telegram_credential_form(malicious, "/auth")
+    assert '"><svg/onload=alert(1)>' not in html
+    assert "&quot;&gt;&lt;svg/onload=alert(1)&gt;" in html
+
+
+def test_handles_none_values_gracefully() -> None:
+    """None values in schema or prefill should render as empty strings, not 'None'."""
+    schema = {
+        "server": None,
+        "displayName": None,
+        "description": None,
+    }
+    prefill = {
+        "TELEGRAM_BOT_TOKEN": None,
+        "TELEGRAM_PHONE": None,
+    }
+    html = render_telegram_credential_form(schema, "/auth", prefill=prefill)
+    assert "None" not in html
+    # Check that it falls back to defaults or empty strings
+    assert "better-telegram-mcp" in html  # fallback for server=None
+    assert (
+        "Telegram MCP" in html or "better-telegram-mcp" in html
+    )  # fallback for displayName=None
+    assert (
+        'class="server-description"' not in html
+    )  # description=None -> empty -> omitted
+    assert 'value=""' not in html  # No value attrs if prefill is None/Empty
