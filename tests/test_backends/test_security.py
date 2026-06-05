@@ -164,7 +164,9 @@ class TestValidateUrl:
     async def test_fetch_url_safely_ipv6(self, monkeypatch):
         """Test that fetch_url_safely correctly constructs URLs for IPv6 addresses."""
         from unittest.mock import AsyncMock, patch
+
         import httpx
+
         from better_telegram_mcp.backends.security import fetch_url_safely
 
         target_hostname = "ipv6.example.com"
