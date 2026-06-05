@@ -343,8 +343,13 @@ class UserBackend(TelegramBackend):
         self, chat_id: str | int, *, limit: int = 50
     ) -> list[dict[str, Any]]:
         client = self._ensure_client()
-        users = await client.get_participants(chat_id, limit=limit)
-        return [self._serialize_user(user) for user in users]
+        # Bolt: Avoid the get_participants() anti-pattern, which internally
+        # calls iter_participants().collect(). Using async comprehensions improves
+        # memory efficiency without worsening network latency.
+        return [
+            self._serialize_user(user)
+            async for user in client.iter_participants(chat_id, limit=limit)
+        ]
 
     async def promote_admin(
         self, chat_id: str | int, user_id: int, *, demote: bool = False
