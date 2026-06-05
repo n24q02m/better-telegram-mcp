@@ -206,9 +206,12 @@ async def fetch_url_safely(url: str, timeout: float = 30.0) -> bytes:
 
     # Construct a new URL using the IP address
     # We must preserve the original scheme, path, query, etc.
-    # parsed.netloc might contain port, so we handle that
-    netloc_parts = parsed.netloc.split("@")[-1].split(":")
-    port = f":{netloc_parts[1]}" if len(netloc_parts) > 1 else ""
+    # parsed.netloc might contain port, so we handle that.
+    # If the resolved IP is an IPv6 address, format it in brackets.
+    if ":" in ip_addr:
+        ip_addr = f"[{ip_addr}]"
+
+    port = f":{parsed.port}" if parsed.port else ""
 
     new_netloc = f"{ip_addr}{port}"
     new_url = urlunparse(parsed._replace(netloc=new_netloc))
