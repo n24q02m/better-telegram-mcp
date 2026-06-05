@@ -180,7 +180,9 @@ class TestValidateUrl:
 
         with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
             resp = httpx.Response(200, content=b"ipv6-content")
-            resp._request = httpx.Request("GET", f"http://[{ipv6_addr}]:8080/path?query=1")
+            resp._request = httpx.Request(
+                "GET", f"http://[{ipv6_addr}]:8080/path?query=1"
+            )
             mock_get.return_value = resp
 
             content = await fetch_url_safely(target_url)
