@@ -137,7 +137,6 @@ def test_secret_priority_env_dcr(monkeypatch):
 
 def test_secret_persistence(tmp_path):
     # Test that it generates and persists a secret when no env vars are set
-    import os
 
     for env in [
         "CREDENTIAL_SECRET",
