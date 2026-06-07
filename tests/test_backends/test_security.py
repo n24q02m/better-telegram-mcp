@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import socket
 import sys
-from pathlib import Path
 
 import pytest
 
@@ -204,7 +203,9 @@ class TestValidateUrl:
     async def test_fetch_url_safely_ipv6_with_port(self, monkeypatch):
         """Test that fetch_url_safely correctly handles IPv6 addresses and ports."""
         from unittest.mock import AsyncMock, patch
+
         import httpx
+
         from better_telegram_mcp.backends.security import fetch_url_safely
 
         target_hostname = "ipv6.example.com"
