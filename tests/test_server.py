@@ -141,13 +141,14 @@ async def test_media_send_photo(mock_backend):
 async def test_contact_list(mock_backend):
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import contact
+    from better_telegram_mcp.tools.contacts import ContactOptions
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = await contact(action="list")
+        result = await contact(options=ContactOptions(action="list"))
         assert "contacts" in result
     finally:
         srv._backend = old_backend
@@ -339,13 +340,14 @@ async def test_media_blocked_during_pending_auth(mock_backend):
 async def test_contact_blocked_during_pending_auth(mock_backend):
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import contact
+    from better_telegram_mcp.tools.contacts import ContactOptions
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        result = json.loads(await contact(action="list"))
+        result = json.loads(await contact(options=ContactOptions(action="list")))
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
     finally:
@@ -543,11 +545,12 @@ async def test_contact_returns_setup_hint_when_unconfigured():
     """contact tool returns setup instructions when unconfigured."""
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import contact
+    from better_telegram_mcp.tools.contacts import ContactOptions
 
     old = srv._unconfigured
     try:
         srv._unconfigured = True
-        result = json.loads(await contact(action="list"))
+        result = json.loads(await contact(options=ContactOptions(action="list")))
         assert result["error"] == "Not configured"
         assert "setup" in result
     finally:
@@ -990,3 +993,27 @@ async def test_run_http():
         assert args[0] is mcp
         assert kwargs["server_name"] == "better-telegram-mcp"
         assert kwargs["port"] == 8080
+
+
+@pytest.mark.asyncio
+async def test_contact_error_handling(mock_backend):
+    """Test that contact tool catches exceptions and returns them as strings."""
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import contact
+    from better_telegram_mcp.tools.contacts import ContactOptions
+
+    old_backend = srv._backend
+    old_pending = srv._pending_auth
+    try:
+        srv._backend = mock_backend
+        srv._pending_auth = False
+
+        with patch(
+            "better_telegram_mcp.server.handle_contacts",
+            side_effect=RuntimeError("Test error"),
+        ):
+            result = await contact(options=ContactOptions(action="list"))
+            assert result == "Test error"
+    finally:
+        srv._backend = old_backend
+        srv._pending_auth = old_pending
