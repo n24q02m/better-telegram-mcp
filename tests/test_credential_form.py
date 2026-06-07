@@ -153,7 +153,7 @@ def test_empty_prefill_dict_is_safe() -> None:
 
 
 def test_prefill_value_xss_escaped() -> None:
-    """Prefill values must be HTML-escaped to keep value=`` attr safe."""
+    """Prefill values must be HTML-escaped to keep value= attr safe."""
     html = render_telegram_credential_form(
         SCHEMA, "/auth", prefill={"TELEGRAM_PHONE": '"><script>alert(1)</script>'}
     )
@@ -253,3 +253,19 @@ def test_form_has_xss_safe_submit_url_handling() -> None:
     assert '"><script>' not in html
     # Should contain the escaped form
     assert "&quot;&gt;&lt;script&gt;" in html
+
+
+def test_escape_utility() -> None:
+    from better_telegram_mcp.credential_form import _escape
+
+    # Test None
+    assert _escape(None) == ""
+
+    # Test robust HTML escaping
+    assert _escape("a & b") == "a &amp; b"
+    assert _escape("<script>") == "&lt;script&gt;"
+    assert _escape(' "quote" ') == " &quot;quote&quot; "
+    assert _escape(" 'single' ") == " &#x27;single&#x27; "
+
+    # Test numeric input
+    assert _escape(123) == "123"
