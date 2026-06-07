@@ -151,7 +151,10 @@ def test_safe_error_empty_message():
     result = safe_error(exc)
     parsed = json.loads(result)
     assert parsed["status"] == "error"
-    assert parsed["message"] == "Exception: Operation failed. Check server logs for details."
+    assert (
+        parsed["message"]
+        == "Exception: Operation failed. Check server logs for details."
+    )
 
 
 def test_safe_error_subclasses_allowed():
