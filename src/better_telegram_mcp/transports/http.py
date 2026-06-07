@@ -216,11 +216,11 @@ async def _per_request_sub_scope(
             backend = provider.resolve_backend(sub)
             keys_preview = list(provider.active_clients.keys())
             keys_short = [
-                k[:12] + "..." if len(k) > 12 else k for k in keys_preview[:5]
+                f"{k[:12]}..." if len(k) > 12 else k for k in keys_preview[:5]
             ]
             logger.info(
                 "auth_scope: sub={} found_backend={} active_keys_count={} keys={}",
-                (sub or "")[:12] + "...",
+                f"{(sub or '')[:12]}...",
                 type(backend).__name__ if backend else "None",
                 len(provider.active_clients),
                 keys_short,
