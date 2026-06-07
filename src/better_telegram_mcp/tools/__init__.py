@@ -3,10 +3,9 @@ from .config_tool import handle_config
 from .contacts import handle_contacts
 from .help_tool import handle_help
 from .media import handle_media
-from .messages import MessagesArgs, handle_messages
+from .messages import handle_messages
 
 __all__ = [
-    "MessagesArgs",
     "handle_chats",
     "handle_config",
     "handle_contacts",
