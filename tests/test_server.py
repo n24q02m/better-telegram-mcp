@@ -67,7 +67,10 @@ def test_get_settings_error():
     old = srv._cached_settings
     try:
         srv._cached_settings = None
-        with patch("better_telegram_mcp.server.Settings", side_effect=RuntimeError("config error")):
+        with patch(
+            "better_telegram_mcp.server.Settings",
+            side_effect=RuntimeError("config error"),
+        ):
             with pytest.raises(RuntimeError, match="config error"):
                 get_settings()
     finally:
