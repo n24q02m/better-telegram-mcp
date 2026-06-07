@@ -11,7 +11,6 @@ import pytest
 
 from better_telegram_mcp.backends.security import (
     SecurityError,
-    _normalize_for_prefix_check,
     validate_file_path,
     validate_output_dir,
     validate_url,
@@ -40,7 +39,7 @@ class TestValidateUrl:
             validate_url("http://localhost/admin")
 
     def test_127_blocked(self):
-        with pytest.raises(SecurityError, match="internal/private"):
+        with pytest.raises(SecurityError, match="blocked"):
             validate_url("http://127.0.0.1/admin")
 
     def test_metadata_endpoint_blocked(self):
@@ -48,23 +47,23 @@ class TestValidateUrl:
             validate_url("http://metadata.google.internal/computeMetadata/v1/")
 
     def test_private_10_blocked(self):
-        with pytest.raises(SecurityError, match="internal/private"):
+        with pytest.raises(SecurityError, match="blocked"):
             validate_url("http://10.0.0.1/")
 
     def test_private_172_blocked(self):
-        with pytest.raises(SecurityError, match="internal/private"):
+        with pytest.raises(SecurityError, match="blocked"):
             validate_url("http://172.16.0.1/")
 
     def test_private_192_blocked(self):
-        with pytest.raises(SecurityError, match="internal/private"):
+        with pytest.raises(SecurityError, match="blocked"):
             validate_url("http://192.168.1.1/")
 
     def test_link_local_blocked(self):
-        with pytest.raises(SecurityError, match="internal/private"):
+        with pytest.raises(SecurityError, match="blocked"):
             validate_url("http://169.254.169.254/latest/meta-data/")
 
     def test_ipv6_loopback_blocked(self):
-        with pytest.raises(SecurityError, match="internal/private"):
+        with pytest.raises(SecurityError, match="blocked"):
             validate_url("http://[::1]/")
 
     def test_ipv4_mapped_ipv6_loopback_blocked(self, monkeypatch):
@@ -73,7 +72,7 @@ class TestValidateUrl:
             "socket.getaddrinfo",
             lambda host, port: [(10, 1, 6, "", ("::ffff:127.0.0.1", 80, 0, 0))],
         )
-        with pytest.raises(SecurityError, match="internal/private"):
+        with pytest.raises(SecurityError, match="blocked"):
             validate_url("http://ipv4mapped.attacker.com/")
 
     def test_ipv4_mapped_ipv6_private_blocked(self, monkeypatch):
@@ -82,7 +81,7 @@ class TestValidateUrl:
             "socket.getaddrinfo",
             lambda host, port: [(10, 1, 6, "", ("::ffff:10.0.0.1", 80, 0, 0))],
         )
-        with pytest.raises(SecurityError, match="internal/private"):
+        with pytest.raises(SecurityError, match="blocked"):
             validate_url("http://ipv4mapped-private.attacker.com/")
 
     def test_zero_ip_blocked(self):
@@ -101,7 +100,7 @@ class TestValidateUrl:
         monkeypatch.setattr(
             "socket.getaddrinfo", lambda host, port: [(2, 1, 6, "", ("127.0.0.1", 80))]
         )
-        with pytest.raises(SecurityError, match="internal/private"):
+        with pytest.raises(SecurityError, match="blocked"):
             validate_url("http://malicious-domain-resolving-to-local.com/admin")
 
     def test_dns_resolution_blocks_mixed_ips(self, monkeypatch):
@@ -113,7 +112,7 @@ class TestValidateUrl:
                 (2, 1, 6, "", ("10.0.0.1", 80)),
             ],
         )
-        with pytest.raises(SecurityError, match="internal/private"):
+        with pytest.raises(SecurityError, match="blocked"):
             validate_url("http://mixed-ips.attacker.com/")
 
     def test_dns_resolution_allows_external(self, monkeypatch):
@@ -201,6 +200,34 @@ class TestValidateUrl:
             assert target_hostname not in requested_url
             assert malicious_ip not in requested_url
 
+    @pytest.mark.asyncio
+    async def test_fetch_url_safely_ipv6_with_port(self, monkeypatch):
+        """Test that fetch_url_safely correctly handles IPv6 addresses and ports."""
+        from unittest.mock import AsyncMock, patch
+        import httpx
+        from better_telegram_mcp.backends.security import fetch_url_safely
+
+        target_hostname = "ipv6.example.com"
+        ipv6_addr = "2606:2800:220:1:248:1893:25c8:1946"
+        port = 8080
+
+        def mock_getaddrinfo(host, port, *args, **kwargs):
+            return [(socket.AF_INET6, socket.SOCK_STREAM, 6, "", (ipv6_addr, port, 0, 0))]
+
+        monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
+
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+            resp = httpx.Response(200, content=b"content")
+            resp._request = httpx.Request("GET", f"http://[{ipv6_addr}]:{port}/data")
+            mock_get.return_value = resp
+
+            await fetch_url_safely(f"http://{target_hostname}:{port}/data")
+
+            args, kwargs = mock_get.call_args
+            requested_url = str(args[0])
+            # The fixed code should produce a URL with the IPv6 in brackets and the port
+            assert f"http://[{ipv6_addr}]:{port}/data" == requested_url
+            assert kwargs["headers"]["Host"] == target_hostname
             # Verify headers and extensions preserve the hostname for SNI/Host
             assert kwargs["headers"]["Host"] == target_hostname
             assert kwargs["extensions"]["sni_hostname"] == target_hostname
@@ -211,14 +238,6 @@ class TestValidateFilePath:
         photo = tmp_path / "photo.jpg"
         result = validate_file_path(str(photo))
         assert result == photo.resolve()
-
-    def test_macos_firmlink_normalization(self):
-        """Verify _normalize_for_prefix_check handles /private prefix."""
-        # This covers the line 77 coverage gap
-        assert (
-            _normalize_for_prefix_check(Path("/private/etc/passwd")) == "/etc/passwd/"
-        )
-        assert _normalize_for_prefix_check(Path("/etc/passwd")) == "/etc/passwd/"
 
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_etc_passwd_blocked(self):

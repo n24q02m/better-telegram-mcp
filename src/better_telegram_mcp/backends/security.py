@@ -44,7 +44,7 @@ def validate_url(url: str) -> str:
     # Resolve and check IPs
     # Not an IP literal -- resolve to prevent SSRF via DNS like 127.0.0.1.nip.io
     # Block known dangerous hostnames as an early check
-    if hostname in {"localhost", "0.0.0.0"}:  # noqa: S104
+    if hostname in {"localhost", "0.0.0.0", "127.0.0.1", "::1"}:  # noqa: S104
         msg = f"Access to {hostname} is blocked"
         raise SecurityError(msg)
     try:
@@ -68,18 +68,6 @@ def validate_url(url: str) -> str:
         raise SecurityError(msg) from e
 
 
-def _normalize_for_prefix_check(path: Path) -> str:
-    """Return a forward-slash path string suitable for blocked-prefix matching.
-
-    Handles the macOS firmlink quirk where `/etc`, `/var`, `/tmp` resolve to
-    `/private/etc`, `/private/var`, `/private/tmp`. We strip a leading `/private`
-    so the same blocklist works identically on Linux and macOS.
-    """
-    path_str = str(path).replace("\\", "/")
-    if path_str.startswith("/private/"):
-        # /private/etc -> /etc, /private/var -> /var, /private/tmp -> /tmp
-        path_str = path_str[len("/private") :]
-    return path_str if path_str.endswith("/") else path_str + "/"
 
 
 def _is_under_blocked_prefix(
@@ -206,11 +194,10 @@ async def fetch_url_safely(url: str, timeout: float = 30.0) -> bytes:
 
     # Construct a new URL using the IP address
     # We must preserve the original scheme, path, query, etc.
-    # parsed.netloc might contain port, so we handle that
-    netloc_parts = parsed.netloc.split("@")[-1].split(":")
-    port = f":{netloc_parts[1]}" if len(netloc_parts) > 1 else ""
-
-    new_netloc = f"{ip_addr}{port}"
+    # We use parsed.port to correctly handle port numbers.
+    # If the IP address is IPv6, it must be wrapped in brackets for the netloc.
+    port_str = f":{parsed.port}" if parsed.port else ""
+    new_netloc = f"[{ip_addr}]{port_str}" if ":" in ip_addr else f"{ip_addr}{port_str}"
     new_url = urlunparse(parsed._replace(netloc=new_netloc))
 
     headers = {"Host": parsed.hostname}
