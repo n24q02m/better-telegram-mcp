@@ -12,6 +12,7 @@ from better_telegram_mcp.transports.http import (
     _current_backend,
     _is_multi_user_mode,
     _per_request_sub_scope,
+    _resolve_port,
     get_current_backend,
     start_http,
 )
@@ -52,6 +53,31 @@ class TestGetCurrentBackend:
             assert get_current_backend() == mock_backend
         finally:
             _current_backend.reset(token)
+
+
+class TestResolvePort:
+    def test_resolve_port_honors_mcp_port(self) -> None:
+        """MCP_PORT overrides the default (imagine-mcp parity)."""
+        with patch.dict("os.environ", {"MCP_PORT": "12345"}, clear=True):
+            assert _resolve_port(8080) == 12345
+
+    def test_resolve_port_default_when_unset(self) -> None:
+        """Falls back to the supplied default when no env var is set."""
+        with patch.dict("os.environ", {}, clear=True):
+            assert _resolve_port(8080) == 8080
+            assert _resolve_port(0) == 0
+
+    def test_resolve_port_legacy_port_back_compat(self) -> None:
+        """Legacy PORT var is still honored when MCP_PORT is absent."""
+        with patch.dict("os.environ", {"PORT": "7070"}, clear=True):
+            assert _resolve_port(8080) == 7070
+
+    def test_resolve_port_mcp_port_wins_over_legacy(self) -> None:
+        """MCP_PORT takes precedence over the legacy PORT var."""
+        with patch.dict(
+            "os.environ", {"MCP_PORT": "12345", "PORT": "7070"}, clear=True
+        ):
+            assert _resolve_port(8080) == 12345
 
 
 class TestIsMultiUserMode:
@@ -215,6 +241,41 @@ class TestStartHttp:
         kwargs = mock_run.call_args.kwargs
         assert kwargs["port"] == 8080
         assert kwargs["host"] == "0.0.0.0"
+
+    def test_start_http_multi_user_honors_mcp_port(
+        self, settings: Settings, tmp_path: Path
+    ) -> None:
+        """MCP_PORT is forwarded to run_http_server (imagine-mcp parity)."""
+        env = {
+            "DCR_SERVER_SECRET": "secret",
+            "PUBLIC_URL": "https://mcp.example.com",
+            "TELEGRAM_API_ID": "12345",
+            "TELEGRAM_API_HASH": "hash",
+            "MCP_PORT": "12345",
+        }
+
+        with (
+            patch.dict("os.environ", env, clear=True),
+            patch(
+                "mcp_core.transport.local_server.run_http_server",
+                new_callable=AsyncMock,
+            ) as mock_run,
+            patch(
+                "better_telegram_mcp.auth.telegram_auth_provider.TelegramAuthProvider"
+            ) as mock_provider_cls,
+        ):
+            mock_provider = mock_provider_cls.return_value
+            mock_provider.restore_sessions = AsyncMock(return_value=0)
+            mock_provider.shutdown = AsyncMock()
+
+            settings_with_api = Settings(
+                data_dir=tmp_path / "d",
+                api_id=12345,
+                api_hash="hash",
+            )
+            start_http(settings_with_api)
+
+        assert mock_run.call_args.kwargs["port"] == 12345
 
     def test_start_http_multi_user_mcp_prefixed_secret_no_runtimeerror(
         self, tmp_path: Path

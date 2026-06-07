@@ -58,6 +58,16 @@ def get_current_backend():
     return _current_backend.get(None)
 
 
+def _resolve_port(default: int) -> int:
+    """Resolve the HTTP bind port, honoring ``MCP_PORT``.
+
+    ``MCP_PORT`` is the cross-stack-standard name (matches imagine-mcp and the
+    other servers); the legacy ``PORT`` var is still accepted for back-compat.
+    Falls back to ``default`` when neither is set.
+    """
+    return int(os.environ.get("MCP_PORT") or os.environ.get("PORT") or default)
+
+
 def _dcr_secret() -> str | None:
     """Resolve the multi-user OAuth shared secret from env.
 
@@ -152,7 +162,7 @@ def _start_single_user_http(settings: Settings) -> None:
     from ..credential_state import on_step_submitted, save_credentials
     from ..server import mcp
 
-    port = int(os.environ.get("PORT", "0"))
+    port = _resolve_port(0)
     host = os.environ.get("HOST")
 
     # MCP_AUTH_DISABLE=1 skips Bearer JWT verification on /mcp -- for
@@ -284,7 +294,7 @@ def _start_multi_user_http(settings: Settings) -> None:
     )
     set_global_provider(auth_provider)
 
-    port = int(os.environ.get("PORT", "8080"))
+    port = _resolve_port(8080)
     host = os.environ.get("HOST", "0.0.0.0")
     public_url = os.environ.get("PUBLIC_URL", "")
 

@@ -31,6 +31,17 @@ def test_mcp_has_7_tools():
     assert set(tools.keys()) == expected
 
 
+def test_serverinfo_version_matches_package():
+    """serverInfo.version must report the package version, not the mcp SDK
+    version. FastMCP (SDK class) has no version kwarg, so server.py pins
+    _mcp_server.version = __version__; verify it propagates to the
+    initialization options advertised to clients."""
+    from better_telegram_mcp import __version__
+
+    opts = mcp._mcp_server.create_initialization_options()
+    assert opts.server_version == __version__
+
+
 def test_main_exists():
     assert callable(main)
 
