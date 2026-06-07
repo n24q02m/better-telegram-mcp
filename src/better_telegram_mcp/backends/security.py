@@ -27,7 +27,9 @@ _BLOCKED_NETWORKS = (
     ipaddress.ip_network("100.64.0.0/10"),  # CGNAT
     ipaddress.ip_network("192.0.0.0/24"),  # IETF Protocol Assignments
     ipaddress.ip_network("192.0.2.0/24"),  # Documentation (TEST-NET-1)
-    ipaddress.ip_network("198.18.0.0/15"),  # Network Interconnect Device Benchmark Testing
+    ipaddress.ip_network(
+        "198.18.0.0/15"
+    ),  # Network Interconnect Device Benchmark Testing
     ipaddress.ip_network("198.51.100.0/24"),  # Documentation (TEST-NET-2)
     ipaddress.ip_network("203.0.113.0/24"),  # Documentation (TEST-NET-3)
     ipaddress.ip_network("224.0.0.0/4"),  # Multicast
