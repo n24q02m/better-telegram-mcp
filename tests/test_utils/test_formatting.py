@@ -64,9 +64,9 @@ def test_ok_collections():
 def test_err_basic_serialization():
     message = "Something went wrong"
     result = err(message)
-    assert result == '{"error": "Something went wrong"}'
-
     parsed = json.loads(result)
+    assert parsed["status"] == "error"
+    assert parsed["message"] == message
     assert parsed["error"] == message
 
 
@@ -77,13 +77,18 @@ def test_err_unicode_handling():
     assert "Ошибка: ❌" in result
 
     parsed = json.loads(result)
+    assert parsed["status"] == "error"
+    assert parsed["message"] == message
     assert parsed["error"] == message
 
 
 def test_err_non_string_input():
-    # err() expects a str, but json.dumps handles other types too
+    # err() type hint says str, but it should handle other types if passed
     result = err(123)
-    assert json.loads(result) == {"error": 123}
+    parsed = json.loads(result)
+    assert parsed["status"] == "error"
+    assert parsed["message"] == 123
+    assert parsed["error"] == 123
 
 
 def test_safe_error_allowed_exceptions():
@@ -102,6 +107,8 @@ def test_safe_error_allowed_exceptions():
     for exc, expected_msg in allowed_exceptions:
         result = safe_error(exc)
         parsed = json.loads(result)
+        assert parsed["status"] == "error"
+        assert parsed["message"] == expected_msg
         assert parsed["error"] == expected_msg
 
 
@@ -117,11 +124,13 @@ def test_safe_error_generic_exceptions():
     for exc in generic_exceptions:
         result = safe_error(exc)
         parsed = json.loads(result)
+        assert parsed["status"] == "error"
 
         # Format should be: "{ExceptionName}: Operation failed. Check server logs for details."
         expected_msg = (
             f"{type(exc).__name__}: Operation failed. Check server logs for details."
         )
+        assert parsed["message"] == expected_msg
         assert parsed["error"] == expected_msg
 
         # Ensure internal details are NOT leaked
@@ -132,14 +141,17 @@ def test_safe_error_empty_message():
     # Allowed exception with empty message
     exc = ValueError("")
     result = safe_error(exc)
-    assert json.loads(result) == {"error": ""}
+    parsed = json.loads(result)
+    assert parsed["status"] == "error"
+    assert parsed["message"] == ""
+    assert parsed["error"] == ""
 
     # Generic exception with empty message
     exc = Exception("")
     result = safe_error(exc)
-    assert json.loads(result) == {
-        "error": "Exception: Operation failed. Check server logs for details."
-    }
+    parsed = json.loads(result)
+    assert parsed["status"] == "error"
+    assert parsed["message"] == "Exception: Operation failed. Check server logs for details."
 
 
 def test_safe_error_subclasses_allowed():
@@ -148,7 +160,9 @@ def test_safe_error_subclasses_allowed():
 
     exc = CustomValueError("custom message")
     result = safe_error(exc)
-    assert json.loads(result) == {"error": "custom message"}
+    parsed = json.loads(result)
+    assert parsed["status"] == "error"
+    assert parsed["message"] == "custom message"
 
 
 def test_safe_error_disallowed_oserror():
@@ -156,8 +170,9 @@ def test_safe_error_disallowed_oserror():
     exc = PermissionError("access denied")
     result = safe_error(exc)
     parsed = json.loads(result)
+    assert parsed["status"] == "error"
     assert (
-        parsed["error"]
+        parsed["message"]
         == "PermissionError: Operation failed. Check server logs for details."
     )
     assert "access denied" not in result
@@ -171,8 +186,9 @@ def test_safe_error_base_exception():
     # The code uses isinstance(e, (...)) and it doesn't match, so it falls through.
     result = safe_error(exc)
     parsed = json.loads(result)
+    assert parsed["status"] == "error"
     assert (
-        parsed["error"]
+        parsed["message"]
         == "KeyboardInterrupt: Operation failed. Check server logs for details."
     )
     assert "stop" not in result

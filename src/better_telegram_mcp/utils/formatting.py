@@ -7,7 +7,9 @@ def ok(data: Any) -> str:
 
 
 def err(message: str) -> str:
-    return json.dumps({"error": message}, ensure_ascii=False)
+    return json.dumps(
+        {"status": "error", "message": message, "error": message}, ensure_ascii=False
+    )
 
 
 def safe_error(e: Exception) -> str:
