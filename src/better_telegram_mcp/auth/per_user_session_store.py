@@ -9,7 +9,6 @@ Uses AES-256-GCM, key derived from CREDENTIAL_SECRET env var or auto-generated.
 Reuses the key derivation pattern from transports/credential_store.py.
 """
 
-from __future__ import annotations
 
 import copy
 import json
@@ -46,7 +45,7 @@ class SessionInfo:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict) -> SessionInfo:
+    def from_dict(cls, data: dict) -> "SessionInfo":
         return cls(**data)
 
 
