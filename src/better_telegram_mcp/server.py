@@ -194,6 +194,13 @@ mcp = FastMCP(
     lifespan=_lifespan,
 )
 
+# FastMCP (the SDK class) has no ``version=`` kwarg, so it defaults the
+# advertised serverInfo.version to the mcp SDK's own version. Pin it to this
+# package's version so initialize responses report the right value.
+from better_telegram_mcp import __version__  # noqa: E402
+
+mcp._mcp_server.version = __version__
+
 # Register the standard `config__open_relay` MCP tool so the LLM can re-trigger
 # the relay form via tool call when credentials are missing or expired. In
 # stdio mode (PUBLIC_URL unset), the tool returns ``stdio_unsupported`` so
