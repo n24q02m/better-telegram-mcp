@@ -14,7 +14,7 @@ API_BASE = "https://api.telegram.org/bot{}/"
 
 class TelegramAPIError(Exception):
     def __init__(self, description: str, error_code: int = 0):
-        super().__init__(description)
+        super().__init__(redact_bot_token(description))
         self.error_code = error_code
 
 
@@ -34,10 +34,10 @@ class BotBackend(TelegramBackend):
         except httpx.HTTPError as e:
             # httpx exceptions include the request URL, which carries the bot
             # token; redact before re-raising so it cannot leak into logs.
-            raise TelegramAPIError(redact_bot_token(str(e))) from None
+            raise TelegramAPIError(str(e)) from None
         body = resp.json()
         if not body.get("ok"):
-            desc = redact_bot_token(body.get("description", "Unknown error"))
+            desc = body.get("description", "Unknown error")
             raise TelegramAPIError(desc, body.get("error_code", resp.status_code))
         return body.get("result")
 
@@ -46,11 +46,11 @@ class BotBackend(TelegramBackend):
         try:
             resp = await self._client.post(method, data=data, files=files)
         except httpx.HTTPError as e:
-            raise TelegramAPIError(redact_bot_token(str(e))) from None
+            raise TelegramAPIError(str(e)) from None
         body = resp.json()
         if not body.get("ok"):
             raise TelegramAPIError(
-                redact_bot_token(body.get("description", "Unknown error"))
+                body.get("description", "Unknown error")
             )
         return body.get("result")
 
