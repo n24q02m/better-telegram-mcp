@@ -132,7 +132,9 @@ class CredentialStore:
             )
             # ⚡ Bolt: Offload CPU-intensive KDF derivation to a thread pool
             # to avoid blocking the asyncio event loop.
-            self._cached_key = await asyncio.to_thread(kdf.derive, self._secret.encode())
+            self._cached_key = await asyncio.to_thread(
+                kdf.derive, self._secret.encode()
+            )
             return self._cached_key
 
     async def store(self, credentials: dict[str, str]) -> None:

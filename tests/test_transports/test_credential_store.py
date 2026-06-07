@@ -58,7 +58,9 @@ class TestCredentialStore:
         # Actually, let's just check that it DOES read from disk when cache is None
         # and DOES NOT read when cache is present.
 
-        with patch("better_telegram_mcp.transports.credential_store.AESGCM") as mock_aesgcm:
+        with patch(
+            "better_telegram_mcp.transports.credential_store.AESGCM"
+        ) as mock_aesgcm:
             # Setup mock to return json
             instance = mock_aesgcm.return_value
             instance.decrypt.return_value = json.dumps(creds).encode()
