@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from ..backends.base import ModeError, TelegramBackend
+from ..backends.base import TelegramBackend
 from ..utils.formatting import err, ok, safe_error
 
 
@@ -64,7 +64,5 @@ async def handle_media(
         closest = difflib.get_close_matches(action, valid, n=1)
         suggestion = f" Did you mean '{closest[0]}'?" if closest else ""
         return err(f"Unknown action '{action}'.{suggestion} Valid: {'|'.join(valid)}")
-    except ModeError as e:
-        return err(str(e))
     except Exception as e:
         return safe_error(e)
