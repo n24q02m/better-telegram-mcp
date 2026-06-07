@@ -1,6 +1,6 @@
+import os
 from collections.abc import Awaitable, Callable
 from typing import Any
-import os
 
 from pydantic import BaseModel, Field
 
@@ -10,9 +10,13 @@ from ..utils.formatting import err, ok, safe_error
 
 class ConfigOptions(BaseModel):
     action: str = Field(description="Action to perform")
-    message_limit: int | None = Field(default=None, description="Max messages to return")
+    message_limit: int | None = Field(
+        default=None, description="Max messages to return"
+    )
     timeout: int | None = Field(default=None, description="Request timeout in seconds")
-    key: str | None = Field(default=None, description="Optional key for the action (e.g. 'force')")
+    key: str | None = Field(
+        default=None, description="Optional key for the action (e.g. 'force')"
+    )
 
 
 async def _handle_status(backend: TelegramBackend, options: ConfigOptions) -> str:
@@ -30,8 +34,7 @@ async def _handle_status(backend: TelegramBackend, options: ConfigOptions) -> st
                 "setup": {
                     "bot_mode": "Set TELEGRAM_BOT_TOKEN (get from @BotFather)",
                     "user_mode": (
-                        "Set TELEGRAM_PHONE"
-                        " (API credentials have built-in defaults)"
+                        "Set TELEGRAM_PHONE (API credentials have built-in defaults)"
                     ),
                 },
                 "hint": "Use action='setup_start' to configure via browser relay.",
@@ -85,9 +88,7 @@ async def _handle_setup_status(backend: TelegramBackend, options: ConfigOptions)
             "configured": not _unconfigured,
             "pending_auth": _pending_auth,
             "env_keys": [
-                k
-                for k in {"TELEGRAM_BOT_TOKEN", "TELEGRAM_PHONE"}
-                if os.environ.get(k)
+                k for k in {"TELEGRAM_BOT_TOKEN", "TELEGRAM_PHONE"} if os.environ.get(k)
             ],
         }
     )
@@ -131,7 +132,9 @@ async def _handle_setup_reset(backend: TelegramBackend, options: ConfigOptions) 
     )
 
 
-async def _handle_setup_complete(backend: TelegramBackend, options: ConfigOptions) -> str:
+async def _handle_setup_complete(
+    backend: TelegramBackend, options: ConfigOptions
+) -> str:
     from ..credential_state import (
         get_state,
         resolve_credential_state,

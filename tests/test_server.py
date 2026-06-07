@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from better_telegram_mcp.tools.config_tool import ConfigOptions
 from better_telegram_mcp.server import (
     create_http_mcp_server,
     get_backend,
@@ -15,6 +14,7 @@ from better_telegram_mcp.server import (
     mcp,
     run_http,
 )
+from better_telegram_mcp.tools.config_tool import ConfigOptions
 
 
 def test_mcp_has_7_tools():
@@ -177,7 +177,6 @@ async def test_message_unknown_action(mock_backend):
 async def test_config_tool(mock_backend):
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import config
-    from better_telegram_mcp.tools.config_tool import ConfigOptions
 
     old = srv._backend
     try:
@@ -360,7 +359,6 @@ async def test_config_works_during_pending_auth(mock_backend):
     """Config tool should always work even during pending auth."""
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import config
-    from better_telegram_mcp.tools.config_tool import ConfigOptions
 
     old_backend = srv._backend
     old_pending = srv._pending_auth
@@ -562,7 +560,6 @@ async def test_config_status_works_when_unconfigured():
     """config status shows setup instructions when unconfigured."""
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import config
-    from better_telegram_mcp.tools.config_tool import ConfigOptions
 
     old = srv._unconfigured
     try:
@@ -581,7 +578,6 @@ async def test_config_set_blocked_when_unconfigured():
     """config set returns setup instructions when unconfigured."""
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import config
-    from better_telegram_mcp.tools.config_tool import ConfigOptions
 
     old = srv._unconfigured
     try:
@@ -630,7 +626,6 @@ async def test_config_setup_status():
     """setup_status returns credential state info."""
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import config
-    from better_telegram_mcp.tools.config_tool import ConfigOptions
 
     old_unconfigured = srv._unconfigured
     old_pending = srv._pending_auth
@@ -663,7 +658,6 @@ async def test_config_setup_start_already_configured():
     """setup_start returns already_configured if state is CONFIGURED without force."""
     from better_telegram_mcp.credential_state import CredentialState
     from better_telegram_mcp.server import config
-    from better_telegram_mcp.tools.config_tool import ConfigOptions
 
     with patch(
         "better_telegram_mcp.credential_state.get_state",
@@ -684,13 +678,14 @@ async def test_config_setup_start_force_returns_stdio_unsupported():
     """
     from better_telegram_mcp.credential_state import CredentialState
     from better_telegram_mcp.server import config
-    from better_telegram_mcp.tools.config_tool import ConfigOptions
 
     with patch(
         "better_telegram_mcp.credential_state.get_state",
         return_value=CredentialState.CONFIGURED,
     ):
-        result = json.loads(await config(ConfigOptions(action="setup_start", key="force")))
+        result = json.loads(
+            await config(ConfigOptions(action="setup_start", key="force"))
+        )
         assert result["status"] == "stdio_unsupported"
         assert "TELEGRAM_BOT_TOKEN" in result["message"]
 
@@ -700,7 +695,6 @@ async def test_config_setup_start_awaiting_returns_stdio_unsupported():
     """setup_start when awaiting returns stdio_unsupported with switch hint."""
     from better_telegram_mcp.credential_state import CredentialState
     from better_telegram_mcp.server import config
-    from better_telegram_mcp.tools.config_tool import ConfigOptions
 
     with patch(
         "better_telegram_mcp.credential_state.get_state",
@@ -715,7 +709,6 @@ async def test_config_setup_start_awaiting_returns_stdio_unsupported():
 async def test_config_setup_reset():
     """setup_reset clears credentials."""
     from better_telegram_mcp.server import config
-    from better_telegram_mcp.tools.config_tool import ConfigOptions
 
     with patch("better_telegram_mcp.credential_state.reset_state") as mock_reset:
         result = json.loads(await config(ConfigOptions(action="setup_reset")))
@@ -729,7 +722,6 @@ async def test_config_setup_complete():
     """setup_complete re-resolves credential state."""
     from better_telegram_mcp.credential_state import CredentialState
     from better_telegram_mcp.server import config
-    from better_telegram_mcp.tools.config_tool import ConfigOptions
 
     with (
         patch(
@@ -751,7 +743,6 @@ async def test_config_setup_status_works_when_unconfigured():
     """setup_status works even when server is unconfigured."""
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import config
-    from better_telegram_mcp.tools.config_tool import ConfigOptions
 
     old = srv._unconfigured
     try:
@@ -777,7 +768,6 @@ async def test_config_setup_reset_works_when_unconfigured():
     """setup_reset works even when server is unconfigured."""
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import config
-    from better_telegram_mcp.tools.config_tool import ConfigOptions
 
     old = srv._unconfigured
     try:
@@ -1005,15 +995,18 @@ async def test_run_http():
         assert kwargs["server_name"] == "better-telegram-mcp"
         assert kwargs["port"] == 8080
 
+
 @pytest.mark.asyncio
 async def test_config_error_returns_string():
     """Verify that config tool catches exceptions and returns them as strings."""
     from better_telegram_mcp.server import config
-    from better_telegram_mcp.tools.config_tool import ConfigOptions
 
-    with patch("better_telegram_mcp.server.get_backend", side_effect=RuntimeError("Test error")):
+    with patch(
+        "better_telegram_mcp.server.get_backend", side_effect=RuntimeError("Test error")
+    ):
         # Ensure _unconfigured is False so it calls get_backend()
         import better_telegram_mcp.server as srv
+
         old = srv._unconfigured
         try:
             srv._unconfigured = False
