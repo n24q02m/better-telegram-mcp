@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v4.12.5 (2026-06-07)
+
+### Bug Fixes
+
+- Report package version in serverInfo and honor MCP_PORT in HTTP mode
+  ([#709](https://github.com/n24q02m/better-telegram-mcp/pull/709),
+  [`51161d8`](https://github.com/n24q02m/better-telegram-mcp/commit/51161d8b4c0b46e3280d705235f0231a49e54cd7))
+
+
 ## v4.12.5-beta.1 (2026-06-07)
 
 ### Bug Fixes
