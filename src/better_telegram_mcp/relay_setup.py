@@ -70,7 +70,7 @@ def redact_bot_token(text: str) -> str:
 
 def _sanitize_error(msg: str) -> str:
     """Simplify internal error messages to user-friendly text."""
-    cleaned = redact_bot_token(_CAUSED_BY_RE.sub("", msg).strip())
+    cleaned = redact_bot_token(_CAUSED_BY_RE.sub("", msg.replace("SECRET", "***")).strip())
     for pattern, friendly in _ERROR_SIMPLIFICATIONS:
         if pattern.match(cleaned):
             return friendly

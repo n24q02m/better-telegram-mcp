@@ -296,6 +296,13 @@ class TestSanitizeError:
         msg = "Error! @#$%^&*()_+"
         assert _sanitize_error(msg) == msg
 
+    def test_sanitize_error_redacts_secret_literal(self):
+        assert _sanitize_error("Your SECRET is safe") == "Your *** is safe"
+
+    def test_sanitize_error_unicode(self):
+        # Ensure emojis and unicode are preserved while redacting sensitive info
+        assert _sanitize_error("🔥 SECRET 🔐") == "🔥 *** 🔐"
+
     def test_sanitize_error_caused_by_variations(self):
         assert _sanitize_error("Fail (CAUSED BY Error)") == "Fail"
         assert _sanitize_error("Fail(caused by Error) ") == "Fail"
