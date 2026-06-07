@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import socket
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlparse
+
+import httpcore
 
 
 class SecurityError(Exception):
@@ -20,64 +24,135 @@ _BLOCKED_NETWORKS = (
     ipaddress.ip_network("172.16.0.0/12"),
     ipaddress.ip_network("192.168.0.0/16"),
     ipaddress.ip_network("169.254.0.0/16"),
-    ipaddress.ip_network("::1/128"),
-    ipaddress.ip_network("::ffff:0:0/96"),
-    ipaddress.ip_network("fc00::/7"),
-    ipaddress.ip_network("fe80::/10"),
+    ipaddress.ip_network("100.64.0.0/10"),  # CGNAT
+    ipaddress.ip_network("192.0.0.0/24"),  # IETF Protocol Assignments
+    ipaddress.ip_network("192.0.2.0/24"),  # Documentation (TEST-NET-1)
+    ipaddress.ip_network("198.18.0.0/15"),  # Network Interconnect Device Benchmark Testing
+    ipaddress.ip_network("198.51.100.0/24"),  # Documentation (TEST-NET-2)
+    ipaddress.ip_network("203.0.113.0/24"),  # Documentation (TEST-NET-3)
+    ipaddress.ip_network("224.0.0.0/4"),  # Multicast
+    ipaddress.ip_network("240.0.0.0/4"),  # Reserved
+    ipaddress.ip_network("::/128"),  # Unspecified address
+    ipaddress.ip_network("::1/128"),  # Loopback
+    ipaddress.ip_network("::ffff:0:0/96"),  # IPv4-mapped addresses
+    ipaddress.ip_network("100::/64"),  # Discard-Only Address Block
+    ipaddress.ip_network("2001:db8::/32"),  # Documentation
+    ipaddress.ip_network("fc00::/7"),  # Unique Local Address
+    ipaddress.ip_network("fe80::/10"),  # Link-Local Address
+    ipaddress.ip_network("ff00::/8"),  # Multicast
 )
 
 
-def validate_url(url: str) -> str:
-    """Validate URL is safe (no SSRF to internal networks)."""
+def _validate_ip(ip_str: str, hostname: str | None = None) -> None:
+    """Validate that an IP address is not in a blocked network."""
+    try:
+        addr = ipaddress.ip_address(ip_str)
+    except ValueError:
+        # Not an IP address, skip validation
+        return
+
+    # Handle IPv4-mapped IPv6 addresses (::ffff:127.0.0.1)
+    if isinstance(addr, ipaddress.IPv6Address) and addr.ipv4_mapped:
+        addr = addr.ipv4_mapped
+
+    for network in _BLOCKED_NETWORKS:
+        if addr in network:
+            context = f" ({hostname})" if hostname else ""
+            msg = f"Access to internal/private IP {ip_str}{context} is blocked"
+            raise SecurityError(msg)
+
+
+class SSRFProtectedNetworkBackend(httpcore.AnyIOBackend):
+    """Network backend that prevents SSRF by pinning hostnames to safe IPs."""
+
+    async def connect_tcp(
+        self,
+        host: str,
+        port: int,
+        timeout: float | None = None,
+        local_address: str | None = None,
+        socket_options: Any = None,
+    ) -> httpcore.AsyncNetworkStream:
+        """Resolve host, validate all IPs, and connect to the first safe one."""
+        try:
+            # Resolve the hostname once
+            # Use asyncio.to_thread for blocking getaddrinfo
+            addr_info = await asyncio.to_thread(
+                socket.getaddrinfo, host, port, family=socket.AF_UNSPEC
+            )
+        except socket.gaierror as e:
+            msg = f"Failed to resolve hostname {host}"
+            raise SecurityError(msg) from e
+
+        if not addr_info:
+            msg = f"Failed to resolve hostname {host}"
+            raise SecurityError(msg)
+
+        # Validate all resolved IPs
+        for item in addr_info:
+            sockaddr = item[4]
+            ip = sockaddr[0]
+            _validate_ip(ip, host)
+
+        # Pin to the first safe IP by replacing the 'host' with the IP
+        # This prevents DNS rebinding because httpcore will use this IP for the connection
+        # and won't re-resolve it.
+        safe_ip = addr_info[0][4][0]
+
+        return await super().connect_tcp(
+            safe_ip,
+            port,
+            timeout=timeout,
+            local_address=local_address,
+            socket_options=socket_options,
+        )
+
+    async def connect_unix_socket(
+        self,
+        path: str,
+        timeout: float | None = None,
+        socket_options: Any = None,
+    ) -> httpcore.AsyncNetworkStream:
+        """Block Unix socket connections to prevent local service access."""
+        msg = "Unix socket connections are blocked for security"
+        raise SecurityError(msg)
+
+
+def validate_url(url: str) -> None:
+    """Validate URL scheme and hostname are allowed."""
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"}:
         msg = f"Only http/https URLs are allowed, got: {parsed.scheme}"
         raise SecurityError(msg)
+
     hostname = parsed.hostname
     if not hostname:
         msg = "URL has no hostname"
         raise SecurityError(msg)
-    # Block metadata endpoints
-    if hostname in {"metadata.google.internal", "metadata.internal"}:
+
+    # Block metadata endpoints by name
+    if hostname.lower() in {
+        "metadata.google.internal",
+        "metadata.internal",
+        "169.254.169.254",
+        "instance-data",
+    }:
         msg = "Access to cloud metadata endpoints is blocked"
         raise SecurityError(msg)
-    # Resolve and check IPs
-    # Not an IP literal -- resolve to prevent SSRF via DNS like 127.0.0.1.nip.io
-    # Block known dangerous hostnames as an early check
-    if hostname in {"localhost", "0.0.0.0"}:  # noqa: S104
+
+    # Early check for common dangerous hostnames
+    if hostname.lower() in {"localhost", "0.0.0.0"}:  # noqa: S104
         msg = f"Access to {hostname} is blocked"
         raise SecurityError(msg)
-    try:
-        # Get all IPs for this hostname
-        addr_info = socket.getaddrinfo(hostname, None)
-        for _, _, _, _, sockaddr in addr_info:
-            ip_str = sockaddr[0]
-            addr = ipaddress.ip_address(ip_str)
-            for network in _BLOCKED_NETWORKS:
-                if addr in network:
-                    msg = f"Access to internal/private IP {ip_str} ({hostname}) is blocked"
-                    raise SecurityError(msg)
-        if not addr_info:
-            msg = f"Failed to resolve hostname {hostname}"
-            raise SecurityError(msg)
-        return addr_info[0][4][0]
-    except OSError as e:
-        # If hostname resolution fails, deny access instead of silently passing
-        # to prevent bypassing SSRF checks via transient failures or DNS rebinding
-        msg = f"Failed to resolve hostname {hostname}"
-        raise SecurityError(msg) from e
+
+    # Check if hostname is a literal IP and block early
+    _validate_ip(hostname, hostname)
 
 
 def _normalize_for_prefix_check(path: Path) -> str:
-    """Return a forward-slash path string suitable for blocked-prefix matching.
-
-    Handles the macOS firmlink quirk where `/etc`, `/var`, `/tmp` resolve to
-    `/private/etc`, `/private/var`, `/private/tmp`. We strip a leading `/private`
-    so the same blocklist works identically on Linux and macOS.
-    """
+    """Return a forward-slash path string suitable for blocked-prefix matching."""
     path_str = str(path).replace("\\", "/")
     if path_str.startswith("/private/"):
-        # /private/etc -> /etc, /private/var -> /var, /private/tmp -> /tmp
         path_str = path_str[len("/private") :]
     return path_str if path_str.endswith("/") else path_str + "/"
 
@@ -85,22 +160,10 @@ def _normalize_for_prefix_check(path: Path) -> str:
 def _is_under_blocked_prefix(
     resolved: Path, lexical: Path, prefixes: tuple[str, ...]
 ) -> str | None:
-    """Return the blocked prefix that ``resolved``/``lexical`` falls under, else None.
-
-    Robust against the macOS firmlink layout (``/etc`` -> ``/private/etc``):
-    each blocked prefix directory is itself canonicalized with ``realpath`` so
-    the containment check compares like-for-like canonical paths rather than
-    relying on a hand-rolled ``/private`` string strip. Containment uses
-    ``Path.is_relative_to`` (a proper path-segment check) instead of a naive
-    ``startswith``, so siblings such as ``/etc-decoy`` are not mistaken for
-    ``/etc``. The pre-resolution (lexical) path is also checked so a symlink
-    cannot mask an attempt that targets a blocked prefix literally.
-    """
+    """Return the blocked prefix that ``resolved``/``lexical`` falls under, else None."""
     candidates = {resolved, lexical}
     for prefix in prefixes:
         prefix_dir = Path(prefix.rstrip("/"))
-        # Compare against both the literal blocked dir and its canonical form so
-        # the same blocklist works on Linux and macOS firmlink layouts.
         blocked_dirs = {prefix_dir}
         try:
             blocked_dirs.add(prefix_dir.resolve())
@@ -115,11 +178,7 @@ def _is_under_blocked_prefix(
 
 def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Path:
     """Validate local file path is safe (no traversal to sensitive files)."""
-    # Sentinel: Expand user (`~`) before resolving to prevent TOCTOU bypasses where
-    # `~` is treated as a literal local directory `~/...` during validation but expanded
-    # by downstream APIs to the actual home directory `/home/user/...`.
     path = Path(file_path).expanduser().resolve()
-    # Block known sensitive paths
     _blocked_prefixes = (
         "/etc/",
         "/proc/",
@@ -129,22 +188,15 @@ def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Pa
         "/var/log/",
         "/root/",
     )
-    # Check BOTH the lexical (pre-resolve) and resolved paths against canonical
-    # blocked dirs. On macOS `/etc` resolves to `/private/etc` via firmlinks, so
-    # the helper canonicalizes each blocked prefix and uses path-segment
-    # containment rather than a fragile `/private` string strip + startswith.
     lexical = Path(file_path).expanduser()
     blocked = _is_under_blocked_prefix(path, lexical, _blocked_prefixes)
     if blocked is not None:
         msg = f"Access to {blocked} is blocked for security"
         raise SecurityError(msg)
-    # Block dotfiles in home directories (SSH keys, secrets, etc.)
-    parts = path.parts
-    for part in parts:
+    for part in path.parts:
         if part.startswith(".") and part not in {".", ".."}:
             msg = f"Access to hidden files/directories ({part}) is blocked"
             raise SecurityError(msg)
-    # If an allowed_dir is specified, enforce containment
     if allowed_dir is not None:
         allowed = allowed_dir.resolve()
         if not path.is_relative_to(allowed):
@@ -155,11 +207,7 @@ def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Pa
 
 def validate_output_dir(output_dir: str, *, base_dir: Path | None = None) -> Path:
     """Validate output directory is safe for writing."""
-    # Sentinel: Expand user (`~`) before resolving to prevent TOCTOU bypasses where
-    # `~` is treated as a literal local directory `~/...` during validation but expanded
-    # by downstream APIs to the actual home directory `/home/user/...`.
     path = Path(output_dir).expanduser().resolve()
-    # Block writing to system directories
     _blocked_prefixes = (
         "/etc/",
         "/proc/",
@@ -175,14 +223,11 @@ def validate_output_dir(output_dir: str, *, base_dir: Path | None = None) -> Pat
         "/boot/",
         "/lib/",
     )
-    # Check BOTH the lexical (pre-resolve) and resolved paths against canonical
-    # blocked dirs (see _is_under_blocked_prefix for the macOS firmlink rationale).
     lexical = Path(output_dir).expanduser()
     blocked = _is_under_blocked_prefix(path, lexical, _blocked_prefixes)
     if blocked is not None:
         msg = f"Writing to {blocked} is blocked for security"
         raise SecurityError(msg)
-    # Block hidden directories
     for part in path.parts:
         if part.startswith(".") and part not in {".", ".."}:
             msg = f"Writing to hidden directories ({part}) is blocked"
@@ -196,33 +241,25 @@ def validate_output_dir(output_dir: str, *, base_dir: Path | None = None) -> Pat
 
 
 async def fetch_url_safely(url: str, timeout: float = 30.0) -> bytes:
-    """Fetch URL content safely by pinning the IP to prevent DNS rebinding."""
-    from urllib.parse import urlunparse
-
+    """Fetch URL content safely using an SSRF-protected backend."""
     import httpx
 
-    ip_addr = validate_url(url)
-    parsed = urlparse(url)
+    validate_url(url)
 
-    # Construct a new URL using the IP address
-    # We must preserve the original scheme, path, query, etc.
-    # parsed.netloc might contain port, so we handle that
-    netloc_parts = parsed.netloc.split("@")[-1].split(":")
-    port = f":{netloc_parts[1]}" if len(netloc_parts) > 1 else ""
+    # Use the custom backend to pin hostnames to safe IPs and prevent DNS rebinding.
+    pool = httpcore.AsyncConnectionPool(
+        network_backend=SSRFProtectedNetworkBackend(),
+    )
+    transport = httpx.AsyncHTTPTransport()
+    transport._pool = pool  # Inject our custom pool
 
-    new_netloc = f"{ip_addr}{port}"
-    new_url = urlunparse(parsed._replace(netloc=new_netloc))
-
-    headers = {"Host": parsed.hostname}
-    extensions = {"sni_hostname": parsed.hostname}
-
-    async with httpx.AsyncClient(verify=True) as client:
+    async with httpx.AsyncClient(transport=transport, verify=True) as client:
+        # We can safely follow redirects because the backend validates every
+        # new connection's IP address.
         resp = await client.get(
-            new_url,
-            headers=headers,
-            extensions=extensions,
+            url,
             timeout=timeout,
-            follow_redirects=False,  # Redirects could lead to rebinding or other SSRF
+            follow_redirects=True,
         )
         resp.raise_for_status()
         return resp.content

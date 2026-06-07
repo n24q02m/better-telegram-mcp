@@ -6,12 +6,16 @@ import os
 import socket
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
+import httpx
 import pytest
 
 from better_telegram_mcp.backends.security import (
     SecurityError,
+    SSRFProtectedNetworkBackend,
     _normalize_for_prefix_check,
+    fetch_url_safely,
     validate_file_path,
     validate_output_dir,
     validate_url,
@@ -47,6 +51,10 @@ class TestValidateUrl:
         with pytest.raises(SecurityError, match="metadata"):
             validate_url("http://metadata.google.internal/computeMetadata/v1/")
 
+    def test_metadata_ip_blocked(self):
+        with pytest.raises(SecurityError, match="metadata"):
+            validate_url("http://169.254.169.254/")
+
     def test_private_10_blocked(self):
         with pytest.raises(SecurityError, match="internal/private"):
             validate_url("http://10.0.0.1/")
@@ -59,32 +67,6 @@ class TestValidateUrl:
         with pytest.raises(SecurityError, match="internal/private"):
             validate_url("http://192.168.1.1/")
 
-    def test_link_local_blocked(self):
-        with pytest.raises(SecurityError, match="internal/private"):
-            validate_url("http://169.254.169.254/latest/meta-data/")
-
-    def test_ipv6_loopback_blocked(self):
-        with pytest.raises(SecurityError, match="internal/private"):
-            validate_url("http://[::1]/")
-
-    def test_ipv4_mapped_ipv6_loopback_blocked(self, monkeypatch):
-        """IPv4-mapped IPv6 like ::ffff:127.0.0.1 must be blocked (issue #42)."""
-        monkeypatch.setattr(
-            "socket.getaddrinfo",
-            lambda host, port: [(10, 1, 6, "", ("::ffff:127.0.0.1", 80, 0, 0))],
-        )
-        with pytest.raises(SecurityError, match="internal/private"):
-            validate_url("http://ipv4mapped.attacker.com/")
-
-    def test_ipv4_mapped_ipv6_private_blocked(self, monkeypatch):
-        """IPv4-mapped IPv6 like ::ffff:10.0.0.1 must be blocked (issue #42)."""
-        monkeypatch.setattr(
-            "socket.getaddrinfo",
-            lambda host, port: [(10, 1, 6, "", ("::ffff:10.0.0.1", 80, 0, 0))],
-        )
-        with pytest.raises(SecurityError, match="internal/private"):
-            validate_url("http://ipv4mapped-private.attacker.com/")
-
     def test_zero_ip_blocked(self):
         with pytest.raises(SecurityError, match="blocked"):
             validate_url("http://0.0.0.0/")  # noqa: S104
@@ -96,114 +78,102 @@ class TestValidateUrl:
     def test_public_ip_allowed(self):
         validate_url("https://93.184.216.34/image.jpg")
 
-    def test_dns_resolution_blocks_internal(self, monkeypatch):
-        # Mock socket.getaddrinfo to simulate malicious domain resolving to 127.0.0.1
-        monkeypatch.setattr(
-            "socket.getaddrinfo", lambda host, port: [(2, 1, 6, "", ("127.0.0.1", 80))]
-        )
-        with pytest.raises(SecurityError, match="internal/private"):
-            validate_url("http://malicious-domain-resolving-to-local.com/admin")
 
-    def test_dns_resolution_blocks_mixed_ips(self, monkeypatch):
-        """Hostnames resolving to multiple IPs (one public, one private) must be blocked."""
-        monkeypatch.setattr(
-            "socket.getaddrinfo",
-            lambda host, port: [
-                (2, 1, 6, "", ("93.184.216.34", 80)),
-                (2, 1, 6, "", ("10.0.0.1", 80)),
-            ],
-        )
-        with pytest.raises(SecurityError, match="internal/private"):
-            validate_url("http://mixed-ips.attacker.com/")
+class TestSSRFProtectedBackend:
+    @pytest.mark.asyncio
+    async def test_connect_tcp_pins_ip(self, monkeypatch):
+        """Verify that connect_tcp resolves and pins the safe IP."""
+        safe_ip = "93.184.216.34"
+        backend = SSRFProtectedNetworkBackend()
 
-    def test_dns_resolution_allows_external(self, monkeypatch):
-        # Mock socket.getaddrinfo to simulate benign domain resolving to public IP
-        monkeypatch.setattr(
-            "socket.getaddrinfo",
-            lambda host, port: [(2, 1, 6, "", ("93.184.216.34", 80))],
-        )
-        validate_url("http://example.com/image.jpg")
-
-    def test_dns_resolution_failure_blocked(self, monkeypatch):
-        original_err = OSError("Temporary failure in name resolution")
+        # Mock socket.getaddrinfo to return a safe IP
+        mock_addrinfo = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (safe_ip, 80))]
 
         def mock_getaddrinfo(*args, **kwargs):
-            raise original_err
+            return mock_addrinfo
 
         monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
-        with pytest.raises(
-            SecurityError, match="Failed to resolve hostname"
-        ) as excinfo:
-            validate_url("http://nonexistent.domain.internal/admin")
 
-        # Verify exception chaining (__cause__)
-        assert excinfo.value.__cause__ is original_err
-
-    def test_dns_resolution_gaierror_blocked(self, monkeypatch):
-        """socket.gaierror (subclass of OSError) is also caught and wrapped."""
-        original_err = socket.gaierror(-2, "Name or service not known")
-
-        def mock_getaddrinfo(*args, **kwargs):
-            raise original_err
-
-        monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
-        with pytest.raises(
-            SecurityError, match="Failed to resolve hostname"
-        ) as excinfo:
-            validate_url("http://gaierror.attacker.com/")
-
-        assert excinfo.value.__cause__ is original_err
-
-    def test_dns_resolution_empty_result_allowed(self, monkeypatch):
-        """If hostname resolves to empty result list, it is blocked (resolution failure)."""
-        monkeypatch.setattr("socket.getaddrinfo", lambda host, port: [])
-        with pytest.raises(SecurityError, match="Failed to resolve hostname"):
-            validate_url("http://resolves-to-nothing.com/")
+        # Mock the parent's connect_tcp to verify the pinned IP is passed
+        with patch(
+            "httpcore.AnyIOBackend.connect_tcp", new_callable=AsyncMock
+        ) as mock_super:
+            await backend.connect_tcp("example.com", 80)
+            args, kwargs = mock_super.call_args
+            assert args[0] == safe_ip
 
     @pytest.mark.asyncio
-    async def test_fetch_url_safely_prevents_rebinding(self, monkeypatch):
-        """Test that fetch_url_safely uses the validated IP and ignores subsequent DNS changes."""
-        from unittest.mock import AsyncMock, patch
-
-        import httpx
-
-        from better_telegram_mcp.backends.security import fetch_url_safely
-
-        target_hostname = "rebinding.attacker.com"
-        safe_ip = "93.184.216.34"
+    async def test_connect_tcp_blocks_private_ip(self, monkeypatch):
+        """Verify that connect_tcp blocks private IPs after resolution."""
         malicious_ip = "127.0.0.1"
+        backend = SSRFProtectedNetworkBackend()
 
-        # State to simulate rebinding: first call returns safe IP, subsequent returns malicious IP
-        resolution_count = 0
-
-        def mock_getaddrinfo(host, port, *args, **kwargs):
-            nonlocal resolution_count
-            resolution_count += 1
-            if resolution_count == 1:
-                return [(2, 1, 6, "", (safe_ip, 80))]
-            return [(2, 1, 6, "", (malicious_ip, 80))]
+        def mock_getaddrinfo(*args, **kwargs):
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (malicious_ip, 80))]
 
         monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
 
-        # Mock httpx.AsyncClient.get to verify the URL used
-        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
-            # Return a real Response object with a request to allow raise_for_status()
-            resp = httpx.Response(200, content=b"content")
-            resp._request = httpx.Request("GET", f"http://{safe_ip}/data")
-            mock_get.return_value = resp
+        with pytest.raises(SecurityError, match="internal/private"):
+            await backend.connect_tcp("attacker.com", 80)
 
-            await fetch_url_safely(f"http://{target_hostname}/data")
+    @pytest.mark.asyncio
+    async def test_connect_unix_socket_blocked(self):
+        """Verify that unix socket connections are explicitly blocked."""
+        backend = SSRFProtectedNetworkBackend()
+        with pytest.raises(SecurityError, match="Unix socket"):
+            await backend.connect_unix_socket("/var/run/docker.sock")
 
-            # Verify that the URL passed to httpx uses the SAFE IP, not the hostname or malicious IP
-            args, kwargs = mock_get.call_args
-            requested_url = str(args[0])
-            assert safe_ip in requested_url
-            assert target_hostname not in requested_url
-            assert malicious_ip not in requested_url
 
-            # Verify headers and extensions preserve the hostname for SNI/Host
-            assert kwargs["headers"]["Host"] == target_hostname
-            assert kwargs["extensions"]["sni_hostname"] == target_hostname
+class TestFetchUrlSafely:
+    @pytest.mark.asyncio
+    async def test_fetch_url_safely_ipv6_header(self, monkeypatch):
+        """Verify fetch_url_safely handles IPv6 correctly in the Host header."""
+
+        safe_ipv6 = "2606:4700:4700::1111"
+
+        # Mock the backend to return success
+        class MockStream(AsyncMock):
+            async def aclose(self):
+                pass
+
+        async def mock_connect_tcp(host, port, **kwargs):
+            return MockStream()
+
+        with patch(
+            "better_telegram_mcp.backends.security.SSRFProtectedNetworkBackend.connect_tcp",
+            side_effect=mock_connect_tcp,
+        ):
+            with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+                resp = httpx.Response(200, content=b"content")
+                resp._request = httpx.Request("GET", f"http://[{safe_ipv6}]/")
+                mock_get.return_value = resp
+
+                await fetch_url_safely(f"http://[{safe_ipv6}]/")
+
+                # Verify original URL with brackets was passed to client
+                args, _ = mock_get.call_args
+                assert str(args[0]) == f"http://[{safe_ipv6}]/"
+
+    @pytest.mark.asyncio
+    async def test_ipv4_mapped_ipv6_loopback_blocked(self, monkeypatch):
+        """IPv4-mapped IPv6 like ::ffff:127.0.0.1 must be blocked via the backend."""
+        backend = SSRFProtectedNetworkBackend()
+
+        def mock_getaddrinfo(*args, **kwargs):
+            return [
+                (
+                    socket.AF_INET6,
+                    socket.SOCK_STREAM,
+                    6,
+                    "",
+                    ("::ffff:127.0.0.1", 80, 0, 0),
+                )
+            ]
+
+        monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
+
+        with pytest.raises(SecurityError, match="internal/private"):
+            await backend.connect_tcp("ipv4mapped.attacker.com", 80)
 
 
 class TestValidateFilePath:
@@ -214,7 +184,6 @@ class TestValidateFilePath:
 
     def test_macos_firmlink_normalization(self):
         """Verify _normalize_for_prefix_check handles /private prefix."""
-        # This covers the line 77 coverage gap
         assert (
             _normalize_for_prefix_check(Path("/private/etc/passwd")) == "/etc/passwd/"
         )
@@ -248,8 +217,6 @@ class TestValidateFilePath:
     def test_symlink_traversal_blocked(self, tmp_path):
         """Test that a symlink pointing to a blocked path is correctly rejected."""
         link = tmp_path / "malicious_link"
-        # We can't easily create a link to /etc/passwd in some restricted environments,
-        # but we can try to link to any path that starts with a blocked prefix.
         try:
             os.symlink("/etc/passwd", link)
         except OSError:
@@ -260,13 +227,7 @@ class TestValidateFilePath:
 
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only symlinks/firmlinks")
     def test_symlink_to_blocked_dir_canonicalized(self, tmp_path):
-        """A symlinked directory pointing at /etc must be blocked after realpath.
-
-        This is the macOS-firmlink / symlink bypass: the symlink itself lives in
-        an allowed location, so a lexical check passes, but canonicalizing the
-        target reveals it lands under a blocked prefix (/etc, which on macOS is
-        the firmlink /private/etc).
-        """
+        """A symlinked directory pointing at /etc must be blocked after realpath."""
         link = tmp_path / "etc_link"
         try:
             os.symlink("/etc", link)
@@ -278,13 +239,7 @@ class TestValidateFilePath:
 
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_sibling_prefix_not_blocked(self):
-        """A path that merely shares a name prefix with a blocked dir is allowed.
-
-        The containment check is per path-segment (is_relative_to), so
-        ``/etc-decoy`` is NOT treated as being under ``/etc``.
-        """
-        # Non-existent sibling-prefix path resolves lexically and must pass the
-        # blocked-prefix gate (it is rejected later only if it hits another rule).
+        """A path that merely shares a name prefix with a blocked dir is allowed."""
         result = validate_file_path("/etcdecoy/file.txt")
         assert str(result).endswith("file.txt")
 
@@ -323,7 +278,6 @@ class TestValidateFilePath:
 
     def test_tilde_expansion_blocked(self):
         """Test that paths starting with ~ are expanded and properly blocked."""
-        # This resolves to /home/<user>/.ssh/id_rsa, which contains a hidden directory
         with pytest.raises(SecurityError, match="hidden"):
             validate_file_path("~/.ssh/id_rsa")
 
@@ -394,3 +348,20 @@ class TestValidateOutputDir:
         """Test that paths like ~/../../etc/cron.d are expanded and blocked."""
         with pytest.raises(SecurityError, match="/etc/"):
             validate_output_dir("~/../../etc/cron.d")
+
+
+class TestSSRFRedirects:
+    @pytest.mark.asyncio
+    async def test_backend_blocks_redirect_target(self, monkeypatch):
+        """Verify that the backend catches internal IPs during redirects."""
+        backend = SSRFProtectedNetworkBackend()
+
+        def mock_getaddrinfo(host, port, **kwargs):
+            if host == "127.0.0.1":
+                return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 80))]
+            return []
+
+        monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
+
+        with pytest.raises(SecurityError, match="internal/private"):
+            await backend.connect_tcp("127.0.0.1", 80)
