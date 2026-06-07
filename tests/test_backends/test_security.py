@@ -205,6 +205,35 @@ class TestValidateUrl:
             assert kwargs["headers"]["Host"] == target_hostname
             assert kwargs["extensions"]["sni_hostname"] == target_hostname
 
+    async def test_fetch_url_safely_ipv6(self, monkeypatch):
+        """Verify fetch_url_safely correctly constructs URL with IPv6 address."""
+        from unittest.mock import AsyncMock, patch
+
+        import httpx
+
+        from better_telegram_mcp.backends.security import fetch_url_safely
+
+        target_hostname = "ipv6.example.com"
+        safe_ip = "2001:db8::1"
+
+        def mock_getaddrinfo(host, port, *args, **kwargs):
+            return [(socket.AF_INET6, 1, 6, "", (safe_ip, 8080, 0, 0))]
+
+        monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
+
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+            resp = httpx.Response(200, content=b"content")
+            resp._request = httpx.Request("GET", f"http://[{safe_ip}]:8080/data")
+            mock_get.return_value = resp
+
+            await fetch_url_safely(f"http://{target_hostname}:8080/data")
+
+            args, kwargs = mock_get.call_args
+            requested_url = str(args[0])
+            assert requested_url == f"http://[{safe_ip}]:8080/data"
+            assert kwargs["headers"]["Host"] == target_hostname
+            assert kwargs["extensions"]["sni_hostname"] == target_hostname
+
 
 class TestValidateFilePath:
     def test_normal_path_allowed(self, tmp_path):
