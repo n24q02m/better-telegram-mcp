@@ -53,6 +53,7 @@ async def test_shutdown_logs_pending_otp_disconnect_error(
     finally:
         logger.remove(handler_id)
 
+
 async def test_cleanup_expired_sessions_concurrently(
     provider: TelegramAuthProvider,
 ) -> None:
@@ -89,6 +90,7 @@ async def test_cleanup_expired_sessions_concurrently(
     for i in range(5):
         assert provider._store.load(f"expired-{i}") is None
     assert provider._store.load("valid") is not None
+
 
 async def test_cleanup_expired_sessions_gather_called(
     provider: TelegramAuthProvider,

@@ -361,7 +361,9 @@ class TelegramAuthProvider:
             if now - info.created_at > _SESSION_TTL
         ]
         if to_revoke:
-            results = await asyncio.gather(*(self.revoke_session(b) for b in to_revoke), return_exceptions=True)
+            results = await asyncio.gather(
+                *(self.revoke_session(b) for b in to_revoke), return_exceptions=True
+            )
             for b, res in zip(to_revoke, results, strict=True):
                 if isinstance(res, Exception):
                     logger.warning("Error revoking session {}: {}", b[:8], res)
