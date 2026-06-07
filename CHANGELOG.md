@@ -2,6 +2,32 @@
 
 <!-- version list -->
 
+## v4.12.5-beta.1 (2026-06-07)
+
+### Bug Fixes
+
+- Add whitespace edge-case tests for empty-to-none normalization
+  ([`68d54f4`](https://github.com/n24q02m/better-telegram-mcp/commit/68d54f407b49813efdf7ec539a3569387b81d10b))
+
+- Document Glama display-name and ownership configuration in AGENTS.md
+  ([`f36882d`](https://github.com/n24q02m/better-telegram-mcp/commit/f36882d85aad6007fa1cfe4cf5395cb4592149f8))
+
+- Remove unused MessagesArgs re-export from tools package
+  ([`2d2714b`](https://github.com/n24q02m/better-telegram-mcp/commit/2d2714bb7770076fe78f772dbfd251637272aaba))
+
+- Update actions/checkout digest to df4cb1c
+  ([`6550c20`](https://github.com/n24q02m/better-telegram-mcp/commit/6550c20831942584bf353d8fbc6403402aef5cae))
+
+- Update non-major dependencies
+  ([`12fda8f`](https://github.com/n24q02m/better-telegram-mcp/commit/12fda8f8be9d07d8b4d7371f36edadaa59f22c7e))
+
+- Use iter_participants async iteration in get_members to reduce memory overhead
+  ([`ccbe511`](https://github.com/n24q02m/better-telegram-mcp/commit/ccbe51178b865dc60c61f86326d2ba798481bfcb))
+
+- Wrap IPv6 addresses in brackets when reconstructing URL in fetch_url_safely
+  ([`24b960c`](https://github.com/n24q02m/better-telegram-mcp/commit/24b960c36b4b9b3fd72fe01b1efccecbf0dcf118))
+
+
 ## v4.12.4 (2026-06-01)
 
 ### Bug Fixes
