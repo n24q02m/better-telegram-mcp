@@ -14,6 +14,7 @@ from better_telegram_mcp.server import (
     mcp,
     run_http,
 )
+from better_telegram_mcp.tools.chats import ChatOptions
 
 
 def test_mcp_has_7_tools():
@@ -109,7 +110,7 @@ async def test_chat_list(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = await chat(action="list")
+        result = await chat(ChatOptions(action="list"))
         assert "chats" in result
     finally:
         srv._backend = old_backend
@@ -303,7 +304,7 @@ async def test_chat_blocked_during_pending_auth(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        result = json.loads(await chat(action="list"))
+        result = json.loads(await chat(ChatOptions(action="list")))
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
     finally:
@@ -475,7 +476,7 @@ async def test_chat_returns_setup_hint_when_unconfigured():
     old = srv._unconfigured
     try:
         srv._unconfigured = True
-        result = json.loads(await chat(action="list"))
+        result = json.loads(await chat(ChatOptions(action="list")))
         assert result["error"] == "Not configured"
         assert "setup" in result
     finally:
