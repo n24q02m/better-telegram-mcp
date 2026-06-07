@@ -27,6 +27,7 @@ Per spec ``2026-05-01-stdio-pure-http-multiuser.md``: there is no
 is handled in ``server.main()`` and never reaches this module.
 """
 
+import itertools
 import os
 from contextvars import ContextVar
 from typing import Any
@@ -224,9 +225,12 @@ async def _per_request_sub_scope(
         provider = get_global_provider()
         if provider is not None:
             backend = provider.resolve_backend(sub)
-            keys_preview = list(provider.active_clients.keys())
+            # Bolt: Optimize key retrieval using itertools.islice to avoid
+            # materializing a full list of all active client keys in memory,
+            # which scales poorly when many clients are connected.
             keys_short = [
-                k[:12] + "..." if len(k) > 12 else k for k in keys_preview[:5]
+                k[:12] + "..." if len(k) > 12 else k
+                for k in itertools.islice(provider.active_clients.keys(), 5)
             ]
             logger.info(
                 "auth_scope: sub={} found_backend={} active_keys_count={} keys={}",
@@ -244,7 +248,7 @@ async def _per_request_sub_scope(
             )
     else:
         logger.warning(
-            "auth_scope: claims has no 'sub' field, claims_keys={}", list(claims.keys())
+            "auth_scope: claims has no 'sub' field, claims_keys={}", list(claims)
         )
 
     try:
