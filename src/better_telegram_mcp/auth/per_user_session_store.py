@@ -9,7 +9,6 @@ Uses AES-256-GCM, key derived from CREDENTIAL_SECRET env var or auto-generated.
 Reuses the key derivation pattern from transports/credential_store.py.
 """
 
-
 import copy
 import json
 import os
