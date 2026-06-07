@@ -254,6 +254,49 @@ class TestRevokeSession:
         result = await provider.revoke_session("nonexistent")
         assert result is False
 
+    async def test_revoke_pending_otp_returns_true(
+        self, provider: TelegramAuthProvider
+    ) -> None:
+        """Should return True when revoking a pending OTP session."""
+        mock_backend = AsyncMock()
+        provider._pending_otps["pending-bearer"] = {
+            "bearer": "pending-bearer",
+            "backend": mock_backend,
+            "phone": "+123456789",
+            "phone_code_hash": "hash",
+            "session_name": "session",
+            "created_at": time.time(),
+        }
+
+        result = await provider.revoke_session("pending-bearer")
+        assert result is True
+        assert "pending-bearer" not in provider._pending_otps
+        mock_backend.disconnect.assert_called_once()
+
+    async def test_revoke_session_continues_on_disconnect_error(
+        self, provider: TelegramAuthProvider, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Should continue cleanup even if disconnect fails."""
+        from loguru import logger
+
+        handler_id = logger.add(caplog.handler, format="{message}", level="WARNING")
+
+        try:
+            mock_backend = AsyncMock()
+            mock_backend.disconnect.side_effect = Exception("Disconnect failed")
+
+            provider.active_clients["bad-bearer"] = mock_backend
+            provider.session_owners["sid"] = "bad-bearer"
+
+            result = await provider.revoke_session("bad-bearer")
+
+            assert result is True
+            assert "bad-bearer" not in provider.active_clients
+            assert "sid" not in provider.session_owners
+            assert "Error disconnecting backend during revocation" in caplog.text
+        finally:
+            logger.remove(handler_id)
+
     async def test_revoke_cleans_session_owners(
         self, provider: TelegramAuthProvider
     ) -> None:

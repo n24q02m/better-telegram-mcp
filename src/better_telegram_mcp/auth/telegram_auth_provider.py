@@ -334,21 +334,35 @@ class TelegramAuthProvider:
 
         Returns True if the session existed.
         """
+        existed = False
+
         backend = self.active_clients.pop(bearer, None)
         if backend is not None:
-            await backend.disconnect()
+            existed = True
+            try:
+                await backend.disconnect()
+            except Exception as exc:
+                logger.warning("Error disconnecting backend during revocation: {}", exc)
 
         # Remove pending OTP if any
         pending = self._pending_otps.pop(bearer, None)
         if pending is not None:
-            await pending["backend"].disconnect()
+            existed = True
+            try:
+                await pending["backend"].disconnect()
+            except Exception as exc:
+                logger.warning(
+                    "Error disconnecting pending OTP backend during revocation: {}", exc
+                )
 
         # Remove from ownership map
         to_remove = [sid for sid, b in self.session_owners.items() if b == bearer]
         for sid in to_remove:
+            existed = True
             del self.session_owners[sid]
 
-        return self._store.delete(bearer)
+        deleted_from_store = self._store.delete(bearer)
+        return existed or deleted_from_store
 
     async def cleanup_expired(self) -> int:
         """Remove expired sessions. Returns count of removed sessions."""
