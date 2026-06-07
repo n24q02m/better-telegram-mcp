@@ -178,7 +178,7 @@ async def test_lifespan_tries_credential_state_when_unconfigured():
         ),
     ):
         async with _lifespan(mcp):
-            assert srv._backend is mock_bot
+            assert srv._cached_backend is mock_bot
             mock_bot.connect.assert_awaited_once()
 
         mock_bot.disconnect.assert_awaited_once()

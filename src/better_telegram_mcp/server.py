@@ -23,8 +23,8 @@ from .utils.formatting import err, ok
 # (https://api.telegram.org/bot<TOKEN>/...) cannot leak into stderr.
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
-_backend: TelegramBackend | None = None
-_settings: Settings | None = None
+_cached_backend: TelegramBackend | None = None
+_cached_settings: Settings | None = None
 _pending_auth: bool = False
 _unconfigured: bool = False
 _runtime_config: dict[str, int] = {
@@ -40,8 +40,9 @@ def get_backend() -> TelegramBackend:
     """Get the active backend.
 
     In multi-user HTTP mode: returns the per-user backend from ContextVar.
-    In stdio/single-user mode: returns the global _backend.
+    In stdio/single-user mode: returns the global _cached_backend.
     """
+    global _cached_backend
     if _multi_user_mode:
         from .transports.http import get_current_backend
 
@@ -49,17 +50,16 @@ def get_backend() -> TelegramBackend:
         if backend is not None:
             return backend
 
-    if _backend is None:
-        msg = "Backend not initialized. Server lifespan not started."
-        raise RuntimeError(msg)
-    return _backend
+    if not _cached_backend:
+        _cached_backend = _create_backend_instance(get_settings())
+    return _cached_backend
 
 
 def get_settings() -> Settings:
-    if _settings is None:
-        msg = "Settings not initialized. Server lifespan not started."
-        raise RuntimeError(msg)
-    return _settings
+    global _cached_settings
+    if not _cached_settings:
+        _cached_settings = _ensure_settings()
+    return _cached_settings
 
 
 def _not_ready_response() -> str:
@@ -120,26 +120,30 @@ def _register_hot_reload() -> None:
     from .credential_state import set_on_configured
 
     async def _reinit_backend_from_relay() -> None:
-        global _backend, _settings, _pending_auth, _unconfigured
-        _settings = _ensure_settings()
-        if not _settings.is_configured:
+        global _cached_backend, _cached_settings, _pending_auth, _unconfigured
+        if _cached_backend is not None:
+            await _cached_backend.disconnect()
+        _cached_settings = _ensure_settings()
+        if not _cached_settings.is_configured:
             return
-        logger.info("Hot-reloading backend from relay config ({})", _settings.mode)
-        _backend = _create_backend_instance(_settings)
-        await _backend.connect()
+        logger.info(
+            "Hot-reloading backend from relay config ({})", _cached_settings.mode
+        )
+        _cached_backend = _create_backend_instance(_cached_settings)
+        await _cached_backend.connect()
         _unconfigured = False
         _pending_auth = False
-        logger.info("Backend hot-reloaded successfully ({})", _settings.mode)
+        logger.info("Backend hot-reloaded successfully ({})", _cached_settings.mode)
 
     set_on_configured(_reinit_backend_from_relay)
 
 
 @asynccontextmanager
 async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
-    global _backend, _settings, _pending_auth, _unconfigured
-    _settings = _ensure_settings()
+    global _cached_backend, _cached_settings, _pending_auth, _unconfigured
+    _cached_settings = _ensure_settings()
 
-    if not _settings.is_configured:
+    if not _cached_settings.is_configured:
         if _multi_user_mode:
             # Multi-user HTTP mode: per-user backends injected via ContextVar.
             # No global backend needed — skip unconfigured state.
@@ -147,7 +151,14 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
             try:
                 yield
             finally:
-                pass
+                from .credential_state import set_on_configured
+
+                # Reset global state
+                _cached_backend = None
+                _cached_settings = None
+                _pending_auth = False
+                _unconfigured = False
+                set_on_configured(None)
             return
 
         _unconfigured = True
@@ -162,19 +173,27 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
         try:
             yield
         finally:
+            from .credential_state import set_on_configured
+
             _unconfigured = False
             # Disconnect backend if it was created via hot-reload
-            if _backend is not None:
-                await _backend.disconnect()
+            if _cached_backend is not None:
+                await _cached_backend.disconnect()
                 logger.info("Disconnected from Telegram")
+
+            # Reset global state
+            _cached_backend = None
+            _cached_settings = None
+            _pending_auth = False
+            set_on_configured(None)
         return
 
-    logger.info("Mode: {}", _settings.mode)
-    _backend = _create_backend_instance(_settings)
-    await _backend.connect()
-    logger.info("Connected to Telegram ({})", _settings.mode)
+    logger.info("Mode: {}", _cached_settings.mode)
+    _cached_backend = _create_backend_instance(_cached_settings)
+    await _cached_backend.connect()
+    logger.info("Connected to Telegram ({})", _cached_settings.mode)
 
-    if _settings.mode == "user" and not await _backend.is_authorized():
+    if _cached_settings.mode == "user" and not await _cached_backend.is_authorized():
         _pending_auth = True
         logger.warning(
             "Session not authorized. "
@@ -185,8 +204,18 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
     try:
         yield
     finally:
-        await _backend.disconnect()
-        logger.info("Disconnected from Telegram")
+        from .credential_state import set_on_configured
+
+        if _cached_backend is not None:
+            await _cached_backend.disconnect()
+            logger.info("Disconnected from Telegram")
+
+        # Reset global state to ensure clean restart/hot-reload
+        _cached_backend = None
+        _cached_settings = None
+        _pending_auth = False
+        _unconfigured = False
+        set_on_configured(None)
 
 
 mcp = FastMCP(
