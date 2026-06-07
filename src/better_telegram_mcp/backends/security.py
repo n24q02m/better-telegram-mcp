@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ipaddress
+import os
 import socket
 from pathlib import Path
 from urllib.parse import urlparse
@@ -68,50 +69,42 @@ def validate_url(url: str) -> str:
         raise SecurityError(msg) from e
 
 
-def _normalize_for_prefix_check(path: Path) -> str:
-    """Return a forward-slash path string suitable for blocked-prefix matching.
-
-    Handles the macOS firmlink quirk where `/etc`, `/var`, `/tmp` resolve to
-    `/private/etc`, `/private/var`, `/private/tmp`. We strip a leading `/private`
-    so the same blocklist works identically on Linux and macOS.
-    """
-    path_str = str(path).replace("\\", "/")
-    if path_str.startswith("/private/"):
-        # /private/etc -> /etc, /private/var -> /var, /private/tmp -> /tmp
-        path_str = path_str[len("/private") :]
-    return path_str if path_str.endswith("/") else path_str + "/"
-
 
 def _is_under_blocked_prefix(
-    resolved: Path, lexical: Path, prefixes: tuple[str, ...]
+    path: Path, prefixes: tuple[str, ...]
 ) -> str | None:
-    """Return the blocked prefix that ``resolved``/``lexical`` falls under, else None.
+    """Return the blocked prefix that ``path`` falls under, else None.
 
     Robust against the macOS firmlink layout (``/etc`` -> ``/private/etc``):
-    each blocked prefix directory is itself canonicalized with ``realpath`` so
-    the containment check compares like-for-like canonical paths rather than
-    relying on a hand-rolled ``/private`` string strip. Containment uses
+    each blocked prefix directory is itself canonicalized with ``resolve()`` so
+    the containment check compares like-for-like canonical paths. Containment uses
     ``Path.is_relative_to`` (a proper path-segment check) instead of a naive
-    ``startswith``, so siblings such as ``/etc-decoy`` are not mistaken for
-    ``/etc``. The pre-resolution (lexical) path is also checked so a symlink
-    cannot mask an attempt that targets a blocked prefix literally.
+    ``startswith``. Both the candidate and blocked prefixes are made absolute
+    before comparison to ensure consistency.
     """
-    candidates = {resolved, lexical}
+    try:
+        candidate = path.absolute()
+    except OSError:
+        candidate = path
+
     for prefix in prefixes:
-        prefix_dir = Path(prefix.rstrip("/"))
+        prefix_path = Path(prefix.rstrip("/"))
         # Compare against both the literal blocked dir and its canonical form so
         # the same blocklist works on Linux and macOS firmlink layouts.
-        blocked_dirs = {prefix_dir}
+        blocked_dirs = {prefix_path}
         try:
-            blocked_dirs.add(prefix_dir.resolve())
+            blocked_dirs.add(prefix_path.resolve())
         except OSError:
             pass
-        for candidate in candidates:
-            for blocked in blocked_dirs:
-                if candidate == blocked or candidate.is_relative_to(blocked):
-                    return prefix
-    return None
 
+        for blocked in blocked_dirs:
+            try:
+                blocked_abs = blocked.absolute()
+            except OSError:
+                blocked_abs = blocked
+            if candidate == blocked_abs or candidate.is_relative_to(blocked_abs):
+                return prefix
+    return None
 
 def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Path:
     """Validate local file path is safe (no traversal to sensitive files)."""
@@ -133,8 +126,12 @@ def validate_file_path(file_path: str, *, allowed_dir: Path | None = None) -> Pa
     # blocked dirs. On macOS `/etc` resolves to `/private/etc` via firmlinks, so
     # the helper canonicalizes each blocked prefix and uses path-segment
     # containment rather than a fragile `/private` string strip + startswith.
-    lexical = Path(file_path).expanduser()
-    blocked = _is_under_blocked_prefix(path, lexical, _blocked_prefixes)
+    lexical = Path(os.path.normpath(Path(file_path).expanduser().absolute()))
+    blocked = None
+    for candidate in {path, lexical}:
+        blocked = _is_under_blocked_prefix(candidate, _blocked_prefixes)
+        if blocked:
+            break
     if blocked is not None:
         msg = f"Access to {blocked} is blocked for security"
         raise SecurityError(msg)
@@ -177,8 +174,12 @@ def validate_output_dir(output_dir: str, *, base_dir: Path | None = None) -> Pat
     )
     # Check BOTH the lexical (pre-resolve) and resolved paths against canonical
     # blocked dirs (see _is_under_blocked_prefix for the macOS firmlink rationale).
-    lexical = Path(output_dir).expanduser()
-    blocked = _is_under_blocked_prefix(path, lexical, _blocked_prefixes)
+    lexical = Path(os.path.normpath(Path(output_dir).expanduser().absolute()))
+    blocked = None
+    for candidate in {path, lexical}:
+        blocked = _is_under_blocked_prefix(candidate, _blocked_prefixes)
+        if blocked:
+            break
     if blocked is not None:
         msg = f"Writing to {blocked} is blocked for security"
         raise SecurityError(msg)

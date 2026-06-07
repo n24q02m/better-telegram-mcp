@@ -11,7 +11,6 @@ import pytest
 
 from better_telegram_mcp.backends.security import (
     SecurityError,
-    _normalize_for_prefix_check,
     validate_file_path,
     validate_output_dir,
     validate_url,
@@ -211,14 +210,6 @@ class TestValidateFilePath:
         photo = tmp_path / "photo.jpg"
         result = validate_file_path(str(photo))
         assert result == photo.resolve()
-
-    def test_macos_firmlink_normalization(self):
-        """Verify _normalize_for_prefix_check handles /private prefix."""
-        # This covers the line 77 coverage gap
-        assert (
-            _normalize_for_prefix_check(Path("/private/etc/passwd")) == "/etc/passwd/"
-        )
-        assert _normalize_for_prefix_check(Path("/etc/passwd")) == "/etc/passwd/"
 
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
     def test_etc_passwd_blocked(self):
