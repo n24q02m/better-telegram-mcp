@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import asyncio
 from typing import Any
 
@@ -260,7 +258,6 @@ class BotBackend(TelegramBackend):
             "video": "sendVideo",
         }
         method = method_map.get(media_type, "sendDocument")
-
         if file_path_or_url.strip().lower().startswith(("http://", "https://")):
             content = await fetch_url_safely(file_path_or_url.strip())
             field = media_type if media_type != "document" else "document"
@@ -271,7 +268,6 @@ class BotBackend(TelegramBackend):
                 chat_id=chat_id,
                 caption=caption,
             )
-
         path = validate_file_path(file_path_or_url)
         if not path.exists():
             raise FileNotFoundError(f"File not found: {file_path_or_url}")
