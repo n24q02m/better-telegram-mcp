@@ -355,12 +355,18 @@ class TelegramAuthProvider:
         sessions = self._store.load_all()
         removed = 0
         now = time.time()
-
-        for bearer, info in sessions.items():
-            if now - info.created_at > _SESSION_TTL:
-                await self.revoke_session(bearer)
-                removed += 1
-
+        to_revoke = [
+            bearer
+            for bearer, info in sessions.items()
+            if now - info.created_at > _SESSION_TTL
+        ]
+        if to_revoke:
+            results = await asyncio.gather(*(self.revoke_session(b) for b in to_revoke), return_exceptions=True)
+            for b, res in zip(to_revoke, results, strict=True):
+                if isinstance(res, Exception):
+                    logger.warning("Error revoking session {}: {}", b[:8], res)
+                else:
+                    removed += 1
         # Clean up stale pending OTPs (5 min TTL) using chronological insertion order.
         # Since start_user_auth pops-then-reinserts each bearer, the oldest entries
         # are always at the front, so we can stop at the first non-stale entry instead
