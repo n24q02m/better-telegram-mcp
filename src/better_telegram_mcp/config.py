@@ -92,15 +92,31 @@ class Settings(BaseSettings):
         Returns:
             A configured Settings instance.
         """
+        # 1. Normalize all inputs
+        norm_config = {k: _empty_to_none(v) for k, v in config.items()}
+
+        # 2. Start with core credentials (always included to override ENV)
         kwargs: dict[str, object] = {
-            "bot_token": config.get("TELEGRAM_BOT_TOKEN"),
-            "phone": config.get("TELEGRAM_PHONE"),
+            "bot_token": norm_config.get("TELEGRAM_BOT_TOKEN"),
+            "phone": norm_config.get("TELEGRAM_PHONE"),
         }
-        # Only override defaults if relay explicitly provides values
-        if config.get("TELEGRAM_API_ID"):
-            kwargs["api_id"] = int(config["TELEGRAM_API_ID"])
-        if config.get("TELEGRAM_API_HASH"):
-            kwargs["api_hash"] = config["TELEGRAM_API_HASH"]
+
+        # 3. Only override secondary defaults if relay explicitly provides values
+        # Mapping of relay keys to Setting fields
+        secondary_map = {
+            "TELEGRAM_API_ID": "api_id",
+            "TELEGRAM_API_HASH": "api_hash",
+            "TELEGRAM_SESSION_NAME": "session_name",
+            "TELEGRAM_AUTH_URL": "auth_url",
+            "TELEGRAM_DATA_DIR": "data_dir",
+            "TELEGRAM_TRUSTED_PROXIES": "trusted_proxies",
+        }
+
+        for relay_key, field_name in secondary_map.items():
+            val = norm_config.get(relay_key)
+            if val is not None:
+                kwargs[field_name] = val
+
         return cls(**kwargs)
 
     @property

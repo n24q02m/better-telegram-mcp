@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 import pytest
 
 from better_telegram_mcp.config import Settings
@@ -173,14 +176,49 @@ def test_from_relay_config():
         "TELEGRAM_PHONE": "+123456789",
         "TELEGRAM_API_ID": "98765",
         "TELEGRAM_API_HASH": "hash123",
+        "TELEGRAM_SESSION_NAME": "custom-session",
+        "TELEGRAM_AUTH_URL": "http://test.auth",
+        "TELEGRAM_DATA_DIR": "/tmp/data",
+        "TELEGRAM_TRUSTED_PROXIES": "1.1.1.1",
     }
     s = Settings.from_relay_config(config)
     assert s.bot_token == "123:ABC"
     assert s.phone == "+123456789"
     assert s.api_id == 98765
     assert s.api_hash == "hash123"
+    assert s.session_name == "custom-session"
+    assert s.auth_url == "http://test.auth"
+    assert s.data_dir == Path("/tmp/data")
+    assert s.trusted_proxies == "1.1.1.1"
 
-    # Defaults
-    s2 = Settings.from_relay_config({})
-    assert s2.api_id == 37984984
-    assert s2.api_hash == "2f5f4c76c4de7c07302380c788390100"
+
+def test_from_relay_config_defaults():
+    # Empty config should use built-in defaults for secondary fields
+    s = Settings.from_relay_config({})
+    assert s.api_id == 37984984
+    assert s.api_hash == "2f5f4c76c4de7c07302380c788390100"
+    assert s.session_name == "default"
+    assert s.auth_url == "https://better-telegram-mcp.n24q02m.com"
+
+
+def test_from_relay_config_whitespace_fallbacks():
+    # Whitespace in secondary fields should NOT override defaults
+    config = {
+        "TELEGRAM_API_ID": "  ",
+        "TELEGRAM_API_HASH": " ",
+        "TELEGRAM_SESSION_NAME": " ",
+    }
+    s = Settings.from_relay_config(config)
+    assert s.api_id == 37984984
+    assert s.api_hash == "2f5f4c76c4de7c07302380c788390100"
+    assert s.session_name == "default"
+
+
+def test_from_relay_config_core_overrides_env(monkeypatch):
+    # Core fields in relay config should override ENV even if empty
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "env-token")
+    monkeypatch.setenv("TELEGRAM_PHONE", "env-phone")
+
+    s = Settings.from_relay_config({"TELEGRAM_BOT_TOKEN": " "})
+    assert s.bot_token is None  # Overridden by empty/whitespace
+    assert s.phone is None      # Included in kwargs as None, so it overrides env-phone
