@@ -78,10 +78,7 @@ def _sanitize_error(msg: str) -> str:
 
 
 def _needs_2fa_password(error_msg: str) -> bool:
-    """Check if the error indicates 2FA password is required."""
-    return any(
-        kw in error_msg.lower() for kw in {"password", "2fa", "two-factor", "srp"}
-    )
+    return "SESSION_PASSWORD_NEEDED" in error_msg
 
 
 def check_saved_sessions() -> bool:
