@@ -75,7 +75,7 @@ def test_escapes_display_name_xss() -> None:
 def test_escapes_submit_url() -> None:
     html = render_telegram_credential_form(SCHEMA, '/auth"><script>alert(1)</script>')
     assert '"><script>' not in html
-    assert "&lt;script&gt;" in html or "&quot;&gt;&lt;script&gt;" in html
+    assert "\\u003cscript\\u003e" in html
 
 
 def test_renders_with_minimal_schema() -> None:
@@ -241,15 +241,29 @@ def test_step_input_uses_one_time_code_autocomplete_for_otp() -> None:
 
 
 def test_form_has_xss_safe_submit_url_handling() -> None:
-    """Submit URL is HTML-escaped on insertion (defense in depth).
+    """Submit URL is JS-escaped (defense in depth).
 
     A malicious nonce containing ``"`` must not break out of the JS string
-    literal. The form uses Python ``html.escape(..., quote=True)`` which
-    converts ``"`` to ``&quot;`` before insertion.
+    literal. The form uses ``json.dumps()`` which escapes ``"``.
     """
     evil_url = '/authorize?nonce="><script>alert(1)</script>'
     html = render_telegram_credential_form(SCHEMA, evil_url)
     # Must NOT contain the raw evil URL anywhere
     assert '"><script>' not in html
-    # Should contain the escaped form
-    assert "&quot;&gt;&lt;script&gt;" in html
+    # Should contain the escaped form (json.dumps + replacement)
+    assert "\\u003cscript\\u003e" in html
+
+
+def test_js_variable_escaping_is_safe() -> None:
+    """Validate JS variable escaping prevents breakout and script tags."""
+    evil_url = '"; alert(1); //'
+    html = render_telegram_credential_form(SCHEMA, evil_url)
+    # json.dumps will escape the quote
+    assert 'var submitUrl = "\\"; alert(1); //";' in html
+
+    evil_url2 = "</script><script>alert(1)</script>"
+    html2 = render_telegram_credential_form(SCHEMA, evil_url2)
+    # < and > must be escaped for safe script block content
+    assert "\\u003c/script\\u003e\\u003cscript\\u003e" in html2
+    # Verify the escaped version is inside the JS assignment
+    assert 'var submitUrl = "\\u003c/script\\u003e\\u003cscript\\u003e' in html2

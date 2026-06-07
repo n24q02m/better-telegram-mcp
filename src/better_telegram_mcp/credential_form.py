@@ -11,7 +11,13 @@ derivation) so the chained OTP flow works transparently.
 """
 
 import html as html_module
+import json
 from typing import Any
+
+
+def _js_escape(value: Any) -> str:
+    """Escape a value for safe JavaScript string literal insertion."""
+    return json.dumps(str(value)).replace("<", "\\u003c").replace(">", "\\u003e")
 
 
 def _escape(value: Any) -> str:
@@ -47,7 +53,7 @@ def render_telegram_credential_form(
     )
     server = _escape(schema.get("server", "better-telegram-mcp"))
     description = _escape(schema.get("description", ""))
-    submit_url_escaped = _escape(submit_url)
+    submit_url_js = _js_escape(submit_url)
 
     prefill = prefill or {}
     bot_token_value = _escape(prefill.get("TELEGRAM_BOT_TOKEN", ""))
@@ -59,20 +65,21 @@ def render_telegram_credential_form(
     # User Mode (telegram-user E2E config) — open on the User tab so the
     # form does not invite the user to ignore the prefilled phone and
     # paste a bot token instead. Bot-only and dual-prefill default to Bot.
-    initial_tab = "user" if phone_value and not bot_token_value else "bot"
-    bot_tab_class = "tab active" if initial_tab == "bot" else "tab"
-    user_tab_class = "tab active" if initial_tab == "user" else "tab"
-    bot_tab_aria = "true" if initial_tab == "bot" else "false"
-    user_tab_aria = "true" if initial_tab == "user" else "false"
-    bot_tab_tabindex = "0" if initial_tab == "bot" else "-1"
-    user_tab_tabindex = "0" if initial_tab == "user" else "-1"
-    bot_panel_class = "tab-panel active" if initial_tab == "bot" else "tab-panel"
-    user_panel_class = "tab-panel active" if initial_tab == "user" else "tab-panel"
+    initial_tab_val = "user" if phone_value and not bot_token_value else "bot"
+    initial_tab_js = _js_escape(initial_tab_val)
+    bot_tab_class = "tab active" if "bot" == initial_tab_val else "tab"
+    user_tab_class = "tab active" if "user" == initial_tab_val else "tab"
+    bot_tab_aria = "true" if "bot" == initial_tab_val else "false"
+    user_tab_aria = "true" if "user" == initial_tab_val else "false"
+    bot_tab_tabindex = "0" if "bot" == initial_tab_val else "-1"
+    user_tab_tabindex = "0" if "user" == initial_tab_val else "-1"
+    bot_panel_class = "tab-panel active" if "bot" == initial_tab_val else "tab-panel"
+    user_panel_class = "tab-panel active" if "user" == initial_tab_val else "tab-panel"
     # ``required`` is set on the active panel's inputs only; the inactive
     # panel's required attr is removed so the form doesn't reject submits
     # because of a hidden field.
-    bot_token_required = " required" if initial_tab == "bot" else ""
-    phone_required = " required" if initial_tab == "user" else ""
+    bot_token_required = " required" if "bot" == initial_tab_val else ""
+    phone_required = " required" if "user" == initial_tab_val else ""
 
     description_html = (
         f'<p class="server-description">{description}</p>' if description else ""
@@ -441,8 +448,8 @@ def render_telegram_credential_form(
             var form = document.getElementById("credential-form");
             var submitBtn = document.getElementById("submit-btn");
             var statusBox = document.getElementById("status-box");
-            var submitUrl = "{submit_url_escaped}";
-            var activeTab = "{initial_tab}";
+            var submitUrl = {submit_url_js};
+            var activeTab = {initial_tab_js};
 
             // --- Tab switching -------------------------------------------------
             var tabs = document.querySelectorAll(".tab");
