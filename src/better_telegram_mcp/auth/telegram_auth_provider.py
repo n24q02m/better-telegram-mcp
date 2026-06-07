@@ -13,7 +13,6 @@ isolating concurrent users). The argument names retain the historical
 value is the ``sub`` in the new wiring.
 """
 
-from __future__ import annotations
 
 import asyncio
 import hashlib
@@ -29,24 +28,6 @@ from ..backends.user_backend import UserBackend
 from ..config import Settings
 from .in_memory_session_store import InMemorySessionStore
 from .per_user_session_store import SessionInfo
-
-# Module-level singleton for cross-component access from save_credentials,
-# on_step_submitted, and the auth_scope middleware. Set at HTTP-server
-# startup in ``_start_multi_user_http``; left as ``None`` in stdio /
-# single-user HTTP modes (which use the global ``_backend`` in server.py).
-_global_provider: TelegramAuthProvider | None = None
-
-
-def set_global_provider(provider: TelegramAuthProvider | None) -> None:
-    """Register the process-global TelegramAuthProvider for multi-user HTTP."""
-    global _global_provider
-    _global_provider = provider
-
-
-def get_global_provider() -> TelegramAuthProvider | None:
-    """Return the process-global provider, or ``None`` outside multi-user HTTP."""
-    return _global_provider
-
 
 # Session expiry: 30 days
 _SESSION_TTL = 30 * 24 * 60 * 60
@@ -92,7 +73,6 @@ class TelegramAuthProvider:
 
         Returns the number of successfully restored sessions.
         """
-        import asyncio
 
         sessions = self._store.load_all()
         now = time.time()
@@ -422,3 +402,20 @@ class TelegramAuthProvider:
                 return_exceptions=True,
             )
         self._pending_otps.clear()
+
+# Module-level singleton for cross-component access from save_credentials,
+# on_step_submitted, and the auth_scope middleware. Set at HTTP-server
+# startup in ``_start_multi_user_http``; left as ``None`` in stdio /
+# single-user HTTP modes (which use the global ``_backend`` in server.py).
+_global_provider: TelegramAuthProvider | None = None
+
+
+def set_global_provider(provider: TelegramAuthProvider | None) -> None:
+    """Register the process-global TelegramAuthProvider for multi-user HTTP."""
+    global _global_provider
+    _global_provider = provider
+
+
+def get_global_provider() -> TelegramAuthProvider | None:
+    """Return the process-global provider, or ``None`` outside multi-user HTTP."""
+    return _global_provider
