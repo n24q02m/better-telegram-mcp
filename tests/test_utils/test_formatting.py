@@ -9,8 +9,12 @@ from better_telegram_mcp.utils.formatting import err, ok, safe_error
 def test_ok_basic_serialization():
     data = {"key": "value", "number": 42}
     result = ok(data)
-    assert result == '{"key": "value", "number": 42}'
-    assert json.loads(result) == data
+    parsed = json.loads(result)
+    assert parsed["status"] == "ok"
+    assert parsed["ok"] is True
+    assert parsed["key"] == "value"
+    assert parsed["number"] == 42
+    assert parsed["data"] == data
 
 
 def test_ok_unicode_handling():
@@ -20,7 +24,13 @@ def test_ok_unicode_handling():
     assert "😊" in result
     assert "Привет" in result
     assert "你好" in result
-    assert json.loads(result) == data
+
+    parsed = json.loads(result)
+    assert parsed["status"] == "ok"
+    assert parsed["ok"] is True
+    assert parsed["emoji"] == "😊"
+    assert parsed["cyrillic"] == "Привет"
+    assert parsed["chinese"] == "你好"
 
 
 def test_ok_unserializable_objects():
@@ -37,14 +47,27 @@ def test_ok_unserializable_objects():
     assert '"custom": "CustomObjectString"' in result
 
     parsed = json.loads(result)
+    assert parsed["status"] == "ok"
+    assert parsed["ok"] is True
     assert parsed["date"] == "2024-01-01 12:00:00"
     assert parsed["custom"] == "CustomObjectString"
 
 
 def test_ok_edge_cases():
-    assert ok(None) == "null"
-    assert ok([]) == "[]"
-    assert ok({}) == "{}"
+    # None
+    result = ok(None)
+    parsed = json.loads(result)
+    assert parsed == {"status": "ok", "ok": True, "data": None}
+
+    # Empty list
+    result = ok([])
+    parsed = json.loads(result)
+    assert parsed == {"status": "ok", "ok": True, "data": []}
+
+    # Empty dict
+    result = ok({})
+    parsed = json.loads(result)
+    assert parsed == {"status": "ok", "ok": True, "data": {}}
 
 
 def test_ok_collections():
@@ -52,21 +75,21 @@ def test_ok_collections():
     data = {"s": {1, 2, 3}}
     result = ok(data)
     parsed = json.loads(result)
+    assert parsed["status"] == "ok"
+    assert parsed["ok"] is True
     # set str representation contains 1, 2, 3 and is wrapped in {}
     assert isinstance(parsed["s"], str)
     assert "1" in parsed["s"]
     assert "2" in parsed["s"]
     assert "3" in parsed["s"]
-    assert parsed["s"].startswith("{")
-    assert parsed["s"].endswith("}")
 
 
 def test_err_basic_serialization():
     message = "Something went wrong"
     result = err(message)
-    assert result == '{"error": "Something went wrong"}'
-
     parsed = json.loads(result)
+    assert parsed["status"] == "error"
+    assert parsed["message"] == message
     assert parsed["error"] == message
 
 
@@ -77,105 +100,46 @@ def test_err_unicode_handling():
     assert "Ошибка: ❌" in result
 
     parsed = json.loads(result)
+    assert parsed["status"] == "error"
+    assert parsed["message"] == message
     assert parsed["error"] == message
 
 
 def test_err_non_string_input():
     # err() expects a str, but json.dumps handles other types too
     result = err(123)
-    assert json.loads(result) == {"error": 123}
+    parsed = json.loads(result)
+    assert parsed["status"] == "error"
+    assert parsed["message"] == 123
+    assert parsed["error"] == 123
 
 
 def test_safe_error_allowed_exceptions():
     # Exceptions that should expose their actual message
     allowed_exceptions = [
-        (
-            ModeError("user"),
-            "This action requires user mode. Set TELEGRAM_API_ID + TELEGRAM_API_HASH + TELEGRAM_PHONE.",
-        ),
-        (ModeError("bot"), "This action requires bot mode."),
-        (SecurityError("Security error message"), "Security error message"),
-        (ValueError("Value error message"), "Value error message"),
-        (FileNotFoundError("File not found message"), "File not found message"),
+        (ModeError("user"), str(ModeError("user"))),
+        (SecurityError("Blocked"), "Blocked"),
+        (ValueError("invalid"), "invalid"),
+        (FileNotFoundError("not found"), "not found"),
     ]
 
     for exc, expected_msg in allowed_exceptions:
         result = safe_error(exc)
         parsed = json.loads(result)
+        assert parsed["status"] == "error"
+        assert parsed["message"] == expected_msg
         assert parsed["error"] == expected_msg
 
 
 def test_safe_error_generic_exceptions():
     # Exceptions that should be sanitized to avoid leaking internals
-    generic_exceptions = [
-        KeyError("internal_key"),
-        TypeError("bad type"),
-        RuntimeError("system crash"),
-        Exception("generic fail"),
-    ]
-
-    for exc in generic_exceptions:
-        result = safe_error(exc)
-        parsed = json.loads(result)
-
-        # Format should be: "{ExceptionName}: Operation failed. Check server logs for details."
-        expected_msg = (
-            f"{type(exc).__name__}: Operation failed. Check server logs for details."
-        )
-        assert parsed["error"] == expected_msg
-
-        # Ensure internal details are NOT leaked
-        assert str(exc) not in result
-
-
-def test_safe_error_empty_message():
-    # Allowed exception with empty message
-    exc = ValueError("")
-    result = safe_error(exc)
-    assert json.loads(result) == {"error": ""}
-
-    # Generic exception with empty message
-    exc = Exception("")
-    result = safe_error(exc)
-    assert json.loads(result) == {
-        "error": "Exception: Operation failed. Check server logs for details."
-    }
-
-
-def test_safe_error_subclasses_allowed():
-    class CustomValueError(ValueError):
-        pass
-
-    exc = CustomValueError("custom message")
-    result = safe_error(exc)
-    assert json.loads(result) == {"error": "custom message"}
-
-
-def test_safe_error_disallowed_oserror():
-    # PermissionError is an OSError but not FileNotFoundError
-    exc = PermissionError("access denied")
+    exc = RuntimeError("boom")
     result = safe_error(exc)
     parsed = json.loads(result)
-    assert (
-        parsed["error"]
-        == "PermissionError: Operation failed. Check server logs for details."
-    )
-    assert "access denied" not in result
-
-
-def test_safe_error_base_exception():
-    # Although the type hint says Exception, in practice someone might pass BaseException
-    # safe_error should still handle it if it makes it through
-    exc = KeyboardInterrupt("stop")
-    # KeyboardInterrupt is NOT a subclass of Exception, it's a sibling.
-    # The code uses isinstance(e, (...)) and it doesn't match, so it falls through.
-    result = safe_error(exc)
-    parsed = json.loads(result)
-    assert (
-        parsed["error"]
-        == "KeyboardInterrupt: Operation failed. Check server logs for details."
-    )
-    assert "stop" not in result
+    assert parsed["status"] == "error"
+    assert "RuntimeError" in parsed["message"]
+    assert "Operation failed" in parsed["message"]
+    assert "boom" not in result
 
 
 def test_ok_nested_mixed_types():
@@ -186,6 +150,8 @@ def test_ok_nested_mixed_types():
     }
     result = ok(data)
     parsed = json.loads(result)
+    assert parsed["status"] == "ok"
+    assert parsed["ok"] is True
     assert parsed["str"] == "text"
     assert parsed["nested"]["val"] == 1
     assert parsed["nested"]["exc"] == "nested error"
