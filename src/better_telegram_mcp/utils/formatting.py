@@ -3,11 +3,18 @@ from typing import Any
 
 
 def ok(data: Any) -> str:
-    return json.dumps(data, ensure_ascii=False, default=str)
+    """Return standardized success response with data and optional key spreading."""
+    res = {"status": "ok", "ok": True, "data": data}
+    if isinstance(data, dict):
+        res.update(data)
+    return json.dumps(res, ensure_ascii=False, default=str)
 
 
 def err(message: str) -> str:
-    return json.dumps({"error": message}, ensure_ascii=False)
+    """Return standardized error response."""
+    return json.dumps(
+        {"status": "error", "message": message, "error": message}, ensure_ascii=False
+    )
 
 
 def safe_error(e: Exception) -> str:
