@@ -73,7 +73,9 @@ class PerUserSessionStore:
             return self._salt_path.read_bytes()
 
         # Backward compatibility: existing sessions use legacy hardcoded salt
-        if self._path.exists():
+        # We only fallback if the storage file exists and has content.
+        # Otherwise an empty file could bypass secure random salt generation.
+        if self._path.is_file() and self._path.stat().st_size > 0:
             return _LEGACY_SALT
 
         # New installation: generate random salt and persist atomically
