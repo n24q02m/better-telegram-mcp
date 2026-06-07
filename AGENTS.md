@@ -148,3 +148,4 @@ Conventional Commits: `type(scope): message`. Automated semantic release.
 - **Mega-tool pattern**: 6 tools x N actions = full API coverage with minimal tool registration overhead
 - **Session persistence**: `~/.better-telegram-mcp/<name>.session` for Telethon (MTProto)
 - **Auth flow**: OTP sent to Telegram app -> terminal input or `config(action='auth', code='...')` for headless
+- **Glama integration**: The display name is programmatically set using the 'title' property in 'server.json'. The 'glama.json' file is used for ownership claiming via the 'maintainers' array and does not support the display name.
