@@ -12,7 +12,7 @@ from mcp.types import ToolAnnotations
 from .backends.base import TelegramBackend
 from .config import Settings
 from .tools.chats import ChatOptions, handle_chats
-from .tools.config_tool import handle_config
+from .tools.config_tool import ConfigOptions, handle_config
 from .tools.contacts import ContactsOptions, handle_contacts
 from .tools.help_tool import handle_help
 from .tools.media import MediaOptions, handle_media
@@ -66,6 +66,10 @@ def _not_ready_response() -> str:
     if _unconfigured:
         return ok(
             {
+                "status": "ok",
+                "configured": False,
+                "connected": False,
+                "authorized": False,
                 "error": "Not configured",
                 "setup": {
                     "relay": "Use config(action='setup_start') to configure via browser",
@@ -408,15 +412,10 @@ async def contact(
         openWorldHint=False,
     )
 )
-async def config(
-    action: str,
-    message_limit: int | None = None,
-    timeout: int | None = None,
-    key: str | None = None,
-) -> str:
+async def config(options: ConfigOptions) -> str:
     """Server configuration and runtime settings.
 
-    Actions (required params):
+    Actions:
     - status: Show connection state, mode, and current config
     - set (message_limit|timeout): Update runtime limits
     - cache_clear: Clear internal caches
@@ -425,109 +424,13 @@ async def config(
     - setup_reset: Clear saved credentials
     - setup_complete: Re-resolve credentials after relay config
     """
-    # Setup actions work regardless of configured state
-    match action:
-        case "setup_status":
-            from .credential_state import get_setup_url, get_state
-
-            state = get_state()
-            return ok(
-                {
-                    "state": state.value,
-                    "setup_url": get_setup_url(),
-                    "configured": not _unconfigured,
-                    "pending_auth": _pending_auth,
-                    "env_keys": [
-                        k
-                        for k in {"TELEGRAM_BOT_TOKEN", "TELEGRAM_PHONE"}
-                        if os.environ.get(k)
-                    ],
-                }
-            )
-
-        case "setup_start":
-            from .credential_state import CredentialState, get_state
-
-            if get_state() == CredentialState.CONFIGURED and not (
-                key and key.lower() == "force"
-            ):
-                return ok(
-                    {
-                        "status": "already_configured",
-                        "message": "Already configured. Use key='force' to reconfigure.",
-                    }
-                )
-            # Per spec 2026-05-01-stdio-pure-http-multiuser.md: stdio mode does
-            # not spawn an in-process credential form. Browser-based setup is
-            # the responsibility of HTTP mode; this branch tells the user how
-            # to switch.
-            return ok(
-                {
-                    "status": "stdio_unsupported",
-                    "message": (
-                        "Browser-based setup is HTTP-mode only. "
-                        "For stdio mode, set TELEGRAM_BOT_TOKEN in your "
-                        "plugin/server config (get from @BotFather). "
-                        "For user-mode auth (phone+OTP), switch to HTTP mode "
-                        "(see https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/)."
-                    ),
-                }
-            )
-
-        case "setup_reset":
-            from .credential_state import reset_state
-
-            reset_state()
-            return ok(
-                {
-                    "status": "ok",
-                    "message": "Credentials cleared. Use setup_start to reconfigure.",
-                }
-            )
-
-        case "setup_complete":
-            from .credential_state import (
-                CredentialState,
-                get_state,
-                resolve_credential_state,
-            )
-
-            resolve_credential_state()
-            state = get_state()
-            return ok(
-                {
-                    "status": "ok",
-                    "state": state.value,
-                    "message": "Credential state refreshed.",
-                }
-            )
-
-    if _unconfigured:
-        if action == "status":
-            return ok(
-                {
-                    "mode": None,
-                    "connected": False,
-                    "authorized": False,
-                    "configured": False,
-                    "config": _runtime_config,
-                    "setup": {
-                        "bot_mode": "Set TELEGRAM_BOT_TOKEN (get from @BotFather)",
-                        "user_mode": (
-                            "Set TELEGRAM_PHONE"
-                            " (API credentials have built-in defaults)"
-                        ),
-                    },
-                    "hint": "Use action='setup_start' to configure via browser relay.",
-                }
-            )
-        return _not_ready_response()
-    return await handle_config(
-        get_backend(),
-        action,
-        message_limit=message_limit,
-        timeout=timeout,
-    )
+    try:
+        backend = None
+        if not _unconfigured:
+            backend = get_backend()
+        return await handle_config(backend, options)
+    except Exception as e:
+        return str(e)
 
 
 @mcp.tool(
