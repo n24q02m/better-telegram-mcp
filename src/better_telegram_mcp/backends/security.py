@@ -68,8 +68,6 @@ def validate_url(url: str) -> str:
         raise SecurityError(msg) from e
 
 
-
-
 def _is_under_blocked_prefix(
     resolved: Path, lexical: Path, prefixes: tuple[str, ...]
 ) -> str | None:

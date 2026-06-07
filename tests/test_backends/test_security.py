@@ -213,7 +213,9 @@ class TestValidateUrl:
         port = 8080
 
         def mock_getaddrinfo(host, port, *args, **kwargs):
-            return [(socket.AF_INET6, socket.SOCK_STREAM, 6, "", (ipv6_addr, port, 0, 0))]
+            return [
+                (socket.AF_INET6, socket.SOCK_STREAM, 6, "", (ipv6_addr, port, 0, 0))
+            ]
 
         monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
 
