@@ -1,6 +1,8 @@
 import json
 from datetime import datetime
 
+import pytest
+
 from better_telegram_mcp.backends.base import ModeError
 from better_telegram_mcp.backends.security import SecurityError
 from better_telegram_mcp.utils.formatting import err, ok, safe_error
@@ -191,3 +193,21 @@ def test_ok_nested_mixed_types():
     assert parsed["nested"]["exc"] == "nested error"
     assert parsed["list"][0] == 1
     assert parsed["list"][1]["a"] == 1
+
+
+@pytest.mark.parametrize(
+    "input_val, expected",
+    [
+        (None, None),
+        ("", None),
+        ("   ", None),
+        ("valid", "valid"),
+        ("  valid  ", "  valid  "),
+        ("\n\t", None),
+        ("line\nbreak", "line\nbreak"),
+    ],
+)
+def test_empty_to_none(input_val, expected):
+    from better_telegram_mcp.utils.formatting import empty_to_none
+
+    assert empty_to_none(input_val) == expected

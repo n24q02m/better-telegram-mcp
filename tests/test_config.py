@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import pytest
-
 from better_telegram_mcp.config import Settings
 
 
@@ -86,22 +84,6 @@ def test_session_path(monkeypatch):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC")
     s = Settings()
     assert str(s.session_path).endswith("default.session")
-
-
-@pytest.mark.parametrize(
-    "input_val, expected",
-    [
-        (None, None),
-        ("", None),
-        ("   ", None),
-        ("valid", "valid"),
-        ("  valid  ", "  valid  "),
-    ],
-)
-def test_empty_to_none(input_val, expected):
-    from better_telegram_mcp.config import _empty_to_none
-
-    assert _empty_to_none(input_val) == expected
 
 
 def test_secret_priority_env_credential(monkeypatch):

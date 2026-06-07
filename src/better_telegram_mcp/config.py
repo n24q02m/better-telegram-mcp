@@ -9,12 +9,7 @@ from typing import Literal
 from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
-
-def _empty_to_none(v: str | None) -> str | None:
-    """Treat empty or whitespace-only string as None (plugin.json sets env vars to '' by default)."""
-    if not v or not v.strip():
-        return None
-    return v
+from .utils.formatting import empty_to_none
 
 
 class Settings(BaseSettings):
@@ -53,9 +48,9 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _detect_mode(self) -> Settings:
         # Normalize empty strings to None (plugin.json sets env vars to "" by default)
-        self.bot_token = _empty_to_none(self.bot_token)
-        self.api_hash = _empty_to_none(self.api_hash)
-        self.phone = _empty_to_none(self.phone)
+        self.bot_token = empty_to_none(self.bot_token)
+        self.api_hash = empty_to_none(self.api_hash)
+        self.phone = empty_to_none(self.phone)
 
         has_bot = self.bot_token is not None
         # User mode requires phone (api_id/api_hash have built-in defaults)
