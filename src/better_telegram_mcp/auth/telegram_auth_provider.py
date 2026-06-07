@@ -13,7 +13,6 @@ isolating concurrent users). The argument names retain the historical
 value is the ``sub`` in the new wiring.
 """
 
-
 import asyncio
 import hashlib
 import secrets
@@ -402,6 +401,7 @@ class TelegramAuthProvider:
                 return_exceptions=True,
             )
         self._pending_otps.clear()
+
 
 # Module-level singleton for cross-component access from save_credentials,
 # on_step_submitted, and the auth_scope middleware. Set at HTTP-server
