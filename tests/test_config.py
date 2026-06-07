@@ -220,4 +220,4 @@ def test_from_relay_config_core_overrides_env(monkeypatch):
 
     s = Settings.from_relay_config({"TELEGRAM_BOT_TOKEN": " "})
     assert s.bot_token is None  # Overridden by empty/whitespace
-    assert s.phone is None      # Included in kwargs as None, so it overrides env-phone
+    assert s.phone is None  # Included in kwargs as None, so it overrides env-phone
