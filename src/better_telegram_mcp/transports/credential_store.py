@@ -93,8 +93,9 @@ class CredentialStore:
         if self._salt_path.exists():
             return self._salt_path.read_bytes()
 
-        # Backward compatibility: existing credentials use legacy hardcoded salt
-        if self._path.exists():
+        # Backward compatibility: existing credentials use legacy hardcoded salt.
+        # Fallback only if the file exists and is non-empty (sturdier check).
+        if self._path.is_file() and self._path.stat().st_size > 0:
             return _LEGACY_SALT
 
         # New installation: generate random salt and persist atomically
