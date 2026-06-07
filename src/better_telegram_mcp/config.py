@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import functools
 import os
 from functools import cached_property
 from pathlib import Path
@@ -41,7 +40,7 @@ class Settings(BaseSettings):
     # Runtime (derived)
     mode: Literal["bot", "user"] = "bot"
 
-    @functools.cached_property
+    @cached_property
     def trusted_proxy_list(self) -> frozenset[str]:
         """⚡ Bolt: Memoize proxy parsing and convert to frozenset for O(1) lookups."""
         if not self.trusted_proxies:
