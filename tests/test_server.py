@@ -166,6 +166,70 @@ async def test_contact_list(mock_backend):
 
 
 @pytest.mark.asyncio
+async def test_contact_search(mock_backend):
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import contact
+
+    old_backend = srv._backend
+    old_pending = srv._pending_auth
+    try:
+        srv._backend = mock_backend
+        srv._pending_auth = False
+        result = json.loads(await contact(action="search", query="John"))
+        assert "error" not in result
+        mock_backend.search_contacts.assert_awaited_once_with("John")
+    finally:
+        srv._backend = old_backend
+        srv._pending_auth = old_pending
+
+
+@pytest.mark.asyncio
+async def test_contact_add(mock_backend):
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import contact
+
+    old_backend = srv._backend
+    old_pending = srv._pending_auth
+    try:
+        srv._backend = mock_backend
+        srv._pending_auth = False
+        result = json.loads(
+            await contact(
+                action="add",
+                phone="+12345",
+                first_name="John",
+                last_name="Doe",
+            )
+        )
+        assert "error" not in result
+        mock_backend.add_contact.assert_awaited_once_with(
+            "+12345", "John", last_name="Doe"
+        )
+    finally:
+        srv._backend = old_backend
+        srv._pending_auth = old_pending
+
+
+@pytest.mark.asyncio
+async def test_contact_block(mock_backend):
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import contact
+
+    old_backend = srv._backend
+    old_pending = srv._pending_auth
+    try:
+        srv._backend = mock_backend
+        srv._pending_auth = False
+        result = json.loads(await contact(action="block", user_id=123))
+        assert "error" not in result
+        assert result["blocked"] is True
+        mock_backend.block_user.assert_awaited_once_with(123, unblock=False)
+    finally:
+        srv._backend = old_backend
+        srv._pending_auth = old_pending
+
+
+@pytest.mark.asyncio
 async def test_message_unknown_action(mock_backend):
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import message
