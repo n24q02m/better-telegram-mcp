@@ -19,79 +19,16 @@ def _escape(value: Any) -> str:
     return html_module.escape(str(value), quote=True)
 
 
-def render_telegram_credential_form(
-    schema: dict[str, Any],
-    submit_url: str,
-    prefill: dict[str, str] | None = None,
-) -> str:
-    """Render telegram credential form with Bot Mode + User Mode tabs.
-
-    Args:
-        schema: RelayConfigSchema dict (server / displayName / description).
-        submit_url: URL the form POSTs to (includes authorize nonce).
-        prefill: Optional ``{KEY: VALUE}`` mapping populated by mcp-core
-            from ``?prefill_<KEY>=<VALUE>`` GET query params. Recognised
-            keys: ``TELEGRAM_BOT_TOKEN``, ``TELEGRAM_PHONE``. When present,
-            the matching input renders with ``value="..."`` and the form
-            auto-activates the matching tab so the user just clicks
-            Connect (skipping the retype step). Phone-only prefill (the
-            telegram-user E2E case) opens on User Mode tab.
-
-    Returns:
-        Complete HTML document string. All dynamic content is HTML-escaped;
-        JS dynamic content is inserted via ``textContent`` / ``setAttribute``
-        to stay XSS-safe.
-    """
-    display_name = _escape(
-        schema.get("displayName", schema.get("server", "Telegram MCP"))
-    )
-    server = _escape(schema.get("server", "better-telegram-mcp"))
-    description = _escape(schema.get("description", ""))
-    submit_url_escaped = _escape(submit_url)
-
-    prefill = prefill or {}
-    bot_token_value = _escape(prefill.get("TELEGRAM_BOT_TOKEN", ""))
-    phone_value = _escape(prefill.get("TELEGRAM_PHONE", ""))
-    bot_token_value_attr = f' value="{bot_token_value}"' if bot_token_value else ""
-    phone_value_attr = f' value="{phone_value}"' if phone_value else ""
-
-    # If phone is prefilled but bot token is not, the driver is exercising
-    # User Mode (telegram-user E2E config) — open on the User tab so the
-    # form does not invite the user to ignore the prefilled phone and
-    # paste a bot token instead. Bot-only and dual-prefill default to Bot.
-    initial_tab = "user" if phone_value and not bot_token_value else "bot"
-    bot_tab_class = "tab active" if initial_tab == "bot" else "tab"
-    user_tab_class = "tab active" if initial_tab == "user" else "tab"
-    bot_tab_aria = "true" if initial_tab == "bot" else "false"
-    user_tab_aria = "true" if initial_tab == "user" else "false"
-    bot_tab_tabindex = "0" if initial_tab == "bot" else "-1"
-    user_tab_tabindex = "0" if initial_tab == "user" else "-1"
-    bot_panel_class = "tab-panel active" if initial_tab == "bot" else "tab-panel"
-    user_panel_class = "tab-panel active" if initial_tab == "user" else "tab-panel"
-    # ``required`` is set on the active panel's inputs only; the inactive
-    # panel's required attr is removed so the form doesn't reject submits
-    # because of a hidden field.
-    bot_token_required = " required" if initial_tab == "bot" else ""
-    phone_required = " required" if initial_tab == "user" else ""
-
-    description_html = (
-        f'<p class="server-description">{description}</p>' if description else ""
-    )
-
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{display_name}</title>
-    <style>
-        *, *::before, *::after {{
+def _get_styles() -> str:
+    """Return the CSS styles for the form."""
+    return """
+        *, *::before, *::after {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-        }}
+        }
 
-        body {{
+        body {
             background-color: #0f0f0f;
             color: #e8e8e8;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -102,62 +39,62 @@ def render_telegram_credential_form(
             align-items: flex-start;
             justify-content: center;
             padding: 2rem 1rem;
-        }}
+        }
 
-        .container {{
+        .container {
             width: 100%;
             max-width: 480px;
-        }}
+        }
 
-        .card {{
+        .card {
             background-color: #1a1a1a;
             border: 1px solid #2a2a2a;
             border-radius: 12px;
             padding: 2rem;
             margin-bottom: 1.25rem;
-        }}
+        }
 
-        .server-header {{
+        .server-header {
             margin-bottom: 1.5rem;
-        }}
+        }
 
-        .server-name {{
+        .server-name {
             font-size: 1.375rem;
             font-weight: 600;
             color: #ffffff;
             margin-bottom: 0.375rem;
-        }}
+        }
 
-        .server-id {{
+        .server-id {
             font-size: 0.8125rem;
             color: #999;
             font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
             margin-bottom: 0.5rem;
-        }}
+        }
 
-        .server-description {{
+        .server-description {
             font-size: 0.9rem;
             color: #999;
             margin-top: 0.5rem;
-        }}
+        }
 
-        .form-title {{
+        .form-title {
             font-size: 0.875rem;
             font-weight: 500;
             color: #aaa;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             margin-bottom: 1.25rem;
-        }}
+        }
 
-        .tabs {{
+        .tabs {
             display: flex;
             gap: 0;
             margin-bottom: 1.5rem;
             border-bottom: 1px solid #2a2a2a;
-        }}
+        }
 
-        .tab {{
+        .tab {
             flex: 1;
             padding: 0.75rem 1rem;
             background: transparent;
@@ -169,41 +106,41 @@ def render_telegram_credential_form(
             border-bottom: 2px solid transparent;
             transition: color 0.15s ease, border-color 0.15s ease;
             font-family: inherit;
-        }}
+        }
 
-        .tab:hover {{
+        .tab:hover {
             color: #ccc;
-        }}
+        }
 
-        .tab:focus-visible {{
+        .tab:focus-visible {
             outline: 2px solid #4a6fa5;
             outline-offset: -2px;
             border-radius: 4px;
-        }}
+        }
 
-        .tab.active {{
+        .tab.active {
             color: #fff;
             border-bottom-color: #4a6fa5;
-        }}
+        }
 
-        .tab:disabled {{
+        .tab:disabled {
             cursor: not-allowed;
             opacity: 0.5;
-        }}
+        }
 
-        .tab-panel {{
+        .tab-panel {
             display: none;
-        }}
+        }
 
-        .tab-panel.active {{
+        .tab-panel.active {
             display: block;
-        }}
+        }
 
-        .field-group {{
+        .field-group {
             margin-bottom: 1.25rem;
-        }}
+        }
 
-        .field-label {{
+        .field-label {
             display: flex;
             align-items: center;
             gap: 0.5rem;
@@ -212,9 +149,9 @@ def render_telegram_credential_form(
             color: #ccc;
             margin-bottom: 0.375rem;
             cursor: pointer;
-        }}
+        }
 
-        .required-badge {{
+        .required-badge {
             font-size: 0.6875rem;
             font-weight: 500;
             color: #f87171;
@@ -222,9 +159,9 @@ def render_telegram_credential_form(
             border: 1px solid rgba(248, 113, 113, 0.25);
             border-radius: 4px;
             padding: 0.1rem 0.4rem;
-        }}
+        }
 
-        .field-input {{
+        .field-input {
             width: 100%;
             background-color: #111;
             border: 1px solid #2e2e2e;
@@ -235,54 +172,54 @@ def render_telegram_credential_form(
             transition: border-color 0.15s ease, box-shadow 0.15s ease;
             outline: none;
             font-family: inherit;
-        }}
+        }
 
-        .field-input:focus {{
+        .field-input:focus {
             border-color: #4a6fa5;
             box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.2);
-        }}
+        }
 
-        .field-input[aria-invalid="true"] {{
+        .field-input[aria-invalid="true"] {
             border-color: #f87171;
-        }}
+        }
 
-        .field-input[aria-invalid="true"]:focus {{
+        .field-input[aria-invalid="true"]:focus {
             border-color: #f87171;
             box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.2);
-        }}
+        }
 
-        .field-input::placeholder {{
+        .field-input::placeholder {
             color: #888;
-        }}
+        }
 
-        .field-input:disabled {{
+        .field-input:disabled {
             opacity: 0.5;
             cursor: not-allowed;
             background-color: #0a0a0a;
-        }}
+        }
 
-        .help-text {{
+        .help-text {
             font-size: 0.8125rem;
             color: #999;
             margin-top: 0.375rem;
-        }}
+        }
 
-        .help-text a {{
+        .help-text a {
             color: #6c9bd2;
             text-decoration: none;
-        }}
+        }
 
-        .help-text a:hover {{
+        .help-text a:hover {
             text-decoration: underline;
-        }}
+        }
 
-        .help-text a:focus-visible {{
+        .help-text a:focus-visible {
             outline: 2px solid #4a6fa5;
             outline-offset: 2px;
             border-radius: 2px;
-        }}
+        }
 
-        .submit-btn {{
+        .submit-btn {
             width: 100%;
             background-color: #4a6fa5;
             border: none;
@@ -295,31 +232,31 @@ def render_telegram_credential_form(
             transition: background-color 0.15s ease, opacity 0.15s ease;
             margin-top: 0.5rem;
             font-family: inherit;
-        }}
+        }
 
-        .submit-btn:hover {{
+        .submit-btn:hover {
             background-color: #5a7fb5;
-        }}
+        }
 
-        .submit-btn:focus-visible {{
+        .submit-btn:focus-visible {
             outline: 2px solid #4a6fa5;
             outline-offset: 2px;
-        }}
+        }
 
-        .submit-btn:disabled {{
+        .submit-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
-        }}
+        }
 
-        .submit-btn[aria-busy="true"] {{
+        .submit-btn[aria-busy="true"] {
             color: transparent !important;
             position: relative;
             pointer-events: none;
             opacity: 1 !important;
             background-color: #4a6fa5 !important;
-        }}
+        }
 
-        .submit-btn[aria-busy="true"]::after {{
+        .submit-btn[aria-busy="true"]::after {
             content: "";
             position: absolute;
             left: 50%;
@@ -331,117 +268,48 @@ def render_telegram_credential_form(
             border-top-color: #fff;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
-        }}
+        }
 
-        @keyframes spin {{
-            to {{ transform: rotate(360deg) }}
-        }}
+        @keyframes spin {
+            to { transform: rotate(360deg) }
+        }
 
-        .status-box {{
+        .status-box {
             display: none;
             border-radius: 8px;
             font-size: 0.875rem;
             margin-top: 1rem;
             padding: 0.75rem 1rem;
-        }}
+        }
 
-        .status-box.success {{
+        .status-box.success {
             background-color: rgba(52, 199, 89, 0.1);
             border: 1px solid rgba(52, 199, 89, 0.3);
             color: #34c759;
-        }}
+        }
 
-        .status-box.error {{
+        .status-box.error {
             background-color: rgba(248, 113, 113, 0.1);
             border: 1px solid rgba(248, 113, 113, 0.3);
             color: #f87171;
-        }}
+        }
 
-        .status-box.info {{
+        .status-box.info {
             background-color: rgba(74, 111, 165, 0.1);
             border: 1px solid rgba(74, 111, 165, 0.3);
             color: #6c9bd2;
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="card">
-            <div class="server-header">
-                <h1 class="server-name">{display_name}</h1>
-                <div class="server-id">{server}</div>
-                {description_html}
-            </div>
+        }
+    """
 
-            <div class="tabs" role="tablist">
-                <button type="button" id="tab-bot" class="{bot_tab_class}" data-tab="bot" role="tab" aria-selected="{bot_tab_aria}" tabindex="{bot_tab_tabindex}" aria-controls="panel-bot">Bot Mode</button>
-                <button type="button" id="tab-user" class="{user_tab_class}" data-tab="user" role="tab" aria-selected="{user_tab_aria}" tabindex="{user_tab_tabindex}" aria-controls="panel-user">User Mode</button>
-            </div>
 
-            <form id="credential-form" novalidate>
-                <div id="panel-bot" class="{bot_panel_class}" data-panel="bot" role="tabpanel" aria-labelledby="tab-bot">
-                    <div class="field-group">
-                        <label for="field-TELEGRAM_BOT_TOKEN" class="field-label">
-                            Bot Token
-                            <span class="required-badge" aria-hidden="true">Required</span>
-                        </label>
-                        <input
-                            id="field-TELEGRAM_BOT_TOKEN"
-                            name="TELEGRAM_BOT_TOKEN"
-                            type="password"
-                            placeholder="123456:ABC-DEF..."
-                            class="field-input"
-                            autocomplete="current-password"
-                            autocorrect="off"
-                            autocapitalize="off"
-                            spellcheck="false"
-                            inputmode="text"{bot_token_value_attr}
-                            aria-describedby="help-bot-token status-box"{bot_token_required}
-                        />
-                        <p id="help-bot-token" class="help-text">
-                            <a href="https://core.telegram.org/bots#botfather" target="_blank" rel="noopener noreferrer">Get from @BotFather on Telegram</a>
-                        </p>
-                    </div>
-                </div>
-
-                <div id="panel-user" class="{user_panel_class}" data-panel="user" role="tabpanel" aria-labelledby="tab-user">
-                    <div class="field-group">
-                        <label for="field-TELEGRAM_PHONE" class="field-label">
-                            Phone Number
-                            <span class="required-badge" aria-hidden="true">Required</span>
-                        </label>
-                        <input
-                            id="field-TELEGRAM_PHONE"
-                            name="TELEGRAM_PHONE"
-                            type="tel"
-                            placeholder="+84..."
-                            class="field-input"
-                            autocomplete="tel"
-                            inputmode="tel"
-                            autocorrect="off"
-                            autocapitalize="off"
-                            spellcheck="false"{phone_value_attr}
-                            aria-describedby="help-phone status-box"{phone_required}
-                        />
-                        <p id="help-phone" class="help-text">
-                            Full account access via MTProto. API ID/Hash built-in. OTP verification required after submit.
-                        </p>
-                    </div>
-                </div>
-
-                <button type="submit" class="submit-btn" id="submit-btn">Connect</button>
-
-                <div class="status-box" id="status-box" role="alert"></div>
-            </form>
-        </div>
-    </div>
-
-    <script>
+def _get_scripts(submit_url: str, initial_tab: str) -> str:
+    """Return the JavaScript for the form."""
+    return f"""
         (function () {{
             var form = document.getElementById("credential-form");
             var submitBtn = document.getElementById("submit-btn");
             var statusBox = document.getElementById("status-box");
-            var submitUrl = "{submit_url_escaped}";
+            var submitUrl = "{submit_url}";
             var activeTab = "{initial_tab}";
 
             // --- Tab switching -------------------------------------------------
@@ -548,6 +416,7 @@ def render_telegram_credential_form(
                     inputEl = document.getElementById("step-input");
                     buttonEl = document.getElementById("step-submit");
                     errorEl = document.getElementById("step-error");
+
                     errorEl.style.display = "none";
                     errorEl.textContent = "";
                     inputEl.value = "";
@@ -826,6 +695,170 @@ def render_telegram_credential_form(
                     }});
             }});
         }})();
-    </script>
+    """
+
+
+def _get_html_body(
+    display_name: str,
+    server: str,
+    description_html: str,
+    bot_tab_class: str,
+    user_tab_class: str,
+    bot_tab_aria: str,
+    user_tab_aria: str,
+    bot_tab_tabindex: str,
+    user_tab_tabindex: str,
+    bot_panel_class: str,
+    user_panel_class: str,
+    bot_token_value_attr: str,
+    bot_token_required: str,
+    phone_value_attr: str,
+    phone_required: str,
+) -> str:
+    """Return the HTML body content."""
+    return f"""
+    <div class="container">
+        <div class="card">
+            <div class="server-header">
+                <h1 class="server-name">{display_name}</h1>
+                <div class="server-id">{server}</div>
+                {description_html}
+            </div>
+
+            <div class="tabs" role="tablist">
+                <button type="button" id="tab-bot" class="{bot_tab_class}" data-tab="bot" role="tab" aria-selected="{bot_tab_aria}" tabindex="{bot_tab_tabindex}" aria-controls="panel-bot">Bot Mode</button>
+                <button type="button" id="tab-user" class="{user_tab_class}" data-tab="user" role="tab" aria-selected="{user_tab_aria}" tabindex="{user_tab_tabindex}" aria-controls="panel-user">User Mode</button>
+            </div>
+
+            <form id="credential-form" novalidate>
+                <div id="panel-bot" class="{bot_panel_class}" data-panel="bot" role="tabpanel" aria-labelledby="tab-bot">
+                    <div class="field-group">
+                        <label for="field-TELEGRAM_BOT_TOKEN" class="field-label">
+                            Bot Token
+                            <span class="required-badge" aria-hidden="true">Required</span>
+                        </label>
+                        <input
+                            id="field-TELEGRAM_BOT_TOKEN"
+                            name="TELEGRAM_BOT_TOKEN"
+                            type="password"
+                            placeholder="123456:ABC-DEF..."
+                            class="field-input"
+                            autocomplete="current-password"
+                            autocorrect="off"
+                            autocapitalize="off"
+                            spellcheck="false"
+                            inputmode="text"{bot_token_value_attr}
+                            aria-describedby="help-bot-token status-box"{bot_token_required}
+                        />
+                        <p id="help-bot-token" class="help-text">
+                            <a href="https://core.telegram.org/bots#botfather" target="_blank" rel="noopener noreferrer">Get from @BotFather on Telegram</a>
+                        </p>
+                    </div>
+                </div>
+
+                <div id="panel-user" class="{user_panel_class}" data-panel="user" role="tabpanel" aria-labelledby="tab-user">
+                    <div class="field-group">
+                        <label for="field-TELEGRAM_PHONE" class="field-label">
+                            Phone Number
+                            <span class="required-badge" aria-hidden="true">Required</span>
+                        </label>
+                        <input
+                            id="field-TELEGRAM_PHONE"
+                            name="TELEGRAM_PHONE"
+                            type="tel"
+                            placeholder="+84..."
+                            class="field-input"
+                            autocomplete="tel"
+                            inputmode="tel"
+                            autocorrect="off"
+                            autocapitalize="off"
+                            spellcheck="false"{phone_value_attr}
+                            aria-describedby="help-phone status-box"{phone_required}
+                        />
+                        <p id="help-phone" class="help-text">
+                            Full account access via MTProto. API ID/Hash built-in. OTP verification required after submit.
+                        </p>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn" id="submit-btn">Connect</button>
+
+                <div class="status-box" id="status-box" role="alert"></div>
+            </form>
+        </div>
+    </div>
+    """
+
+
+def render_telegram_credential_form(
+    schema: dict[str, Any],
+    submit_url: str,
+    prefill: dict[str, str] | None = None,
+) -> str:
+    """Render telegram credential form with Bot Mode + User Mode tabs.
+
+    Args:
+        schema: RelayConfigSchema dict (server / displayName / description).
+        submit_url: URL the form POSTs to (includes authorize nonce).
+        prefill: Optional ``{KEY: VALUE}`` mapping populated by mcp-core
+            from ``?prefill_<KEY>=<VALUE>`` GET query params. Recognised
+            keys: ``TELEGRAM_BOT_TOKEN``, ``TELEGRAM_PHONE``. When present,
+            the matching input renders with ``value="..."`` and the form
+            auto-activates the matching tab so the user just clicks
+            Connect (skipping the retype step). Phone-only prefill (the
+            telegram-user E2E case) opens on User Mode tab.
+
+    Returns:
+        Complete HTML document string. All dynamic content is HTML-escaped;
+        JS dynamic content is inserted via ``textContent`` / ``setAttribute``
+        to stay XSS-safe.
+    """
+    display_name = _escape(
+        schema.get("displayName", schema.get("server", "Telegram MCP"))
+    )
+    server = _escape(schema.get("server", "better-telegram-mcp"))
+    description = _escape(schema.get("description", ""))
+    submit_url_escaped = _escape(submit_url)
+
+    prefill = prefill or {}
+    bot_token_value = _escape(prefill.get("TELEGRAM_BOT_TOKEN", ""))
+    phone_value = _escape(prefill.get("TELEGRAM_PHONE", ""))
+    bot_token_value_attr = f' value="{bot_token_value}"' if bot_token_value else ""
+    phone_value_attr = f' value="{phone_value}"' if phone_value else ""
+
+    initial_tab = "user" if phone_value and not bot_token_value else "bot"
+    description_html = (
+        f'<p class="server-description">{description}</p>' if description else ""
+    )
+
+    body_html = _get_html_body(
+        display_name=display_name,
+        server=server,
+        description_html=description_html,
+        bot_tab_class="tab active" if initial_tab == "bot" else "tab",
+        user_tab_class="tab active" if initial_tab == "user" else "tab",
+        bot_tab_aria="true" if initial_tab == "bot" else "false",
+        user_tab_aria="true" if initial_tab == "user" else "false",
+        bot_tab_tabindex="0" if initial_tab == "bot" else "-1",
+        user_tab_tabindex="0" if initial_tab == "user" else "-1",
+        bot_panel_class="tab-panel active" if initial_tab == "bot" else "tab-panel",
+        user_panel_class="tab-panel active" if initial_tab == "user" else "tab-panel",
+        bot_token_value_attr=bot_token_value_attr,
+        bot_token_required=" required" if initial_tab == "bot" else "",
+        phone_value_attr=phone_value_attr,
+        phone_required=" required" if initial_tab == "user" else "",
+    )
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{display_name}</title>
+    <style>{_get_styles()}</style>
+</head>
+<body>
+    {body_html}
+    <script>{_get_scripts(submit_url_escaped, initial_tab)}</script>
 </body>
 </html>"""
