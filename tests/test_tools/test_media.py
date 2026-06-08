@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 
 import pytest
+from pydantic import ValidationError
 
 from better_telegram_mcp.backends.base import ModeError
+from better_telegram_mcp.backends.security import SecurityError
 from better_telegram_mcp.tools.media import MediaOptions, handle_media
 
 
@@ -82,6 +84,25 @@ async def test_send_video(mock_backend):
 
 
 @pytest.mark.asyncio
+async def test_send_video_with_caption(mock_backend):
+    result = json.loads(
+        await handle_media(
+            mock_backend,
+            "send_video",
+            MediaOptions(
+                chat_id=123,
+                file_path_or_url="/tmp/video.mp4",
+                caption="Action movie",
+            ),
+        )
+    )
+    assert result["message_id"] == 3
+    mock_backend.send_media.assert_awaited_once_with(
+        123, "video", "/tmp/video.mp4", caption="Action movie"
+    )
+
+
+@pytest.mark.asyncio
 async def test_send_photo_missing_params(mock_backend):
     result = json.loads(
         await handle_media(mock_backend, "send_photo", MediaOptions(chat_id=123))
@@ -116,6 +137,24 @@ async def test_download(mock_backend):
         )
     )
     assert result["path"] == "/tmp/file.jpg"
+
+
+@pytest.mark.asyncio
+async def test_download_with_string_chat_id(mock_backend):
+    result = json.loads(
+        await handle_media(
+            mock_backend,
+            "download",
+            MediaOptions(
+                chat_id="@username",
+                message_id=10,
+            ),
+        )
+    )
+    assert result["path"] == "/tmp/file.jpg"
+    mock_backend.download_media.assert_awaited_once_with(
+        "@username", 10, output_dir=None
+    )
 
 
 @pytest.mark.asyncio
@@ -158,6 +197,45 @@ async def test_mode_error(mock_backend):
 
 
 @pytest.mark.asyncio
+async def test_security_error_handling(mock_backend):
+    mock_backend.send_media.side_effect = SecurityError("SSRF detected")
+    result = json.loads(
+        await handle_media(
+            mock_backend,
+            "send_photo",
+            MediaOptions(chat_id=123, file_path_or_url="http://127.0.0.1/p.jpg"),
+        )
+    )
+    assert result["error"] == "SSRF detected"
+
+
+@pytest.mark.asyncio
+async def test_value_error_handling(mock_backend):
+    mock_backend.send_media.side_effect = ValueError("Invalid chat ID")
+    result = json.loads(
+        await handle_media(
+            mock_backend,
+            "send_photo",
+            MediaOptions(chat_id="bad", file_path_or_url="p.jpg"),
+        )
+    )
+    assert result["error"] == "Invalid chat ID"
+
+
+@pytest.mark.asyncio
+async def test_file_not_found_error_handling(mock_backend):
+    mock_backend.send_media.side_effect = FileNotFoundError("File not found: x.jpg")
+    result = json.loads(
+        await handle_media(
+            mock_backend,
+            "send_photo",
+            MediaOptions(chat_id=123, file_path_or_url="x.jpg"),
+        )
+    )
+    assert result["error"] == "File not found: x.jpg"
+
+
+@pytest.mark.asyncio
 async def test_general_exception(mock_backend):
     mock_backend.download_media.side_effect = RuntimeError("disk full")
     result = json.loads(
@@ -167,6 +245,20 @@ async def test_general_exception(mock_backend):
     )
     assert "error" in result
     assert "RuntimeError" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_unhandled_exception_sanitization(mock_backend):
+    mock_backend.send_media.side_effect = Exception("Internal DB error")
+    result = json.loads(
+        await handle_media(
+            mock_backend,
+            "send_photo",
+            MediaOptions(chat_id=123, file_path_or_url="p.jpg"),
+        )
+    )
+    assert "Exception: Operation failed" in result["error"]
+    assert "Internal DB error" not in result["error"]
 
 
 @pytest.mark.asyncio
@@ -212,3 +304,11 @@ async def test_send_photo_string_chat_id(mock_backend):
     mock_backend.send_media.assert_awaited_once_with(
         "@username", "photo", "https://example.com/photo.jpg", caption=None
     )
+
+
+def test_media_options_invalid_types():
+    with pytest.raises(ValidationError):
+        MediaOptions(chat_id={"invalid": "type"})
+
+    with pytest.raises(ValidationError):
+        MediaOptions(message_id="not-an-int")
