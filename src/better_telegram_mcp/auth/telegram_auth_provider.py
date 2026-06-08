@@ -19,9 +19,14 @@ import asyncio
 import hashlib
 import secrets
 import time
+from collections import defaultdict
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
+
+if TYPE_CHECKING:
+    pass
 
 from ..backends.base import TelegramBackend
 from ..backends.bot_backend import BotBackend
@@ -55,6 +60,57 @@ _SESSION_TTL = 30 * 24 * 60 * 60
 _PendingOTP = dict  # {bearer, backend, phone, phone_code_hash, created_at}
 
 
+class _SessionOwnersDict(dict[str, str]):
+    """Internal dict that maintains a reverse mapping for O(1) bearer lookup."""
+
+    def __init__(
+        self, reverse_map: defaultdict[str, set[str]], *args: Any, **kwargs: Any
+    ) -> None:
+        self._reverse = reverse_map
+        super().__init__(*args, **kwargs)
+
+    def __setitem__(self, key: str, value: str) -> None:
+        if key in self:
+            old_val = self[key]
+            self._reverse[old_val].discard(key)
+            if not self._reverse[old_val]:
+                del self._reverse[old_val]
+        super().__setitem__(key, value)
+        self._reverse[value].add(key)
+
+    def __delitem__(self, key: str) -> None:
+        if key in self:
+            old_val = self[key]
+            self._reverse[old_val].discard(key)
+            if not self._reverse[old_val]:
+                del self._reverse[old_val]
+        super().__delitem__(key)
+
+    def pop(self, key: str, default: Any = None) -> str:
+        if key in self:
+            val = self[key]
+            self._reverse[val].discard(key)
+            if not self._reverse[val]:
+                del self._reverse[val]
+            return super().pop(key)
+        return default
+
+    def clear(self) -> None:
+        super().clear()
+        self._reverse.clear()
+
+    def update(self, other: Any = None, **kwargs: Any) -> None:
+        if other is not None:
+            if hasattr(other, "keys"):
+                for k in other:
+                    self[k] = other[k]
+            else:
+                for k, v in other:
+                    self[k] = v
+        for k, v in kwargs.items():
+            self[k] = v
+
+
 class TelegramAuthProvider:
     """Manages per-user Telegram authentication and backend lifecycle.
 
@@ -72,7 +128,11 @@ class TelegramAuthProvider:
         self.active_clients: dict[str, TelegramBackend] = {}
 
         # MCP session_id -> bearer (session ownership)
-        self.session_owners: dict[str, str] = {}
+        # ⚡ Bolt: Maintain reverse mapping for O(1) removal of sessions by bearer
+        self._bearer_to_sessions: defaultdict[str, set[str]] = defaultdict(set)
+        self.session_owners: dict[str, str] = _SessionOwnersDict(
+            self._bearer_to_sessions
+        )
 
         # Pending OTP verifications (bearer -> pending state)
         self._pending_otps: dict[str, _PendingOTP] = {}
@@ -344,7 +404,8 @@ class TelegramAuthProvider:
             await pending["backend"].disconnect()
 
         # Remove from ownership map
-        to_remove = [sid for sid, b in self.session_owners.items() if b == bearer]
+        # ⚡ Bolt: Use reverse mapping for O(1) removal
+        to_remove = list(self._bearer_to_sessions.get(bearer, []))
         for sid in to_remove:
             del self.session_owners[sid]
 
