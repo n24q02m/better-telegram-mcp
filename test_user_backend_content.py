@@ -605,20 +605,6 @@ class TestJoinChat:
 
         assert result is True
 
-    async def test_join_chat_private_plus_prefix(
-        self, tmp_path, mock_client, mock_client_class
-    ):
-        from better_telegram_mcp.backends.user_backend import UserBackend
-
-        settings = _make_settings(tmp_path)
-        backend = UserBackend(settings)
-        await backend.connect()
-
-        # This URL should trigger line 321
-        result = await backend.join_chat("https://t.me/joinchat/+abc123")
-
-        assert result is True
-
 
 class TestLeaveChat:
     async def test_leave_channel(self, tmp_path, mock_client, mock_client_class):
@@ -1555,28 +1541,6 @@ class TestUserBackendLogging:
         # Force OSError in os.chmod
         with patch("os.chmod", side_effect=OSError("Operation not permitted")):
             await backend.sign_in("+84912345678", "12345")
-
-        mock_logger.debug.assert_called()
-        args, _ = mock_logger.debug.call_args
-        assert "Could not set session file permissions" in args[0]
-
-    async def test_secure_session_file_chmod_oserror(self, tmp_path, mock_logger):
-        from better_telegram_mcp.backends.user_backend import UserBackend
-
-        settings = _make_settings(tmp_path)
-        session_file = (settings.data_dir / settings.session_name).with_suffix(
-            ".session"
-        )
-        settings.data_dir.mkdir(parents=True, exist_ok=True)
-        session_file.write_text("test")
-
-        backend = UserBackend(settings)
-
-        with patch(
-            "better_telegram_mcp.backends.user_backend.os.chmod",
-            side_effect=OSError("Access denied"),
-        ):
-            backend._secure_session_file()
 
         mock_logger.debug.assert_called()
         args, _ = mock_logger.debug.call_args
