@@ -27,25 +27,25 @@ class InMemorySessionStore:
     def __init__(self) -> None:
         self._store: dict[str, dict] = {}
 
-    def store(self, bearer: str, info: SessionInfo) -> None:
+    async def store(self, bearer: str, info: SessionInfo) -> None:
         """Store a session for the given bearer token. Overwrites existing."""
         self._store[bearer] = info.to_dict()
 
-    def load(self, bearer: str) -> SessionInfo | None:
+    async def load(self, bearer: str) -> SessionInfo | None:
         """Load session info for a bearer token. Returns None if not found."""
         data = self._store.get(bearer)
         if data is None:
             return None
         return SessionInfo.from_dict(copy.deepcopy(data))
 
-    def load_all(self) -> dict[str, SessionInfo]:
+    async def load_all(self) -> dict[str, SessionInfo]:
         """Load all stored sessions."""
         return {
             bearer: SessionInfo.from_dict(copy.deepcopy(data))
             for bearer, data in self._store.items()
         }
 
-    def delete(self, bearer: str) -> bool:
+    async def delete(self, bearer: str) -> bool:
         """Delete a session. Returns True if it existed."""
         if bearer not in self._store:
             return False
