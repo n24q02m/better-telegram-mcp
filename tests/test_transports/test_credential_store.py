@@ -3,15 +3,15 @@
 import asyncio
 import os
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from better_telegram_mcp.transports.credential_store import (
-    CredentialStore,
     _LEGACY_SALT,
+    CredentialStore,
 )
 
 # Skip tests on non-POSIX for permission-specific checks
@@ -68,7 +68,9 @@ class TestCredentialStore:
                 call_count += 1
             return real_read_bytes(path_obj)
 
-        with patch.object(Path, "read_bytes", side_effect=spy_read_bytes, autospec=True):
+        with patch.object(
+            Path, "read_bytes", side_effect=spy_read_bytes, autospec=True
+        ):
             # First load reads from disk
             creds1 = await store.load()
             assert creds1 is not None
@@ -209,15 +211,16 @@ class TestCredentialStore:
         store = CredentialStore(data_dir, secret="test-secret")
 
         # Patch kdf.derive to track calls and maybe add a small delay
-        with patch("better_telegram_mcp.transports.credential_store.PBKDF2HMAC.derive") as mock_derive:
+        with patch(
+            "better_telegram_mcp.transports.credential_store.PBKDF2HMAC.derive"
+        ) as mock_derive:
             # Create a real KDF to get actual result
-            from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-            from cryptography.hazmat.primitives import hashes
 
             real_key = b"fake-key-32-bytes-long-123456789"
 
             def derive_side_effect(*args, **kwargs):
                 import time
+
                 time.sleep(0.1)
                 return real_key
 
@@ -227,9 +230,7 @@ class TestCredentialStore:
             # _derive_key is called during store() or load() or directly.
             # We call it directly.
             results = await asyncio.gather(
-                store._derive_key(),
-                store._derive_key(),
-                store._derive_key()
+                store._derive_key(), store._derive_key(), store._derive_key()
             )
 
             for res in results:

@@ -83,11 +83,15 @@ class TestPerUserSessionStore:
         assert loaded.mode == "bot"
         assert loaded.bot_token == "123:ABC"
 
-    async def test_load_returns_none_for_unknown(self, store: PerUserSessionStore) -> None:
+    async def test_load_returns_none_for_unknown(
+        self, store: PerUserSessionStore
+    ) -> None:
         """Loading unknown bearer should return None."""
         assert await store.load("nonexistent") is None
 
-    async def test_load_returns_none_when_empty(self, store: PerUserSessionStore) -> None:
+    async def test_load_returns_none_when_empty(
+        self, store: PerUserSessionStore
+    ) -> None:
         """Loading from empty store should return None."""
         assert await store.load("any-bearer") is None
 
@@ -115,8 +119,12 @@ class TestPerUserSessionStore:
 
     async def test_load_all(self, store: PerUserSessionStore) -> None:
         """load_all should return all stored sessions."""
-        await store.store("b1", SessionInfo(session_name="s1", mode="bot", bot_token="t1"))
-        await store.store("b2", SessionInfo(session_name="s2", mode="bot", bot_token="t2"))
+        await store.store(
+            "b1", SessionInfo(session_name="s1", mode="bot", bot_token="t1")
+        )
+        await store.store(
+            "b2", SessionInfo(session_name="s2", mode="bot", bot_token="t2")
+        )
 
         all_sessions = await store.load_all()
         assert len(all_sessions) == 2
@@ -144,8 +152,12 @@ class TestPerUserSessionStore:
 
     async def test_delete_preserves_others(self, store: PerUserSessionStore) -> None:
         """Deleting one session should not affect others."""
-        await store.store("b1", SessionInfo(session_name="s1", mode="bot", bot_token="t1"))
-        await store.store("b2", SessionInfo(session_name="s2", mode="bot", bot_token="t2"))
+        await store.store(
+            "b1", SessionInfo(session_name="s1", mode="bot", bot_token="t1")
+        )
+        await store.store(
+            "b2", SessionInfo(session_name="s2", mode="bot", bot_token="t2")
+        )
 
         await store.delete("b1")
 
@@ -156,8 +168,12 @@ class TestPerUserSessionStore:
 
     async def test_overwrite_existing_session(self, store: PerUserSessionStore) -> None:
         """Storing with same bearer should overwrite."""
-        await store.store("b1", SessionInfo(session_name="s1", mode="bot", bot_token="old"))
-        await store.store("b1", SessionInfo(session_name="s1", mode="bot", bot_token="new"))
+        await store.store(
+            "b1", SessionInfo(session_name="s1", mode="bot", bot_token="old")
+        )
+        await store.store(
+            "b1", SessionInfo(session_name="s1", mode="bot", bot_token="new")
+        )
 
         loaded = await store.load("b1")
         assert loaded is not None
@@ -166,7 +182,9 @@ class TestPerUserSessionStore:
     async def test_encryption_different_secrets(self, data_dir: Path) -> None:
         """Different secrets should not decrypt each other's data."""
         store1 = PerUserSessionStore(data_dir, secret="secret-one")
-        await store1.store("b1", SessionInfo(session_name="s1", mode="bot", bot_token="t1"))
+        await store1.store(
+            "b1", SessionInfo(session_name="s1", mode="bot", bot_token="t1")
+        )
 
         store2 = PerUserSessionStore(data_dir, secret="secret-two")
         with pytest.raises(InvalidTag):
@@ -175,7 +193,9 @@ class TestPerUserSessionStore:
     async def test_persistence_across_instances(self, data_dir: Path) -> None:
         """Sessions should persist across store instances with same secret."""
         store1 = PerUserSessionStore(data_dir, secret="shared-secret")
-        await store1.store("b1", SessionInfo(session_name="s1", mode="bot", bot_token="t1"))
+        await store1.store(
+            "b1", SessionInfo(session_name="s1", mode="bot", bot_token="t1")
+        )
 
         store2 = PerUserSessionStore(data_dir, secret="shared-secret")
         loaded = await store2.load("b1")
@@ -185,7 +205,9 @@ class TestPerUserSessionStore:
     async def test_auto_generated_secret_persists(self, data_dir: Path) -> None:
         """Auto-generated secret should be reusable across instances."""
         store1 = PerUserSessionStore(data_dir)
-        await store1.store("b1", SessionInfo(session_name="s1", mode="bot", bot_token="t1"))
+        await store1.store(
+            "b1", SessionInfo(session_name="s1", mode="bot", bot_token="t1")
+        )
 
         store2 = PerUserSessionStore(data_dir)
         loaded = await store2.load("b1")
@@ -196,7 +218,9 @@ class TestPerUserSessionStore:
         """Store should create data_dir if it does not exist."""
         nested = tmp_path / "a" / "b" / "c"
         store = PerUserSessionStore(nested, secret="test")
-        await store.store("b1", SessionInfo(session_name="s1", mode="bot", bot_token="t1"))
+        await store.store(
+            "b1", SessionInfo(session_name="s1", mode="bot", bot_token="t1")
+        )
         assert await store.load("b1") is not None
 
     async def test_env_var_secret(
@@ -205,7 +229,9 @@ class TestPerUserSessionStore:
         """CREDENTIAL_SECRET env var should be used when set."""
         monkeypatch.setenv("CREDENTIAL_SECRET", "env-secret")
         store = PerUserSessionStore(data_dir)
-        await store.store("b1", SessionInfo(session_name="s1", mode="bot", bot_token="t1"))
+        await store.store(
+            "b1", SessionInfo(session_name="s1", mode="bot", bot_token="t1")
+        )
 
         store2 = PerUserSessionStore(data_dir)
         assert await store2.load("b1") is not None
@@ -218,7 +244,9 @@ class TestPerUserSessionStore:
 
     async def test_caching_behavior(self, store: PerUserSessionStore) -> None:
         """Repeated reads should use cache and avoid disk I/O."""
-        await store.store("b1", SessionInfo(session_name="s1", mode="bot", bot_token="t1"))
+        await store.store(
+            "b1", SessionInfo(session_name="s1", mode="bot", bot_token="t1")
+        )
 
         # Invalidate the in-memory cache to force the next read from disk
         store._cached_sessions = None
