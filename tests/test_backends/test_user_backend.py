@@ -615,7 +615,7 @@ class TestJoinChat:
         await backend.connect()
 
         # This URL should trigger line 321
-        result = await backend.join_chat("https://t.me/joinchat/+abc123")
+        result = await backend.join_chat("https://t.me/joinchat/+invite_hash")
 
         assert result is True
 
