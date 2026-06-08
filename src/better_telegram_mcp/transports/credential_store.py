@@ -14,7 +14,9 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-_LEGACY_SALT = b"mcp-telegram-creds"
+# DEPRECATED: Hardcoded legacy salt used in early versions.
+# All new credentials use random salts. This will be removed in v2.0.0.
+_DEPRECATED_LEGACY_SALT = b"mcp-telegram-creds"
 _KDF_ITERATIONS = 600_000
 _NONCE_SIZE = 12
 
@@ -43,7 +45,7 @@ def _atomic_write_bytes_0600(path: Path, data: bytes) -> None:
       3. After write+close, ``os.chmod`` to 0o600 enforces the exact mode
          even when ``umask`` was unusually permissive or when the file
          already existed (O_CREAT|O_TRUNC truncates but preserves perms).
-         ``os.chmod`` failure on non-POSIX filesystems is harmless and
+         ``os.chmod` failure on non-POSIX filesystems is harmless and
          swallowed.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -94,8 +96,9 @@ class CredentialStore:
             return self._salt_path.read_bytes()
 
         # Backward compatibility: existing credentials use legacy hardcoded salt
-        if self._path.exists():
-            return _LEGACY_SALT
+        # Only fallback if the file exists and is not empty.
+        if self._path.is_file() and self._path.stat().st_size > 0:
+            return _DEPRECATED_LEGACY_SALT
 
         # New installation: generate random salt and persist atomically
         # with 0o600 (no open->chmod TOCTOU window).
@@ -133,7 +136,7 @@ class CredentialStore:
         before chmod ran).
         """
         # Migrate from legacy hardcoded salt to random salt on re-encryption.
-        if self._salt == _LEGACY_SALT:
+        if self._salt == _DEPRECATED_LEGACY_SALT:
             new_salt = os.urandom(16)
             _atomic_write_bytes_0600(self._salt_path, new_salt)
             self._salt = new_salt
@@ -159,6 +162,11 @@ class CredentialStore:
         aesgcm = AESGCM(key)
         plaintext = aesgcm.decrypt(nonce, ciphertext, None)
         self._cached_credentials = json.loads(plaintext)
+
+        # Proactive migration: if using legacy salt, re-save immediately to modernize.
+        if self._salt == _DEPRECATED_LEGACY_SALT:
+            self.store(self._cached_credentials)
+
         return copy.deepcopy(self._cached_credentials)
 
     def delete(self) -> None:
