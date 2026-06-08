@@ -3,7 +3,7 @@ from datetime import datetime
 
 from better_telegram_mcp.backends.base import ModeError
 from better_telegram_mcp.backends.security import SecurityError
-from better_telegram_mcp.utils.formatting import err, ok, safe_error
+from better_telegram_mcp.utils.formatting import empty_to_none, err, ok, safe_error
 
 
 def test_ok_basic_serialization():
@@ -191,3 +191,12 @@ def test_ok_nested_mixed_types():
     assert parsed["nested"]["exc"] == "nested error"
     assert parsed["list"][0] == 1
     assert parsed["list"][1]["a"] == 1
+
+
+def test_empty_to_none():
+    assert empty_to_none("") is None
+    assert empty_to_none("   ") is None
+    assert empty_to_none("\t\n ") is None
+    assert empty_to_none(None) is None
+    assert empty_to_none("valid") == "valid"
+    assert empty_to_none("  valid  ") == "  valid  "

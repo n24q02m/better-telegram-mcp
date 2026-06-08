@@ -18,3 +18,10 @@ def safe_error(e: Exception) -> str:
     if isinstance(e, (ModeError, SecurityError, ValueError, FileNotFoundError)):
         return err(str(e))
     return err(f"{type(e).__name__}: Operation failed. Check server logs for details.")
+
+
+def empty_to_none(v: str | None) -> str | None:
+    """Treat empty or whitespace-only string as None (plugin.json sets env vars to '' by default)."""
+    if not v or not v.strip():
+        return None
+    return v

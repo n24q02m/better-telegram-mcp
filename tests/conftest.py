@@ -179,6 +179,8 @@ def mock_webbrowser_open():
 @pytest.fixture(autouse=True)
 def mock_fetch_url_safely():
     """Globally mock fetch_url_safely to avoid network requests during tests."""
+    import better_telegram_mcp.backends.bot_backend  # noqa: F401
+    import better_telegram_mcp.backends.user_backend  # noqa: F401
 
     with patch(
         "better_telegram_mcp.backends.bot_backend.fetch_url_safely",
