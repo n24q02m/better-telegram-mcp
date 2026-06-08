@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from better_telegram_mcp.auth.per_user_session_store import SessionInfo
+from better_telegram_mcp.auth.in_memory_session_store import SessionInfo
 from better_telegram_mcp.auth.telegram_auth_provider import (
     _SESSION_TTL,
     TelegramAuthProvider,

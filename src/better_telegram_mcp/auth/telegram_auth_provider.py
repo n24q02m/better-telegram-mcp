@@ -27,8 +27,7 @@ from ..backends.base import TelegramBackend
 from ..backends.bot_backend import BotBackend
 from ..backends.user_backend import UserBackend
 from ..config import Settings
-from .in_memory_session_store import InMemorySessionStore
-from .per_user_session_store import SessionInfo
+from .in_memory_session_store import InMemorySessionStore, SessionInfo
 
 # Module-level singleton for cross-component access from save_credentials,
 # on_step_submitted, and the auth_scope middleware. Set at HTTP-server

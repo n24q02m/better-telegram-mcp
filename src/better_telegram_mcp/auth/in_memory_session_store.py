@@ -1,9 +1,8 @@
 """In-memory per-user session store (TC-NearZK).
 
-Replaces deprecated per_user_session_store.py (disk-encrypted AES-GCM +
-PBKDF2) for HTTP multi-user mode. Aligns with Notion's in-memory
-pattern: server has access during request lifetime; restart clears all
-sessions, users re-auth via OTP/2FA flow.
+Provides per-user session storage for HTTP multi-user mode. Aligns with
+Notion's in-memory pattern: server has access during request lifetime;
+restart clears all sessions, users re-auth via OTP/2FA flow.
 
 Trust model: server admin (n24q02m operator) can dump live memory via
 debugger but no persistent file = no FS-dump compromise.
@@ -12,15 +11,38 @@ See ~/projects/.superpower/mcp-core/specs/2026-04-30-trust-model-alignment.md
 § 4.D3 + § 5.A8.
 """
 
-import copy
+from __future__ import annotations
 
-from .per_user_session_store import SessionInfo
+import copy
+import time
+from dataclasses import asdict, dataclass, field
+from typing import Literal
+
+
+@dataclass
+class SessionInfo:
+    """Per-user session metadata."""
+
+    session_name: str
+    mode: Literal["bot", "user"]
+    api_id: int | None = None
+    api_hash: str | None = None
+    phone: str | None = None
+    bot_token: str | None = None
+    created_at: float = field(default_factory=time.time)
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> SessionInfo:
+        return cls(**data)
 
 
 class InMemorySessionStore:
     """Per-user MTProto session store with no disk persistence.
 
-    Drop-in replacement for PerUserSessionStore (same public API).
+    Drop-in replacement for the legacy encrypted store (same public API).
     Constructor takes no arguments — no data_dir or secret needed.
     """
 
