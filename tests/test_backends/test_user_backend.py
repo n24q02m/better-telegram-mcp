@@ -13,8 +13,8 @@ def _make_settings(tmp_path: Path) -> Settings:
     """Create Settings for user mode with a temp data dir."""
     return Settings(
         api_id=12345,
-        api_hash="test_hash",
-        phone="+1234567890",
+        api_hash="PLACEHOLDER_HASH",
+        phone="PLACEHOLDER_PHONE",
         data_dir=tmp_path,
         session_name="test_session",
     )
@@ -51,7 +51,7 @@ def _mock_user(
     first_name: str = "Test",
     last_name: str = "User",
     username: str = "testuser",
-    phone: str = "+1234567890",
+    phone: str = "PLACEHOLDER_PHONE",
 ) -> MagicMock:
     u = MagicMock()
     u.id = user_id
@@ -615,7 +615,7 @@ class TestJoinChat:
         await backend.connect()
 
         # This URL should trigger line 321
-        result = await backend.join_chat("https://t.me/joinchat/+invite_hash")
+        result = await backend.join_chat("https://t.me/joinchat/+PLACEHOLDER_INVITE")
 
         assert result is True
 
@@ -1204,7 +1204,7 @@ class TestAddContact:
         backend = UserBackend(settings)
         await backend.connect()
 
-        result = await backend.add_contact("+1234567890", "John", last_name="Doe")
+        result = await backend.add_contact("PLACEHOLDER_PHONE", "John", last_name="Doe")
 
         assert result is True
 
@@ -1219,7 +1219,7 @@ class TestAddContact:
         backend = UserBackend(settings)
         await backend.connect()
 
-        result = await backend.add_contact("+1234567890", "Jane")
+        result = await backend.add_contact("PLACEHOLDER_PHONE", "Jane")
 
         assert result is True
 
@@ -1292,9 +1292,9 @@ class TestSendCode:
         backend = UserBackend(settings)
         await backend.connect()
 
-        await backend.send_code("+1234567890")
+        await backend.send_code("PLACEHOLDER_PHONE")
 
-        mock_client.send_code_request.assert_awaited_once_with("+1234567890")
+        mock_client.send_code_request.assert_awaited_once_with("PLACEHOLDER_PHONE")
 
     async def test_send_code_not_connected(self, tmp_path):
         from better_telegram_mcp.backends.user_backend import UserBackend
@@ -1303,7 +1303,7 @@ class TestSendCode:
         backend = UserBackend(settings)
 
         with pytest.raises(RuntimeError, match="Not connected"):
-            await backend.send_code("+1234567890")
+            await backend.send_code("PLACEHOLDER_PHONE")
 
 
 class TestSignIn:
@@ -1320,9 +1320,9 @@ class TestSignIn:
         backend = UserBackend(settings)
         await backend.connect()
 
-        result = await backend.sign_in("+1234567890", "12345")
+        result = await backend.sign_in("PLACEHOLDER_PHONE", "12345")
 
-        mock_client.sign_in.assert_awaited_once_with("+1234567890", "12345")
+        mock_client.sign_in.assert_awaited_once_with("PLACEHOLDER_PHONE", "12345")
         assert result["authenticated_as"] == "Test"
         assert result["username"] == "testuser"
 
@@ -1343,7 +1343,7 @@ class TestSignIn:
         backend = UserBackend(settings)
         await backend.connect()
 
-        result = await backend.sign_in("+1234567890", "12345", password="my2fapass")
+        result = await backend.sign_in("PLACEHOLDER_PHONE", "12345", password="my2fapass")
 
         assert mock_client.sign_in.await_count == 2
         assert result["authenticated_as"] == "Test"
@@ -1360,7 +1360,7 @@ class TestSignIn:
         await backend.connect()
 
         with pytest.raises(Exception, match="SessionPasswordNeeded"):
-            await backend.sign_in("+1234567890", "12345")
+            await backend.sign_in("PLACEHOLDER_PHONE", "12345")
 
     @pytest.mark.skipif(
         sys.platform == "win32",
@@ -1406,7 +1406,7 @@ class TestSignIn:
         settings = _make_settings(tmp_path)
         backend = UserBackend(settings)
         await backend.connect()
-        await backend.sign_in("+1234567890", "12345")
+        await backend.sign_in("PLACEHOLDER_PHONE", "12345")
 
         assert session_file.stat().st_mode & 0o777 == 0o600
 
@@ -1432,7 +1432,7 @@ class TestSignIn:
         with patch(
             "better_telegram_mcp.backends.user_backend.os.chmod", side_effect=OSError
         ):
-            result = await backend.sign_in("+1234567890", "12345")
+            result = await backend.sign_in("PLACEHOLDER_PHONE", "12345")
 
         assert result["authenticated_as"] == "Test"
         assert result["username"] == "testuser"
@@ -1554,7 +1554,7 @@ class TestUserBackendLogging:
 
         # Force OSError in os.chmod
         with patch("os.chmod", side_effect=OSError("Operation not permitted")):
-            await backend.sign_in("+1234567890", "12345")
+            await backend.sign_in("PLACEHOLDER_PHONE", "12345")
 
         mock_logger.debug.assert_called()
         args, _ = mock_logger.debug.call_args
