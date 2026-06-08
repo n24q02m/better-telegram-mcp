@@ -1,6 +1,3 @@
-import asyncio
-import os
-import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -266,6 +263,7 @@ class TestTopicManagement:
         result = await backend.manage_topics(123, "invalid")
         assert "error" in result
 
+
 class TestUserBackendFull:
     @pytest.fixture
     def backend(self, tmp_path):
@@ -327,10 +325,12 @@ class TestUserBackendFull:
 
     async def test_search_messages(self, backend, mock_client, mock_client_class):
         await backend.connect()
+
         async def mock_iter(*args, **kwargs):
             m = MagicMock()
             m.id = 1
             yield m
+
         mock_client.iter_messages.return_value = mock_iter()
 
         results = await backend.search_messages("query")
@@ -338,8 +338,10 @@ class TestUserBackendFull:
 
     async def test_get_history(self, backend, mock_client, mock_client_class):
         await backend.connect()
+
         async def mock_iter(*args, **kwargs):
             yield MagicMock()
+
         mock_client.iter_messages.return_value = mock_iter()
 
         results = await backend.get_history("chat")
@@ -379,8 +381,10 @@ class TestUserBackendFull:
 
     async def test_get_members(self, backend, mock_client, mock_client_class):
         await backend.connect()
+
         async def mock_iter(*args, **kwargs):
             yield MagicMock()
+
         mock_client.iter_participants.return_value = mock_iter()
         results = await backend.get_members("chat")
         assert len(results) == 1
@@ -398,7 +402,10 @@ class TestUserBackendFull:
     async def test_send_media(self, backend, mock_client, mock_client_class):
         await backend.connect()
         mock_client.send_file = AsyncMock(return_value=MagicMock())
-        with patch("better_telegram_mcp.backends.user_backend.validate_file_path", return_value=Path("/tmp/fake")):
+        with patch(
+            "better_telegram_mcp.backends.user_backend.validate_file_path",
+            return_value=Path("/tmp/fake"),
+        ):
             result = await backend.send_media("chat", "photo", "/path/to/file")
             assert "message_id" in result
 
