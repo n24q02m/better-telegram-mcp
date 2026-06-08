@@ -1,3 +1,6 @@
+import asyncio
+import os
+import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -25,6 +28,8 @@ def mock_client():
     client.is_connected = MagicMock(return_value=True)
     client.is_user_authorized = AsyncMock(return_value=True)
     client.session = MagicMock()
+    # Make the mock_client callable so await client(...) works
+    client.side_effect = AsyncMock()
     return client
 
 
@@ -260,3 +265,175 @@ class TestTopicManagement:
 
         result = await backend.manage_topics(123, "invalid")
         assert "error" in result
+
+class TestUserBackendFull:
+    @pytest.fixture
+    def backend(self, tmp_path):
+        return UserBackend(_make_settings(tmp_path))
+
+    async def test_clear_cache(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        mock_client.session.save = MagicMock()
+        await backend.clear_cache()
+        mock_client.session.save.assert_called_once()
+
+    async def test_send_message(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        mock_msg = MagicMock()
+        mock_msg.id = 100
+        mock_msg.text = "sent"
+        mock_client.send_message = AsyncMock(return_value=mock_msg)
+
+        result = await backend.send_message("chat", "text")
+        assert result["message_id"] == 100
+        mock_client.send_message.assert_awaited_once()
+
+    async def test_edit_message(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        mock_msg = MagicMock()
+        mock_msg.id = 100
+        mock_client.edit_message = AsyncMock(return_value=mock_msg)
+
+        await backend.edit_message("chat", 100, "new text")
+        mock_client.edit_message.assert_awaited_once()
+
+    async def test_delete_message(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        mock_res = [MagicMock()]
+        mock_res[0].pts = 1
+        mock_client.delete_messages = AsyncMock(return_value=mock_res)
+
+        assert await backend.delete_message("chat", 100) is True
+        mock_client.delete_messages.assert_awaited_once()
+
+    async def test_forward_message(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        mock_msg = MagicMock()
+        mock_msg.id = 101
+        mock_client.forward_messages = AsyncMock(return_value=[mock_msg])
+
+        result = await backend.forward_message("from", "to", 100)
+        assert result["message_id"] == 101
+
+    async def test_pin_message(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        mock_client.pin_message = AsyncMock(return_value=True)
+        assert await backend.pin_message("chat", 100) is True
+
+    async def test_react_to_message(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        mock_client.side_effect = AsyncMock(return_value=None)
+        assert await backend.react_to_message("chat", 100, "👍") is True
+
+    async def test_search_messages(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        async def mock_iter(*args, **kwargs):
+            m = MagicMock()
+            m.id = 1
+            yield m
+        mock_client.iter_messages.return_value = mock_iter()
+
+        results = await backend.search_messages("query")
+        assert len(results) == 1
+
+    async def test_get_history(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        async def mock_iter(*args, **kwargs):
+            yield MagicMock()
+        mock_client.iter_messages.return_value = mock_iter()
+
+        results = await backend.get_history("chat")
+        assert len(results) == 1
+
+    async def test_list_chats(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        mock_client.get_dialogs = AsyncMock(return_value=[MagicMock()])
+        results = await backend.list_chats()
+        assert len(results) == 1
+
+    async def test_get_chat_info(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        mock_client.get_entity = AsyncMock(return_value=MagicMock())
+        result = await backend.get_chat_info("chat")
+        assert "id" in result
+
+    async def test_create_chat(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        mock_res = MagicMock()
+        mock_res.chats = [MagicMock()]
+        mock_client.side_effect = AsyncMock(return_value=mock_res)
+        result = await backend.create_chat("title")
+        assert "title" in result
+
+    async def test_join_chat(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        mock_client.side_effect = AsyncMock(return_value=None)
+        assert await backend.join_chat("link") is True
+
+    async def test_leave_chat(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        mock_client.get_entity = AsyncMock(return_value=MagicMock())
+        mock_client.get_me = AsyncMock(return_value=MagicMock())
+        mock_client.side_effect = AsyncMock(return_value=None)
+        assert await backend.leave_chat("chat") is True
+
+    async def test_get_members(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        async def mock_iter(*args, **kwargs):
+            yield MagicMock()
+        mock_client.iter_participants.return_value = mock_iter()
+        results = await backend.get_members("chat")
+        assert len(results) == 1
+
+    async def test_promote_admin(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        mock_client.side_effect = AsyncMock(return_value=None)
+        assert await backend.promote_admin("chat", 123) is True
+
+    async def test_update_chat_settings(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        mock_client.side_effect = AsyncMock(return_value=None)
+        assert await backend.update_chat_settings("chat", title="new") is True
+
+    async def test_send_media(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        mock_client.send_file = AsyncMock(return_value=MagicMock())
+        with patch("better_telegram_mcp.backends.user_backend.validate_file_path", return_value=Path("/tmp/fake")):
+            result = await backend.send_media("chat", "photo", "/path/to/file")
+            assert "message_id" in result
+
+    async def test_download_media(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        mock_msg = MagicMock()
+        mock_msg.media = MagicMock()
+        mock_client.get_messages = AsyncMock(return_value=[mock_msg])
+        mock_client.download_media = AsyncMock(return_value="/tmp/file")
+
+        result = await backend.download_media("chat", 100)
+        assert result == "/tmp/file"
+
+    async def test_list_contacts(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        mock_res = MagicMock()
+        mock_res.users = [MagicMock()]
+        mock_client.side_effect = AsyncMock(return_value=mock_res)
+        results = await backend.list_contacts()
+        assert len(results) == 1
+
+    async def test_search_contacts(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        mock_res = MagicMock()
+        mock_res.users = [MagicMock()]
+        mock_client.side_effect = AsyncMock(return_value=mock_res)
+        results = await backend.search_contacts("query")
+        assert len(results) == 1
+
+    async def test_add_contact(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        mock_client.side_effect = AsyncMock(return_value=MagicMock())
+        assert await backend.add_contact("phone", "first") is True
+
+    async def test_block_user(self, backend, mock_client, mock_client_class):
+        await backend.connect()
+        mock_client.side_effect = AsyncMock(return_value=None)
+        assert await backend.block_user(123) is True
