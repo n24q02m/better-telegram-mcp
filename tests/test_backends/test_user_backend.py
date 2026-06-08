@@ -579,6 +579,20 @@ class TestJoinChat:
 
         assert result is True
 
+    async def test_join_chat_private_plus_prefix(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        # This URL should trigger line 321
+        result = await backend.join_chat("https://t.me/joinchat/+PLACEHOLDER_INVITE")
+
+        assert result is True
+
     async def test_join_public_link(self, tmp_path, mock_client, mock_client_class):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
@@ -602,20 +616,6 @@ class TestJoinChat:
         await backend.connect()
 
         result = await backend.join_chat("public_group")
-
-        assert result is True
-
-    async def test_join_chat_private_plus_prefix(
-        self, tmp_path, mock_client, mock_client_class
-    ):
-        from better_telegram_mcp.backends.user_backend import UserBackend
-
-        settings = _make_settings(tmp_path)
-        backend = UserBackend(settings)
-        await backend.connect()
-
-        # This URL should trigger line 321
-        result = await backend.join_chat("https://t.me/joinchat/+PLACEHOLDER_INVITE")
 
         assert result is True
 
@@ -1343,7 +1343,9 @@ class TestSignIn:
         backend = UserBackend(settings)
         await backend.connect()
 
-        result = await backend.sign_in("PLACEHOLDER_PHONE", "12345", password="my2fapass")
+        result = await backend.sign_in(
+            "PLACEHOLDER_PHONE", "12345", password="my2fapass"
+        )
 
         assert mock_client.sign_in.await_count == 2
         assert result["authenticated_as"] == "Test"
@@ -1561,6 +1563,8 @@ class TestUserBackendLogging:
         assert "Could not set session file permissions" in args[0]
 
     async def test_secure_session_file_chmod_oserror(self, tmp_path, mock_logger):
+        from unittest.mock import patch
+
         from better_telegram_mcp.backends.user_backend import UserBackend
 
         settings = _make_settings(tmp_path)
