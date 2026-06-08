@@ -16,3 +16,6 @@
 ## 2024-07-28 - Contrast Requirements for Dark Themes
 **Learning:** Text using color `#666` fails WCAG AA 4.5:1 contrast requirements when placed against dark-themed backgrounds such as `#1a1a1a`.
 **Action:** When designing dark themes, ensure that subtle or secondary text elements (like `.server-id` and `.help-text`) are upgraded to at least `#888` or `#999` to maintain readability and accessibility standards.
+## 2026-06-05 - Security Configuration UX
+**Learning:** When making a previously default configuration field required, providing a clear error message that explains *why* it is required (e.g., "required for public deployments") helps users understand the security context and fix the issue quickly.
+**Pattern:** Conditional validation in Pydantic Settings allows for a flexible UX that stays simple for local/stdio users while enforcing security for public deployments.

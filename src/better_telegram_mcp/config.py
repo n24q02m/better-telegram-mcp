@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     session_name: str = "default"
 
     # Auth
-    auth_url: str = "https://better-telegram-mcp.n24q02m.com"
+    auth_url: str | None = None
 
     # Data
     data_dir: Path = Path.home() / ".better-telegram-mcp"
@@ -56,6 +56,12 @@ class Settings(BaseSettings):
         self.bot_token = _empty_to_none(self.bot_token)
         self.api_hash = _empty_to_none(self.api_hash)
         self.phone = _empty_to_none(self.phone)
+        self.auth_url = _empty_to_none(self.auth_url)
+
+        if os.environ.get("PUBLIC_URL") and not self.auth_url:
+            raise ValueError(
+                "TELEGRAM_AUTH_URL is required for public deployments (PUBLIC_URL is set)"
+            )
 
         has_bot = self.bot_token is not None
         # User mode requires phone (api_id/api_hash have built-in defaults)

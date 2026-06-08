@@ -187,3 +187,26 @@ def test_from_relay_config():
     s2 = Settings.from_relay_config({})
     assert s2.api_id == 37984984
     assert s2.api_hash == "2f5f4c76c4de7c07302380c788390100"
+
+
+def test_auth_url_required_for_public_url(monkeypatch):
+    monkeypatch.setenv("PUBLIC_URL", "https://example.com")
+    monkeypatch.delenv("TELEGRAM_AUTH_URL", raising=False)
+    with pytest.raises(
+        ValueError, match="TELEGRAM_AUTH_URL is required for public deployments"
+    ):
+        Settings()
+
+
+def test_auth_url_success_with_public_url(monkeypatch):
+    monkeypatch.setenv("PUBLIC_URL", "https://example.com")
+    monkeypatch.setenv("TELEGRAM_AUTH_URL", "https://auth.example.com")
+    s = Settings()
+    assert s.auth_url == "https://auth.example.com"
+
+
+def test_auth_url_none_without_public_url(monkeypatch):
+    monkeypatch.delenv("PUBLIC_URL", raising=False)
+    monkeypatch.delenv("TELEGRAM_AUTH_URL", raising=False)
+    s = Settings()
+    assert s.auth_url is None

@@ -86,6 +86,7 @@ class TestIsMultiUserMode:
         env = {
             "DCR_SERVER_SECRET": "secret",
             "PUBLIC_URL": "https://mcp.example.com",
+            "TELEGRAM_AUTH_URL": "https://auth.example.com",
         }
         with patch.dict("os.environ", env, clear=True):
             # settings has api_id/api_hash by default
@@ -99,6 +100,7 @@ class TestIsMultiUserMode:
         env = {
             "MCP_DCR_SERVER_SECRET": "secret",
             "PUBLIC_URL": "https://mcp.example.com",
+            "TELEGRAM_AUTH_URL": "https://auth.example.com",
         }
         with patch.dict("os.environ", env, clear=True):
             assert _is_multi_user_mode(settings) is True
@@ -109,6 +111,7 @@ class TestIsMultiUserMode:
         env = {
             "DCR_SERVER_SECRET": "secret",
             "PUBLIC_URL": "https://mcp.example.com",
+            "TELEGRAM_AUTH_URL": "https://auth.example.com",
         }
         with patch.dict("os.environ", env, clear=True):
             assert _is_multi_user_mode(settings) is True
@@ -130,6 +133,7 @@ class TestIsMultiUserMode:
         env = {
             "DCR_SERVER_SECRET": "secret",
             "PUBLIC_URL": "https://mcp.example.com",
+            "TELEGRAM_AUTH_URL": "https://auth.example.com",
         }
         settings_no_api = Settings(data_dir=tmp_path, api_id=0, api_hash="")
         with patch.dict("os.environ", env, clear=True):
@@ -169,6 +173,7 @@ class TestStartHttp:
         env = {
             "DCR_SERVER_SECRET": "secret",
             "PUBLIC_URL": "https://mcp.example.com",
+            "TELEGRAM_AUTH_URL": "https://auth.example.com",
             "TELEGRAM_API_ID": "12345",
             "TELEGRAM_API_HASH": "hash",
             "PORT": "9090",
@@ -213,6 +218,7 @@ class TestStartHttp:
         env = {
             "DCR_SERVER_SECRET": "secret",
             "PUBLIC_URL": "https://mcp.example.com",
+            "TELEGRAM_AUTH_URL": "https://auth.example.com",
             "TELEGRAM_API_ID": "12345",
             "TELEGRAM_API_HASH": "hash",
         }
@@ -249,6 +255,7 @@ class TestStartHttp:
         env = {
             "DCR_SERVER_SECRET": "secret",
             "PUBLIC_URL": "https://mcp.example.com",
+            "TELEGRAM_AUTH_URL": "https://auth.example.com",
             "TELEGRAM_API_ID": "12345",
             "TELEGRAM_API_HASH": "hash",
             "MCP_PORT": "12345",
@@ -285,6 +292,7 @@ class TestStartHttp:
         env = {
             "MCP_DCR_SERVER_SECRET": "secret",
             "PUBLIC_URL": "https://mcp.example.com",
+            "TELEGRAM_AUTH_URL": "https://auth.example.com",
             "TELEGRAM_API_ID": "12345",
             "TELEGRAM_API_HASH": "hash",
         }
@@ -317,6 +325,7 @@ class TestStartHttp:
         env = {
             "DCR_SERVER_SECRET": "secret",
             "PUBLIC_URL": "https://mcp.example.com",
+            "TELEGRAM_AUTH_URL": "https://auth.example.com",
             "TELEGRAM_API_ID": "12345",
             "TELEGRAM_API_HASH": "hash",
         }
@@ -359,6 +368,7 @@ class TestStartHttp:
         """TELEGRAM_ACCEPT_SHARED_SINGLE_USER=1 opt-in skips the refuse-guard."""
         env = {
             "PUBLIC_URL": "https://mcp.example.com",
+            "TELEGRAM_AUTH_URL": "https://auth.example.com",
             "TELEGRAM_ACCEPT_SHARED_SINGLE_USER": "1",
         }
 
