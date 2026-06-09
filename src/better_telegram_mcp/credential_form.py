@@ -605,6 +605,10 @@ def render_telegram_credential_form(
                             submitStep();
                         }}
                     }});
+                    inputEl.addEventListener("input", function () {{
+                        inputEl.removeAttribute("aria-invalid");
+                        errorEl.style.display = "none";
+                    }});
                 }}
 
                 promptEl.textContent = ns.text || "";
@@ -703,6 +707,16 @@ def render_telegram_credential_form(
                         inputEl.focus();
                     }});
             }}
+
+            // Clear validation errors on typing
+            form.querySelectorAll(".field-input").forEach(function (input) {{
+                input.addEventListener("input", function () {{
+                    input.removeAttribute("aria-invalid");
+                    if (statusBox.classList.contains("error")) {{
+                        statusBox.style.display = "none";
+                    }}
+                }});
+            }});
 
             // --- Form submit ---------------------------------------------------
             form.addEventListener("submit", function (event) {{

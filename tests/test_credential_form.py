@@ -78,6 +78,14 @@ def test_escapes_submit_url() -> None:
     assert "&lt;script&gt;" in html or "&quot;&gt;&lt;script&gt;" in html
 
 
+def test_form_clears_validation_errors_on_input() -> None:
+    html = render_telegram_credential_form(SCHEMA, "/auth")
+    assert 'input.addEventListener("input"' in html
+    assert 'inputEl.addEventListener("input"' in html
+    assert 'input.removeAttribute("aria-invalid")' in html
+    assert 'statusBox.style.display = "none"' in html
+
+
 def test_renders_with_minimal_schema() -> None:
     html = render_telegram_credential_form({}, "/auth")
     # Falls back to generic defaults without raising.
