@@ -2,6 +2,25 @@
 
 <!-- version list -->
 
+## v4.12.6-beta.1 (2026-06-09)
+
+### Bug Fixes
+
+- Gitignore bot/merge junk artifacts (*.orig/*.rej/*.patch/*.diff/*.cover/*.bak)
+  ([#711](https://github.com/n24q02m/better-telegram-mcp/pull/711),
+  [`1cba315`](https://github.com/n24q02m/better-telegram-mcp/commit/1cba315bebbf2050f4f07ea2fa3e6ac25580af8f))
+
+- **deps**: Update non-major dependencies
+  ([#730](https://github.com/n24q02m/better-telegram-mcp/pull/730),
+  [`593da59`](https://github.com/n24q02m/better-telegram-mcp/commit/593da59a641985d05857fe5743c168e7891997b1))
+
+### Chores
+
+- **deps**: Update codecov/codecov-action action to v7
+  ([#731](https://github.com/n24q02m/better-telegram-mcp/pull/731),
+  [`860560c`](https://github.com/n24q02m/better-telegram-mcp/commit/860560c67ee0ed31c0c0e36e66bd2b6d94e95329))
+
+
 ## v4.12.5 (2026-06-07)
 
 ### Bug Fixes
