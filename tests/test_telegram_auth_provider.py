@@ -532,3 +532,32 @@ class TestShutdown:
         for inst in instances:
             inst.disconnect.assert_called_once()
         assert len(provider.active_clients) == 0
+
+
+def test_session_owners_dict_reverse_mapping() -> None:
+    """Test that _SessionOwnersDict correctly maintains its reverse mapping."""
+    from better_telegram_mcp.auth.telegram_auth_provider import _SessionOwnersDict
+
+    d = _SessionOwnersDict()
+    d["s1"] = "b1"
+    d["s2"] = "b1"
+    d["s3"] = "b2"
+
+    assert set(d.get_sessions_for_bearer("b1")) == {"s1", "s2"}
+    assert set(d.get_sessions_for_bearer("b2")) == {"s3"}
+    assert d.get_sessions_for_bearer("b3") == []
+
+    # Update
+    d["s1"] = "b2"
+    assert set(d.get_sessions_for_bearer("b1")) == {"s2"}
+    assert set(d.get_sessions_for_bearer("b2")) == {"s1", "s3"}
+
+    # Delete
+    del d["s2"]
+    assert d.get_sessions_for_bearer("b1") == []
+    assert set(d.get_sessions_for_bearer("b2")) == {"s1", "s3"}
+
+    # Clear
+    d.clear()
+    assert d.get_sessions_for_bearer("b2") == []
+    assert len(d.reverse) == 0

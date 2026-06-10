@@ -19,7 +19,9 @@ import asyncio
 import hashlib
 import secrets
 import time
+from collections import UserDict
 from pathlib import Path
+from typing import Any
 
 from loguru import logger
 
@@ -55,6 +57,42 @@ _SESSION_TTL = 30 * 24 * 60 * 60
 _PendingOTP = dict  # {bearer, backend, phone, phone_code_hash, created_at}
 
 
+class _SessionOwnersDict(UserDict[str, str]):
+    """Dict that maintains a reverse mapping from bearer to session IDs."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.reverse: dict[str, set[str]] = {}
+        for sid, bearer in self.data.items():
+            self.reverse.setdefault(bearer, set()).add(sid)
+
+    def __setitem__(self, key: str, value: str) -> None:
+        if key in self.data:
+            old_bearer = self.data[key]
+            if old_bearer in self.reverse:
+                self.reverse[old_bearer].discard(key)
+                if not self.reverse[old_bearer]:
+                    del self.reverse[old_bearer]
+        super().__setitem__(key, value)
+        self.reverse.setdefault(value, set()).add(key)
+
+    def __delitem__(self, key: str) -> None:
+        bearer = self.data[key]
+        super().__delitem__(key)
+        if bearer in self.reverse:
+            self.reverse[bearer].discard(key)
+            if not self.reverse[bearer]:
+                del self.reverse[bearer]
+
+    def clear(self) -> None:
+        super().clear()
+        self.reverse.clear()
+
+    def get_sessions_for_bearer(self, bearer: str) -> list[str]:
+        """Get all session IDs owned by a bearer in O(1)."""
+        return list(self.reverse.get(bearer, set()))
+
+
 class TelegramAuthProvider:
     """Manages per-user Telegram authentication and backend lifecycle.
 
@@ -72,7 +110,7 @@ class TelegramAuthProvider:
         self.active_clients: dict[str, TelegramBackend] = {}
 
         # MCP session_id -> bearer (session ownership)
-        self.session_owners: dict[str, str] = {}
+        self.session_owners = _SessionOwnersDict()
 
         # Pending OTP verifications (bearer -> pending state)
         self._pending_otps: dict[str, _PendingOTP] = {}
@@ -344,10 +382,8 @@ class TelegramAuthProvider:
             await pending["backend"].disconnect()
 
         # Remove from ownership map
-        to_remove = [sid for sid, b in self.session_owners.items() if b == bearer]
-        for sid in to_remove:
+        for sid in self.session_owners.get_sessions_for_bearer(bearer):
             del self.session_owners[sid]
-
         return self._store.delete(bearer)
 
     async def cleanup_expired(self) -> int:
