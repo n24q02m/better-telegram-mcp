@@ -20,11 +20,55 @@ _BLOCKED_NETWORKS = (
     ipaddress.ip_network("172.16.0.0/12"),
     ipaddress.ip_network("192.168.0.0/16"),
     ipaddress.ip_network("169.254.0.0/16"),
+    ipaddress.ip_network("100.64.0.0/10"),  # CGNAT
+    ipaddress.ip_network("192.0.0.0/24"),  # IETF Protocol Assignments
+    ipaddress.ip_network("192.0.2.0/24"),  # TEST-NET-1
+    ipaddress.ip_network(
+        "198.18.0.0/15"
+    ),  # Network Interconnect Device Benchmark Testing
+    ipaddress.ip_network("198.51.100.0/24"),  # TEST-NET-2
+    ipaddress.ip_network("203.0.113.0/24"),  # TEST-NET-3
+    ipaddress.ip_network("224.0.0.0/4"),  # Multicast
+    ipaddress.ip_network("240.0.0.0/4"),  # Reserved
+    ipaddress.ip_network("255.255.255.255/32"),  # Limited Broadcast
     ipaddress.ip_network("::1/128"),
     ipaddress.ip_network("::ffff:0:0/96"),
     ipaddress.ip_network("fc00::/7"),
     ipaddress.ip_network("fe80::/10"),
+    ipaddress.ip_network("2001:db8::/32"),  # Documentation
+    ipaddress.ip_network("3ffe::/16"),  # 6bone (deprecated)
+    ipaddress.ip_network("ff00::/8"),  # Multicast
 )
+
+
+def _validate_ip(ip_str: str, hostname: str) -> None:
+    """Validate an IP address against blocked networks. Handles IPv4-mapped IPv6."""
+    try:
+        addr = ipaddress.ip_address(ip_str)
+        # Handle IPv4-mapped IPv6 addresses (e.g., ::ffff:127.0.0.1)
+        if addr.version == 6 and addr.ipv4_mapped:
+            addr = addr.ipv4_mapped
+
+        for network in _BLOCKED_NETWORKS:
+            if addr in network:
+                msg = f"Access to internal/private IP {ip_str} ({hostname}) is blocked"
+                raise SecurityError(msg)
+    except ValueError as e:
+        # Handle potential zone indices in IPv6 (e.g., fe80::1%eth0)
+        if "%" in ip_str:
+            try:
+                clean_ip = ip_str.split("%")[0]
+                addr = ipaddress.ip_address(clean_ip)
+                for network in _BLOCKED_NETWORKS:
+                    if addr in network:
+                        msg = f"Access to internal/private IP {ip_str} ({hostname}) is blocked"
+                        raise SecurityError(msg)
+            except ValueError as e_inner:
+                msg = f"Invalid IP address format: {ip_str}"
+                raise SecurityError(msg) from e_inner
+        else:
+            msg = f"Invalid IP address format: {ip_str}"
+            raise SecurityError(msg) from e
 
 
 def validate_url(url: str) -> str:
@@ -52,11 +96,7 @@ def validate_url(url: str) -> str:
         addr_info = socket.getaddrinfo(hostname, None)
         for _, _, _, _, sockaddr in addr_info:
             ip_str = sockaddr[0]
-            addr = ipaddress.ip_address(ip_str)
-            for network in _BLOCKED_NETWORKS:
-                if addr in network:
-                    msg = f"Access to internal/private IP {ip_str} ({hostname}) is blocked"
-                    raise SecurityError(msg)
+            _validate_ip(ip_str, hostname)
         if not addr_info:
             msg = f"Failed to resolve hostname {hostname}"
             raise SecurityError(msg)

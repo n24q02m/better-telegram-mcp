@@ -214,7 +214,7 @@ class TestValidateUrl:
         from better_telegram_mcp.backends.security import fetch_url_safely
 
         target_hostname = "ipv6.example.com"
-        safe_ip = "2001:db8::1"
+        safe_ip = "2606:4700:4700::1111"
 
         def mock_getaddrinfo(host, port, *args, **kwargs):
             return [(socket.AF_INET6, 1, 6, "", (safe_ip, 8080, 0, 0))]
