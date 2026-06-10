@@ -5,6 +5,7 @@ import json
 import pytest
 
 from better_telegram_mcp.backends.base import ModeError
+from better_telegram_mcp.backends.security import SecurityError
 from better_telegram_mcp.tools.media import MediaOptions, handle_media
 
 
@@ -46,6 +47,25 @@ async def test_send_file(mock_backend):
 
 
 @pytest.mark.asyncio
+async def test_send_file_with_caption(mock_backend):
+    result = json.loads(
+        await handle_media(
+            mock_backend,
+            "send_file",
+            MediaOptions(
+                chat_id=123,
+                file_path_or_url="/tmp/doc.pdf",
+                caption="Document caption",
+            ),
+        )
+    )
+    assert result["message_id"] == 3
+    mock_backend.send_media.assert_awaited_once_with(
+        123, "document", "/tmp/doc.pdf", caption="Document caption"
+    )
+
+
+@pytest.mark.asyncio
 async def test_send_voice(mock_backend):
     result = json.loads(
         await handle_media(
@@ -64,6 +84,25 @@ async def test_send_voice(mock_backend):
 
 
 @pytest.mark.asyncio
+async def test_send_voice_with_caption(mock_backend):
+    result = json.loads(
+        await handle_media(
+            mock_backend,
+            "send_voice",
+            MediaOptions(
+                chat_id=123,
+                file_path_or_url="/tmp/voice.ogg",
+                caption="Voice caption",
+            ),
+        )
+    )
+    assert result["message_id"] == 3
+    mock_backend.send_media.assert_awaited_once_with(
+        123, "voice", "/tmp/voice.ogg", caption="Voice caption"
+    )
+
+
+@pytest.mark.asyncio
 async def test_send_video(mock_backend):
     result = json.loads(
         await handle_media(
@@ -78,6 +117,25 @@ async def test_send_video(mock_backend):
     assert result["message_id"] == 3
     mock_backend.send_media.assert_awaited_once_with(
         123, "video", "/tmp/video.mp4", caption=None
+    )
+
+
+@pytest.mark.asyncio
+async def test_send_video_with_caption(mock_backend):
+    result = json.loads(
+        await handle_media(
+            mock_backend,
+            "send_video",
+            MediaOptions(
+                chat_id=123,
+                file_path_or_url="/tmp/video.mp4",
+                caption="Video caption",
+            ),
+        )
+    )
+    assert result["message_id"] == 3
+    mock_backend.send_media.assert_awaited_once_with(
+        123, "video", "/tmp/video.mp4", caption="Video caption"
     )
 
 
@@ -155,6 +213,57 @@ async def test_mode_error(mock_backend):
     )
     assert "error" in result
     assert "user mode" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_security_error(mock_backend):
+    mock_backend.send_media.side_effect = SecurityError("Blocked path")
+    result = json.loads(
+        await handle_media(
+            mock_backend,
+            "send_photo",
+            MediaOptions(
+                chat_id=123,
+                file_path_or_url="/etc/passwd",
+            ),
+        )
+    )
+    assert "error" in result
+    assert "Blocked path" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_value_error(mock_backend):
+    mock_backend.send_media.side_effect = ValueError("Invalid chat_id")
+    result = json.loads(
+        await handle_media(
+            mock_backend,
+            "send_photo",
+            MediaOptions(
+                chat_id="invalid",
+                file_path_or_url="https://example.com/photo.jpg",
+            ),
+        )
+    )
+    assert "error" in result
+    assert "Invalid chat_id" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_file_not_found_error(mock_backend):
+    mock_backend.send_media.side_effect = FileNotFoundError("File not found")
+    result = json.loads(
+        await handle_media(
+            mock_backend,
+            "send_photo",
+            MediaOptions(
+                chat_id=123,
+                file_path_or_url="/tmp/missing.jpg",
+            ),
+        )
+    )
+    assert "error" in result
+    assert "File not found" in result["error"]
 
 
 @pytest.mark.asyncio
