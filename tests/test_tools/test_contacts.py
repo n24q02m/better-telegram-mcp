@@ -14,6 +14,7 @@ async def test_list(mock_backend):
     result = json.loads(await handle_contacts(mock_backend, "list"))
     assert result["contacts"] == []
     assert result["count"] == 0
+    mock_backend.list_contacts.assert_awaited_once_with()
 
 
 @pytest.mark.asyncio
@@ -23,6 +24,7 @@ async def test_search(mock_backend):
     )
     assert result["contacts"] == []
     assert result["count"] == 0
+    mock_backend.search_contacts.assert_awaited_once_with("John")
 
 
 @pytest.mark.asyncio
@@ -69,6 +71,7 @@ async def test_block(mock_backend):
         await handle_contacts(mock_backend, "block", ContactsOptions(user_id=123))
     )
     assert result["blocked"] is True
+    mock_backend.block_user.assert_awaited_once_with(123, unblock=False)
 
 
 @pytest.mark.asyncio
@@ -79,6 +82,7 @@ async def test_unblock(mock_backend):
         )
     )
     assert result["unblocked"] is True
+    mock_backend.block_user.assert_awaited_once_with(123, unblock=True)
 
 
 @pytest.mark.asyncio
