@@ -2,6 +2,28 @@
 
 <!-- version list -->
 
+## v4.12.7-beta.1 (2026-06-10)
+
+### Bug Fixes
+
+- SSRF bypass via IPv4-mapped IPv6 and missing blocked ranges
+  ([#736](https://github.com/n24q02m/better-telegram-mcp/pull/736),
+  [`e379ce3`](https://github.com/n24q02m/better-telegram-mcp/commit/e379ce37e57e132523ec8e1addb02773337eb9a6))
+
+- **deps**: Update non-major dependencies
+  ([#734](https://github.com/n24q02m/better-telegram-mcp/pull/734),
+  [`1749c1f`](https://github.com/n24q02m/better-telegram-mcp/commit/1749c1f33a0fb92aa0d11275f975e8d044b5029a))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#735](https://github.com/n24q02m/better-telegram-mcp/pull/735),
+  [`500c777`](https://github.com/n24q02m/better-telegram-mcp/commit/500c777da22af96c34aeaa720e19bcda60b529d0))
+
+- **deps**: Update step-security/harden-runner digest to 9af89fc
+  ([#733](https://github.com/n24q02m/better-telegram-mcp/pull/733),
+  [`ff158c2`](https://github.com/n24q02m/better-telegram-mcp/commit/ff158c22a3e893c5cc6b0e79e02d8e311271d77b))
+
+
 ## v4.12.6 (2026-06-09)
 
 
