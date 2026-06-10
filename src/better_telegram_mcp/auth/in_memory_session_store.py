@@ -12,9 +12,32 @@ See ~/projects/.superpower/mcp-core/specs/2026-04-30-trust-model-alignment.md
 § 4.D3 + § 5.A8.
 """
 
-import copy
+from __future__ import annotations
 
-from .per_user_session_store import SessionInfo
+import copy
+import time
+from dataclasses import asdict, dataclass, field
+from typing import Literal
+
+
+@dataclass
+class SessionInfo:
+    """Per-user session metadata."""
+
+    session_name: str
+    mode: Literal["bot", "user"]
+    api_id: int | None = None
+    api_hash: str | None = None
+    phone: str | None = None
+    bot_token: str | None = None
+    created_at: float = field(default_factory=time.time)
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> SessionInfo:
+        return cls(**data)
 
 
 class InMemorySessionStore:

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from better_telegram_mcp.auth.in_memory_session_store import InMemorySessionStore
-from better_telegram_mcp.auth.per_user_session_store import SessionInfo
+from better_telegram_mcp.auth.in_memory_session_store import (
+    InMemorySessionStore,
+    SessionInfo,
+)
 
 
 def _bot_info(token: str = "123:ABC") -> SessionInfo:
@@ -124,3 +126,46 @@ class TestInMemorySessionStoreLoadAll:
         loaded = store.load("b1")
         assert loaded is not None
         assert loaded.bot_token == "original"
+
+
+class TestSessionInfo:
+    def test_to_dict_roundtrip(self) -> None:
+        """SessionInfo should serialize and deserialize correctly."""
+        info = SessionInfo(
+            session_name="test",
+            mode="bot",
+            bot_token="123:ABC",
+            created_at=1000.0,
+        )
+        data = info.to_dict()
+        restored = SessionInfo.from_dict(data)
+
+        assert restored.session_name == "test"
+        assert restored.mode == "bot"
+        assert restored.bot_token == "123:ABC"
+        assert restored.created_at == 1000.0
+        assert restored.api_id is None
+        assert restored.phone is None
+
+    def test_user_mode_fields(self) -> None:
+        """User mode SessionInfo should preserve all fields."""
+        info = SessionInfo(
+            session_name="user123",
+            mode="user",
+            api_id=12345,
+            api_hash="abcdef",
+            phone="+84912345678",
+        )
+        data = info.to_dict()
+        restored = SessionInfo.from_dict(data)
+
+        assert restored.mode == "user"
+        assert restored.api_id == 12345
+        assert restored.api_hash == "abcdef"
+        assert restored.phone == "+84912345678"
+        assert restored.bot_token is None
+
+    def test_created_at_default(self) -> None:
+        """created_at should default to current time."""
+        info = SessionInfo(session_name="test", mode="bot")
+        assert info.created_at > 0
