@@ -11,6 +11,7 @@ Reuses the key derivation pattern from transports/credential_store.py.
 
 from __future__ import annotations
 
+import asyncio
 import copy
 import json
 import os
@@ -131,6 +132,18 @@ class PerUserSessionStore:
         self._cached_sessions = json.loads(plaintext)
         return copy.deepcopy(self._cached_sessions)
 
+    async def _async_read_all(self) -> dict[str, dict]:
+        """Async version of _read_all()."""
+        if self._cached_sessions is not None:
+            return copy.deepcopy(self._cached_sessions)
+        exists = await asyncio.to_thread(self._path.exists)
+        if not exists:
+            return {}
+        raw = await asyncio.to_thread(self._path.read_bytes)
+        plaintext = self._decrypt(raw)
+        self._cached_sessions = json.loads(plaintext)
+        return copy.deepcopy(self._cached_sessions)
+
     def _write_all(self, sessions: dict[str, dict]) -> None:
         """Encrypt and write all sessions to disk (atomic 0o600 write)."""
         # Migrate from legacy salt to random salt on first write
@@ -144,15 +157,47 @@ class PerUserSessionStore:
         encrypted = self._encrypt(plaintext)
         _atomic_write_bytes_0600(self._path, encrypted)
 
+    async def _async_write_all(self, sessions: dict[str, dict]) -> None:
+        """Async version of _write_all()."""
+        # Migrate from legacy salt to random salt on first write
+        if self._salt == _LEGACY_SALT:
+            salt_exists = await asyncio.to_thread(self._salt_path.exists)
+            if not salt_exists:
+                new_salt = os.urandom(16)
+                await asyncio.to_thread(
+                    _atomic_write_bytes_0600, self._salt_path, new_salt
+                )
+                self._salt = new_salt
+                self._cached_key = None  # Invalidate cached key
+
+        self._cached_sessions = copy.deepcopy(sessions)
+        plaintext = json.dumps(sessions).encode()
+        encrypted = self._encrypt(plaintext)
+        await asyncio.to_thread(_atomic_write_bytes_0600, self._path, encrypted)
+
     def store(self, bearer: str, info: SessionInfo) -> None:
         """Store a session for the given bearer token."""
         sessions = self._read_all()
         sessions[bearer] = info.to_dict()
         self._write_all(sessions)
 
+    async def async_store(self, bearer: str, info: SessionInfo) -> None:
+        """Async version of store()."""
+        sessions = await self._async_read_all()
+        sessions[bearer] = info.to_dict()
+        await self._async_write_all(sessions)
+
     def load(self, bearer: str) -> SessionInfo | None:
         """Load session info for a bearer token. Returns None if not found."""
         sessions = self._read_all()
+        data = sessions.get(bearer)
+        if data is None:
+            return None
+        return SessionInfo.from_dict(data)
+
+    async def async_load(self, bearer: str) -> SessionInfo | None:
+        """Async version of load()."""
+        sessions = await self._async_read_all()
         data = sessions.get(bearer)
         if data is None:
             return None
@@ -165,6 +210,13 @@ class PerUserSessionStore:
             bearer: SessionInfo.from_dict(data) for bearer, data in sessions.items()
         }
 
+    async def async_load_all(self) -> dict[str, SessionInfo]:
+        """Async version of load_all()."""
+        sessions = await self._async_read_all()
+        return {
+            bearer: SessionInfo.from_dict(data) for bearer, data in sessions.items()
+        }
+
     def delete(self, bearer: str) -> bool:
         """Delete a session. Returns True if it existed."""
         sessions = self._read_all()
@@ -172,4 +224,13 @@ class PerUserSessionStore:
             return False
         del sessions[bearer]
         self._write_all(sessions)
+        return True
+
+    async def async_delete(self, bearer: str) -> bool:
+        """Async version of delete()."""
+        sessions = await self._async_read_all()
+        if bearer not in sessions:
+            return False
+        del sessions[bearer]
+        await self._async_write_all(sessions)
         return True

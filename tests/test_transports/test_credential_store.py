@@ -356,3 +356,27 @@ class TestAtomicWriteTOCTOU:
         assert target.read_bytes() == b"new"
         mode = stat.S_IMODE(os.stat(target).st_mode)
         assert mode == 0o600
+
+    @pytest.mark.asyncio
+    async def test_async_store_load_roundtrip(self, data_dir: Path) -> None:
+        """Async store and load should preserve data and not block the event loop."""
+        store = CredentialStore(data_dir, secret="async-test")
+        creds = {"TELEGRAM_BOT_TOKEN": "async-token"}
+
+        await store.async_store(creds)
+        loaded = await store.async_load()
+
+        assert loaded == creds
+        assert store.load() == creds  # Sync load should also work
+
+    @pytest.mark.asyncio
+    async def test_async_delete(self, data_dir: Path) -> None:
+        """Async delete should remove the file."""
+        store = CredentialStore(data_dir, secret="async-test")
+        creds = {"key": "val"}
+        await store.async_store(creds)
+        assert (data_dir / "credentials.enc").exists()
+
+        await store.async_delete()
+        assert not (data_dir / "credentials.enc").exists()
+        assert await store.async_load() is None
