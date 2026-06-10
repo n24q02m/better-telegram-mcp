@@ -17,8 +17,8 @@ Two outcomes (both via mcp-core ``run_http_server``):
   OTP/2FA flow runs against ``/otp``, and the global single backend in
   ``server.py`` is hot-reloaded once credentials land.
 
-The ``api_id``/``api_hash`` pair has built-in defaults in ``config.py``
-(public Telegram app registration) so a deployed container only needs
+The ``api_id``/``api_hash`` pair must be provided via environment variables
+so a deployed container needs ``TELEGRAM_API_ID``, ``TELEGRAM_API_HASH``,
 ``MCP_DCR_SERVER_SECRET`` (legacy ``DCR_SERVER_SECRET`` still accepted) +
 ``PUBLIC_URL`` set to flip on multi-user.
 
@@ -85,10 +85,8 @@ def _is_multi_user_mode(settings: Settings | None = None) -> bool:
     Multi-user requires: ``MCP_DCR_SERVER_SECRET`` (OAuth shared secret;
     legacy ``DCR_SERVER_SECRET`` still accepted) + ``PUBLIC_URL`` (deployed
     hostname) + a Telegram ``api_id`` / ``api_hash`` pair. The
-    api_id/api_hash pair is satisfied either by the corresponding env vars
-    OR by the built-in Settings defaults (the code ships a public app
-    registration — see ``config.py``), so a deployed container only needs
-    to set the two "secret" variables to flip on multi-user mode.
+    api_id/api_hash pair must be provided via env vars (TELEGRAM_API_ID and
+    TELEGRAM_API_HASH).
     """
     has_dcr = bool(_dcr_secret())
     has_public_url = bool(os.environ.get("PUBLIC_URL"))

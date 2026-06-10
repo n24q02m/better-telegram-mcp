@@ -88,7 +88,9 @@ class TestIsMultiUserMode:
             "PUBLIC_URL": "https://mcp.example.com",
         }
         with patch.dict("os.environ", env, clear=True):
-            # settings has api_id/api_hash by default
+            # settings needs api_id/api_hash to be set for multi-user
+            settings.api_id = 123
+            settings.api_hash = "abc"
             assert _is_multi_user_mode(settings) is True
 
     def test_is_multi_user_mode_true_mcp_prefixed_secret(
@@ -101,6 +103,8 @@ class TestIsMultiUserMode:
             "PUBLIC_URL": "https://mcp.example.com",
         }
         with patch.dict("os.environ", env, clear=True):
+            settings.api_id = 123
+            settings.api_hash = "abc"
             assert _is_multi_user_mode(settings) is True
 
     def test_is_multi_user_mode_true_legacy_secret(self, settings: Settings) -> None:
@@ -111,6 +115,8 @@ class TestIsMultiUserMode:
             "PUBLIC_URL": "https://mcp.example.com",
         }
         with patch.dict("os.environ", env, clear=True):
+            settings.api_id = 123
+            settings.api_hash = "abc"
             assert _is_multi_user_mode(settings) is True
 
     def test_is_multi_user_mode_false_missing_dcr(self, settings: Settings) -> None:
