@@ -4,6 +4,7 @@ Credentials stored at: DATA_DIR/credentials.enc
 Key derived from server secret (CREDENTIAL_SECRET env var or auto-generated).
 """
 
+import asyncio
 import copy
 import json
 import os
@@ -84,9 +85,10 @@ class CredentialStore:
         if not self._secret:
             self._secret = self._resolve_or_generate_secret(data_dir)
         self._salt = self._resolve_salt()
-        # Cache derived key to avoid repeated 100k iteration PBKDF2 (~60ms) overhead
+        # Cache derived key to avoid repeated 600k iteration PBKDF2 (~60ms) overhead
         self._cached_key: bytes | None = None
         self._cached_credentials: dict[str, str] | None = None
+        self._lock = asyncio.Lock()
 
     def _resolve_salt(self) -> bytes:
         """Load persisted salt, fallback to legacy, or generate new one."""
@@ -113,19 +115,24 @@ class CredentialStore:
         _atomic_write_bytes_0600(secret_path, secret.encode())
         return secret
 
-    def _derive_key(self) -> bytes:
+    async def _derive_key(self) -> bytes:
         if self._cached_key is not None:
             return self._cached_key
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=self._salt,
-            iterations=_KDF_ITERATIONS,
-        )
-        self._cached_key = kdf.derive(self._secret.encode())
-        return self._cached_key
+        async with self._lock:
+            if self._cached_key is not None:
+                return self._cached_key
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=self._salt,
+                iterations=_KDF_ITERATIONS,
+            )
+            self._cached_key = await asyncio.to_thread(
+                kdf.derive, self._secret.encode()
+            )
+            return self._cached_key
 
-    def store(self, credentials: dict[str, str]) -> None:
+    async def store(self, credentials: dict[str, str]) -> None:
         """Encrypt and save credentials atomically with 0o600 permissions.
 
         Replaces the prior write-then-chmod sequence (which left a TOCTOU
@@ -139,7 +146,7 @@ class CredentialStore:
             self._salt = new_salt
             self._cached_key = None  # Force re-derivation
 
-        key = self._derive_key()
+        key = await self._derive_key()
         aesgcm = AESGCM(key)
         nonce = os.urandom(_NONCE_SIZE)
         plaintext = json.dumps(credentials).encode()
@@ -147,13 +154,13 @@ class CredentialStore:
         self._cached_credentials = copy.deepcopy(credentials)
         _atomic_write_bytes_0600(self._path, nonce + ciphertext)
 
-    def load(self) -> dict[str, str] | None:
+    async def load(self) -> dict[str, str] | None:
         """Load and decrypt credentials. Returns None if not found."""
         if self._cached_credentials is not None:
             return copy.deepcopy(self._cached_credentials)
         if not self._path.exists():
             return None
-        key = self._derive_key()
+        key = await self._derive_key()
         data = self._path.read_bytes()
         nonce, ciphertext = data[:_NONCE_SIZE], data[_NONCE_SIZE:]
         aesgcm = AESGCM(key)
