@@ -3,7 +3,16 @@ from datetime import datetime
 
 from better_telegram_mcp.backends.base import ModeError
 from better_telegram_mcp.backends.security import SecurityError
-from better_telegram_mcp.utils.formatting import err, ok, safe_error
+from better_telegram_mcp.utils.formatting import (
+    err,
+    escape_html,
+    escape_markdown_v2,
+    format_bold,
+    format_code,
+    format_italic,
+    ok,
+    safe_error,
+)
 
 
 def test_ok_basic_serialization():
@@ -191,3 +200,63 @@ def test_ok_nested_mixed_types():
     assert parsed["nested"]["exc"] == "nested error"
     assert parsed["list"][0] == 1
     assert parsed["list"][1]["a"] == 1
+
+
+def test_escape_html():
+    assert escape_html("Hello <world> & friends") == "Hello &lt;world&gt; &amp; friends"
+    assert escape_html("") == ""
+    assert escape_html("No special chars") == "No special chars"
+
+
+def test_escape_markdown_v2():
+    # _ * [ ] ( ) ~ ` > # + - = | { } . !
+    input_text = "_*[]()~`>#+-=|{}.!"
+    expected = (
+        r"\_"
+        + r"\*"
+        + r"\["
+        + r"\]"
+        + r"\("
+        + r"\)"
+        + r"\~"
+        + r"\`"
+        + r"\>"
+        + r"\#"
+        + r"\+"
+        + r"\-"
+        + r"\="
+        + r"\|"
+        + r"\{"
+        + r"\}"
+        + r"\."
+        + r"\!"
+    )
+    assert escape_markdown_v2(input_text) == expected
+    assert escape_markdown_v2("Hello! (world)") == r"Hello\! \(world\)"
+    assert escape_markdown_v2("") == ""
+
+
+def test_format_bold():
+    assert format_bold("text", mode="HTML") == "<b>text</b>"
+    assert format_bold("text", mode="MarkdownV2") == "*text*"
+    assert format_bold("<tag>", mode="HTML") == "<b>&lt;tag&gt;</b>"
+    assert format_bold("!", mode="MarkdownV2") == r"*\!*"
+
+
+def test_format_italic():
+    assert format_italic("text", mode="HTML") == "<i>text</i>"
+    assert format_italic("text", mode="MarkdownV2") == "_text_"
+    assert format_italic("<tag>", mode="HTML") == "<i>&lt;tag&gt;</i>"
+    assert format_italic("!", mode="MarkdownV2") == r"_\!_"
+
+
+def test_format_code():
+    assert format_code("text", mode="HTML") == "<code>text</code>"
+    assert format_code("text", mode="MarkdownV2") == "`text`"
+    assert format_code("<tag>", mode="HTML") == "<code>&lt;tag&gt;</code>"
+    assert format_code("!", mode="MarkdownV2") == r"`\!`"
+
+
+def test_format_bold_case_insensitive():
+    assert format_bold("text", mode="html") == "<b>text</b>"
+    assert format_bold("text", mode="markdownv2") == "*text*"
