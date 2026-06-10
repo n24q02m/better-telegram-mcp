@@ -424,6 +424,54 @@ class TestCleanupExpired:
         assert "stale" not in provider._pending_otps
         mock_backend.disconnect.assert_called_once()
 
+    async def test_cleanup_expired_concurrently(
+        self, provider: TelegramAuthProvider
+    ) -> None:
+        """Cleanup should run disconnects in parallel."""
+        import asyncio
+        from unittest.mock import patch
+
+        N = 3
+        delay = 0.1
+        # Use a very large TTL so our manual created_at is definitely expired
+        from better_telegram_mcp.auth.telegram_auth_provider import _SESSION_TTL
+
+        with patch(
+            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend"
+        ) as MockBot:
+            disconnects: list[AsyncMock] = []
+
+            def make_backend(*_args, **_kwargs):
+                inst = MockBot.return_value.__class__()
+                inst.connect = AsyncMock()
+
+                async def slow_disconnect() -> None:
+                    await asyncio.sleep(delay)
+
+                inst.disconnect = AsyncMock(side_effect=slow_disconnect)
+                disconnects.append(inst.disconnect)
+                return inst
+
+            MockBot.side_effect = make_backend
+            for i in range(N):
+                bearer = await provider.register_bot(f"b{i}", f"token{i}")
+                # Manually expire it in store
+                info = provider._store.load(bearer)
+                info.created_at = time.time() - _SESSION_TTL - 1
+                provider._store.store(bearer, info)
+                # Ensure it's NOT in active_clients yet (register_bot adds it)
+                # but we want to test revoke_session which handles active_clients.
+                # Actually, register_bot ALREADY added it to active_clients.
+
+        start = time.perf_counter()
+        removed = await provider.cleanup_expired()
+        elapsed = time.perf_counter() - start
+
+        assert removed == N
+        assert all(d.called for d in disconnects)
+        # If sequential, it would be N * delay. If concurrent, ~delay.
+        assert elapsed < N * delay * 0.8
+
 
 class TestShutdown:
     async def test_shutdown_disconnects_all(
