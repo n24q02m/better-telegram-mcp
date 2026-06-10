@@ -2,6 +2,18 @@
 
 <!-- version list -->
 
+## v4.12.7-beta.2 (2026-06-10)
+
+### Bug Fixes
+
+- Add Comparison section to README ([#739](https://github.com/n24q02m/better-telegram-mcp/pull/739),
+  [`51f3e2c`](https://github.com/n24q02m/better-telegram-mcp/commit/51f3e2c88c3a2d37bf405f6b48cf5f16e10a8224))
+
+- Correct docs drift (versions, tool names, links, compose base)
+  ([#738](https://github.com/n24q02m/better-telegram-mcp/pull/738),
+  [`b57f423`](https://github.com/n24q02m/better-telegram-mcp/commit/b57f42314371ed63b0e691a133ebfbca09849ed3))
+
+
 ## v4.12.7-beta.1 (2026-06-10)
 
 ### Bug Fixes
