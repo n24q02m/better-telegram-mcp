@@ -62,7 +62,7 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 ## Features
 
 - **Dual mode** -- Bot API (httpx) for bots, MTProto (Telethon) for user accounts
-- **6 tools** with action dispatch: `message`, `chat`, `media`, `contact`, `config`, `help`
+- **7 tools** with action dispatch: `message`, `chat`, `media`, `contact`, `config`, `help`, `config__open_relay`
 - **Auto-detect mode** -- Set bot token for bot mode, or API credentials for user mode
 - **Web-based OTP auth** -- Browser-based authentication with remote relay support for headless environments
 - **Tool annotations** -- Each tool declares `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`
@@ -91,7 +91,7 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 
 ## Documentation
 
-Full docs at **[mcp.n24q02m.com/servers/better-telegram-mcp/](https://mcp.n24q02m.com/servers/better-telegram-mcp/)**:
+Full docs at **[mcp.n24q02m.com/servers/better-telegram-mcp/setup/](https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/)**:
 
 - [Setup](https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/) -- install methods for Claude Code, Codex, Gemini CLI, Cursor, Windsurf, mcp.json
 - [Modes overview](https://mcp.n24q02m.com/get-started/modes-overview/) -- stdio / local-relay / remote-relay / remote-oauth
@@ -112,6 +112,7 @@ Full docs at **[mcp.n24q02m.com/servers/better-telegram-mcp/](https://mcp.n24q02
 | `contact` | `list`, `search`, `add`, `block` | List, search, add contacts. Block/unblock users (user mode only) |
 | `config` | `status`, `set`, `cache_clear`, `setup_status`, `setup_start`, `setup_reset`, `setup_complete` | Server status, runtime settings, cache, credential setup (relay, status, reset, complete) |
 | `help` | -- | Full documentation for any topic |
+| `config__open_relay` | -- | Re-trigger the zero-config relay setup flow (prints a fresh relay URL for the browser form). Registered via `mcp-core`'s `register_open_relay_tool` so an LLM can restart setup without a manual restart |
 
 ### MCP Resources
 
@@ -141,7 +142,7 @@ uv run better-telegram-mcp
 
 ## Trust Model
 
-This plugin implements **TC-NearZK** (in-memory, ephemeral). See [mcp-core/docs/TRUST-MODEL.md](https://github.com/n24q02m/mcp-core/blob/main/docs/TRUST-MODEL.md) for full classification.
+This plugin implements **TC-NearZK** (in-memory, ephemeral). See [mcp-core trust model](https://mcp.n24q02m.com/servers/mcp-core/trust-model/) for full classification.
 
 | Mode | Storage | Encryption | Who can read your data? |
 |---|---|---|---|

@@ -79,32 +79,27 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 
 ### Types
 
+Only two commit prefixes are accepted; the `commit-msg` hook
+(`scripts/enforce-commit.sh`) rejects any other type:
+
 - `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes
-- `refactor`: Code refactoring
-- `perf`: Performance improvements
-- `test`: Adding or updating tests
-- `chore`: Maintenance tasks
-- `ci`: CI/CD changes
-- `build`: Build system changes
+- `fix`: Bug fix (also use for docs, refactors, tests, CI, and chores)
 
 ### Examples
 
 ```text
 feat: add support for inline keyboards
 fix: handle Telethon session expiry
-docs: update configuration examples
+fix: update configuration examples in README
 ```
 
 ### Version Bumps
 
 | Commit Type | Version Bump | Example |
 |---|---|---|
-| `fix:` | PATCH (3.1.0 -> 3.1.1) | `fix: handle session expiry` |
-| `feat:` | MINOR (3.1.0 -> 3.2.0) | `feat: add inline keyboard support` |
-| `feat!:` or `BREAKING CHANGE:` | MAJOR (3.1.0 -> 4.0.0) | `feat!: remove CLI auth` |
+| `fix:` | PATCH (4.1.0 -> 4.1.1) | `fix: handle session expiry` |
+| `feat:` | MINOR (4.1.0 -> 4.2.0) | `feat: add inline keyboard support` |
+| `BREAKING CHANGE:` footer | MAJOR (4.1.0 -> 5.0.0) | `feat: remove CLI auth` + `BREAKING CHANGE: ...` body |
 
 ## Release Process
 

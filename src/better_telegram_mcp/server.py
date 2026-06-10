@@ -622,7 +622,7 @@ def main() -> None:
                 "  2. Switch to HTTP mode for user mode auth "
                 "(see https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/)\n"
                 "\n"
-                "Documentation: https://mcp.n24q02m.com/servers/better-telegram-mcp/\n"
+                "Documentation: https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/\n"
             )
             sys.stderr.write(msg)
             sys.exit(1)

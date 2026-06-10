@@ -11,7 +11,7 @@ Compose and post formatted content to a Telegram channel with correct formatting
 ## Steps
 
 1. **Identify target channel**:
-   - `chats(action="list")` to find the channel
+   - `chat(action="list")` to find the channel
    - Channel chat_id is a negative number (e.g., -1001234567890) or @username
 
 2. **Compose content** with the user:
@@ -20,8 +20,8 @@ Compose and post formatted content to a Telegram channel with correct formatting
    - Determine if media attachments are needed
 
 3. **Handle media attachments** (if any):
-   - Photo with caption: `media(action="send_photo", chat_id="...", file_path="...", caption="...")` -- caption goes WITH the photo, not as a separate message
-   - Document: `media(action="send_document", chat_id="...", file_path="...")`
+   - Photo with caption: `media(action="send_photo", chat_id="...", file_path_or_url="...", caption="...")` -- caption goes WITH the photo, not as a separate message
+   - Document: `media(action="send_file", chat_id="...", file_path_or_url="...")`
    - Multiple photos: send as media group, first photo carries the caption
 
 4. **Split long messages** if content exceeds 4096 characters:
@@ -30,7 +30,7 @@ Compose and post formatted content to a Telegram channel with correct formatting
    - Send chunks sequentially with the same parse_mode
 
 5. **Send and verify**:
-   - `messages(action="send", chat_id="<channel>", text="<content>", parse_mode="MarkdownV2")`
+   - `message(action="send", chat_id="<channel>", text="<content>", parse_mode="MarkdownV2")`
    - Verify the message appears correctly in the channel
    - If formatting breaks, check the escaping rules below
 

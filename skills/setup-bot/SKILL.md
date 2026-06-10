@@ -15,9 +15,9 @@ Diagnose and fix Telegram bot connectivity issues. This skill assumes the bot al
    - If status shows "not configured", the user needs to set `TELEGRAM_BOT_TOKEN` env var and restart the MCP server (token is NOT runtime-configurable)
 
 2. **Test send to obtain chat_id**:
-   - `chats(action="list")` to see known chats
+   - `chat(action="list")` to see known chats
    - If no chats appear, instruct user to send any message to the bot first (the bot must receive at least one message to discover chat_id)
-   - Send test: `messages(action="send", chat_id="<id>", text="Connection test")`
+   - Send test: `message(action="send", chat_id="<id>", text="Connection test")`
 
 3. **Diagnose errors** using the flowchart below
 
