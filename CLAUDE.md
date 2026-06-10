@@ -25,7 +25,6 @@ src/better_telegram_mcp/
   auth/
     telegram_auth_provider.py  # Per-sub Telethon backend lifecycle
     in_memory_session_store.py # bearer/sub -> SessionInfo (RAM only)
-    per_user_session_store.py  # SessionInfo dataclass (storage shim)
   backends/            # TelegramBackend ABC -> BotBackend (httpx), UserBackend (Telethon)
   backends/security.py # validate_url, validate_file_path, validate_output_dir
   relay_setup.py       # Shared error sanitization, field constants
