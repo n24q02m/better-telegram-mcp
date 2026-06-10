@@ -29,6 +29,7 @@ is handled in ``server.main()`` and never reaches this module.
 
 import os
 from contextvars import ContextVar
+from itertools import islice
 from typing import Any
 
 from loguru import logger
@@ -224,13 +225,13 @@ async def _per_request_sub_scope(
         provider = get_global_provider()
         if provider is not None:
             backend = provider.resolve_backend(sub)
-            keys_preview = list(provider.active_clients.keys())
             keys_short = [
-                k[:12] + "..." if len(k) > 12 else k for k in keys_preview[:5]
+                f"{k[:12]}..." if len(k) > 12 else k
+                for k in islice(provider.active_clients.keys(), 5)
             ]
             logger.info(
                 "auth_scope: sub={} found_backend={} active_keys_count={} keys={}",
-                (sub or "")[:12] + "...",
+                f"{(sub or '')[:12]}...",
                 type(backend).__name__ if backend else "None",
                 len(provider.active_clients),
                 keys_short,
