@@ -124,6 +124,23 @@ Full docs at **[mcp.n24q02m.com/servers/better-telegram-mcp/setup/](https://mcp.
 | `telegram://docs/contacts` | Contact management reference |
 | `telegram://stats` | All documentation combined |
 
+## Comparison
+
+How better-telegram-mcp stacks up against direct competitors in each pillar:
+
+| Capability | better-telegram-mcp | chigwell/telegram-mcp | sparfenyuk/mcp-telegram | guangxiangdebizi/telegram-mcp |
+|---|---|---|---|---|
+| Bot API mode (bot token) | Yes (httpx) | No | No | Yes |
+| MTProto user-account mode | Yes (Telethon) | Yes | Yes | No |
+| Send / edit / delete messages | Yes | Yes | No (read-only, draft only) | Yes (send only) |
+| Media download from messages | Yes | Yes | Yes | No (send only) |
+| Contact management (add / block) | Yes (user mode) | Yes | Partial (list only) | No |
+| Web-based / browser OTP auth | Yes (relay form, headless) | No (CLI session string) | No (CLI sign-in) | No (pre-set bot token) |
+| Multi-user remote, per-user isolation | Yes (per-JWT-sub backends) | No | No | No |
+| SSRF protection | Yes (URL validation + DNS-rebinding) | ? | ? | No |
+| Path-traversal prevention | Yes | Yes (real-path allowed-root) | ? | No |
+| Self-hostable | Yes | Yes | Yes | Yes |
+
 ## Security
 
 - **SSRF Protection** -- All URLs validated against internal/private IP ranges, DNS rebinding blocked
