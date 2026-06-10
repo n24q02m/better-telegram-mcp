@@ -148,4 +148,8 @@ Conventional Commits: `type(scope): message`. Automated semantic release.
 - **Mega-tool pattern**: 6 tools x N actions = full API coverage with minimal tool registration overhead
 - **Session persistence**: `~/.better-telegram-mcp/<name>.session` for Telethon (MTProto)
 - **Auth flow**: OTP sent to Telegram app -> terminal input or `config(action='auth', code='...')` for headless
-- **Glama integration**: The display name is programmatically set using the 'title' property in 'server.json'. The 'glama.json' file is used for ownership claiming via the 'maintainers' array and does not support the display name.
+- **Glama integration**: The display name cannot be set programmatically and must be updated manually via the Glama admin page. Although 'server.json' contains a 'title' property, it does not control the external Glama listing. The 'glama.json' file is used exclusively for ownership claiming via the 'maintainers' array.
+
+## TODO / Backlog
+
+- [ ] **Glama display name**: Cannot set programmatically. Update manually via Glama admin page.
