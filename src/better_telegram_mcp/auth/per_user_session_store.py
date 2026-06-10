@@ -25,7 +25,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from ..transports.credential_store import _atomic_write_bytes_0600
 
-_LEGACY_SALT = b"mcp-telegram-sessions"
+_DEPRECATED_LEGACY_SALT = b"mcp-telegram-sessions"
 _KDF_ITERATIONS = 600_000
 _NONCE_SIZE = 12
 
@@ -73,8 +73,8 @@ class PerUserSessionStore:
             return self._salt_path.read_bytes()
 
         # Backward compatibility: existing sessions use legacy hardcoded salt
-        if self._path.exists():
-            return _LEGACY_SALT
+        if self._path.exists() and self._path.stat().st_size > 0:
+            return _DEPRECATED_LEGACY_SALT
 
         # New installation: generate random salt and persist atomically
         salt = os.urandom(16)
@@ -129,12 +129,18 @@ class PerUserSessionStore:
         raw = self._path.read_bytes()
         plaintext = self._decrypt(raw)
         self._cached_sessions = json.loads(plaintext)
+
+        # Proactive migration: if we loaded using legacy salt, immediately
+        # re-encrypt with a new random salt to complete the transition.
+        if self._salt == _DEPRECATED_LEGACY_SALT:
+            self._write_all(self._cached_sessions)
+
         return copy.deepcopy(self._cached_sessions)
 
     def _write_all(self, sessions: dict[str, dict]) -> None:
         """Encrypt and write all sessions to disk (atomic 0o600 write)."""
         # Migrate from legacy salt to random salt on first write
-        if self._salt == _LEGACY_SALT and not self._salt_path.exists():
+        if self._salt == _DEPRECATED_LEGACY_SALT and not self._salt_path.exists():
             new_salt = os.urandom(16)
             self._persist_salt(new_salt)
             self._salt = new_salt

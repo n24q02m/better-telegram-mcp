@@ -246,12 +246,12 @@ class TestPerUserSessionStore:
 
 def test_new_install_generates_random_salt(data_dir: Path):
     """If no salt file and no session file exist, generate and persist a new salt."""
-    from better_telegram_mcp.auth.per_user_session_store import _LEGACY_SALT
+    from better_telegram_mcp.auth.per_user_session_store import _DEPRECATED_LEGACY_SALT
 
     store = PerUserSessionStore(data_dir, secret="test")
 
     # Verify a new salt was generated and persisted
-    assert store._salt != _LEGACY_SALT
+    assert store._salt != _DEPRECATED_LEGACY_SALT
     assert len(store._salt) == 16
     assert (data_dir / ".session-salt").exists()
     assert (data_dir / ".session-salt").read_bytes() == store._salt
@@ -259,7 +259,7 @@ def test_new_install_generates_random_salt(data_dir: Path):
 
 def test_legacy_install_uses_legacy_salt(data_dir: Path):
     """If no salt file exists but a session file exists, use the legacy salt."""
-    from better_telegram_mcp.auth.per_user_session_store import _LEGACY_SALT
+    from better_telegram_mcp.auth.per_user_session_store import _DEPRECATED_LEGACY_SALT
 
     # Simulate legacy session file
     (data_dir / "sessions.enc").write_bytes(b"some-encrypted-data")
@@ -267,6 +267,53 @@ def test_legacy_install_uses_legacy_salt(data_dir: Path):
     store = PerUserSessionStore(data_dir, secret="test")
 
     # Verify it falls back to legacy salt
-    assert store._salt == _LEGACY_SALT
+    assert store._salt == _DEPRECATED_LEGACY_SALT
     # It should NOT persist the legacy salt to the salt file automatically during resolution
     assert not (data_dir / ".session-salt").exists()
+
+
+def test_proactive_migration_on_read(data_dir: Path):
+    """Reading legacy sessions should immediately trigger salt migration on disk."""
+    from better_telegram_mcp.auth.per_user_session_store import (
+        _DEPRECATED_LEGACY_SALT,
+        SessionInfo,
+    )
+
+    # 1. Setup legacy sessions manually
+    store = PerUserSessionStore(data_dir, secret="test-secret")
+    info = SessionInfo(session_name="s1", mode="bot", bot_token="t1")
+
+    # Force legacy state
+    store._salt = _DEPRECATED_LEGACY_SALT
+    store._cached_key = None
+
+    sessions = {"bearer1": info.to_dict()}
+    import json
+
+    plaintext = json.dumps(sessions).encode()
+    encrypted = store._encrypt(plaintext)
+    store._path.write_bytes(encrypted)
+
+    # Ensure no salt file exists
+    salt_path = data_dir / ".session-salt"
+    if salt_path.exists():
+        salt_path.unlink()
+
+    # 2. Instantiate new store - should detect legacy salt
+    store2 = PerUserSessionStore(data_dir, secret="test-secret")
+    assert store2._salt == _DEPRECATED_LEGACY_SALT
+    assert not salt_path.exists()
+
+    # 3. Load session - should trigger proactive migration
+    loaded = store2.load("bearer1")
+    assert loaded is not None
+    assert loaded.session_name == "s1"
+
+    # 4. Verify migration
+    assert salt_path.exists()
+    assert store2._salt != _DEPRECATED_LEGACY_SALT
+
+    # 5. Verify it persists across instances
+    store3 = PerUserSessionStore(data_dir, secret="test-secret")
+    assert store3._salt != _DEPRECATED_LEGACY_SALT
+    assert store3.load("bearer1").session_name == "s1"
