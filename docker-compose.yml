@@ -1,0 +1,13 @@
+# Base compose file — stdio mode (default).
+# For HTTP mode, layer the overlay:
+#   docker compose -f docker-compose.yml -f docker-compose.http.yml up
+services:
+  better-telegram-mcp:
+    image: n24q02m/better-telegram-mcp:latest
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_DATA_DIR=/data
+    volumes:
+      - telegram-data:/data
+volumes:
+  telegram-data:
