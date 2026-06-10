@@ -2,6 +2,21 @@
 
 <!-- version list -->
 
+## v4.12.7-beta.3 (2026-06-10)
+
+### Bug Fixes
+
+- Remove deprecated per_user_session_store.py
+  ([#751](https://github.com/n24q02m/better-telegram-mcp/pull/751),
+  [`adb2b0b`](https://github.com/n24q02m/better-telegram-mcp/commit/adb2b0baf7c792e490c36f799b71b73abced810d))
+
+### Testing
+
+- **media**: Add robust test cases for media tool
+  ([#740](https://github.com/n24q02m/better-telegram-mcp/pull/740),
+  [`8f22b5c`](https://github.com/n24q02m/better-telegram-mcp/commit/8f22b5cff5f23106b397a2f3fc08488c417e5419))
+
+
 ## v4.12.7-beta.2 (2026-06-10)
 
 ### Bug Fixes
