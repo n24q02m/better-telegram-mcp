@@ -15,7 +15,6 @@ uv run ty check                    # Type check (Astral ty)
 uv run pytest                      # Run all tests (integration excluded by default)
 uv run pytest -m integration       # Run integration tests only
 uv run better-telegram-mcp         # Run server (stdio)
-uv run better-telegram-mcp auth    # Authenticate Telegram user account
 
 # Run a single test file
 uv run pytest tests/test_config.py
@@ -109,7 +108,6 @@ src/better_telegram_mcp/
   __init__.py, __main__.py    # Package + entry
   config.py                   # Pydantic Settings (env prefix TELEGRAM_)
   server.py                   # FastMCP server with lifespan
-  cli.py                      # Auth CLI (terminal OTP input)
   backends/
     base.py                   # TelegramBackend ABC
     bot_backend.py            # httpx -> Telegram Bot API
@@ -119,7 +117,7 @@ src/better_telegram_mcp/
     chats.py                  # info, create, join, leave, settings
     media.py                  # send photo/file/voice/video, download
     contacts.py               # list, search, add, block
-    config_tool.py            # auth, send_code, status
+    config_tool.py            # status, set, cache_clear
     help.py                   # documentation lookup
   docs/                       # Tool documentation markdown
 tests/                        # Test files mirror source modules
@@ -145,9 +143,9 @@ Conventional Commits: `type(scope): message`. Automated semantic release.
 
 - **Dual mode**: `Settings._detect_mode()` auto-selects bot/user based on env vars
 - **Backend ABC**: `TelegramBackend` defines interface; `BotBackend` (httpx) and `UserBackend` (Telethon) implement it
-- **Mega-tool pattern**: 6 tools x N actions = full API coverage with minimal tool registration overhead
+- **Mega-tool pattern**: 7 tools (6 domain + `config__open_relay`) x N actions = full API coverage with minimal tool registration overhead
 - **Session persistence**: `~/.better-telegram-mcp/<name>.session` for Telethon (MTProto)
-- **Auth flow**: OTP sent to Telegram app -> terminal input or `config(action='auth', code='...')` for headless
+- **Auth flow**: HTTP mode only. User-account auth runs through the relay credential form (phone -> OTP -> optional 2FA password) served by mcp-core's local OAuth AS; there is no terminal auth CLI or `config` auth action. Bot mode needs only `TELEGRAM_BOT_TOKEN`
 - **Glama integration**: The display name cannot be set programmatically and must be updated manually via the Glama admin page. Although 'server.json' contains a 'title' property, it does not control the external Glama listing. The 'glama.json' file is used exclusively for ownership claiming via the 'maintainers' array.
 
 ## TODO / Backlog
