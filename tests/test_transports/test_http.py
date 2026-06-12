@@ -82,14 +82,16 @@ class TestResolvePort:
 
 class TestIsMultiUserMode:
     def test_is_multi_user_mode_true(self, settings: Settings) -> None:
-        """Returns True when DCR_SERVER_SECRET and PUBLIC_URL are set."""
+        """Returns True when DCR_SERVER_SECRET, PUBLIC_URL, TELEGRAM_API_ID, and TELEGRAM_API_HASH are set."""
         env = {
             "DCR_SERVER_SECRET": "secret",
             "PUBLIC_URL": "https://mcp.example.com",
+            "TELEGRAM_API_ID": "12345",
+            "TELEGRAM_API_HASH": "abcde",
         }
         with patch.dict("os.environ", env, clear=True):
-            # settings has api_id/api_hash by default
-            assert _is_multi_user_mode(settings) is True
+            settings_with_api = Settings()
+            assert _is_multi_user_mode(settings_with_api) is True
 
     def test_is_multi_user_mode_true_mcp_prefixed_secret(
         self, settings: Settings
@@ -99,9 +101,12 @@ class TestIsMultiUserMode:
         env = {
             "MCP_DCR_SERVER_SECRET": "secret",
             "PUBLIC_URL": "https://mcp.example.com",
+            "TELEGRAM_API_ID": "12345",
+            "TELEGRAM_API_HASH": "abcde",
         }
         with patch.dict("os.environ", env, clear=True):
-            assert _is_multi_user_mode(settings) is True
+            settings_with_api = Settings()
+            assert _is_multi_user_mode(settings_with_api) is True
 
     def test_is_multi_user_mode_true_legacy_secret(self, settings: Settings) -> None:
         """Back-compat: returns True when only the legacy DCR_SERVER_SECRET
@@ -109,9 +114,12 @@ class TestIsMultiUserMode:
         env = {
             "DCR_SERVER_SECRET": "secret",
             "PUBLIC_URL": "https://mcp.example.com",
+            "TELEGRAM_API_ID": "12345",
+            "TELEGRAM_API_HASH": "abcde",
         }
         with patch.dict("os.environ", env, clear=True):
-            assert _is_multi_user_mode(settings) is True
+            settings_with_api = Settings()
+            assert _is_multi_user_mode(settings_with_api) is True
 
     def test_is_multi_user_mode_false_missing_dcr(self, settings: Settings) -> None:
         """Returns False when both DCR secret names are missing."""

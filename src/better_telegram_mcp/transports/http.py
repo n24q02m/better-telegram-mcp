@@ -85,10 +85,7 @@ def _is_multi_user_mode(settings: Settings | None = None) -> bool:
     Multi-user requires: ``MCP_DCR_SERVER_SECRET`` (OAuth shared secret;
     legacy ``DCR_SERVER_SECRET`` still accepted) + ``PUBLIC_URL`` (deployed
     hostname) + a Telegram ``api_id`` / ``api_hash`` pair. The
-    api_id/api_hash pair is satisfied either by the corresponding env vars
-    OR by the built-in Settings defaults (the code ships a public app
-    registration — see ``config.py``), so a deployed container only needs
-    to set the two "secret" variables to flip on multi-user mode.
+    api_id/api_hash pair must be satisfied by the corresponding env vars.
     """
     has_dcr = bool(_dcr_secret())
     has_public_url = bool(os.environ.get("PUBLIC_URL"))
@@ -104,9 +101,8 @@ def start_http(settings: Settings) -> None:
     Three outcomes:
     - Full multi-user OAuth 2.1 when ``MCP_DCR_SERVER_SECRET`` (legacy
       ``DCR_SERVER_SECRET`` still accepted) + ``PUBLIC_URL``
-      are set and a ``api_id``/``api_hash`` pair is available (via env var
-      or the built-in Settings defaults). Per-JWT-sub Telethon clients,
-      isolated credentials, the intended public-deploy mode.
+      are set and a ``api_id``/``api_hash`` pair is available (via env vars).
+      Per-JWT-sub Telethon clients, isolated credentials, the intended public-deploy mode.
     - Single-user relay fallback when ``PUBLIC_URL`` is absent — that's
       self-host / localhost ``uvx`` usage and a single shared config is
       correct there.

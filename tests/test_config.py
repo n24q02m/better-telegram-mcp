@@ -63,10 +63,10 @@ def test_api_id_api_hash_without_phone_not_configured(monkeypatch):
 
 
 def test_default_api_credentials():
-    """api_id and api_hash have built-in defaults."""
+    """api_id and api_hash no longer have built-in defaults."""
     s = Settings()
-    assert s.api_id == 37984984
-    assert s.api_hash == "2f5f4c76c4de7c07302380c788390100"
+    assert s.api_id is None
+    assert s.api_hash is None
 
 
 def test_default_data_dir(monkeypatch):
@@ -185,5 +185,5 @@ def test_from_relay_config():
 
     # Defaults
     s2 = Settings.from_relay_config({})
-    assert s2.api_id == 37984984
-    assert s2.api_hash == "2f5f4c76c4de7c07302380c788390100"
+    assert s2.api_id is None
+    assert s2.api_hash is None
