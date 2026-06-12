@@ -448,6 +448,19 @@ def render_telegram_credential_form(
             var tabs = document.querySelectorAll(".tab");
             var tabsArray = Array.prototype.slice.call(tabs);
 
+            // Clear validation styling and inline error when the user resumes typing
+            form.querySelectorAll(".field-input").forEach(function (input) {{
+                input.addEventListener("input", function () {{
+                    if (input.hasAttribute("aria-invalid")) {{
+                        input.removeAttribute("aria-invalid");
+                    }}
+                    if (statusBox.className.indexOf("error") !== -1 && statusBox.style.display === "block") {{
+                        statusBox.style.display = "none";
+                        statusBox.textContent = "";
+                    }}
+                }});
+            }});
+
             tabs.forEach(function (tab, index) {{
                 tab.addEventListener("click", function () {{
                     if (tab.disabled) {{
