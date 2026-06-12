@@ -2,7 +2,7 @@
 
 mcp-name: io.github.n24q02m/better-telegram-mcp
 
-**MCP server for Telegram with dual-mode support: Bot API (httpx) for quick bot integrations and MTProto (Telethon) for full user-account access.**
+**Telegram for AI agents -- messages, chats, media, and contacts across both bot and full user-account modes.**
 
 <!-- Badge Row 1: Status -->
 [![CI](https://github.com/n24q02m/better-telegram-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/n24q02m/better-telegram-mcp/actions/workflows/ci.yml)
