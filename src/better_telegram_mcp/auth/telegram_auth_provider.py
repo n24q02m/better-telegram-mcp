@@ -352,13 +352,17 @@ class TelegramAuthProvider:
     async def cleanup_expired(self) -> int:
         """Remove expired sessions. Returns count of removed sessions."""
         sessions = self._store.load_all()
-        removed = 0
         now = time.time()
+
+        # ⚡ Bolt: Collect tasks to run them concurrently instead of sequentially
+        # which eliminates sequential MTProto roundtrip I/O waits during bulk cleanup.
+        tasks = []
+        task_info = []
 
         for bearer, info in sessions.items():
             if now - info.created_at > _SESSION_TTL:
-                await self.revoke_session(bearer)
-                removed += 1
+                tasks.append(self.revoke_session(bearer))
+                task_info.append(("session", bearer))
 
         # Clean up stale pending OTPs (5 min TTL) using chronological insertion order.
         # Since start_user_auth pops-then-reinserts each bearer, the oldest entries
@@ -369,13 +373,23 @@ class TelegramAuthProvider:
             if now - pending["created_at"] <= 300:
                 break
             self._pending_otps.pop(bearer)
-            try:
-                await pending["backend"].disconnect()
-            except Exception as exc:  # pragma: no cover - best-effort cleanup
-                logger.warning(
-                    "Error disconnecting stale OTP backend {}: {}", bearer[:8], exc
-                )
-            removed += 1
+            tasks.append(pending["backend"].disconnect())
+            task_info.append(("otp", bearer))
+
+        if not tasks:
+            return 0
+
+        # Execute all tasks concurrently with return_exceptions=True
+        # to ensure one failure doesn't abort the rest.
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        removed = 0
+        for info, result in zip(task_info, results, strict=True):
+            type_, bearer = info
+            if isinstance(result, Exception):
+                logger.warning("Error cleaning up {} {}: {}", type_, bearer[:8], result)
+            else:
+                removed += 1
 
         return removed
 
