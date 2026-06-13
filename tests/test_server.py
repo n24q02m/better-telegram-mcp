@@ -158,8 +158,9 @@ async def test_contact_list(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = await contact(action="list")
+        result = json.loads(await contact(action="list"))
         assert "contacts" in result
+        mock_backend.list_contacts.assert_awaited_once()
     finally:
         srv._backend = old_backend
         srv._pending_auth = old_pending
@@ -255,6 +256,24 @@ async def test_contact_error(mock_backend):
         result = json.loads(await contact(action="list"))
         assert "error" in result
         assert "Operation failed" in result["error"]
+    finally:
+        srv._backend = old_backend
+        srv._pending_auth = old_pending
+
+
+@pytest.mark.asyncio
+async def test_contact_unknown_action(mock_backend):
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import contact
+
+    old_backend = srv._backend
+    old_pending = srv._pending_auth
+    try:
+        srv._backend = mock_backend
+        srv._pending_auth = False
+        result = json.loads(await contact(action="invalid_action"))
+        assert "error" in result
+        assert "Unknown action" in result["error"]
     finally:
         srv._backend = old_backend
         srv._pending_auth = old_pending
