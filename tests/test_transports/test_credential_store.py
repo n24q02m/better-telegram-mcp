@@ -1,20 +1,20 @@
 """Tests for encrypted credential storage."""
 
-from __future__ import annotations
-
+import asyncio
+import os
+import stat
 import sys
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from cryptography.exceptions import InvalidTag
 
-from better_telegram_mcp.transports.credential_store import CredentialStore
+from better_telegram_mcp.transports.credential_store import (
+    _LEGACY_SALT,
+    CredentialStore,
+)
 
-# POSIX file mode bits (0o600) are not meaningful on Windows -- os.chmod()
-# there only toggles the read-only bit. Tests that assert an exact mode are
-# POSIX-only; the atomic-write behaviour itself is still exercised on Windows
-# by test_atomic_write_creates_with_secure_mode_not_default_umask.
 posix_only = pytest.mark.skipif(
     sys.platform == "win32",
     reason="POSIX file mode bits (0o600) are not enforced on Windows",
@@ -215,7 +215,6 @@ class TestCredentialStore:
 
     def test_random_salt_for_new_install(self, data_dir: Path) -> None:
         """New installation should generate random salt, not use legacy."""
-        from better_telegram_mcp.transports.credential_store import _LEGACY_SALT
 
         store = CredentialStore(data_dir, secret="test-secret")
         assert store._salt != _LEGACY_SALT
@@ -255,7 +254,6 @@ class TestAtomicWriteTOCTOU:
         self, data_dir: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """File must never exist with broader perms than 0o600."""
-        import os
         import stat
 
         # Force a deliberately permissive umask so the OLD code path
@@ -272,8 +270,6 @@ class TestAtomicWriteTOCTOU:
 
     @posix_only
     def test_salt_file_is_0o600_immediately(self, data_dir: Path) -> None:
-        import os
-        import stat
 
         # Trigger fresh installation (no legacy file). _resolve_salt
         # generates and writes a random salt.
@@ -286,8 +282,6 @@ class TestAtomicWriteTOCTOU:
 
     @posix_only
     def test_secret_file_is_0o600_immediately(self, tmp_path: Path) -> None:
-        import os
-        import stat
 
         data_dir = tmp_path / "fresh"
         data_dir.mkdir()
@@ -308,7 +302,6 @@ class TestAtomicWriteTOCTOU:
         Regression guard against reverting to ``path.write_bytes`` + chmod.
         We intercept ``os.open`` and assert mode bits are 0o600.
         """
-        import os
 
         from better_telegram_mcp.transports.credential_store import (
             _atomic_write_bytes_0600,
@@ -340,6 +333,7 @@ class TestAtomicWriteTOCTOU:
         self, tmp_path: Path
     ) -> None:
         """Re-storing must reset perms even if a stale loose-perm file existed."""
+
         import os
         import stat
 
@@ -356,3 +350,77 @@ class TestAtomicWriteTOCTOU:
         assert target.read_bytes() == b"new"
         mode = stat.S_IMODE(os.stat(target).st_mode)
         assert mode == 0o600
+
+
+@pytest.mark.asyncio
+class TestCredentialStoreAsync:
+    async def test_async_store_load(self, data_dir: Path):
+        store = CredentialStore(data_dir, secret="test-secret")
+        creds = {"TELEGRAM_BOT_TOKEN": "async-token"}
+
+        await store.async_store(creds)
+        assert await store.async_load() == creds
+
+        # New instance
+        store2 = CredentialStore(data_dir, secret="test-secret")
+        assert await store2.async_load() == creds
+
+    async def test_async_delete(self, data_dir: Path):
+        store = CredentialStore(data_dir, secret="test-secret")
+        await store.async_store({"a": "b"})
+        assert (data_dir / "credentials.enc").exists()
+
+        await store.async_delete()
+        assert not (data_dir / "credentials.enc").exists()
+        assert await store.async_load() is None
+
+    async def test_async_derive_key_memoization_thread_safe(self, data_dir: Path):
+        store = CredentialStore(data_dir, secret="test-secret")
+
+        # Mock PBKDF2HMAC.derive to track calls and add a small delay
+        with patch(
+            "better_telegram_mcp.transports.credential_store.PBKDF2HMAC"
+        ) as mock_kdf_cls:
+            mock_kdf = MagicMock()
+
+            def slow_derive(*args, **kwargs):
+                import time
+
+                time.sleep(0.1)
+                return b"derived-key"
+
+            mock_kdf.derive.side_effect = slow_derive
+            mock_kdf_cls.return_value = mock_kdf
+
+            # Call async_derive_key concurrently
+            results = await asyncio.gather(
+                store.async_derive_key(),
+                store.async_derive_key(),
+                store.async_derive_key(),
+            )
+
+            assert all(r == b"derived-key" for r in results)
+            # Should only be called once due to lock and memoization
+            assert mock_kdf.derive.call_count == 1
+
+    async def test_async_load_cache(self, data_dir: Path):
+        store = CredentialStore(data_dir, secret="test-secret")
+        creds = {"key": "val"}
+        await store.async_store(creds)
+
+        # Clear cache to force reload from disk
+        store._cached_credentials = None
+
+        actual_bytes = (data_dir / "credentials.enc").read_bytes()
+
+        with patch("pathlib.Path.read_bytes") as mock_read:
+            # First load should read from disk
+            mock_read.return_value = actual_bytes
+            res1 = await store.async_load()
+            assert res1 == creds
+            assert mock_read.call_count == 1
+
+            # Second load should use cache
+            res2 = await store.async_load()
+            assert res2 == creds
+            assert mock_read.call_count == 1

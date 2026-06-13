@@ -4,6 +4,7 @@ Credentials stored at: DATA_DIR/credentials.enc
 Key derived from server secret (CREDENTIAL_SECRET env var or auto-generated).
 """
 
+import asyncio
 import copy
 import json
 import os
@@ -87,6 +88,7 @@ class CredentialStore:
         # Cache derived key to avoid repeated 100k iteration PBKDF2 (~60ms) overhead
         self._cached_key: bytes | None = None
         self._cached_credentials: dict[str, str] | None = None
+        self._lock: asyncio.Lock | None = None
 
     def _resolve_salt(self) -> bytes:
         """Load persisted salt, fallback to legacy, or generate new one."""
@@ -160,6 +162,74 @@ class CredentialStore:
         plaintext = aesgcm.decrypt(nonce, ciphertext, None)
         self._cached_credentials = json.loads(plaintext)
         return copy.deepcopy(self._cached_credentials)
+
+    def _get_lock(self) -> asyncio.Lock:
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+        return self._lock
+
+    async def async_derive_key(self) -> bytes:
+        """Derive encryption key from secret+salt with thread-safe memoization."""
+        if self._cached_key is not None:
+            return self._cached_key
+
+        async with self._get_lock():
+            # Double-check after acquiring lock
+            if self._cached_key is not None:
+                return self._cached_key
+
+            # Offload expensive PBKDF2 to thread pool
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=self._salt,
+                iterations=_KDF_ITERATIONS,
+            )
+            self._cached_key = await asyncio.to_thread(
+                kdf.derive, self._secret.encode()
+            )
+            return self._cached_key
+
+    async def async_store(self, credentials: dict[str, str]) -> None:
+        """Async version of store()."""
+        if self._salt == _LEGACY_SALT:
+            new_salt = os.urandom(16)
+            await asyncio.to_thread(_atomic_write_bytes_0600, self._salt_path, new_salt)
+            self._salt = new_salt
+            self._cached_key = None
+
+        key = await self.async_derive_key()
+        aesgcm = AESGCM(key)
+        nonce = os.urandom(_NONCE_SIZE)
+        plaintext = json.dumps(credentials).encode()
+        ciphertext = aesgcm.encrypt(nonce, plaintext, None)
+        self._cached_credentials = copy.deepcopy(credentials)
+        await asyncio.to_thread(
+            _atomic_write_bytes_0600, self._path, nonce + ciphertext
+        )
+
+    async def async_load(self) -> dict[str, str] | None:
+        """Async version of load()."""
+        if self._cached_credentials is not None:
+            return copy.deepcopy(self._cached_credentials)
+
+        # Check existence in thread to avoid blocking
+        if not await asyncio.to_thread(self._path.exists):
+            return None
+
+        key = await self.async_derive_key()
+        data = await asyncio.to_thread(self._path.read_bytes)
+        nonce, ciphertext = data[:_NONCE_SIZE], data[_NONCE_SIZE:]
+        aesgcm = AESGCM(key)
+        plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+        self._cached_credentials = json.loads(plaintext)
+        return copy.deepcopy(self._cached_credentials)
+
+    async def async_delete(self) -> None:
+        """Async version of delete()."""
+        self._cached_credentials = None
+        if await asyncio.to_thread(self._path.exists):
+            await asyncio.to_thread(self._path.unlink)
 
     def delete(self) -> None:
         """Delete stored credentials."""

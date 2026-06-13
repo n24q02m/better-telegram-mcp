@@ -16,3 +16,6 @@
 ## 2024-07-28 - Contrast Requirements for Dark Themes
 **Learning:** Text using color `#666` fails WCAG AA 4.5:1 contrast requirements when placed against dark-themed backgrounds such as `#1a1a1a`.
 **Action:** When designing dark themes, ensure that subtle or secondary text elements (like `.server-id` and `.help-text`) are upgraded to at least `#888` or `#999` to maintain readability and accessibility standards.
+## 2026-05-15 - Unblocked Event Loop for Security Operations
+**Learning:** Security operations (encryption/decryption) that involve slow KDFs can degrade UX by freezing the UI (if served by the same process) or causing timeouts in client-server communication.
+**Action:** Use async patterns for all blocking operations (I/O and CPU-bound crypto) to maintain a responsive and reliable interface.
