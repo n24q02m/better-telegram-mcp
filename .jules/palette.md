@@ -16,3 +16,7 @@
 ## 2024-07-28 - Contrast Requirements for Dark Themes
 **Learning:** Text using color `#666` fails WCAG AA 4.5:1 contrast requirements when placed against dark-themed backgrounds such as `#1a1a1a`.
 **Action:** When designing dark themes, ensure that subtle or secondary text elements (like `.server-id` and `.help-text`) are upgraded to at least `#888` or `#999` to maintain readability and accessibility standards.
+
+## 2024-08-01 - Active Validation Feedback via Event Listeners
+**Learning:** Providing active feedback to users when correcting form validation errors improves form usability. Lingering validation error styles and messages after a user begins to correct an entry are confusing and reduce confidence.
+**Action:** Always attach `input` event listeners to conditionally styled form fields to dynamically remove invalid states (`aria-invalid`) and hide associated error messages exactly when the user begins to correct the input.
