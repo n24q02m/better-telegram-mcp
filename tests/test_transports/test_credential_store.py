@@ -169,13 +169,15 @@ class TestCredentialStore:
 
     def test_legacy_salt_migration(self, data_dir: Path) -> None:
         """Credentials stored with legacy hardcoded salt should be loadable,
-        and re-storing should migrate to a random salt."""
-        from better_telegram_mcp.transports.credential_store import _LEGACY_SALT
+        and loading should trigger proactive migration to a random salt."""
+        from better_telegram_mcp.transports.credential_store import (
+            _DEPRECATED_LEGACY_SALT,
+        )
 
         store = CredentialStore(data_dir, secret="test-secret")
         # Simulate legacy: write credentials with legacy salt
         # (new install creates random salt, so we need to force legacy)
-        store._salt = _LEGACY_SALT
+        store._salt = _DEPRECATED_LEGACY_SALT
         store._cached_key = None
         # Write a credentials file (using legacy salt)
         creds = {"TELEGRAM_BOT_TOKEN": "legacy-token"}
@@ -199,26 +201,27 @@ class TestCredentialStore:
 
         # Create new store -- should detect legacy salt (creds exist, no .salt)
         store2 = CredentialStore(data_dir, secret="test-secret")
-        assert store2._salt == _LEGACY_SALT
+        assert store2._salt == _DEPRECATED_LEGACY_SALT
+
+        # load() should now trigger salt migration proactively
         loaded = store2.load()
         assert loaded == creds
-
-        # Re-store should trigger salt migration
-        store2.store(creds)
-        assert store2._salt != _LEGACY_SALT
+        assert store2._salt != _DEPRECATED_LEGACY_SALT
         assert salt_path.exists()
 
         # New store should use the migrated salt
         store3 = CredentialStore(data_dir, secret="test-secret")
-        assert store3._salt != _LEGACY_SALT
+        assert store3._salt != _DEPRECATED_LEGACY_SALT
         assert store3.load() == creds
 
     def test_random_salt_for_new_install(self, data_dir: Path) -> None:
         """New installation should generate random salt, not use legacy."""
-        from better_telegram_mcp.transports.credential_store import _LEGACY_SALT
+        from better_telegram_mcp.transports.credential_store import (
+            _DEPRECATED_LEGACY_SALT,
+        )
 
         store = CredentialStore(data_dir, secret="test-secret")
-        assert store._salt != _LEGACY_SALT
+        assert store._salt != _DEPRECATED_LEGACY_SALT
         salt_path = data_dir / ".salt"
         assert salt_path.exists()
         assert len(store._salt) == 16

@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-_LEGACY_SALT = b"mcp-telegram-creds"
+_DEPRECATED_LEGACY_SALT = b"mcp-telegram-creds"
 _KDF_ITERATIONS = 600_000
 _NONCE_SIZE = 12
 
@@ -95,7 +95,7 @@ class CredentialStore:
 
         # Backward compatibility: existing credentials use legacy hardcoded salt
         if self._path.exists():
-            return _LEGACY_SALT
+            return _DEPRECATED_LEGACY_SALT
 
         # New installation: generate random salt and persist atomically
         # with 0o600 (no open->chmod TOCTOU window).
@@ -133,7 +133,7 @@ class CredentialStore:
         before chmod ran).
         """
         # Migrate from legacy hardcoded salt to random salt on re-encryption.
-        if self._salt == _LEGACY_SALT:
+        if self._salt == _DEPRECATED_LEGACY_SALT:
             new_salt = os.urandom(16)
             _atomic_write_bytes_0600(self._salt_path, new_salt)
             self._salt = new_salt
@@ -158,7 +158,14 @@ class CredentialStore:
         nonce, ciphertext = data[:_NONCE_SIZE], data[_NONCE_SIZE:]
         aesgcm = AESGCM(key)
         plaintext = aesgcm.decrypt(nonce, ciphertext, None)
-        self._cached_credentials = json.loads(plaintext)
+        creds = json.loads(plaintext)
+        self._cached_credentials = creds
+
+        # Proactive migration: if we loaded using the legacy salt,
+        # re-encrypt immediately with a random salt.
+        if self._salt == _DEPRECATED_LEGACY_SALT:
+            self.store(creds)
+
         return copy.deepcopy(self._cached_credentials)
 
     def delete(self) -> None:
