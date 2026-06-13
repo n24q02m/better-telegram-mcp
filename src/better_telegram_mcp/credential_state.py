@@ -135,9 +135,7 @@ def resolve_credential_state() -> CredentialState:
 
     if check_saved_sessions():
         logger.info(
-            "Found saved Telethon session files. "
-            "Set TELEGRAM_PHONE to reuse them "
-            "(API credentials have built-in defaults)."
+            "Found saved Telethon session files. Set TELEGRAM_PHONE to reuse them "
         )
         _state = CredentialState.AWAITING_SETUP
         return _state

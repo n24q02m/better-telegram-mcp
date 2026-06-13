@@ -75,7 +75,7 @@ def _not_ready_response() -> str:
                     },
                     "user_mode": {
                         "env_vars": ["TELEGRAM_PHONE"],
-                        "how": "Set your phone number (API credentials have built-in defaults)",
+                        "how": "Set your phone number",
                     },
                 },
             }
@@ -520,10 +520,7 @@ async def config(
                     "config": _runtime_config,
                     "setup": {
                         "bot_mode": "Set TELEGRAM_BOT_TOKEN (get from @BotFather)",
-                        "user_mode": (
-                            "Set TELEGRAM_PHONE"
-                            " (API credentials have built-in defaults)"
-                        ),
+                        "user_mode": ("Set TELEGRAM_PHONE"),
                     },
                     "hint": "Use action='setup_start' to configure via browser relay.",
                 }

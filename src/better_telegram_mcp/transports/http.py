@@ -17,10 +17,10 @@ Two outcomes (both via mcp-core ``run_http_server``):
   OTP/2FA flow runs against ``/otp``, and the global single backend in
   ``server.py`` is hot-reloaded once credentials land.
 
-The ``api_id``/``api_hash`` pair has built-in defaults in ``config.py``
-(public Telegram app registration) so a deployed container only needs
-``MCP_DCR_SERVER_SECRET`` (legacy ``DCR_SERVER_SECRET`` still accepted) +
-``PUBLIC_URL`` set to flip on multi-user.
+The ``api_id``/``api_hash`` pair must be provided via env vars
+(``TELEGRAM_API_ID`` and ``TELEGRAM_API_HASH``) for a deployed container
+to flip on multi-user mode alongside ``MCP_DCR_SERVER_SECRET`` and
+``PUBLIC_URL``.
 
 Per spec ``2026-05-01-stdio-pure-http-multiuser.md``: there is no
 ``MCP_MODE`` env var, no remote-relay client, no daemon-bridge. Stdio mode
@@ -85,9 +85,7 @@ def _is_multi_user_mode(settings: Settings | None = None) -> bool:
     Multi-user requires: ``MCP_DCR_SERVER_SECRET`` (OAuth shared secret;
     legacy ``DCR_SERVER_SECRET`` still accepted) + ``PUBLIC_URL`` (deployed
     hostname) + a Telegram ``api_id`` / ``api_hash`` pair. The
-    api_id/api_hash pair is satisfied either by the corresponding env vars
-    OR by the built-in Settings defaults (the code ships a public app
-    registration — see ``config.py``), so a deployed container only needs
+    is provided (via ``TELEGRAM_API_ID`` + ``TELEGRAM_API_HASH``), AND
     to set the two "secret" variables to flip on multi-user mode.
     """
     has_dcr = bool(_dcr_secret())
@@ -104,12 +102,7 @@ def start_http(settings: Settings) -> None:
     Three outcomes:
     - Full multi-user OAuth 2.1 when ``MCP_DCR_SERVER_SECRET`` (legacy
       ``DCR_SERVER_SECRET`` still accepted) + ``PUBLIC_URL``
-      are set and a ``api_id``/``api_hash`` pair is available (via env var
-      or the built-in Settings defaults). Per-JWT-sub Telethon clients,
-      isolated credentials, the intended public-deploy mode.
-    - Single-user relay fallback when ``PUBLIC_URL`` is absent — that's
-      self-host / localhost ``uvx`` usage and a single shared config is
-      correct there.
+      are set and a ``api_id``/``api_hash`` pair is available (via env vars). Per-JWT-sub Telethon clients,
     - ``RuntimeError`` when ``PUBLIC_URL`` is set but
       ``MCP_DCR_SERVER_SECRET`` / ``DCR_SERVER_SECRET``
       or the api_id/api_hash pair is missing. Without all three, the

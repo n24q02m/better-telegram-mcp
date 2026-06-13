@@ -54,19 +54,12 @@ def test_is_configured_user(monkeypatch):
 
 
 def test_api_id_api_hash_without_phone_not_configured(monkeypatch):
-    """api_id + api_hash without phone should NOT be configured (defaults exist)."""
+    """api_id + api_hash without phone should NOT be configured."""
     monkeypatch.setenv("TELEGRAM_API_ID", "12345")
     monkeypatch.setenv("TELEGRAM_API_HASH", "abcdef123456")
     s = Settings()
     assert s.is_configured is False
     assert s.mode == "bot"
-
-
-def test_default_api_credentials():
-    """api_id and api_hash have built-in defaults."""
-    s = Settings()
-    assert s.api_id == 37984984
-    assert s.api_hash == "2f5f4c76c4de7c07302380c788390100"
 
 
 def test_default_data_dir(monkeypatch):
@@ -185,5 +178,5 @@ def test_from_relay_config():
 
     # Defaults
     s2 = Settings.from_relay_config({})
-    assert s2.api_id == 37984984
-    assert s2.api_hash == "2f5f4c76c4de7c07302380c788390100"
+    assert s2.api_id is None
+    assert s2.api_hash is None

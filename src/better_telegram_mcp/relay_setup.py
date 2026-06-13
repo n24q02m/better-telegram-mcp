@@ -104,7 +104,7 @@ def check_saved_sessions() -> bool:
 def _is_user_mode_config(config: dict[str, str]) -> bool:
     """Check if config has user-mode credentials (phone number).
 
-    API ID and API Hash have built-in defaults in config.py, so only phone
+    Only phone
     is needed from relay to identify user mode.
     """
     return bool(config.get("TELEGRAM_PHONE"))
