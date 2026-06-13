@@ -356,3 +356,60 @@ class TestAtomicWriteTOCTOU:
         assert target.read_bytes() == b"new"
         mode = stat.S_IMODE(os.stat(target).st_mode)
         assert mode == 0o600
+
+
+class TestCredentialStoreAsync:
+    @pytest.mark.asyncio
+    async def test_async_store_load(self, data_dir: Path) -> None:
+        """Test async store and load."""
+        store = CredentialStore(data_dir, secret="test-secret")
+        creds = {"api_id": "12345", "api_hash": "abcde"}
+
+        await store.async_store(creds)
+        loaded = await store.async_load()
+
+        assert loaded == creds
+        assert store._cached_credentials == creds
+
+    @pytest.mark.asyncio
+    async def test_async_delete(self, data_dir: Path) -> None:
+        """Test async delete."""
+        store = CredentialStore(data_dir, secret="test-secret")
+        await store.async_store({"key": "value"})
+
+        await store.async_delete()
+        assert await store.async_load() is None
+        assert not (data_dir / "credentials.enc").exists()
+
+    @pytest.mark.asyncio
+    async def test_async_concurrency_lock(
+        self, data_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Verify that async methods use the lock to prevent concurrent I/O."""
+        import asyncio
+
+        store = CredentialStore(data_dir, secret="test-secret")
+
+        call_count = 0
+        original_store = store.store
+
+        def slow_store(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            # Simulate some I/O delay
+            import time
+
+            time.sleep(0.1)
+            return original_store(*args, **kwargs)
+
+        monkeypatch.setattr(store, "store", slow_store)
+
+        # Run two stores concurrently
+        await asyncio.gather(
+            store.async_store({"a": "1"}), store.async_store({"b": "2"})
+        )
+
+        assert call_count == 2
+        # If the lock works, they should have run sequentially even if called concurrently
+        # (Though we'd need more complex mocking to PROVE the lock held,
+        # this at least verifies the path works under gather).

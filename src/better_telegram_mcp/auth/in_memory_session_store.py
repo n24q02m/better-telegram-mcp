@@ -74,3 +74,19 @@ class InMemorySessionStore:
             return False
         del self._store[bearer]
         return True
+
+    async def async_store(self, bearer: str, info: SessionInfo) -> None:
+        """Store a session asynchronously (API consistency)."""
+        self.store(bearer, info)
+
+    async def async_load(self, bearer: str) -> SessionInfo | None:
+        """Load session info asynchronously (API consistency)."""
+        return self.load(bearer)
+
+    async def async_load_all(self) -> dict[str, SessionInfo]:
+        """Load all stored sessions asynchronously (API consistency)."""
+        return self.load_all()
+
+    async def async_delete(self, bearer: str) -> bool:
+        """Delete a session asynchronously (API consistency)."""
+        return self.delete(bearer)

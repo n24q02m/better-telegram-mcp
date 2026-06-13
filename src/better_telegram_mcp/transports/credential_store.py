@@ -4,6 +4,7 @@ Credentials stored at: DATA_DIR/credentials.enc
 Key derived from server secret (CREDENTIAL_SECRET env var or auto-generated).
 """
 
+import asyncio
 import copy
 import json
 import os
@@ -87,6 +88,7 @@ class CredentialStore:
         # Cache derived key to avoid repeated 100k iteration PBKDF2 (~60ms) overhead
         self._cached_key: bytes | None = None
         self._cached_credentials: dict[str, str] | None = None
+        self._lock = asyncio.Lock()
 
     def _resolve_salt(self) -> bytes:
         """Load persisted salt, fallback to legacy, or generate new one."""
@@ -166,3 +168,24 @@ class CredentialStore:
         self._cached_credentials = None
         if self._path.exists():
             self._path.unlink()
+
+    async def async_store(self, credentials: dict[str, str]) -> None:
+        """Encrypt and save credentials atomically in a non-blocking way."""
+        if not hasattr(self, "_lock"):
+            self._lock = asyncio.Lock()
+        async with self._lock:
+            await asyncio.to_thread(self.store, credentials)
+
+    async def async_load(self) -> dict[str, str] | None:
+        """Load and decrypt credentials in a non-blocking way."""
+        if not hasattr(self, "_lock"):
+            self._lock = asyncio.Lock()
+        async with self._lock:
+            return await asyncio.to_thread(self.load)
+
+    async def async_delete(self) -> None:
+        """Delete stored credentials in a non-blocking way."""
+        if not hasattr(self, "_lock"):
+            self._lock = asyncio.Lock()
+        async with self._lock:
+            await asyncio.to_thread(self.delete)

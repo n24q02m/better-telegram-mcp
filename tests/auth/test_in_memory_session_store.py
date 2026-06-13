@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from better_telegram_mcp.auth.in_memory_session_store import (
     InMemorySessionStore,
     SessionInfo,
@@ -169,3 +171,40 @@ class TestSessionInfo:
         """created_at should default to current time."""
         info = SessionInfo(session_name="test", mode="bot")
         assert info.created_at > 0
+
+
+class TestInMemorySessionStoreAsync:
+    @pytest.mark.asyncio
+    async def test_async_store_load(self) -> None:
+        store = InMemorySessionStore()
+        info = SessionInfo(session_name="test", mode="bot", bot_token="token")
+
+        await store.async_store("bearer123", info)
+        loaded = await store.async_load("bearer123")
+
+        assert loaded == info
+        assert (await store.async_load("missing")) is None
+
+    @pytest.mark.asyncio
+    async def test_async_load_all(self) -> None:
+        store = InMemorySessionStore()
+        info1 = SessionInfo(session_name="t1", mode="bot")
+        info2 = SessionInfo(session_name="t2", mode="user")
+
+        await store.async_store("b1", info1)
+        await store.async_store("b2", info2)
+
+        all_sessions = await store.async_load_all()
+        assert len(all_sessions) == 2
+        assert all_sessions["b1"] == info1
+        assert all_sessions["b2"] == info2
+
+    @pytest.mark.asyncio
+    async def test_async_delete(self) -> None:
+        store = InMemorySessionStore()
+        info = SessionInfo(session_name="test", mode="bot")
+        await store.async_store("b1", info)
+
+        assert await store.async_delete("b1") is True
+        assert await store.async_delete("b1") is False
+        assert await store.async_load("b1") is None
