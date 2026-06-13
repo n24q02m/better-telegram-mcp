@@ -19,6 +19,7 @@ import asyncio
 import hashlib
 import secrets
 import time
+from collections import UserDict
 from pathlib import Path
 
 from loguru import logger
@@ -54,6 +55,49 @@ _SESSION_TTL = 30 * 24 * 60 * 60
 _PendingOTP = dict  # {bearer, backend, phone, phone_code_hash, created_at}
 
 
+class _SessionOwnersDict(UserDict):
+    """Specialized dict maintaining O(1) reverse mapping for bearer removals."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        # bearer -> set of session_ids
+        self._reverse: dict[str, set[str]] = {}
+        for sid, bearer in self.data.items():
+            self._reverse.setdefault(bearer, set()).add(sid)
+
+    def __setitem__(self, key: str, value: str) -> None:
+        if key in self.data:
+            old_bearer = self.data[key]
+            if old_bearer in self._reverse:
+                self._reverse[old_bearer].discard(key)
+                if not self._reverse[old_bearer]:
+                    del self._reverse[old_bearer]
+        super().__setitem__(key, value)
+        self._reverse.setdefault(value, set()).add(key)
+
+    def __delitem__(self, key: str) -> None:
+        if key in self.data:
+            bearer = self.data[key]
+            if bearer in self._reverse:
+                self._reverse[bearer].discard(key)
+                if not self._reverse[bearer]:
+                    del self._reverse[bearer]
+        super().__delitem__(key)
+
+    def clear(self) -> None:
+        super().clear()
+        self._reverse.clear()
+
+    def remove_bearer(self, bearer: str) -> None:
+        """Remove all session IDs associated with the given bearer in O(M)."""
+        if bearer not in self._reverse:
+            return
+        sids = list(self._reverse[bearer])
+        for sid in sids:
+            # __delitem__ handles self._reverse[bearer] discard and deletion
+            del self[sid]
+
+
 class TelegramAuthProvider:
     """Manages per-user Telegram authentication and backend lifecycle.
 
@@ -71,7 +115,7 @@ class TelegramAuthProvider:
         self.active_clients: dict[str, TelegramBackend] = {}
 
         # MCP session_id -> bearer (session ownership)
-        self.session_owners: dict[str, str] = {}
+        self.session_owners = _SessionOwnersDict()
 
         # Pending OTP verifications (bearer -> pending state)
         self._pending_otps: dict[str, _PendingOTP] = {}
@@ -343,9 +387,7 @@ class TelegramAuthProvider:
             await pending["backend"].disconnect()
 
         # Remove from ownership map
-        to_remove = [sid for sid, b in self.session_owners.items() if b == bearer]
-        for sid in to_remove:
-            del self.session_owners[sid]
+        self.session_owners.remove_bearer(bearer)
 
         return self._store.delete(bearer)
 
