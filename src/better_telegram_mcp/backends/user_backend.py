@@ -21,6 +21,35 @@ from .security import (
     validate_file_path,
     validate_output_dir,
 )
+from .telethon_utils import serialize_dialog, serialize_message, serialize_user
+
+
+def _prepare_session_file(settings: Settings) -> None:
+    """Prepare session directory and file with secure permissions."""
+    s = settings
+    s.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+
+    # Pre-create session file with secure permissions to avoid TOCTOU
+    # where Telethon creates it with default (insecure) permissions
+    session_path = s.data_dir / s.session_name
+    actual_session_path = session_path.with_suffix(".session")
+    try:
+        fd = os.open(str(actual_session_path), os.O_CREAT | os.O_WRONLY, 0o600)
+        os.close(fd)
+    except OSError as e:
+        # Windows may not support this or file already exists
+        logger.debug("Could not pre-create session file: {e}", e=e)
+
+
+def _secure_session_file(settings: Settings) -> None:
+    """Ensure existing session files are secured with 0o600 permissions."""
+    s = settings
+    session_file = (s.data_dir / s.session_name).with_suffix(".session")
+    if session_file.exists():
+        try:
+            os.chmod(session_file, 0o600)
+        except OSError as e:
+            logger.debug("Could not set session file permissions: {e}", e=e)
 
 
 class UserBackend(TelegramBackend):
@@ -29,74 +58,19 @@ class UserBackend(TelegramBackend):
         self._settings = settings
         self._client: TelegramClient | None = None
 
-    def _ensure_client(self) -> TelegramClient:
+    @property
+    def client(self) -> TelegramClient:
+        """Return the Telethon client, ensuring it is connected."""
         if self._client is None:
             msg = "Not connected. Call connect() first."
             raise RuntimeError(msg)
         return self._client
 
-    def _prepare_session_file(self) -> None:
-        """Prepare session directory and file with secure permissions."""
-        s = self._settings
-        s.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
-
-        # Pre-create session file with secure permissions to avoid TOCTOU
-        # where Telethon creates it with default (insecure) permissions
-        session_path = s.data_dir / s.session_name
-        actual_session_path = session_path.with_suffix(".session")
-        try:
-            fd = os.open(str(actual_session_path), os.O_CREAT | os.O_WRONLY, 0o600)
-            os.close(fd)
-        except OSError as e:
-            # Windows may not support this or file already exists
-            logger.debug("Could not pre-create session file: {e}", e=e)
-
-    def _secure_session_file(self) -> None:
-        """Ensure existing session files are secured with 0o600 permissions."""
-        s = self._settings
-        session_file = (s.data_dir / s.session_name).with_suffix(".session")
-        if session_file.exists():
-            try:
-                os.chmod(session_file, 0o600)
-            except OSError as e:
-                logger.debug("Could not set session file permissions: {e}", e=e)
-
-    @staticmethod
-    def _serialize_message(msg: Any) -> dict[str, Any]:
-        sender_id = None
-        if msg.sender_id is not None:
-            sender_id = msg.sender_id
-        return {
-            "message_id": msg.id,
-            "text": msg.text or "",
-            "date": str(msg.date) if msg.date else None,
-            "sender_id": sender_id,
-        }
-
-    @staticmethod
-    def _serialize_dialog(d: Any) -> dict[str, Any]:
-        title = getattr(d, "title", None) or getattr(d, "name", None) or ""
-        return {
-            "id": d.id,
-            "title": title,
-            "unread_count": getattr(d, "unread_count", 0),
-        }
-
-    @staticmethod
-    def _serialize_user(u: Any) -> dict[str, Any]:
-        return {
-            "id": u.id,
-            "first_name": getattr(u, "first_name", None) or "",
-            "last_name": getattr(u, "last_name", None) or "",
-            "username": getattr(u, "username", None),
-            "phone": getattr(u, "phone", None),
-        }
-
     # --- Connection ---
     async def connect(self) -> None:
         s = self._settings
         # Bolt: Move blocking I/O to a background thread
-        await asyncio.to_thread(self._prepare_session_file)
+        await asyncio.to_thread(_prepare_session_file, self._settings)
 
         # Telethon auto-appends .session, so pass path without extension
         session_path = s.data_dir / s.session_name
@@ -142,13 +116,13 @@ class UserBackend(TelegramBackend):
         return await self._client.is_user_authorized()
 
     async def send_code(self, phone: str) -> None:
-        client = self._ensure_client()
+        client = self.client
         await client.send_code_request(phone)
 
     async def sign_in(
         self, phone: str, code: str, *, password: str | None = None
     ) -> dict[str, Any]:
-        client = self._ensure_client()
+        client = self.client
         try:
             await client.sign_in(phone, code)
         except Exception:
@@ -159,7 +133,7 @@ class UserBackend(TelegramBackend):
 
         me = await client.get_me()
         # Bolt: Move blocking I/O to a background thread
-        await asyncio.to_thread(self._secure_session_file)
+        await asyncio.to_thread(_secure_session_file, self._settings)
 
         return {
             "authenticated_as": getattr(me, "first_name", ""),
@@ -175,11 +149,11 @@ class UserBackend(TelegramBackend):
         reply_to: int | None = None,
         parse_mode: str | None = None,
     ) -> dict[str, Any]:
-        client = self._ensure_client()
+        client = self.client
         msg = await client.send_message(
             chat_id, text, reply_to=reply_to, parse_mode=parse_mode
         )
-        return self._serialize_message(msg)
+        return serialize_message(msg)
 
     async def edit_message(
         self,
@@ -189,14 +163,14 @@ class UserBackend(TelegramBackend):
         *,
         parse_mode: str | None = None,
     ) -> dict[str, Any]:
-        client = self._ensure_client()
+        client = self.client
         msg = await client.edit_message(
             chat_id, message_id, text, parse_mode=parse_mode
         )
-        return self._serialize_message(msg)
+        return serialize_message(msg)
 
     async def delete_message(self, chat_id: str | int, message_id: int) -> bool:
-        client = self._ensure_client()
+        client = self.client
         result = await client.delete_messages(chat_id, [message_id])
         # Telethon returns AffectedMessages; truthy if deleted
         return bool(result)
@@ -204,22 +178,22 @@ class UserBackend(TelegramBackend):
     async def forward_message(
         self, from_chat: str | int, to_chat: str | int, message_id: int
     ) -> dict[str, Any]:
-        client = self._ensure_client()
+        client = self.client
         msg = await client.forward_messages(to_chat, message_id, from_chat)
         # forward_messages may return a list or single message
         if isinstance(msg, list):
             msg = msg[0]
-        return self._serialize_message(msg)
+        return serialize_message(msg)
 
     async def pin_message(self, chat_id: str | int, message_id: int) -> bool:
-        client = self._ensure_client()
+        client = self.client
         await client.pin_message(chat_id, message_id)
         return True
 
     async def react_to_message(
         self, chat_id: str | int, message_id: int, emoji: str
     ) -> bool:
-        client = self._ensure_client()
+        client = self.client
         from telethon.tl.functions.messages import SendReactionRequest
         from telethon.tl.types import ReactionEmoji
 
@@ -239,13 +213,13 @@ class UserBackend(TelegramBackend):
         chat_id: str | int | None = None,
         limit: int = 20,
     ) -> list[dict[str, Any]]:
-        client = self._ensure_client()
+        client = self.client
         entity = chat_id if chat_id is not None else None
         # Bolt: Avoid the get_messages() anti-pattern, which just calls
         # iter_messages(...).collect(). Using async comprehensions improves
         # memory efficiency without worsening network latency.
         return [
-            self._serialize_message(msg)
+            serialize_message(msg)
             async for msg in client.iter_messages(entity, search=query, limit=limit)
         ]
 
@@ -256,7 +230,7 @@ class UserBackend(TelegramBackend):
         limit: int = 20,
         offset_id: int | None = None,
     ) -> list[dict[str, Any]]:
-        client = self._ensure_client()
+        client = self.client
         kwargs: dict[str, Any] = {"limit": limit}
         if offset_id is not None:
             kwargs["offset_id"] = offset_id
@@ -264,21 +238,20 @@ class UserBackend(TelegramBackend):
         # iter_messages(...).collect(). Using async comprehensions improves
         # memory efficiency without worsening network latency.
         return [
-            self._serialize_message(m)
-            async for m in client.iter_messages(chat_id, **kwargs)
+            serialize_message(m) async for m in client.iter_messages(chat_id, **kwargs)
         ]
 
     # --- Chats ---
     async def list_chats(self, *, limit: int = 50) -> list[dict[str, Any]]:
-        client = self._ensure_client()
+        client = self.client
         # Bolt: Using get_dialogs() is more efficient for simple listings as it
         # fetches all results in a single request, avoiding N+1 sequential I/O
         # overhead from async iteration over the stream.
         dialogs = await client.get_dialogs(limit=limit)
-        return [self._serialize_dialog(d) for d in dialogs]
+        return [serialize_dialog(d) for d in dialogs]
 
     async def get_chat_info(self, chat_id: str | int) -> dict[str, Any]:
-        client = self._ensure_client()
+        client = self.client
         entity = await client.get_entity(chat_id)
         info: dict[str, Any] = {"id": entity.id}
         if isinstance(entity, (Channel, Chat)):
@@ -293,7 +266,7 @@ class UserBackend(TelegramBackend):
     async def create_chat(
         self, title: str, *, is_channel: bool = False
     ) -> dict[str, Any]:
-        client = self._ensure_client()
+        client = self.client
         if is_channel:
             from telethon.tl.functions.channels import CreateChannelRequest
 
@@ -311,7 +284,7 @@ class UserBackend(TelegramBackend):
         return {"title": title}
 
     async def join_chat(self, link_or_hash: str) -> bool:
-        client = self._ensure_client()
+        client = self.client
         from telethon.tl.functions.messages import ImportChatInviteRequest
 
         if "joinchat/" in link_or_hash or "+/" in link_or_hash:
@@ -326,7 +299,7 @@ class UserBackend(TelegramBackend):
         return True
 
     async def leave_chat(self, chat_id: str | int) -> bool:
-        client = self._ensure_client()
+        client = self.client
         from telethon.tl.functions.channels import LeaveChannelRequest
 
         entity = await client.get_entity(chat_id)
@@ -342,19 +315,19 @@ class UserBackend(TelegramBackend):
     async def get_members(
         self, chat_id: str | int, *, limit: int = 50
     ) -> list[dict[str, Any]]:
-        client = self._ensure_client()
+        client = self.client
         # Bolt: Avoid the get_participants() anti-pattern, which just calls
         # iter_participants(...).collect(). Using async comprehensions improves
         # memory efficiency without worsening network latency.
         return [
-            self._serialize_user(user)
+            serialize_user(user)
             async for user in client.iter_participants(chat_id, limit=limit)
         ]
 
     async def promote_admin(
         self, chat_id: str | int, user_id: int, *, demote: bool = False
     ) -> bool:
-        client = self._ensure_client()
+        client = self.client
         from telethon.tl.functions.channels import EditAdminRequest
         from telethon.tl.types import ChatAdminRights
 
@@ -378,7 +351,7 @@ class UserBackend(TelegramBackend):
         return True
 
     async def update_chat_settings(self, chat_id: str | int, **kwargs: Any) -> bool:
-        client = self._ensure_client()
+        client = self.client
         if "title" in kwargs:
             from telethon.tl.functions.channels import EditTitleRequest
 
@@ -392,54 +365,63 @@ class UserBackend(TelegramBackend):
     async def manage_topics(
         self, chat_id: str | int, action: str, **kwargs: Any
     ) -> dict[str, Any]:
-        client = self._ensure_client()
         match action:
             case "list":
-                from telethon.tl.functions.channels import GetForumTopicsRequest
-
-                entity = await client.get_entity(chat_id)
-                result = await client(
-                    GetForumTopicsRequest(
-                        channel=entity,
-                        offset_date=None,
-                        offset_id=0,
-                        offset_topic=0,
-                        limit=kwargs.get("limit", 100),
-                    )
-                )
-                topics = [
-                    {
-                        "id": t.id,
-                        "title": t.title,
-                        "icon_emoji_id": getattr(t, "icon_emoji_id", None),
-                    }
-                    for t in result.topics
-                ]
-                return {"topics": topics, "count": len(topics)}
+                return await self._topic_list(chat_id, kwargs.get("limit", 100))
             case "create":
-                from telethon.tl.functions.channels import CreateForumTopicRequest
-
-                result = await client(
-                    CreateForumTopicRequest(
-                        channel=chat_id,
-                        title=kwargs.get("name", "Topic"),
-                        random_id=0,
-                    )
-                )
-                return {"topic_id": result.updates[0].id if result.updates else None}
+                return await self._topic_create(chat_id, kwargs.get("name", "Topic"))
             case "close":
-                from telethon.tl.functions.channels import EditForumTopicRequest
-
-                await client(
-                    EditForumTopicRequest(
-                        channel=chat_id,
-                        topic_id=kwargs["topic_id"],
-                        closed=True,
-                    )
-                )
-                return {"closed": True}
+                return await self._topic_close(chat_id, kwargs["topic_id"])
             case _:
                 return {"error": f"Unknown topic action: {action}"}
+
+    async def _topic_list(self, chat_id: str | int, limit: int) -> dict[str, Any]:
+        from telethon.tl.functions.channels import GetForumTopicsRequest
+
+        entity = await self.client.get_entity(chat_id)
+        result = await self.client(
+            GetForumTopicsRequest(
+                channel=entity,
+                offset_date=None,
+                offset_id=0,
+                offset_topic=0,
+                limit=limit,
+            )
+        )
+        topics = [
+            {
+                "id": t.id,
+                "title": t.title,
+                "icon_emoji_id": getattr(t, "icon_emoji_id", None),
+            }
+            for t in result.topics
+        ]
+        return {"topics": topics, "count": len(topics)}
+
+    async def _topic_create(self, chat_id: str | int, name: str) -> dict[str, Any]:
+        from telethon.tl.functions.channels import CreateForumTopicRequest
+
+        result = await self.client(
+            CreateForumTopicRequest(
+                channel=chat_id,
+                title=name,
+                random_id=0,
+            )
+        )
+        topic_id = result.updates[0].id if result.updates else None
+        return {"topic_id": topic_id}
+
+    async def _topic_close(self, chat_id: str | int, topic_id: int) -> dict[str, Any]:
+        from telethon.tl.functions.channels import EditForumTopicRequest
+
+        await self.client(
+            EditForumTopicRequest(
+                channel=chat_id,
+                topic_id=topic_id,
+                closed=True,
+            )
+        )
+        return {"closed": True}
 
     # --- Media ---
     async def send_media(
@@ -450,7 +432,7 @@ class UserBackend(TelegramBackend):
         *,
         caption: str | None = None,
     ) -> dict[str, Any]:
-        client = self._ensure_client()
+        client = self.client
         kwargs: dict[str, Any] = {}
         if caption:
             kwargs["caption"] = caption
@@ -464,7 +446,7 @@ class UserBackend(TelegramBackend):
         else:
             file_to_send = validate_file_path(file_path_or_url)
         msg = await client.send_file(chat_id, file_to_send, **kwargs)
-        return self._serialize_message(msg)
+        return serialize_message(msg)
 
     async def download_media(
         self,
@@ -473,7 +455,7 @@ class UserBackend(TelegramBackend):
         *,
         output_dir: str | None = None,
     ) -> str:
-        client = self._ensure_client()
+        client = self.client
         messages = await client.get_messages(chat_id, ids=message_id)
         msg = (
             messages
@@ -502,24 +484,24 @@ class UserBackend(TelegramBackend):
 
     # --- Contacts ---
     async def list_contacts(self) -> list[dict[str, Any]]:
-        client = self._ensure_client()
+        client = self.client
         from telethon.tl.functions.contacts import GetContactsRequest
 
         result = await client(GetContactsRequest(hash=0))
         users = getattr(result, "users", [])
-        return [self._serialize_user(u) for u in users]
+        return [serialize_user(u) for u in users]
 
     async def search_contacts(self, query: str) -> list[dict[str, Any]]:
-        client = self._ensure_client()
+        client = self.client
         from telethon.tl.functions.contacts import SearchRequest
 
         result = await client(SearchRequest(q=query, limit=50))
-        return [self._serialize_user(u) for u in result.users]
+        return [serialize_user(u) for u in result.users]
 
     async def add_contact(
         self, phone: str, first_name: str, *, last_name: str | None = None
     ) -> bool:
-        client = self._ensure_client()
+        client = self.client
         result = await client(
             AddContactRequest(
                 id=InputPhoneContact(
@@ -536,7 +518,7 @@ class UserBackend(TelegramBackend):
         return bool(result)
 
     async def block_user(self, user_id: int, *, unblock: bool = False) -> bool:
-        client = self._ensure_client()
+        client = self.client
         if unblock:
             await client(UnblockRequest(id=user_id))
         else:

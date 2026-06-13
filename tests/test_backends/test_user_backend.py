@@ -1426,7 +1426,9 @@ class TestSignIn:
 
 class TestSerializeMessage:
     def test_serialize_message_null_sender(self):
-        from better_telegram_mcp.backends.user_backend import UserBackend
+        from better_telegram_mcp.backends.telethon_utils import (
+            serialize_message,
+        )
 
         msg = MagicMock()
         msg.id = 1
@@ -1434,7 +1436,7 @@ class TestSerializeMessage:
         msg.date = None
         msg.sender_id = None
 
-        result = UserBackend._serialize_message(msg)
+        result = serialize_message(msg)
 
         assert result["message_id"] == 1
         assert result["text"] == ""
@@ -1442,7 +1444,9 @@ class TestSerializeMessage:
         assert result["sender_id"] is None
 
     def test_serialize_dialog_no_title(self):
-        from better_telegram_mcp.backends.user_backend import UserBackend
+        from better_telegram_mcp.backends.telethon_utils import (
+            serialize_dialog,
+        )
 
         d = MagicMock(spec=[])  # No attributes
         d.id = 1
@@ -1459,7 +1463,7 @@ class TestSerializeMessage:
         d2.unread_count = 0
 
         # getattr with default should return None, then fallback
-        result = UserBackend._serialize_dialog(d2)
+        result = serialize_dialog(d2)
         assert result["id"] == 1
 
 
@@ -1476,7 +1480,10 @@ class TestUserBackendLogging:
 
         settings = _make_settings(tmp_path)
         # Force OSError in os.open
-        with patch("os.open", side_effect=OSError("Permission denied")):
+        with patch(
+            "better_telegram_mcp.backends.user_backend.os.open",
+            side_effect=OSError("Permission denied"),
+        ):
             backend = UserBackend(settings)
             await backend.connect()
 
