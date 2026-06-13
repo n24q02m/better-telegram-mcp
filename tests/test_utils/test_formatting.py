@@ -3,7 +3,18 @@ from datetime import datetime
 
 from better_telegram_mcp.backends.base import ModeError
 from better_telegram_mcp.backends.security import SecurityError
-from better_telegram_mcp.utils.formatting import err, ok, safe_error
+from better_telegram_mcp.utils.formatting import (
+    bold,
+    code,
+    err,
+    escape_html,
+    escape_markdown_v2,
+    italic,
+    link,
+    ok,
+    pre,
+    safe_error,
+)
 
 
 def test_ok_basic_serialization():
@@ -191,3 +202,100 @@ def test_ok_nested_mixed_types():
     assert parsed["nested"]["exc"] == "nested error"
     assert parsed["list"][0] == 1
     assert parsed["list"][1]["a"] == 1
+
+
+# --- New styling tests ---
+
+
+def test_escape_html():
+    assert escape_html("Hello <world> & friends") == "Hello &lt;world&gt; &amp; friends"
+    assert escape_html("") == ""
+
+
+def test_escape_markdown_v2_basic():
+    # General escape
+    text = "_*[]()~`>#+-=|{}.!"
+    escaped = escape_markdown_v2(text)
+    assert (
+        escaped
+        == r"\_"
+        + r"\*"
+        + r"\["
+        + r"\]"
+        + r"\("
+        + r"\)"
+        + r"\~"
+        + r"\`"
+        + r"\>"
+        + r"\#"
+        + r"\+"
+        + r"\-"
+        + r"\="
+        + r"\|"
+        + r"\{"
+        + r"\}"
+        + r"\."
+        + r"\!"
+    )
+
+
+def test_escape_markdown_v2_code():
+    assert (
+        escape_markdown_v2("code ` with \\ slash", "code") == r"code \` with \\ slash"
+    )
+    assert escape_markdown_v2("pre ` with \\ slash", "pre") == r"pre \` with \\ slash"
+
+
+def test_escape_markdown_v2_links():
+    assert (
+        escape_markdown_v2("link ] with \\ slash", "link_text")
+        == r"link \] with \\ slash"
+    )
+    assert (
+        escape_markdown_v2("url ) with \\ slash", "link_url") == r"url \) with \\ slash"
+    )
+
+
+def test_bold():
+    assert bold("hello") == "<b>hello</b>"
+    assert bold("hello", mode="HTML") == "<b>hello</b>"
+    assert bold("hello", mode="MarkdownV2") == "*hello*"
+    assert bold("<tag>", mode="HTML") == "<b>&lt;tag&gt;</b>"
+    assert bold("_tag_", mode="MarkdownV2") == r"*\_tag\_*"
+
+
+def test_italic():
+    assert italic("hello") == "<i>hello</i>"
+    assert italic("hello", mode="HTML") == "<i>hello</i>"
+    assert italic("hello", mode="MarkdownV2") == "_hello_"
+    assert italic("<tag>", mode="HTML") == "<i>&lt;tag&gt;</i>"
+    assert italic("*tag*", mode="MarkdownV2") == r"_\*tag\*_"
+
+
+def test_code():
+    assert code("hello") == "<code>hello</code>"
+    assert code("hello", mode="HTML") == "<code>hello</code>"
+    assert code("hello", mode="MarkdownV2") == r"`hello`"
+    assert code("<tag>", mode="HTML") == "<code>&lt;tag&gt;</code>"
+    assert code("`tag`", mode="MarkdownV2") == r"`\`tag\``"
+
+
+def test_pre():
+    assert pre("hello") == "<pre>hello</pre>"
+    assert pre("hello", mode="HTML") == "<pre>hello</pre>"
+    assert (
+        pre("hello", mode="HTML", language="python")
+        == '<pre class="language-python">hello</pre>'
+    )
+    assert pre("hello", mode="MarkdownV2") == "```\nhello\n```"
+    assert pre("hello", mode="MarkdownV2", language="python") == "```python\nhello\n```"
+    assert pre("<tag>", mode="HTML") == "<pre>&lt;tag&gt;</pre>"
+    assert pre("```", mode="MarkdownV2") == "```\n\\`\\`\\`\n```"
+
+
+def test_link():
+    assert link("text", "url") == '<a href="url">text</a>'
+    assert link("text", "url", mode="HTML") == '<a href="url">text</a>'
+    assert link("text", "url", mode="MarkdownV2") == "[text](url)"
+    assert link("<t>", "&u", mode="HTML") == '<a href="&amp;u">&lt;t&gt;</a>'
+    assert link("[t]", "u)", mode="MarkdownV2") == r"[\[t\]](u\))"
