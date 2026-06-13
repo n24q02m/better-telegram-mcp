@@ -16,3 +16,6 @@
 ## 2024-07-28 - Contrast Requirements for Dark Themes
 **Learning:** Text using color `#666` fails WCAG AA 4.5:1 contrast requirements when placed against dark-themed backgrounds such as `#1a1a1a`.
 **Action:** When designing dark themes, ensure that subtle or secondary text elements (like `.server-id` and `.help-text`) are upgraded to at least `#888` or `#999` to maintain readability and accessibility standards.
+## 2024-05-20 - Decoupling Tool Entry Points for Maintainability
+**Learning:** Monolithic tool entry points (like the original 114-line `config` function in `server.py`) combine infrastructure guards, state-dependent logic, and specific action handlers, making them hard to test and maintain.
+**Action:** Always delegate complex tool logic to a dedicated handler in a separate module (e.g., `config_tool.py`). The entry point in `server.py` should ideally only act as a thin wrapper that safely retrieves the backend and delegates to the centralized handler, ensuring better separation of concerns and easier unit testing of individual sub-actions.
