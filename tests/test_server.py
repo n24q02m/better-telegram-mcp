@@ -1110,3 +1110,101 @@ async def test_run_http():
         assert args[0] is mcp
         assert kwargs["server_name"] == "better-telegram-mcp"
         assert kwargs["port"] == 8080
+
+
+@pytest.mark.asyncio
+async def test_media_download_integration(mock_backend):
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import media
+
+    old_backend = srv._backend
+    old_pending = srv._pending_auth
+    try:
+        srv._backend = mock_backend
+        srv._pending_auth = False
+        result = await media(
+            action="download",
+            chat_id=123,
+            message_id=10,
+            output_dir="/tmp/out",
+        )
+        assert "path" in result
+        mock_backend.download_media.assert_awaited_once_with(
+            123, 10, output_dir="/tmp/out"
+        )
+    finally:
+        srv._backend = old_backend
+        srv._pending_auth = old_pending
+
+
+@pytest.mark.asyncio
+async def test_media_send_file_integration(mock_backend):
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import media
+
+    old_backend = srv._backend
+    old_pending = srv._pending_auth
+    try:
+        srv._backend = mock_backend
+        srv._pending_auth = False
+        result = await media(
+            action="send_file",
+            chat_id=123,
+            file_path_or_url="/tmp/doc.pdf",
+            caption="Doc",
+        )
+        assert "message_id" in result
+        mock_backend.send_media.assert_awaited_once_with(
+            123, "document", "/tmp/doc.pdf", caption="Doc"
+        )
+    finally:
+        srv._backend = old_backend
+        srv._pending_auth = old_pending
+
+
+@pytest.mark.asyncio
+async def test_media_send_voice_integration(mock_backend):
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import media
+
+    old_backend = srv._backend
+    old_pending = srv._pending_auth
+    try:
+        srv._backend = mock_backend
+        srv._pending_auth = False
+        result = await media(
+            action="send_voice",
+            chat_id=123,
+            file_path_or_url="/tmp/voice.ogg",
+        )
+        assert "message_id" in result
+        mock_backend.send_media.assert_awaited_once_with(
+            123, "voice", "/tmp/voice.ogg", caption=None
+        )
+    finally:
+        srv._backend = old_backend
+        srv._pending_auth = old_pending
+
+
+@pytest.mark.asyncio
+async def test_media_send_video_integration(mock_backend):
+    import better_telegram_mcp.server as srv
+    from better_telegram_mcp.server import media
+
+    old_backend = srv._backend
+    old_pending = srv._pending_auth
+    try:
+        srv._backend = mock_backend
+        srv._pending_auth = False
+        result = await media(
+            action="send_video",
+            chat_id=123,
+            file_path_or_url="/tmp/video.mp4",
+        )
+        assert "message_id" in result
+        mock_backend.send_media.assert_awaited_once_with(
+            123, "video", "/tmp/video.mp4", caption=None
+        )
+    finally:
+        srv._backend = old_backend
+        srv._pending_auth = old_pending

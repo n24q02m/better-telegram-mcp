@@ -1545,3 +1545,156 @@ class TestUserBackendLogging:
         mock_logger.debug.assert_called()
         args, _ = mock_logger.debug.call_args
         assert "Could not set session file permissions" in args[0]
+
+
+class TestMedia:
+    async def test_send_media_local_file(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_msg = _mock_message(msg_id=3)
+        mock_client.send_file = AsyncMock(return_value=mock_msg)
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        with patch(
+            "better_telegram_mcp.backends.user_backend.validate_file_path"
+        ) as mock_validate:
+            mock_path = Path("/tmp/test.jpg")
+            mock_validate.return_value = mock_path
+
+            result = await backend.send_media(
+                123, "photo", "/tmp/test.jpg", caption="test"
+            )
+
+            assert result["message_id"] == 3
+            mock_validate.assert_called_once_with("/tmp/test.jpg")
+            mock_client.send_file.assert_awaited_once_with(
+                123, mock_path, caption="test"
+            )
+
+    async def test_send_media_url(self, tmp_path, mock_client, mock_client_class):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_msg = _mock_message(msg_id=4)
+        mock_client.send_file = AsyncMock(return_value=mock_msg)
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        with patch(
+            "better_telegram_mcp.backends.user_backend.fetch_url_safely",
+            new_callable=AsyncMock,
+        ) as mock_fetch:
+            mock_fetch.return_value = b"fake content"
+
+            result = await backend.send_media(123, "photo", "https://example.com/p.jpg")
+
+            assert result["message_id"] == 4
+            mock_fetch.assert_awaited_once_with("https://example.com/p.jpg")
+            mock_client.send_file.assert_awaited_once_with(123, b"fake content")
+
+    async def test_send_media_voice(self, tmp_path, mock_client, mock_client_class):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_client.send_file = AsyncMock(return_value=_mock_message())
+        backend = UserBackend(_make_settings(tmp_path))
+        await backend.connect()
+
+        with patch(
+            "better_telegram_mcp.backends.user_backend.validate_file_path",
+            return_value=Path("v.ogg"),
+        ):
+            await backend.send_media(123, "voice", "v.ogg")
+            mock_client.send_file.assert_awaited_once()
+            _, kwargs = mock_client.send_file.call_args
+            assert kwargs["voice_note"] is True
+
+    async def test_download_media_success(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_msg = _mock_message()
+        mock_msg.media = MagicMock()
+        mock_client.get_messages = AsyncMock(return_value=[mock_msg])
+        mock_client.download_media = AsyncMock(return_value="/tmp/downloaded.jpg")
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        result = await backend.download_media(123, 1)
+        assert result == "/tmp/downloaded.jpg"
+        mock_client.get_messages.assert_awaited_once_with(123, ids=1)
+        mock_client.download_media.assert_awaited_once_with(mock_msg)
+
+    async def test_download_media_with_output_dir(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_msg = _mock_message()
+        mock_msg.media = MagicMock()
+        mock_client.get_messages = AsyncMock(return_value=[mock_msg])
+        mock_client.download_media = AsyncMock(return_value="/safe/downloaded.jpg")
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        with (
+            patch(
+                "better_telegram_mcp.backends.user_backend.validate_output_dir"
+            ) as mock_val_dir,
+            patch(
+                "better_telegram_mcp.backends.user_backend.asyncio.to_thread",
+                new_callable=AsyncMock,
+            ) as mock_thread,
+        ):
+            safe_dir = Path("/safe")
+            mock_val_dir.return_value = safe_dir
+
+            result = await backend.download_media(123, 1, output_dir="/tmp/out")
+
+            assert result == "/safe/downloaded.jpg"
+            mock_val_dir.assert_called_once_with("/tmp/out")
+            mock_thread.assert_awaited_once()  # For mkdir
+            mock_client.download_media.assert_awaited_once_with(mock_msg, file="/safe")
+
+    async def test_download_media_no_media(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_msg = _mock_message()
+        mock_msg.media = None
+        mock_client.get_messages = AsyncMock(return_value=[mock_msg])
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        with pytest.raises(ValueError, match="Message has no media"):
+            await backend.download_media(123, 1)
+
+    async def test_download_media_failure(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_msg = _mock_message()
+        mock_msg.media = MagicMock()
+        mock_client.get_messages = AsyncMock(return_value=[mock_msg])
+        mock_client.download_media = AsyncMock(return_value=None)
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        with pytest.raises(ValueError, match="Failed to download media"):
+            await backend.download_media(123, 1)
