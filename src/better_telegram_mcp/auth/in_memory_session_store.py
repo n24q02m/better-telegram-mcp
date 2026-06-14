@@ -14,7 +14,6 @@ See ~/projects/.superpower/mcp-core/specs/2026-04-30-trust-model-alignment.md
 
 from __future__ import annotations
 
-import copy
 import time
 from dataclasses import asdict, dataclass, field
 from typing import Literal
@@ -59,12 +58,12 @@ class InMemorySessionStore:
         data = self._store.get(bearer)
         if data is None:
             return None
-        return SessionInfo.from_dict(copy.deepcopy(data))
+        return SessionInfo.from_dict(data.copy())
 
     def load_all(self) -> dict[str, SessionInfo]:
         """Load all stored sessions."""
         return {
-            bearer: SessionInfo.from_dict(copy.deepcopy(data))
+            bearer: SessionInfo.from_dict(data.copy())
             for bearer, data in self._store.items()
         }
 

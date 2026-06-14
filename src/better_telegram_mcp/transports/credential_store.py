@@ -4,7 +4,6 @@ Credentials stored at: DATA_DIR/credentials.enc
 Key derived from server secret (CREDENTIAL_SECRET env var or auto-generated).
 """
 
-import copy
 import json
 import os
 import stat
@@ -144,13 +143,13 @@ class CredentialStore:
         nonce = os.urandom(_NONCE_SIZE)
         plaintext = json.dumps(credentials).encode()
         ciphertext = aesgcm.encrypt(nonce, plaintext, None)
-        self._cached_credentials = copy.deepcopy(credentials)
+        self._cached_credentials = credentials.copy()
         _atomic_write_bytes_0600(self._path, nonce + ciphertext)
 
     def load(self) -> dict[str, str] | None:
         """Load and decrypt credentials. Returns None if not found."""
         if self._cached_credentials is not None:
-            return copy.deepcopy(self._cached_credentials)
+            return self._cached_credentials.copy()
         if not self._path.exists():
             return None
         key = self._derive_key()
@@ -159,7 +158,7 @@ class CredentialStore:
         aesgcm = AESGCM(key)
         plaintext = aesgcm.decrypt(nonce, ciphertext, None)
         self._cached_credentials = json.loads(plaintext)
-        return copy.deepcopy(self._cached_credentials)
+        return self._cached_credentials.copy()
 
     def delete(self) -> None:
         """Delete stored credentials."""
