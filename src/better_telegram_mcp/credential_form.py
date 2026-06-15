@@ -444,6 +444,17 @@ def render_telegram_credential_form(
             var submitUrl = "{submit_url_escaped}";
             var activeTab = "{initial_tab}";
 
+            // --- Clear errors on input -----------------------------------------
+            form.querySelectorAll(".field-input").forEach(function (input) {{
+                input.addEventListener("input", function () {{
+                    input.removeAttribute("aria-invalid");
+                    if (statusBox.className.indexOf("error") !== -1) {{
+                        statusBox.style.display = "none";
+                        statusBox.textContent = "";
+                    }}
+                }});
+            }});
+
             // --- Tab switching -------------------------------------------------
             var tabs = document.querySelectorAll(".tab");
             var tabsArray = Array.prototype.slice.call(tabs);
@@ -604,6 +615,11 @@ def render_telegram_credential_form(
                             evt.preventDefault();
                             submitStep();
                         }}
+                    }});
+                    inputEl.addEventListener("input", function () {{
+                        inputEl.removeAttribute("aria-invalid");
+                        errorEl.style.display = "none";
+                        errorEl.textContent = "";
                     }});
                 }}
 
