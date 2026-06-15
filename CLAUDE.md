@@ -67,7 +67,7 @@ Session persist: `~/.better-telegram-mcp/<name>.session`, permission 600.
 - `PUBLIC_URL` -- deployed hostname; presence flips on the multi-user OAuth branch (with the DCR secret + api_id/api_hash)
 - `MCP_DCR_SERVER_SECRET` -- multi-user remote OAuth shared secret (with `PUBLIC_URL`); legacy `DCR_SERVER_SECRET` still accepted
 
-`TELEGRAM_AUTH_URL` exists on `Settings` but is currently unused -- the in-process `local` auth server and the remote-relay client were removed; HTTP setup is served by mcp-core's OAuth AS off `PUBLIC_URL`.
+No `TELEGRAM_AUTH_URL` -- the in-process `local` auth server and the remote-relay client were removed; HTTP setup is served by mcp-core's OAuth AS off `PUBLIC_URL`.
 
 NO `TELEGRAM_PASSWORD` -- 2FA nhap qua web UI, KHONG luu env.
 

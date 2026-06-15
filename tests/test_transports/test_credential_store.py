@@ -1,13 +1,11 @@
-"""Tests for encrypted credential storage."""
+"""Tests for master-secret resolution and atomic 0o600 writes."""
 
 from __future__ import annotations
 
 import sys
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
-from cryptography.exceptions import InvalidTag
 
 from better_telegram_mcp.transports.credential_store import CredentialStore
 
@@ -28,215 +26,17 @@ def data_dir(tmp_path: Path) -> Path:
     return d
 
 
-class TestCredentialStore:
-    def test_store_load_roundtrip(self, data_dir: Path) -> None:
-        """Credentials can be stored and loaded back correctly."""
-        store = CredentialStore(data_dir, secret="test-secret")
-        creds = {
-            "TELEGRAM_BOT_TOKEN": "123456:ABC-DEF",
-            "TELEGRAM_API_ID": "12345",
-        }
-        store.store(creds)
-        loaded = store.load()
-        assert loaded == creds
-
-    def test_load_returns_none_when_no_file(self, data_dir: Path) -> None:
-        """Loading from empty store returns None."""
-        store = CredentialStore(data_dir, secret="test-secret")
-        assert store.load() is None
-
-    def test_different_secrets_produce_different_encryption(
-        self, data_dir: Path
-    ) -> None:
-        """Different secrets should not decrypt each other's data."""
-        store1 = CredentialStore(data_dir, secret="secret-one")
-        creds = {"TELEGRAM_BOT_TOKEN": "token123"}
-        store1.store(creds)
-
-        # Read raw encrypted bytes
-        enc_path = data_dir / "credentials.enc"
-        encrypted_data = enc_path.read_bytes()
-
-        # Try to decrypt with different secret -- should fail
-        store2 = CredentialStore(data_dir, secret="secret-two")
-        with pytest.raises(InvalidTag):
-            store2.load()
-
-        # Original secret still works
-        store1_again = CredentialStore(data_dir, secret="secret-one")
-        assert store1_again.load() == creds
-
-        # Verify the encrypted file is still the same (not corrupted by failed load)
-        assert enc_path.read_bytes() == encrypted_data
-
-    def test_delete_removes_file(self, data_dir: Path) -> None:
-        """Delete should remove the credentials file."""
-        store = CredentialStore(data_dir, secret="test-secret")
-        creds = {"TELEGRAM_BOT_TOKEN": "token123"}
-        store.store(creds)
-
-        enc_path = data_dir / "credentials.enc"
-        assert enc_path.exists()
-
-        store.delete()
-        assert not enc_path.exists()
-
-    def test_delete_noop_when_no_file(self, data_dir: Path) -> None:
-        """Delete should not raise when no file exists."""
-        store = CredentialStore(data_dir, secret="test-secret")
-        store.delete()  # Should not raise
-
-    def test_caching_behavior(self, data_dir: Path) -> None:
-        """Repeated reads should use cache and avoid disk I/O."""
-        store = CredentialStore(data_dir, secret="test-secret")
-        store.store({"TELEGRAM_BOT_TOKEN": "123:ABC"})
-
-        # Invalidate the in-memory cache to force the next read from disk
-        store._cached_credentials = None
-
-        original_read_bytes = Path.read_bytes
-        with patch.object(Path, "read_bytes", autospec=True) as mock_read:
-            # First load reads from disk
-            mock_read.side_effect = lambda self: original_read_bytes(self)
-            creds1 = store.load()
-            assert creds1 is not None
-            assert creds1["TELEGRAM_BOT_TOKEN"] == "123:ABC"
-            assert mock_read.call_count == 1
-
-            # Second load uses cache
-            creds2 = store.load()
-            assert creds2 is not None
-            assert creds2["TELEGRAM_BOT_TOKEN"] == "123:ABC"
-            assert mock_read.call_count == 1
-
-    def test_auto_generated_secret_persists(self, data_dir: Path) -> None:
-        """Auto-generated secret should be saved and reused across instances."""
-        store1 = CredentialStore(data_dir)
-        creds = {"TELEGRAM_BOT_TOKEN": "token123"}
-        store1.store(creds)
-
-        # New instance should auto-load the persisted secret
-        store2 = CredentialStore(data_dir)
-        assert store2.load() == creds
-
-    def test_auto_generated_secret_file_created(self, data_dir: Path) -> None:
-        """Secret file should be created when no secret is provided."""
-        CredentialStore(data_dir)
+class TestResolveOrGenerateSecret:
+    def test_generates_and_persists_secret(self, data_dir: Path) -> None:
+        """First call generates a secret; later calls reuse the persisted one."""
+        secret = CredentialStore._resolve_or_generate_secret(data_dir)
         secret_path = data_dir / ".secret"
         assert secret_path.exists()
-        secret = secret_path.read_text().strip()
+        assert secret_path.read_text().strip() == secret
         assert len(secret) == 64  # 32 bytes hex-encoded
 
-    def test_env_var_secret_takes_precedence(
-        self, data_dir: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """CREDENTIAL_SECRET env var should be used when set."""
-        monkeypatch.setenv("CREDENTIAL_SECRET", "env-secret")
-        store = CredentialStore(data_dir)
-        creds = {"TELEGRAM_BOT_TOKEN": "token123"}
-        store.store(creds)
-
-        # Should load with same env var
-        store2 = CredentialStore(data_dir)
-        assert store2.load() == creds
-
-        # Should not load without env var (different auto-generated secret)
-        monkeypatch.delenv("CREDENTIAL_SECRET")
-        store3 = CredentialStore(data_dir)
-        # Auto-generated secret is different from "env-secret"
-        with pytest.raises(InvalidTag):
-            store3.load()
-
-    def test_store_overwrites_existing(self, data_dir: Path) -> None:
-        """Storing new credentials should overwrite old ones."""
-        store = CredentialStore(data_dir, secret="test-secret")
-        store.store({"TELEGRAM_BOT_TOKEN": "old-token"})
-        store.store({"TELEGRAM_BOT_TOKEN": "new-token"})
-        assert store.load() == {"TELEGRAM_BOT_TOKEN": "new-token"}
-
-    def test_empty_credentials(self, data_dir: Path) -> None:
-        """Empty dict should be storable and loadable."""
-        store = CredentialStore(data_dir, secret="test-secret")
-        store.store({})
-        assert store.load() == {}
-
-    def test_data_dir_created_if_missing(self, tmp_path: Path) -> None:
-        """Store should create data_dir if it does not exist."""
-        nested = tmp_path / "a" / "b" / "c"
-        store = CredentialStore(nested, secret="test-secret")
-        store.store({"key": "value"})
-        assert store.load() == {"key": "value"}
-
-    def test_legacy_salt_migration(self, data_dir: Path) -> None:
-        """Credentials stored with legacy hardcoded salt should be loadable,
-        and re-storing should migrate to a random salt."""
-        from better_telegram_mcp.transports.credential_store import _LEGACY_SALT
-
-        store = CredentialStore(data_dir, secret="test-secret")
-        # Simulate legacy: write credentials with legacy salt
-        # (new install creates random salt, so we need to force legacy)
-        store._salt = _LEGACY_SALT
-        store._cached_key = None
-        # Write a credentials file (using legacy salt)
-        creds = {"TELEGRAM_BOT_TOKEN": "legacy-token"}
-        # Manually encrypt and write without triggering migration
-        import json
-        import os
-
-        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-
-        key = store._derive_key()
-        aesgcm = AESGCM(key)
-        nonce = os.urandom(12)
-        plaintext = json.dumps(creds).encode()
-        ciphertext = aesgcm.encrypt(nonce, plaintext, None)
-        store._path.write_bytes(nonce + ciphertext)
-
-        # Remove salt file to simulate legacy state
-        salt_path = data_dir / ".salt"
-        if salt_path.exists():
-            salt_path.unlink()
-
-        # Create new store -- should detect legacy salt (creds exist, no .salt)
-        store2 = CredentialStore(data_dir, secret="test-secret")
-        assert store2._salt == _LEGACY_SALT
-        loaded = store2.load()
-        assert loaded == creds
-
-        # Re-store should trigger salt migration
-        store2.store(creds)
-        assert store2._salt != _LEGACY_SALT
-        assert salt_path.exists()
-
-        # New store should use the migrated salt
-        store3 = CredentialStore(data_dir, secret="test-secret")
-        assert store3._salt != _LEGACY_SALT
-        assert store3.load() == creds
-
-    def test_random_salt_for_new_install(self, data_dir: Path) -> None:
-        """New installation should generate random salt, not use legacy."""
-        from better_telegram_mcp.transports.credential_store import _LEGACY_SALT
-
-        store = CredentialStore(data_dir, secret="test-secret")
-        assert store._salt != _LEGACY_SALT
-        salt_path = data_dir / ".salt"
-        assert salt_path.exists()
-        assert len(store._salt) == 16
-
-    def test_chmod_failure_swallowed(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
-        """Test that OSError during chmod is silently ignored."""
-
-        def mock_chmod(*args, **kwargs):
-            raise OSError("chmod failed")
-
-        monkeypatch.setattr("pathlib.Path.chmod", mock_chmod)
-        monkeypatch.setattr("os.chmod", mock_chmod)
-
-        store = CredentialStore(tmp_path)
-        # Store writing triggers credential chmod
-        store.store({"api_id": "123"})
+        # Second call returns the same persisted secret.
+        assert CredentialStore._resolve_or_generate_secret(data_dir) == secret
 
 
 class TestAtomicWriteTOCTOU:
@@ -246,43 +46,9 @@ class TestAtomicWriteTOCTOU:
     ``path.chmod(0o600)``. Between those two syscalls the file existed
     with the process ``umask``-derived permissions (commonly 0o644), so a
     co-tenant on the host could open() the file before the chmod landed
-    and read the encrypted credential blob (or the secret salt). The fix
-    is to create the file with mode 0o600 in a single ``os.open()`` call.
+    and read the persisted secret. The fix is to create the file with mode
+    0o600 in a single ``os.open()`` call.
     """
-
-    @posix_only
-    def test_credentials_file_is_0o600_immediately(
-        self, data_dir: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """File must never exist with broader perms than 0o600."""
-        import os
-        import stat
-
-        # Force a deliberately permissive umask so the OLD code path
-        # would have created the file world-readable before chmod ran.
-        monkeypatch.setattr(os, "umask", lambda _mask: 0o000)
-
-        store = CredentialStore(data_dir, secret="test-secret")
-        store.store({"TELEGRAM_BOT_TOKEN": "secret"})
-
-        enc_path = data_dir / "credentials.enc"
-        mode = stat.S_IMODE(os.stat(enc_path).st_mode)
-        # 0o600 == owner R/W only (no group/other access)
-        assert mode == 0o600, f"expected 0o600, got 0o{mode:o}"
-
-    @posix_only
-    def test_salt_file_is_0o600_immediately(self, data_dir: Path) -> None:
-        import os
-        import stat
-
-        # Trigger fresh installation (no legacy file). _resolve_salt
-        # generates and writes a random salt.
-        CredentialStore(data_dir, secret="test-secret")
-
-        salt_path = data_dir / ".salt"
-        assert salt_path.exists()
-        mode = stat.S_IMODE(os.stat(salt_path).st_mode)
-        assert mode == 0o600, f"expected 0o600, got 0o{mode:o}"
 
     @posix_only
     def test_secret_file_is_0o600_immediately(self, tmp_path: Path) -> None:
@@ -291,9 +57,8 @@ class TestAtomicWriteTOCTOU:
 
         data_dir = tmp_path / "fresh"
         data_dir.mkdir()
-        # Auto-generated secret (no CREDENTIAL_SECRET env var, no explicit
-        # secret kwarg) writes .secret to disk.
-        CredentialStore(data_dir)
+        # Auto-generated secret writes .secret to disk.
+        CredentialStore._resolve_or_generate_secret(data_dir)
 
         secret_path = data_dir / ".secret"
         assert secret_path.exists()
@@ -339,7 +104,7 @@ class TestAtomicWriteTOCTOU:
     def test_atomic_write_overwrites_existing_file_with_secure_mode(
         self, tmp_path: Path
     ) -> None:
-        """Re-storing must reset perms even if a stale loose-perm file existed."""
+        """Re-writing must reset perms even if a stale loose-perm file existed."""
         import os
         import stat
 
