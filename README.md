@@ -166,7 +166,7 @@ This plugin implements **TC-NearZK** (in-memory, ephemeral). See [mcp-core trust
 |---|---|---|---|
 | HTTP n24q02m-hosted (default) | In-memory `dict[sub] = MTProtoSession` | In-process only | Server process (cleared on restart) |
 | HTTP self-host | Same as hosted | Same | Only you (admin = user) |
-| stdio proxy | `~/.better-telegram-mcp/config.json` | AES-GCM, machine-bound key | Only your OS user (file perm 0600) |
+| stdio | `~/.config/mcp/config.enc` (credentials) + `~/.better-telegram-mcp/<name>.session` (Telethon session) | AES-GCM, machine-bound key | Only your OS user (file perm 0600) |
 
 ## License
 
