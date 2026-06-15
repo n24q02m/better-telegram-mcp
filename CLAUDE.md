@@ -62,9 +62,12 @@ Session persist: `~/.better-telegram-mcp/<name>.session`, permission 600.
 - `TELEGRAM_BOT_TOKEN` -- bot mode
 - `TELEGRAM_API_ID` + `TELEGRAM_API_HASH` -- user mode (built-in defaults, override optional)
 - `TELEGRAM_PHONE` -- phone (required for auth web UI)
-- `TELEGRAM_AUTH_URL` -- `local` | remote URL (default: remote)
 - `TELEGRAM_SESSION_NAME`, `TELEGRAM_DATA_DIR` -- optional
+- `MCP_TRANSPORT` / `TRANSPORT_MODE` -- set to `http` to opt into HTTP mode (default wire transport is stdio); `--http` CLI flag does the same
+- `PUBLIC_URL` -- deployed hostname; presence flips on the multi-user OAuth branch (with the DCR secret + api_id/api_hash)
 - `MCP_DCR_SERVER_SECRET` -- multi-user remote OAuth shared secret (with `PUBLIC_URL`); legacy `DCR_SERVER_SECRET` still accepted
+
+`TELEGRAM_AUTH_URL` exists on `Settings` but is currently unused -- the in-process `local` auth server and the remote-relay client were removed; HTTP setup is served by mcp-core's OAuth AS off `PUBLIC_URL`.
 
 NO `TELEGRAM_PASSWORD` -- 2FA nhap qua web UI, KHONG luu env.
 
