@@ -16,13 +16,6 @@ When using the remote auth relay at `better-telegram-mcp.n24q02m.com`:
 - **Sessions expire** after 10 minutes. The relay is stateless — no database, no disk storage.
 - **Logging**: Only anonymous request metadata (timestamps, status codes) is logged. No message content, contacts, or credentials are logged.
 
-## Local Mode (`TELEGRAM_AUTH_URL=local`)
-
-When running with local auth:
-
-- All data stays on your machine.
-- The auth web server runs on `127.0.0.1` (localhost only) and shuts down after the MCP server stops.
-
 ## Session Files
 
 - Telegram session files are stored locally at `~/.better-telegram-mcp/` with `600` permissions (owner-only).
