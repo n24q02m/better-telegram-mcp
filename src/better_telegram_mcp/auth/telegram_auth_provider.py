@@ -157,7 +157,7 @@ class TelegramAuthProvider:
                 session_name=info.session_name,
                 data_dir=self._data_dir / "user_sessions",
             )
-            backend = UserBackend(settings)
+            backend = UserBackend(settings, backend=self._backend)
             await backend.connect()
             return backend
 
@@ -216,7 +216,7 @@ class TelegramAuthProvider:
             session_name=session_name,
             data_dir=self._data_dir / "user_sessions",
         )
-        backend = UserBackend(settings)
+        backend = UserBackend(settings, backend=self._backend)
         await backend.connect()
         return backend
 
