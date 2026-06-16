@@ -35,7 +35,7 @@ class KvSessionStore:
     in unit tests pass InMemoryBackend.
     """
 
-    def __init__(self, backend: "CredentialBackend | None" = None) -> None:
+    def __init__(self, backend: CredentialBackend | None = None) -> None:
         self._backend = backend  # None → PerPluginStore calls backend_from_env()
 
     # ------------------------------------------------------------------

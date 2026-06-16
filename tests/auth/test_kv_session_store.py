@@ -1,7 +1,5 @@
 """Tests for KvSessionStore — durable per-sub session metadata via mcp-core backend."""
 
-import os
-
 import pytest
 from mcp_core.storage.backends import InMemoryBackend
 
