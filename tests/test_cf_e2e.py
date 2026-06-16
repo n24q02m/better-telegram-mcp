@@ -46,7 +46,7 @@ async def test_session_survives_recreate(monkeypatch, tmp_path):
     )
     provider = TelegramAuthProvider(
         tmp_path,
-        37984984,
+        12345,
         "hash",
         backend=backend,
         store=KvSessionStore(backend=backend),

@@ -82,13 +82,14 @@ class TestResolvePort:
 
 class TestIsMultiUserMode:
     def test_is_multi_user_mode_true(self, settings: Settings) -> None:
-        """Returns True when DCR_SERVER_SECRET and PUBLIC_URL are set."""
+        """Returns True when DCR_SERVER_SECRET, PUBLIC_URL, and api_id/hash are set."""
         env = {
             "DCR_SERVER_SECRET": "secret",
             "PUBLIC_URL": "https://mcp.example.com",
         }
+        settings.api_id = 12345
+        settings.api_hash = "hash"
         with patch.dict("os.environ", env, clear=True):
-            # settings has api_id/api_hash by default
             assert _is_multi_user_mode(settings) is True
 
     def test_is_multi_user_mode_true_mcp_prefixed_secret(
@@ -100,6 +101,8 @@ class TestIsMultiUserMode:
             "MCP_DCR_SERVER_SECRET": "secret",
             "PUBLIC_URL": "https://mcp.example.com",
         }
+        settings.api_id = 12345
+        settings.api_hash = "hash"
         with patch.dict("os.environ", env, clear=True):
             assert _is_multi_user_mode(settings) is True
 
@@ -110,6 +113,8 @@ class TestIsMultiUserMode:
             "DCR_SERVER_SECRET": "secret",
             "PUBLIC_URL": "https://mcp.example.com",
         }
+        settings.api_id = 12345
+        settings.api_hash = "hash"
         with patch.dict("os.environ", env, clear=True):
             assert _is_multi_user_mode(settings) is True
 

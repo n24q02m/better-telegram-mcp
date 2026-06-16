@@ -12,8 +12,8 @@ from tests.conftest_cf import FakeStringSessionClient
 
 def _settings(tmp_path) -> Settings:
     return Settings(
-        api_id=37984984,
-        api_hash="2f5f4c76c4de7c07302380c788390100",
+        api_id=12345,
+        api_hash="hash",
         phone="+10000000000",
         session_name="deadbeefdeadbeef",
         data_dir=tmp_path,

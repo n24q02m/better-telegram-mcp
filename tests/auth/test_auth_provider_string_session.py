@@ -25,7 +25,7 @@ async def test_provider_injects_backend_into_user_backend(monkeypatch, tmp_path)
     monkeypatch.setattr(
         "better_telegram_mcp.auth.telegram_auth_provider.UserBackend", _FakeUserBackend
     )
-    provider = TelegramAuthProvider(tmp_path, 37984984, "hash", backend=mem)
+    provider = TelegramAuthProvider(tmp_path, 12345, "hash", backend=mem)
     info = SessionInfo(session_name="abc123", mode="user", phone="+1")
     await provider._create_backend(info)
     assert captured["backend"] is mem
