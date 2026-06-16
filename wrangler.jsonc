@@ -1,0 +1,39 @@
+// wrangler.jsonc - better-telegram-mcp Cloudflare Worker + Container + KV.
+// Resource IDs are placeholders created out-of-band (wrangler kv:namespace create)
+// and filled in at deploy time, not committed as live IDs.
+{
+  "name": "better-telegram-mcp-worker",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-06-14",
+  "containers": [
+    {
+      "name": "better-telegram-mcp-worker",
+      "class_name": "TelegramContainer",
+      // CF Containers pull ONLY from the Cloudflare managed registry (an external
+      // ghcr.io ref fails IMAGE_REGISTRY_NOT_CONFIGURED). Push the pre-built http
+      // image first: docker pull ghcr.io/n24q02m/better-telegram-mcp:beta &&
+      // docker tag ... better-telegram-mcp:beta && wrangler containers push
+      // better-telegram-mcp:beta, then fill <YOUR_ACCOUNT_ID>.
+      "image": "registry.cloudflare.com/<YOUR_ACCOUNT_ID>/better-telegram-mcp:beta",
+      "instance_type": "standard-1",
+      "max_instances": 100
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "TELEGRAM", "class_name": "TelegramContainer" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TelegramContainer"] }],
+  "kv_namespaces": [{ "binding": "KV", "id": "<telegram-kv-namespace-id>" }],
+  // Non-secret container config (forwarded by TelegramContainer.envVars).
+  // Secrets via `wrangler secret put`: CREDENTIAL_SECRET, MCP_RELAY_PASSWORD
+  // (Gate A shared relay-password front door), MCP_DCR_SERVER_SECRET.
+  "vars": {
+    "PUBLIC_URL": "https://telegram.n24q02m.com",
+    "MCP_STORAGE_BACKEND": "cf-kv",
+    "MCP_KV_BASE_URL": "http://kv.internal",
+    "MCP_TRANSPORT": "http",
+    "MCP_PORT": "8080"
+  },
+  "routes": [{ "pattern": "telegram.n24q02m.com", "custom_domain": true }],
+  "observability": { "enabled": true }
+}

@@ -13,6 +13,7 @@ and ``credential_state.on_step_submitted``).
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -84,16 +85,26 @@ def _needs_2fa_password(error_msg: str) -> bool:
     )
 
 
-def check_saved_sessions() -> bool:
-    """Check for saved Telethon session files from a previous authentication.
+def check_saved_sessions(backend=None) -> bool:
+    """Check for a saved Telethon session from a previous authentication.
 
-    Looks for *.session files in ~/.better-telegram-mcp/. If found, the user
-    has previously authenticated and only needs to provide api_id + api_hash
-    to reuse the saved session (no re-authentication required).
+    Local FS deployments: look for ``*.session`` files in
+    ``~/.better-telegram-mcp/``. CF / externalized-backend deployments: the
+    StringSession lives in the credential backend (not on disk), so a glob would
+    be a permanent false-negative -- query the ``KvSessionStore`` index instead.
 
     Returns:
-        True if at least one session file exists, False otherwise.
+        True if at least one saved session exists, False otherwise.
     """
+    cf_mode = (
+        backend is not None
+        or os.environ.get("MCP_STORAGE_BACKEND", "").lower() == "cf-kv"
+    )
+    if cf_mode:
+        from .auth.kv_session_store import KvSessionStore
+
+        return len(KvSessionStore(backend=backend).load_all()) > 0
+
     data_dir = Path.home() / ".better-telegram-mcp"
     if not data_dir.exists():
         return False

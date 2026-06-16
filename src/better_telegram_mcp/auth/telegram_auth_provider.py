@@ -61,11 +61,19 @@ class TelegramAuthProvider:
     Supports both bot mode (instant) and user mode (OTP flow).
     """
 
-    def __init__(self, data_dir: Path, api_id: int, api_hash: str) -> None:
+    def __init__(
+        self,
+        data_dir: Path,
+        api_id: int,
+        api_hash: str,
+        backend=None,
+        store=None,
+    ) -> None:
         self._data_dir = data_dir
         self._api_id = api_id
         self._api_hash = api_hash
-        self._store = InMemorySessionStore()
+        self._backend = backend
+        self._store = store if store is not None else InMemorySessionStore()
 
         # bearer -> active TelegramBackend
         self.active_clients: dict[str, TelegramBackend] = {}
@@ -149,7 +157,7 @@ class TelegramAuthProvider:
                 session_name=info.session_name,
                 data_dir=self._data_dir / "user_sessions",
             )
-            backend = UserBackend(settings)
+            backend = UserBackend(settings, backend=self._backend)
             await backend.connect()
             return backend
 
@@ -208,7 +216,7 @@ class TelegramAuthProvider:
             session_name=session_name,
             data_dir=self._data_dir / "user_sessions",
         )
-        backend = UserBackend(settings)
+        backend = UserBackend(settings, backend=self._backend)
         await backend.connect()
         return backend
 

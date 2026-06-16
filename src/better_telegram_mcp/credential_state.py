@@ -36,6 +36,69 @@ CREDENTIAL_KEYS_BOT = REQUIRED_FIELDS_BOT  # ["TELEGRAM_BOT_TOKEN"]
 CREDENTIAL_KEYS_USER = REQUIRED_FIELDS_USER  # ["TELEGRAM_PHONE"]
 
 
+def _cf_mode() -> bool:
+    """True when durable state is externalized to a CF backend (cf-kv)."""
+    return os.environ.get("MCP_STORAGE_BACKEND", "").lower() == "cf-kv"
+
+
+# Synthetic non-None sub for the single-user config blob. PerPluginStore._key()
+# (per_plugin_store.py:97-100) only uses CREDENTIAL_SECRET (PBKDF2) when ``sub``
+# is non-None; with sub=None it derives the AES key from the on-disk machine
+# ``.secret`` (per_plugin_store.py:51-60), which is EPHEMERAL on CF -> the blob
+# is undecryptable on a recreated container. Keying single-user config under a
+# synthetic non-None sub forces the CREDENTIAL_SECRET key path so the blob
+# survives recreate (matching KvSessionStore._INDEX_SUB).
+# CONSTRAINT: PerPluginStore validates ``sub`` against ``[^a-zA-Z0-9.-]``
+# (per_plugin_store.py:35,38), so the sentinel uses only the allowed charset and
+# avoids underscores; the hyphenated form is not a valid UUID shape and cannot
+# collide with a real JWT sub.
+_SINGLE_USER_SUB = "shared-single-user"
+
+
+def _single_user_store(backend=None):
+    """Backend-seam store for the single-user config blob (CF mode).
+
+    The storage plugin slug is ``"telegram"`` (matching the StringSession /
+    KvSessionStore key namespace) while ``SERVER_NAME`` ("better-telegram-mcp")
+    stays the namespace for the legacy on-disk ``config.enc`` path. The
+    synthetic ``_SINGLE_USER_SUB`` (non-None) is REQUIRED: a sub=None store
+    would encrypt with the machine ``.secret`` (ephemeral on CF), not
+    CREDENTIAL_SECRET, so the blob would be undecryptable after a recreate.
+    """
+    from mcp_core.storage.backends import backend_from_env
+    from mcp_core.storage.per_plugin_store import PerPluginStore
+
+    return PerPluginStore(
+        "telegram", _SINGLE_USER_SUB, backend=backend or backend_from_env()
+    )
+
+
+def _write_single_user_config(config: dict, backend=None) -> None:
+    if backend is not None or _cf_mode():
+        _single_user_store(backend).save(config)
+        return
+    from mcp_core.storage.config_file import write_config
+
+    write_config(SERVER_NAME, config)
+
+
+def _read_single_user_config(backend=None) -> dict | None:
+    if backend is not None or _cf_mode():
+        return _single_user_store(backend).load()
+    from mcp_core.storage.config_file import read_config
+
+    return read_config(SERVER_NAME)
+
+
+def _delete_single_user_config(backend=None) -> None:
+    if backend is not None or _cf_mode():
+        _single_user_store(backend).clear()
+        return
+    from mcp_core.storage.config_file import delete_config
+
+    delete_config(SERVER_NAME)
+
+
 class CredentialState(Enum):
     AWAITING_SETUP = "awaiting_setup"
     SETUP_IN_PROGRESS = "setup_in_progress"
@@ -117,9 +180,7 @@ def resolve_credential_state() -> CredentialState:
         return _state
 
     try:
-        from mcp_core.storage.config_file import read_config
-
-        saved = read_config(SERVER_NAME)
+        saved = _read_single_user_config()
         if saved:
             has_bot = bool(saved.get("TELEGRAM_BOT_TOKEN"))
             has_user = bool(saved.get("TELEGRAM_PHONE"))
@@ -228,10 +289,8 @@ async def save_credentials(
         logger.info("Multi-user: bot backend registered for sub={}", sub[:8])
         return None
 
-    # ----- Single-user branch: shared config.enc + global backend -----
-    from mcp_core.storage.config_file import write_config
-
-    write_config(SERVER_NAME, config)
+    # ----- Single-user branch: shared config.enc (local) / KV (CF) + global backend -----
+    _write_single_user_config(config)
 
     for key, value in config.items():
         if value and key not in os.environ:
@@ -309,9 +368,7 @@ def reset_state() -> None:
     _step_otp_code = None
 
     try:
-        from mcp_core.storage.config_file import delete_config
-
-        delete_config(SERVER_NAME)
+        _delete_single_user_config()
     except Exception as e:
         logger.warning("Failed to delete config during state reset: {}", e)
 
