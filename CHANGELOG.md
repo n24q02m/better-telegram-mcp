@@ -2,6 +2,94 @@
 
 <!-- version list -->
 
+## v4.13.0-beta.1 (2026-06-16)
+
+### Bug Fixes
+
+- Correct stdio credential storage path and dead auth env var in docs
+  ([`96d1f0b`](https://github.com/n24q02m/better-telegram-mcp/commit/96d1f0b92473d4edf723a90f09bd64e337b46654))
+
+- Forward MCP_RELAY_PASSWORD into CF container so Gate A is enforced
+  ([#792](https://github.com/n24q02m/better-telegram-mcp/pull/792),
+  [`2467048`](https://github.com/n24q02m/better-telegram-mcp/commit/2467048214ac8a1cd89653aa130326779b2b7d50))
+
+- Query backend for saved sessions in CF mode (kill FS-glob false-negative)
+  ([#792](https://github.com/n24q02m/better-telegram-mcp/pull/792),
+  [`2467048`](https://github.com/n24q02m/better-telegram-mcp/commit/2467048214ac8a1cd89653aa130326779b2b7d50))
+
+- Remove dead CredentialStore methods and unused auth_url setting
+  ([`6813828`](https://github.com/n24q02m/better-telegram-mcp/commit/681382820112b912ee4a666ab9a3c386e60f782a))
+
+- Remove non-existent auth CLI and config action from AGENTS.md
+  ([#759](https://github.com/n24q02m/better-telegram-mcp/pull/759),
+  [`f21e720`](https://github.com/n24q02m/better-telegram-mcp/commit/f21e7202e5cd0da1b6ebc408d8438aebf9bb35e0))
+
+- Remove orphaned Qodo pr-agent config
+  ([#757](https://github.com/n24q02m/better-telegram-mcp/pull/757),
+  [`1285ffb`](https://github.com/n24q02m/better-telegram-mcp/commit/1285ffb9d794909bcdf50505eb86e611d6019662))
+
+- Ruff lint in KvSessionStore (unquoted annotation, unused import)
+  ([#792](https://github.com/n24q02m/better-telegram-mcp/pull/792),
+  [`2467048`](https://github.com/n24q02m/better-telegram-mcp/commit/2467048214ac8a1cd89653aa130326779b2b7d50))
+
+- Sync README tagline to current capability description
+  ([#761](https://github.com/n24q02m/better-telegram-mcp/pull/761),
+  [`424f0ca`](https://github.com/n24q02m/better-telegram-mcp/commit/424f0ca54f1347af4e5e807ebe6e4af5aefd57da))
+
+### Features
+
+- Add CF state-survives-recreate + per-sub isolation guards
+  ([#792](https://github.com/n24q02m/better-telegram-mcp/pull/792),
+  [`2467048`](https://github.com/n24q02m/better-telegram-mcp/commit/2467048214ac8a1cd89653aa130326779b2b7d50))
+
+- Add Cloudflare test harness (fake KV http, Telethon double, env presets)
+  ([#792](https://github.com/n24q02m/better-telegram-mcp/pull/792),
+  [`2467048`](https://github.com/n24q02m/better-telegram-mcp/commit/2467048214ac8a1cd89653aa130326779b2b7d50))
+
+- Add Cloudflare Worker fronting per-sub Telegram container DO (KV-only)
+  ([#792](https://github.com/n24q02m/better-telegram-mcp/pull/792),
+  [`2467048`](https://github.com/n24q02m/better-telegram-mcp/commit/2467048214ac8a1cd89653aa130326779b2b7d50))
+
+- Add KvSessionStore for durable per-sub session metadata
+  ([#792](https://github.com/n24q02m/better-telegram-mcp/pull/792),
+  [`2467048`](https://github.com/n24q02m/better-telegram-mcp/commit/2467048214ac8a1cd89653aa130326779b2b7d50))
+
+- Add wrangler config for KV-only Telegram Worker + container
+  ([#792](https://github.com/n24q02m/better-telegram-mcp/pull/792),
+  [`2467048`](https://github.com/n24q02m/better-telegram-mcp/commit/2467048214ac8a1cd89653aa130326779b2b7d50))
+
+- Bump mcp-core pin to 1.18.0b7 for storage backend seam
+  ([#792](https://github.com/n24q02m/better-telegram-mcp/pull/792),
+  [`2467048`](https://github.com/n24q02m/better-telegram-mcp/commit/2467048214ac8a1cd89653aa130326779b2b7d50))
+
+- Bump mcp-core pin to 1.18.0b8 for StringSession seam
+  ([#792](https://github.com/n24q02m/better-telegram-mcp/pull/792),
+  [`2467048`](https://github.com/n24q02m/better-telegram-mcp/commit/2467048214ac8a1cd89653aa130326779b2b7d50))
+
+- Load per-sub Telethon StringSession from backend with save-on-change
+  ([#792](https://github.com/n24q02m/better-telegram-mcp/pull/792),
+  [`2467048`](https://github.com/n24q02m/better-telegram-mcp/commit/2467048214ac8a1cd89653aa130326779b2b7d50))
+
+- Migrate to Cloudflare Worker + Container + KV with per-sub multi-user
+  ([#792](https://github.com/n24q02m/better-telegram-mcp/pull/792),
+  [`2467048`](https://github.com/n24q02m/better-telegram-mcp/commit/2467048214ac8a1cd89653aa130326779b2b7d50))
+
+- Route single-user credentials through backend seam in CF mode
+  ([#792](https://github.com/n24q02m/better-telegram-mcp/pull/792),
+  [`2467048`](https://github.com/n24q02m/better-telegram-mcp/commit/2467048214ac8a1cd89653aa130326779b2b7d50))
+
+- Select durable KvSessionStore in CF mode for session restore
+  ([#792](https://github.com/n24q02m/better-telegram-mcp/pull/792),
+  [`2467048`](https://github.com/n24q02m/better-telegram-mcp/commit/2467048214ac8a1cd89653aa130326779b2b7d50))
+
+- Sync cross-promo section ([#762](https://github.com/n24q02m/better-telegram-mcp/pull/762),
+  [`631ee54`](https://github.com/n24q02m/better-telegram-mcp/commit/631ee544b981c84646fe5a86f75a7c7cf7baa512))
+
+- Thread storage backend through TelegramAuthProvider into UserBackend
+  ([#792](https://github.com/n24q02m/better-telegram-mcp/pull/792),
+  [`2467048`](https://github.com/n24q02m/better-telegram-mcp/commit/2467048214ac8a1cd89653aa130326779b2b7d50))
+
+
 ## v4.12.7-beta.3 (2026-06-10)
 
 ### Bug Fixes
