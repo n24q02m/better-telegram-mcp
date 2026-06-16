@@ -605,6 +605,15 @@ def render_telegram_credential_form(
                             submitStep();
                         }}
                     }});
+                    inputEl.addEventListener("input", function () {{
+                        if (inputEl.hasAttribute("aria-invalid")) {{
+                            inputEl.removeAttribute("aria-invalid");
+                        }}
+                        if (errorEl.style.display !== "none") {{
+                            errorEl.style.display = "none";
+                            errorEl.textContent = "";
+                        }}
+                    }});
                 }}
 
                 promptEl.textContent = ns.text || "";
@@ -703,6 +712,19 @@ def render_telegram_credential_form(
                         inputEl.focus();
                     }});
             }}
+
+            // --- Clear error state on input ------------------------------------
+            form.querySelectorAll(".field-input").forEach(function (input) {{
+                input.addEventListener("input", function () {{
+                    if (input.hasAttribute("aria-invalid")) {{
+                        input.removeAttribute("aria-invalid");
+                    }}
+                    if (statusBox.style.display !== "none" && statusBox.className.indexOf("error") !== -1) {{
+                        statusBox.style.display = "none";
+                        statusBox.textContent = "";
+                    }}
+                }});
+            }});
 
             // --- Form submit ---------------------------------------------------
             form.addEventListener("submit", function (event) {{
