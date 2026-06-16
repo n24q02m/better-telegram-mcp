@@ -24,10 +24,21 @@ from .security import (
 
 
 class UserBackend(TelegramBackend):
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, backend=None):
         super().__init__("user")
         self._settings = settings
         self._client: TelegramClient | None = None
+        self._backend = backend  # None -> resolved from env at connect()
+
+    def _session_store(self):
+        from mcp_core.storage.backends import backend_from_env
+        from mcp_core.storage.string_session_store import StringSessionStore
+
+        backend = self._backend or backend_from_env()
+        # The per-sub identity is the settings.session_name (sha256(sub)[:16]).
+        return StringSessionStore(
+            "telegram", self._settings.session_name, backend=backend
+        )
 
     def _ensure_client(self) -> TelegramClient:
         if self._client is None:
@@ -93,18 +104,42 @@ class UserBackend(TelegramBackend):
         }
 
     # --- Connection ---
+    def _is_externalized(self) -> bool:
+        """True when the session must live in a credential backend, not on disk.
+
+        An injected backend (per-sub multi-user) OR ``MCP_STORAGE_BACKEND=cf-kv``
+        means the FS is ephemeral (Cloudflare container) and the Telethon
+        auth_key would evaporate on recreate -- so it is stored as a
+        StringSession in the backend instead. Local/stdio deployments keep the
+        durable on-disk ``.session`` SQLite.
+        """
+        return (
+            self._backend is not None
+            or os.environ.get("MCP_STORAGE_BACKEND", "").lower() == "cf-kv"
+        )
+
     async def connect(self) -> None:
         s = self._settings
-        # Bolt: Move blocking I/O to a background thread
-        await asyncio.to_thread(self._prepare_session_file)
 
-        # Telethon auto-appends .session, so pass path without extension
-        session_path = s.data_dir / s.session_name
-        self._client = TelegramClient(
-            str(session_path),
-            s.api_id,
-            s.api_hash,
-        )
+        if self._is_externalized():
+            # Externalized (CF / injected backend): the auth_key lives in the
+            # credential backend (KV) as a StringSession, so it survives an
+            # ephemeral-FS container recreate. The save-on-change sink flushes on
+            # every Telethon rewrite (DC migration / key rotation), not just after
+            # sign_in -- the fix for the "re-auth a few days later" failure mode.
+            from mcp_core.storage.string_session_store import SaveOnChangeStringSession
+
+            store = self._session_store()
+            session = SaveOnChangeStringSession(store.load(), sink=store.save)
+            self._client = TelegramClient(session, s.api_id, s.api_hash)
+        else:
+            # Local default: durable on-disk ``.session`` SQLite.
+            # Bolt: Move blocking I/O to a background thread.
+            await asyncio.to_thread(self._prepare_session_file)
+            # Telethon auto-appends .session, so pass path without extension.
+            session_path = s.data_dir / s.session_name
+            self._client = TelegramClient(str(session_path), s.api_id, s.api_hash)
+
         await self._client.connect()
 
         if not await self._client.is_user_authorized():
@@ -158,7 +193,10 @@ class UserBackend(TelegramBackend):
                 raise
 
         me = await client.get_me()
-        # Bolt: Move blocking I/O to a background thread
+        # Local FS deployments secure the on-disk .session (0o600). On an
+        # externalized backend the StringSession save-on-change sink persists the
+        # auth_key and this is a no-op (no .session file exists to chmod).
+        # Bolt: Move blocking I/O to a background thread.
         await asyncio.to_thread(self._secure_session_file)
 
         return {
