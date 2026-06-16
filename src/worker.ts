@@ -33,6 +33,10 @@ export interface Env {
   MCP_PORT: string
   PUBLIC_URL: string
   CREDENTIAL_SECRET: string
+  // Gate A (shared relay-password). Empty/unset disables the human front door —
+  // forwarding it is REQUIRED so the deployed server gates /authorize behind
+  // /login like the OCI VM (omitting it = open self-service relay).
+  MCP_RELAY_PASSWORD: string
   MCP_DCR_SERVER_SECRET: string
   TELEGRAM_API_ID?: string
   TELEGRAM_API_HASH?: string
@@ -43,11 +47,11 @@ export interface Env {
 // injects a blank.
 const CONTAINER_ENV_KEYS = [
   'MCP_STORAGE_BACKEND', 'MCP_KV_BASE_URL', 'MCP_TRANSPORT', 'MCP_PORT',
-  'PUBLIC_URL', 'CREDENTIAL_SECRET', 'MCP_DCR_SERVER_SECRET',
+  'PUBLIC_URL', 'CREDENTIAL_SECRET', 'MCP_RELAY_PASSWORD', 'MCP_DCR_SERVER_SECRET',
   'TELEGRAM_API_ID', 'TELEGRAM_API_HASH',
 ] as const
 
-function pickContainerEnv(env: Env): Record<string, string> {
+export function pickContainerEnv(env: Env): Record<string, string> {
   const out: Record<string, string> = {}
   for (const k of CONTAINER_ENV_KEYS) {
     const v = (env as unknown as Record<string, unknown>)[k]

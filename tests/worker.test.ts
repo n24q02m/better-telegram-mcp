@@ -1,6 +1,6 @@
 // tests/worker.test.ts
 import { describe, expect, it } from 'vitest'
-import worker, { TelegramContainer } from '../src/worker'
+import worker, { TelegramContainer, pickContainerEnv } from '../src/worker'
 
 // Minimal in-memory KV that matches the Env.KV shape (arrayBuffer get/put/delete).
 function makeKv() {
@@ -43,6 +43,30 @@ describe('kvOutbound (via TelegramContainer.outboundByHost)', () => {
     await handler(new Request('http://kv.internal/k', { method: 'DELETE' }), env)
     const res = await handler(new Request('http://kv.internal/k'), env)
     expect(res.status).toBe(404)
+  })
+})
+
+describe('pickContainerEnv forwards security-critical secrets into the container', () => {
+  it('forwards MCP_RELAY_PASSWORD (Gate A) so /authorize is gated, not open', () => {
+    const env = {
+      MCP_RELAY_PASSWORD: 'shared-pw',
+      MCP_DCR_SERVER_SECRET: 'dcr',
+      CREDENTIAL_SECRET: 'cred',
+      MCP_STORAGE_BACKEND: 'cf-kv',
+    } as any
+    const out = pickContainerEnv(env)
+    // Regression guard: dropping MCP_RELAY_PASSWORD here turns the deployed server
+    // into an open self-service relay (the human front door vanishes).
+    expect(out.MCP_RELAY_PASSWORD).toBe('shared-pw')
+    expect(out.MCP_DCR_SERVER_SECRET).toBe('dcr')
+    expect(out.CREDENTIAL_SECRET).toBe('cred')
+  })
+
+  it('drops empty/unset values so a blank secret never injects', () => {
+    const env = { MCP_RELAY_PASSWORD: '', MCP_STORAGE_BACKEND: 'cf-kv' } as any
+    const out = pickContainerEnv(env)
+    expect('MCP_RELAY_PASSWORD' in out).toBe(false)
+    expect(out.MCP_STORAGE_BACKEND).toBe('cf-kv')
   })
 })
 

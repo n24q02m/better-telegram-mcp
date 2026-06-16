@@ -25,7 +25,8 @@
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TelegramContainer"] }],
   "kv_namespaces": [{ "binding": "KV", "id": "<telegram-kv-namespace-id>" }],
   // Non-secret container config (forwarded by TelegramContainer.envVars).
-  // Secrets via `wrangler secret put`: CREDENTIAL_SECRET, MCP_DCR_SERVER_SECRET.
+  // Secrets via `wrangler secret put`: CREDENTIAL_SECRET, MCP_RELAY_PASSWORD
+  // (Gate A shared relay-password front door), MCP_DCR_SERVER_SECRET.
   "vars": {
     "PUBLIC_URL": "https://telegram.n24q02m.com",
     "MCP_STORAGE_BACKEND": "cf-kv",
