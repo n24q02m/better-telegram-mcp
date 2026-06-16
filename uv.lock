@@ -112,7 +112,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.27.2" },
-    { name = "n24q02m-mcp-core", specifier = ">=1.18.0b7,<2" },
+    { name = "n24q02m-mcp-core", specifier = ">=1.18.0b8,<2" },
     { name = "pydantic", specifier = ">=2.13.4,<2.14" },
     { name = "pydantic-settings", specifier = ">=2.14.1" },
     { name = "starlette", specifier = ">=1.2.1" },
@@ -735,7 +735,7 @@ wheels = [
 
 [[package]]
 name = "n24q02m-mcp-core"
-version = "1.18.0b7"
+version = "1.18.0b8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "authlib" },
@@ -750,9 +750,9 @@ dependencies = [
     { name = "starlette" },
     { name = "tomli-w" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d3/29/c1255eac1944cf1eb68d8ecb045f906b7737febefad3bc24cfdd6457c00d/n24q02m_mcp_core-1.18.0b7.tar.gz", hash = "sha256:17e7207beb9dc0248f25096095f0847e4d69d2f33d60f172b4b9423d5ef5ef32", size = 275604, upload-time = "2026-06-15T17:00:40.386Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4e/88/35e4b80b23ca736559c52d46f9945e12a14a1806695ac782bc540260b3c2/n24q02m_mcp_core-1.18.0b8.tar.gz", hash = "sha256:bcaa06bfe1f4f796bcd2bc126dc4dd932ab6927a0d4a684d62ca0d1a3b90fc23", size = 278511, upload-time = "2026-06-16T07:13:50.26Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c0/5e/2c2c12eb11dc19669a53dbb454b9c121aea188f65f43ab1f56d7dce9ca0d/n24q02m_mcp_core-1.18.0b7-py3-none-any.whl", hash = "sha256:fe0e583582dcdb99514b9a2a4db28be7a9b649e338f8a01b996ee9c57efa71c8", size = 151538, upload-time = "2026-06-15T17:00:41.69Z" },
+    { url = "https://files.pythonhosted.org/packages/73/fa/aa19ff8c53edd1c858574d17f4f43af867c0753de48816d1bde138597d18/n24q02m_mcp_core-1.18.0b8-py3-none-any.whl", hash = "sha256:446cc7393e2e1391ee0e6aa7a843882c5b476ef13079b3b9767c134c450a075d", size = 153308, upload-time = "2026-06-16T07:13:51.411Z" },
 ]
 
 [[package]]
