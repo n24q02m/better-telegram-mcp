@@ -287,10 +287,21 @@ def _start_multi_user_http(settings: Settings) -> None:
     # Build the global TelegramAuthProvider so ``save_credentials``,
     # ``on_step_submitted``, and the auth_scope middleware all share the
     # same per-sub backend cache.
+    backend = None
+    store = None
+    if settings.cf_mode:
+        from mcp_core.storage.backends import backend_from_env
+
+        backend = backend_from_env()
+        from ..auth.kv_session_store import KvSessionStore
+
+        store = KvSessionStore(backend=backend)
     auth_provider = TelegramAuthProvider(
         settings.data_dir,
         int(settings.api_id or 0),
         settings.api_hash or "",
+        backend=backend,
+        store=store,
     )
     set_global_provider(auth_provider)
 

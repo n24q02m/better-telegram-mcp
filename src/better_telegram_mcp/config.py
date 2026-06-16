@@ -78,6 +78,11 @@ class Settings(BaseSettings):
             and self.phone is not None
         )
 
+    @property
+    def cf_mode(self) -> bool:
+        """True when durable state is externalized to a CF backend (cf-kv)."""
+        return os.environ.get("MCP_STORAGE_BACKEND", "").lower() == "cf-kv"
+
     @classmethod
     def from_relay_config(cls, config: dict[str, str]) -> Settings:
         """Create Settings from relay config dict (from config file or relay setup).
