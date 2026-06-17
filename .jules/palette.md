@@ -20,3 +20,6 @@
 ## 2024-07-29 - Clear Validation State on Input
 **Learning:** Lingering error states (`aria-invalid="true"` or visible error messages) are frustrating when users begin to correct the issue but the UI continues shouting at them until the next submit.
 **Action:** Always attach `input` event listeners to form fields to actively strip validation styling and hide inline error messages as soon as the user resumes typing.
+## 2024-05-19 - Password Visibility Toggles for API Keys
+**Learning:** Password visibility toggles (Show/Hide buttons) are not just helpful for user passwords, but provide a critical UX improvement for long API keys (like Bot Tokens). Users often paste partial keys or experience issues verifying successful copy-pastes, leading to frustrating auth failures.
+**Action:** Always consider adding "Show/Hide" toggle buttons to `type="password"` fields that accept long API keys or tokens to allow users to visually verify their input before submitting.

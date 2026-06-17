@@ -224,6 +224,40 @@ def render_telegram_credential_form(
             padding: 0.1rem 0.4rem;
         }}
 
+        .password-wrapper {{
+            position: relative;
+            display: flex;
+            align-items: center;
+        }}
+
+        .password-toggle {{
+            position: absolute;
+            right: 0.75rem;
+            background: transparent;
+            border: none;
+            color: #888;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            transition: color 0.15s ease, background-color 0.15s ease;
+            font-family: inherit;
+        }}
+
+        .password-toggle:hover {{
+            color: #ccc;
+            background-color: rgba(255, 255, 255, 0.05);
+        }}
+
+        .password-toggle:focus-visible {{
+            outline: 2px solid #4a6fa5;
+            outline-offset: -2px;
+            color: #fff;
+        }}
+
         .field-input {{
             width: 100%;
             background-color: #111;
@@ -235,6 +269,10 @@ def render_telegram_credential_form(
             transition: border-color 0.15s ease, box-shadow 0.15s ease;
             outline: none;
             font-family: inherit;
+        }}
+
+        .password-wrapper .field-input {{
+            padding-right: 4rem; /* Make room for the toggle button */
         }}
 
         .field-input:focus {{
@@ -385,19 +423,22 @@ def render_telegram_credential_form(
                             Bot Token
                             <span class="required-badge" aria-hidden="true">Required</span>
                         </label>
-                        <input
-                            id="field-TELEGRAM_BOT_TOKEN"
-                            name="TELEGRAM_BOT_TOKEN"
-                            type="password"
-                            placeholder="123456:ABC-DEF..."
-                            class="field-input"
-                            autocomplete="current-password"
-                            autocorrect="off"
-                            autocapitalize="off"
-                            spellcheck="false"
-                            inputmode="text"{bot_token_value_attr}
-                            aria-describedby="help-bot-token status-box"{bot_token_required}
-                        />
+                        <div class="password-wrapper">
+                            <input
+                                id="field-TELEGRAM_BOT_TOKEN"
+                                name="TELEGRAM_BOT_TOKEN"
+                                type="password"
+                                placeholder="123456:ABC-DEF..."
+                                class="field-input"
+                                autocomplete="current-password"
+                                autocorrect="off"
+                                autocapitalize="off"
+                                spellcheck="false"
+                                inputmode="text"{bot_token_value_attr}
+                                aria-describedby="help-bot-token status-box"{bot_token_required}
+                            />
+                            <button type="button" class="password-toggle" id="toggle-bot-token" aria-label="Show bot token" aria-controls="field-TELEGRAM_BOT_TOKEN">Show</button>
+                        </div>
                         <p id="help-bot-token" class="help-text">
                             <a href="https://core.telegram.org/bots#botfather" target="_blank" rel="noopener noreferrer">Get from @BotFather on Telegram</a>
                         </p>
@@ -443,6 +484,26 @@ def render_telegram_credential_form(
             var statusBox = document.getElementById("status-box");
             var submitUrl = "{submit_url_escaped}";
             var activeTab = "{initial_tab}";
+
+            // --- Password Visibility Toggle ------------------------------------
+            function setupPasswordToggle(inputEl, toggleBtn, labelBase) {{
+                if (!inputEl || !toggleBtn) return;
+                toggleBtn.addEventListener("click", function () {{
+                    if (inputEl.type === "password") {{
+                        inputEl.type = "text";
+                        toggleBtn.textContent = "Hide";
+                        toggleBtn.setAttribute("aria-label", "Hide " + labelBase);
+                    }} else {{
+                        inputEl.type = "password";
+                        toggleBtn.textContent = "Show";
+                        toggleBtn.setAttribute("aria-label", "Show " + labelBase);
+                    }}
+                }});
+            }}
+
+            var botTokenInput = document.getElementById("field-TELEGRAM_BOT_TOKEN");
+            var botTokenToggle = document.getElementById("toggle-bot-token");
+            setupPasswordToggle(botTokenInput, botTokenToggle, "bot token");
 
             // --- Tab switching -------------------------------------------------
             var tabs = document.querySelectorAll(".tab");
@@ -578,6 +639,11 @@ def render_telegram_credential_form(
 
                     var fieldGroup = document.createElement("div");
                     fieldGroup.className = "field-group";
+
+                    var passwordWrapper = document.createElement("div");
+                    passwordWrapper.className = "password-wrapper";
+                    passwordWrapper.id = "step-password-wrapper";
+
                     inputEl = document.createElement("input");
                     inputEl.id = "step-input";
                     inputEl.className = "field-input";
@@ -587,7 +653,20 @@ def render_telegram_credential_form(
                     inputEl.setAttribute("spellcheck", "false");
                     inputEl.setAttribute("aria-labelledby", "step-prompt");
                     inputEl.setAttribute("aria-describedby", "step-error");
-                    fieldGroup.appendChild(inputEl);
+
+                    var toggleBtn = document.createElement("button");
+                    toggleBtn.type = "button";
+                    toggleBtn.className = "password-toggle";
+                    toggleBtn.id = "toggle-step-input";
+                    toggleBtn.textContent = "Show";
+                    toggleBtn.setAttribute("aria-label", "Show password");
+                    toggleBtn.setAttribute("aria-controls", "step-input");
+                    toggleBtn.style.display = "none";
+                    setupPasswordToggle(inputEl, toggleBtn, "password");
+
+                    passwordWrapper.appendChild(inputEl);
+                    passwordWrapper.appendChild(toggleBtn);
+                    fieldGroup.appendChild(passwordWrapper);
                     container.appendChild(fieldGroup);
 
                     buttonEl = document.createElement("button");
@@ -630,6 +709,15 @@ def render_telegram_credential_form(
                 inputEl.setAttribute("type", stepType);
                 inputEl.setAttribute("placeholder", ns.placeholder || "");
                 inputEl.dataset.field = ns.field || "value";
+
+                var toggleBtn = document.getElementById("toggle-step-input");
+                if (toggleBtn) {{
+                    if (stepType === "password") {{
+                        toggleBtn.style.display = "block";
+                    }} else {{
+                        toggleBtn.style.display = "none";
+                    }}
+                }}
                 // Semantic autofill hints. OTP step gets `one-time-code` so
                 // mobile keyboards offer the SMS autofill bubble; the 2FA
                 // password step gets `current-password` so password managers
