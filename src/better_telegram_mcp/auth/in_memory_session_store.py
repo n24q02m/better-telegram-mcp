@@ -1,9 +1,8 @@
 """In-memory per-user session store (TC-NearZK).
 
-Replaces deprecated per_user_session_store.py (disk-encrypted AES-GCM +
-PBKDF2) for HTTP multi-user mode. Aligns with Notion's in-memory
-pattern: server has access during request lifetime; restart clears all
-sessions, users re-auth via OTP/2FA flow.
+Used for HTTP multi-user mode. Aligns with Notion's in-memory pattern:
+server has access during request lifetime; restart clears all sessions,
+users re-auth via OTP/2FA flow.
 
 Trust model: server admin (n24q02m operator) can dump live memory via
 debugger but no persistent file = no FS-dump compromise.
@@ -43,7 +42,6 @@ class SessionInfo:
 class InMemorySessionStore:
     """Per-user MTProto session store with no disk persistence.
 
-    Drop-in replacement for PerUserSessionStore (same public API).
     Constructor takes no arguments — no data_dir or secret needed.
     """
 
