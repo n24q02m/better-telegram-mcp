@@ -352,7 +352,7 @@ class UserBackend(TelegramBackend):
         client = self._ensure_client()
         from telethon.tl.functions.messages import ImportChatInviteRequest
 
-        if "joinchat/" in link_or_hash or "+/" in link_or_hash:
+        if "joinchat/" in link_or_hash or "/+" in link_or_hash:
             # Extract hash from invite link
             invite_hash = link_or_hash.split("/")[-1]
             if invite_hash.startswith("+"):

@@ -1545,3 +1545,56 @@ class TestUserBackendLogging:
         mock_logger.debug.assert_called()
         args, _ = mock_logger.debug.call_args
         assert "Could not set session file permissions" in args[0]
+
+    async def test_secure_session_file_chmod_error_direct(self, tmp_path, mock_logger):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        settings = _make_settings(tmp_path)
+        session_file = (settings.data_dir / settings.session_name).with_suffix(
+            ".session"
+        )
+        settings.data_dir.mkdir(parents=True, exist_ok=True)
+        session_file.write_text("test")
+
+        backend = UserBackend(settings)
+
+        with patch("os.chmod", side_effect=OSError("chmod failed")):
+            backend._secure_session_file()
+
+        mock_logger.debug.assert_called()
+        # Verify the specific message
+        found = False
+        for call in mock_logger.debug.call_args_list:
+            if "Could not set session file permissions" in call[0][0]:
+                found = True
+                break
+        assert found
+
+    async def test_join_chat_plus_style_invite(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from telethon.tl.functions.messages import ImportChatInviteRequest
+
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_client.sign_in = AsyncMock()
+        mock_client.__call__ = AsyncMock()
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        # This link should now trigger line 321
+        await backend.join_chat("https://t.me/+abc123")
+
+        # Verify ImportChatInviteRequest was called with 'abc123'
+        # Telethon functions are usually called via client(Request(...))
+        mock_client.assert_awaited()
+        # Find the call with ImportChatInviteRequest
+        found = False
+        for call in mock_client.call_args_list:
+            arg = call[0][0]
+            if isinstance(arg, ImportChatInviteRequest) and arg.hash == "abc123":
+                found = True
+                break
+        assert found
