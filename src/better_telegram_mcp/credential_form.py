@@ -448,6 +448,17 @@ def render_telegram_credential_form(
             var tabs = document.querySelectorAll(".tab");
             var tabsArray = Array.prototype.slice.call(tabs);
 
+            // Clear errors when typing
+            form.querySelectorAll(".field-input").forEach(function (input) {{
+                input.addEventListener("input", function () {{
+                    if (input.getAttribute("aria-invalid") === "true") {{
+                        input.removeAttribute("aria-invalid");
+                        statusBox.style.display = "none";
+                        statusBox.textContent = "";
+                    }}
+                }});
+            }});
+
             tabs.forEach(function (tab, index) {{
                 tab.addEventListener("click", function () {{
                     if (tab.disabled) {{
@@ -603,6 +614,13 @@ def render_telegram_credential_form(
                         if (evt.key === "Enter") {{
                             evt.preventDefault();
                             submitStep();
+                        }}
+                    }});
+                    inputEl.addEventListener("input", function () {{
+                        if (inputEl.getAttribute("aria-invalid") === "true") {{
+                            inputEl.removeAttribute("aria-invalid");
+                            errorEl.style.display = "none";
+                            errorEl.textContent = "";
                         }}
                     }});
                 }}
