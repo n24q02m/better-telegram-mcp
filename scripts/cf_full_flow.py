@@ -51,7 +51,10 @@ import time
 import urllib.parse
 from pathlib import Path
 
-DEFAULT_ENDPOINT = "https://telegram.n24q02m.com"
+# No hardcoded host: set CF_ENDPOINT or pass --endpoint https://<your-worker-domain>.
+# This self-tests YOUR deployed CF server; creds come from env (MCP_RELAY_PASSWORD +
+# provider keys) -- the maintainer injects them via skret, but any export works.
+DEFAULT_ENDPOINT = os.environ.get("CF_ENDPOINT", "")
 
 
 def _password() -> str:
@@ -292,6 +295,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--endpoint",
         default=DEFAULT_ENDPOINT,
+        required=not DEFAULT_ENDPOINT,
         help=f"Deployed telegram endpoint (default: {DEFAULT_ENDPOINT})",
     )
     mode = p.add_mutually_exclusive_group()
