@@ -143,7 +143,9 @@ def _get_token_once(httpx, endpoint: str, creds: dict[str, str]) -> str:
         m = re.search(r"/authorize\?nonce=([A-Za-z0-9_\-]+)", form_html)
         assert m, "nonce not found in form"
         nonce = m.group(1)
-        sub = c.post(f"{endpoint}/authorize", params={"nonce": nonce}, json=creds, timeout=120)
+        sub = c.post(
+            f"{endpoint}/authorize", params={"nonce": nonce}, json=creds, timeout=120
+        )
         if sub.status_code == 500 and "save credentials" in sub.text:
             raise _SaveRetry(sub.text[:120])
         assert sub.status_code == 200, (sub.status_code, sub.text[:400])
@@ -220,8 +222,12 @@ def _assert_bot_connected(txt: str | None) -> None:
     with the KV-resolved token -- the strongest bot-mode proof. (chat(action="list")
     is USER-mode only: a bot has no dialog list, so config(status) is the bot health
     check, not a chat listing.)"""
-    assert txt is not None, "config(status) returned no payload (gave up while not ready)"
-    assert not _not_ready(txt), f"bot backend NOT resolved (token never propagated): {txt[:300]}"
+    assert txt is not None, (
+        "config(status) returned no payload (gave up while not ready)"
+    )
+    assert not _not_ready(txt), (
+        f"bot backend NOT resolved (token never propagated): {txt[:300]}"
+    )
     low = txt.lower()
     assert '"connected": true' in low or '"connected":true' in low, (
         f"bot not connected to Telegram: {txt[:300]}"
