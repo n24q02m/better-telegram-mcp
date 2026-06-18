@@ -2,6 +2,58 @@
 
 <!-- version list -->
 
+## v4.13.0-beta.2 (2026-06-18)
+
+### Bug Fixes
+
+- Add missing contacts tool tests and strengthen assertions
+  ([`a59832a`](https://github.com/n24q02m/better-telegram-mcp/commit/a59832a934997e010ce6df65354c0530f7a0d4a3))
+
+- Bump mcp-core to 1.18.0b10
+  ([`5d12678`](https://github.com/n24q02m/better-telegram-mcp/commit/5d12678754d7962a8185cb0b0f28f8958eb362c6))
+
+- Clear validation error state on credential form input
+  ([`1eaef66`](https://github.com/n24q02m/better-telegram-mcp/commit/1eaef66bdaebc42f3d8c764ce7b0acf4ebd511d5))
+
+- Correct private-invite link detection in join_chat and add coverage
+  ([`57f4ef3`](https://github.com/n24q02m/better-telegram-mcp/commit/57f4ef32d431f0cf7faf6ab36137ab241e268f89))
+
+- Prefix unused account var to satisfy RUF059
+  ([`5dd7624`](https://github.com/n24q02m/better-telegram-mcp/commit/5dd7624de35aa37b92acc2e0b82a1ad29c79a0dc))
+
+- Refresh lockfile (renovate maintenance)
+  ([`aa00905`](https://github.com/n24q02m/better-telegram-mcp/commit/aa009051d395997cf1675f7bb8c3b87bc9e4dc13))
+
+- Remove stale docstring references to deprecated per_user_session_store.py
+  ([`9570e75`](https://github.com/n24q02m/better-telegram-mcp/commit/9570e75d81fef6ffec13a7f08087fd4b8de174b1))
+
+- Revoke expired sessions concurrently in auth cleanup
+  ([`c5ac409`](https://github.com/n24q02m/better-telegram-mcp/commit/c5ac409e1f3c13b0aedec12c64365bad77aed35e))
+
+- Update mcp-core pin-guard test to 1.18.0b10 floor
+  ([`5d12678`](https://github.com/n24q02m/better-telegram-mcp/commit/5d12678754d7962a8185cb0b0f28f8958eb362c6))
+
+- Update non-major dependencies
+  ([`ad441b0`](https://github.com/n24q02m/better-telegram-mcp/commit/ad441b086e936060cdab832d52e5d4099f1061ed))
+
+- Update python base image
+  ([`c430245`](https://github.com/n24q02m/better-telegram-mcp/commit/c4302459d62544a063327e6ce28b86b4e280fa93))
+
+- Update typescript to v6
+  ([`c185ec4`](https://github.com/n24q02m/better-telegram-mcp/commit/c185ec4bf29fdf90b67c45442cbd4f34f514864f))
+
+- Use shallow copy instead of deepcopy in InMemorySessionStore load paths
+  ([`8a4294e`](https://github.com/n24q02m/better-telegram-mcp/commit/8a4294e1a4bef45146f57ef9254ace43c33da7d3))
+
+### Features
+
+- Add CF deploy script with post-deploy canary gate and auto-rollback
+  ([`5dd7624`](https://github.com/n24q02m/better-telegram-mcp/commit/5dd7624de35aa37b92acc2e0b82a1ad29c79a0dc))
+
+- Add password visibility toggle to credential form
+  ([`8b6a3cf`](https://github.com/n24q02m/better-telegram-mcp/commit/8b6a3cf1ca48fba3d2b6c5fec94bfb4eb39a84f1))
+
+
 ## v4.13.0-beta.1 (2026-06-16)
 
 ### Bug Fixes
