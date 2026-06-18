@@ -9,9 +9,10 @@ def test_mcp_core_pin_includes_storage_seam():
         "dependencies"
     ]
     core = next(d for d in deps if d.startswith("n24q02m-mcp-core"))
-    # Storage backends + token/session sub-key usable at 1.18.0b5; the
-    # StringSession seam (Subsystem A) lands at 1.18.0b8 and this floor pins it.
-    assert "1.18.0b8" in core, f"expected >=1.18.0b8 floor, got: {core}"
+    # StringSession seam (Subsystem A) lands at 1.18.0b8; the JWKS keys derived
+    # from CREDENTIAL_SECRET (#484) + StringSession externalization (#495) needed
+    # by the deployed CF image land at 1.18.0b10, and this floor pins it.
+    assert "1.18.0b10" in core, f"expected >=1.18.0b10 floor, got: {core}"
 
 
 def test_no_uv_path_source_for_mcp_core():

@@ -112,7 +112,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.28.0" },
-    { name = "n24q02m-mcp-core", specifier = ">=1.18.0b8,<2" },
+    { name = "n24q02m-mcp-core", specifier = ">=1.18.0b10,<2" },
     { name = "pydantic", specifier = ">=2.13.4,<2.14" },
     { name = "pydantic-settings", specifier = ">=2.14.1" },
     { name = "starlette", specifier = ">=1.3.1" },
@@ -735,7 +735,7 @@ wheels = [
 
 [[package]]
 name = "n24q02m-mcp-core"
-version = "1.18.0b8"
+version = "1.18.0b10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "authlib" },
@@ -750,9 +750,9 @@ dependencies = [
     { name = "starlette" },
     { name = "tomli-w" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4e/88/35e4b80b23ca736559c52d46f9945e12a14a1806695ac782bc540260b3c2/n24q02m_mcp_core-1.18.0b8.tar.gz", hash = "sha256:bcaa06bfe1f4f796bcd2bc126dc4dd932ab6927a0d4a684d62ca0d1a3b90fc23", size = 278511, upload-time = "2026-06-16T07:13:50.26Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b0/70/043942c59667fce1b53f269f5df16cf9fb12bde1a4bbb81f52c51baac10e/n24q02m_mcp_core-1.18.0b10.tar.gz", hash = "sha256:62a7f759ddade906eb9603a67e6155b87dee79163bb7c732db0698b395214f88", size = 282027, upload-time = "2026-06-17T08:19:56.029Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/73/fa/aa19ff8c53edd1c858574d17f4f43af867c0753de48816d1bde138597d18/n24q02m_mcp_core-1.18.0b8-py3-none-any.whl", hash = "sha256:446cc7393e2e1391ee0e6aa7a843882c5b476ef13079b3b9767c134c450a075d", size = 153308, upload-time = "2026-06-16T07:13:51.411Z" },
+    { url = "https://files.pythonhosted.org/packages/62/c4/fd1626e9ab0afe60ae9880b8f5a855ad14ef1785a2598d8010b55cbee62c/n24q02m_mcp_core-1.18.0b10-py3-none-any.whl", hash = "sha256:44ea32698b985384181676ee4c3e2f2d58abae8dfc94b47eaaeee371d978b1f0", size = 156789, upload-time = "2026-06-17T08:19:54.678Z" },
 ]
 
 [[package]]
