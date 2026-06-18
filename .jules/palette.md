@@ -31,3 +31,7 @@
 ## 2024-07-30 - Color Scheme Meta Tag for Dark Themes
 **Learning:** Dark-themed HTML templates must explicitly include `<meta name="color-scheme" content="dark">` to ensure native browser elements (like scrollbars and autofill dropdowns) adapt to the dark aesthetic instead of defaulting to a jarring light mode.
 **Action:** Always include the `<meta name="color-scheme" content="dark">` tag in the `<head>` of dark-themed HTML documents.
+
+## 2024-07-29 - Enhancing State Change UX with Subtle Animations
+**Learning:** Instantaneous layout shifts or state changes (e.g., switching between tabs or dynamically surfacing complex multi-step forms) can feel jarring or unpolished, potentially increasing cognitive load as users mentally trace the new UI structure. Subtle animations, such as a quick fade-in with a slight downward translation (`translateY`), soften these transitions, providing a much smoother, higher-quality interaction.
+**Action:** Apply lightweight, short-duration CSS `@keyframes` animations (e.g., `<0.3s`) to significant DOM additions or view transitions, particularly when toggling `.active` panel states or appending new user prompts.

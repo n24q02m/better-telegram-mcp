@@ -196,8 +196,18 @@ def render_telegram_credential_form(
             display: none;
         }}
 
+        @keyframes fadeSlideDown {{
+            from {{ opacity: 0; transform: translateY(-8px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+
         .tab-panel.active {{
             display: block;
+            animation: fadeSlideDown 0.3s ease-out forwards;
+        }}
+
+        #step-container {{
+            animation: fadeSlideDown 0.3s ease-out forwards;
         }}
 
         .field-group {{
