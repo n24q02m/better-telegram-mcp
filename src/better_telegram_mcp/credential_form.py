@@ -83,6 +83,7 @@ def render_telegram_credential_form(
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark">
     <title>{display_name}</title>
     <style>
         *, *::before, *::after {{
@@ -437,7 +438,7 @@ def render_telegram_credential_form(
                                 inputmode="text"{bot_token_value_attr}
                                 aria-describedby="help-bot-token status-box"{bot_token_required}
                             />
-                            <button type="button" class="password-toggle" id="toggle-bot-token" aria-label="Show bot token" aria-controls="field-TELEGRAM_BOT_TOKEN">Show</button>
+                            <button type="button" class="password-toggle" id="toggle-bot-token" aria-label="Show bot token" aria-controls="field-TELEGRAM_BOT_TOKEN" aria-pressed="false">Show</button>
                         </div>
                         <p id="help-bot-token" class="help-text">
                             <a href="https://core.telegram.org/bots#botfather" target="_blank" rel="noopener noreferrer">Get from @BotFather on Telegram</a>
@@ -493,10 +494,12 @@ def render_telegram_credential_form(
                         inputEl.type = "text";
                         toggleBtn.textContent = "Hide";
                         toggleBtn.setAttribute("aria-label", "Hide " + labelBase);
+                        toggleBtn.setAttribute("aria-pressed", "true");
                     }} else {{
                         inputEl.type = "password";
                         toggleBtn.textContent = "Show";
                         toggleBtn.setAttribute("aria-label", "Show " + labelBase);
+                        toggleBtn.setAttribute("aria-pressed", "false");
                     }}
                 }});
             }}
@@ -661,6 +664,7 @@ def render_telegram_credential_form(
                     toggleBtn.textContent = "Show";
                     toggleBtn.setAttribute("aria-label", "Show password");
                     toggleBtn.setAttribute("aria-controls", "step-input");
+                    toggleBtn.setAttribute("aria-pressed", "false");
                     toggleBtn.style.display = "none";
                     setupPasswordToggle(inputEl, toggleBtn, "password");
 

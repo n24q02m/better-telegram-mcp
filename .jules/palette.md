@@ -23,3 +23,11 @@
 ## 2024-05-19 - Password Visibility Toggles for API Keys
 **Learning:** Password visibility toggles (Show/Hide buttons) are not just helpful for user passwords, but provide a critical UX improvement for long API keys (like Bot Tokens). Users often paste partial keys or experience issues verifying successful copy-pastes, leading to frustrating auth failures.
 **Action:** Always consider adding "Show/Hide" toggle buttons to `type="password"` fields that accept long API keys or tokens to allow users to visually verify their input before submitting.
+
+## 2024-07-30 - ARIA Pressed for State Toggles
+**Learning:** State toggle buttons (like password visibility Show/Hide toggles) need to utilize the `aria-pressed` attribute to properly communicate their active state to screen readers.
+**Action:** Ensure toggle buttons include `aria-pressed="false"` initially and dynamically update to `true` when activated.
+
+## 2024-07-30 - Color Scheme Meta Tag for Dark Themes
+**Learning:** Dark-themed HTML templates must explicitly include `<meta name="color-scheme" content="dark">` to ensure native browser elements (like scrollbars and autofill dropdowns) adapt to the dark aesthetic instead of defaulting to a jarring light mode.
+**Action:** Always include the `<meta name="color-scheme" content="dark">` tag in the `<head>` of dark-themed HTML documents.
