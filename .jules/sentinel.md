@@ -1,0 +1,5 @@
+
+## 2024-05-24 - Unbounded Memory Consumption via uncontrolled `httpx` Downloads
+**Vulnerability:** The application was using `httpx.AsyncClient.get` to download user-supplied URLs without enforcing a maximum file size. An attacker could exploit this by providing a URL to an extremely large file or an infinite stream, causing the server to buffer the entire response in memory, leading to an Out-Of-Memory (OOM) crash and Denial of Service (DoS).
+**Learning:** Functions that download files from untrusted sources must never load the entire payload into memory at once without bounds. Even with timeout mechanisms, an attacker can trickle data slowly or send a massive payload quickly before the timeout hits.
+**Prevention:** Always stream responses for file downloads using `client.stream("GET", ...)`. Inspect the `Content-Length` header upfront to reject oversized files immediately. Accumulate the response in chunks using `resp.aiter_bytes()` and strictly enforce a maximum file size limit (e.g., `MAX_FILE_SIZE = 50 * 1024 * 1024`) during accumulation to protect against malicious servers that omit or lie about their `Content-Length`.

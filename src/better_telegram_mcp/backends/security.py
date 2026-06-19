@@ -12,6 +12,10 @@ class SecurityError(Exception):
     pass
 
 
+# 50MB maximum file size for downloaded media
+MAX_FILE_SIZE = 50 * 1024 * 1024
+
+
 # Private/internal IP ranges that should not be accessed via SSRF
 _BLOCKED_NETWORKS = (
     ipaddress.ip_network("0.0.0.0/8"),
@@ -259,12 +263,24 @@ async def fetch_url_safely(url: str, timeout: float = 30.0) -> bytes:
     extensions = {"sni_hostname": parsed.hostname}
 
     async with httpx.AsyncClient(verify=True) as client:
-        resp = await client.get(
+        async with client.stream(
+            "GET",
             new_url,
             headers=headers,
             extensions=extensions,
             timeout=timeout,
             follow_redirects=False,  # Redirects could lead to rebinding or other SSRF
-        )
-        resp.raise_for_status()
-        return resp.content
+        ) as resp:
+            resp.raise_for_status()
+
+            content_length = resp.headers.get("Content-Length")
+            if content_length and int(content_length) > MAX_FILE_SIZE:
+                raise SecurityError(f"File size exceeds {MAX_FILE_SIZE} bytes")
+
+            chunks = bytearray()
+            async for chunk in resp.aiter_bytes():
+                chunks.extend(chunk)
+                if len(chunks) > MAX_FILE_SIZE:
+                    raise SecurityError(f"File size exceeds {MAX_FILE_SIZE} bytes")
+
+            return bytes(chunks)

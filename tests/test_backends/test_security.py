@@ -163,7 +163,7 @@ class TestValidateUrl:
     @pytest.mark.asyncio
     async def test_fetch_url_safely_prevents_rebinding(self, monkeypatch):
         """Test that fetch_url_safely uses the validated IP and ignores subsequent DNS changes."""
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import patch
 
         import httpx
 
@@ -186,17 +186,18 @@ class TestValidateUrl:
         monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
 
         # Mock httpx.AsyncClient.get to verify the URL used
-        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
-            # Return a real Response object with a request to allow raise_for_status()
+        from unittest.mock import MagicMock
+
+        with patch("httpx.AsyncClient.stream", new_callable=MagicMock) as mock_stream:
             resp = httpx.Response(200, content=b"content")
             resp._request = httpx.Request("GET", f"http://{safe_ip}/data")
-            mock_get.return_value = resp
+            mock_stream.return_value.__aenter__.return_value = resp
 
             await fetch_url_safely(f"http://{target_hostname}/data")
 
             # Verify that the URL passed to httpx uses the SAFE IP, not the hostname or malicious IP
-            args, kwargs = mock_get.call_args
-            requested_url = str(args[0])
+            args, kwargs = mock_stream.call_args
+            requested_url = str(args[1])
             assert safe_ip in requested_url
             assert target_hostname not in requested_url
             assert malicious_ip not in requested_url
@@ -207,7 +208,7 @@ class TestValidateUrl:
 
     async def test_fetch_url_safely_ipv6(self, monkeypatch):
         """Verify fetch_url_safely correctly constructs URL with IPv6 address."""
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import patch
 
         import httpx
 
@@ -221,15 +222,17 @@ class TestValidateUrl:
 
         monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
 
-        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+        from unittest.mock import MagicMock
+
+        with patch("httpx.AsyncClient.stream", new_callable=MagicMock) as mock_stream:
             resp = httpx.Response(200, content=b"content")
             resp._request = httpx.Request("GET", f"http://[{safe_ip}]:8080/data")
-            mock_get.return_value = resp
+            mock_stream.return_value.__aenter__.return_value = resp
 
             await fetch_url_safely(f"http://{target_hostname}:8080/data")
 
-            args, kwargs = mock_get.call_args
-            requested_url = str(args[0])
+            args, kwargs = mock_stream.call_args
+            requested_url = str(args[1])
             assert requested_url == f"http://[{safe_ip}]:8080/data"
             assert kwargs["headers"]["Host"] == target_hostname
             assert kwargs["extensions"]["sni_hostname"] == target_hostname
@@ -423,3 +426,112 @@ class TestValidateOutputDir:
         """Test that paths like ~/../../etc/cron.d are expanded and blocked."""
         with pytest.raises(SecurityError, match="/etc/"):
             validate_output_dir("~/../../etc/cron.d")
+
+    async def test_fetch_url_safely_size_limit_content_length(self, monkeypatch):
+        """Test that fetch_url_safely rejects files over MAX_FILE_SIZE via Content-Length."""
+        target_hostname = "example.com"
+        target_ip = "93.184.216.34"
+
+        def mock_validate_url(url):
+            return target_ip
+
+        monkeypatch.setattr(
+            "better_telegram_mcp.backends.security.validate_url", mock_validate_url
+        )
+
+        # Mock httpx.AsyncClient.stream to return a response with a large Content-Length
+
+        from better_telegram_mcp.backends.security import (
+            MAX_FILE_SIZE,
+            fetch_url_safely,
+        )
+
+        class MockResponse:
+            def __init__(self):
+                self.headers = {"Content-Length": str(MAX_FILE_SIZE + 1)}
+
+            def raise_for_status(self):
+                pass
+
+        class MockStreamContext:
+            async def __aenter__(self):
+                return MockResponse()
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+        class MockClient:
+            def __init__(self, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+            def stream(self, *args, **kwargs):
+                return MockStreamContext()
+
+        monkeypatch.setattr("httpx.AsyncClient", MockClient)
+
+        with pytest.raises(
+            SecurityError, match=f"File size exceeds {MAX_FILE_SIZE} bytes"
+        ):
+            await fetch_url_safely(f"http://{target_hostname}/data")
+
+    async def test_fetch_url_safely_size_limit_chunks(self, monkeypatch):
+        """Test that fetch_url_safely rejects files over MAX_FILE_SIZE via chunk accumulation."""
+        target_hostname = "example.com"
+        target_ip = "93.184.216.34"
+
+        def mock_validate_url(url):
+            return target_ip
+
+        monkeypatch.setattr(
+            "better_telegram_mcp.backends.security.validate_url", mock_validate_url
+        )
+
+        from better_telegram_mcp.backends.security import (
+            MAX_FILE_SIZE,
+            fetch_url_safely,
+        )
+
+        # Mock httpx.AsyncClient.stream to return chunks that sum up to > MAX_FILE_SIZE
+        class MockResponse:
+            def __init__(self):
+                self.headers = {}  # No Content-Length
+
+            def raise_for_status(self):
+                pass
+
+            async def aiter_bytes(self):
+                yield b"A" * (MAX_FILE_SIZE // 2)
+                yield b"B" * (MAX_FILE_SIZE // 2 + 10)
+
+        class MockStreamContext:
+            async def __aenter__(self):
+                return MockResponse()
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+        class MockClient:
+            def __init__(self, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+            def stream(self, *args, **kwargs):
+                return MockStreamContext()
+
+        monkeypatch.setattr("httpx.AsyncClient", MockClient)
+
+        with pytest.raises(
+            SecurityError, match=f"File size exceeds {MAX_FILE_SIZE} bytes"
+        ):
+            await fetch_url_safely(f"http://{target_hostname}/data")
