@@ -235,7 +235,11 @@ def validate_output_dir(output_dir: str, *, base_dir: Path | None = None) -> Pat
     return path
 
 
-async def fetch_url_safely(url: str, timeout: float = 30.0) -> bytes:
+async def fetch_url_safely(
+    url: str,
+    timeout: float = 30.0,
+    max_size: int = 50 * 1024 * 1024,  # Default 50MB
+) -> bytes:
     """Fetch URL content safely by pinning the IP to prevent DNS rebinding."""
     from urllib.parse import urlunparse
 
@@ -259,12 +263,35 @@ async def fetch_url_safely(url: str, timeout: float = 30.0) -> bytes:
     extensions = {"sni_hostname": parsed.hostname}
 
     async with httpx.AsyncClient(verify=True) as client:
-        resp = await client.get(
+        # Use stream to prevent OOM / memory exhaustion DoS
+        async with client.stream(
+            "GET",
             new_url,
             headers=headers,
             extensions=extensions,
             timeout=timeout,
             follow_redirects=False,  # Redirects could lead to rebinding or other SSRF
-        )
-        resp.raise_for_status()
-        return resp.content
+        ) as resp:
+            resp.raise_for_status()
+
+            # Early check if Content-Length exceeds max_size
+            content_length = resp.headers.get("Content-Length")
+            if content_length:
+                try:
+                    if int(content_length) > max_size:
+                        msg = f"File size exceeds maximum allowed ({max_size} bytes)"
+                        raise SecurityError(msg)
+                except ValueError:
+                    # Ignore malformed Content-Length header and rely on chunk accumulation
+                    pass
+
+            chunks = []
+            accumulated_size = 0
+            async for chunk in resp.aiter_bytes(chunk_size=8192):
+                accumulated_size += len(chunk)
+                if accumulated_size > max_size:
+                    msg = f"File size exceeds maximum allowed ({max_size} bytes)"
+                    raise SecurityError(msg)
+                chunks.append(chunk)
+
+            return b"".join(chunks)

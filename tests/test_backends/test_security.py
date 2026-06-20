@@ -163,7 +163,7 @@ class TestValidateUrl:
     @pytest.mark.asyncio
     async def test_fetch_url_safely_prevents_rebinding(self, monkeypatch):
         """Test that fetch_url_safely uses the validated IP and ignores subsequent DNS changes."""
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import patch, MagicMock
 
         import httpx
 
@@ -185,29 +185,29 @@ class TestValidateUrl:
 
         monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
 
-        # Mock httpx.AsyncClient.get to verify the URL used
-        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
-            # Return a real Response object with a request to allow raise_for_status()
-            resp = httpx.Response(200, content=b"content")
+        # Mock httpx.AsyncClient.stream to verify the URL used
+        with patch("httpx.AsyncClient.stream", new_callable=MagicMock) as mock_stream:
+            resp = httpx.Response(200)
             resp._request = httpx.Request("GET", f"http://{safe_ip}/data")
-            mock_get.return_value = resp
+
+            async def mock_aiter_bytes(chunk_size=None):
+                yield b"content"
+            resp.aiter_bytes = mock_aiter_bytes
+
+            mock_stream.return_value.__aenter__.return_value = resp
 
             await fetch_url_safely(f"http://{target_hostname}/data")
 
-            # Verify that the URL passed to httpx uses the SAFE IP, not the hostname or malicious IP
-            args, kwargs = mock_get.call_args
-            requested_url = str(args[0])
+            # Verify httpx.stream was called with the SAFE IP in the URL, not the hostname
+            args, _ = mock_stream.call_args
+            requested_url = str(args[1])
             assert safe_ip in requested_url
-            assert target_hostname not in requested_url
             assert malicious_ip not in requested_url
-
-            # Verify headers and extensions preserve the hostname for SNI/Host
-            assert kwargs["headers"]["Host"] == target_hostname
-            assert kwargs["extensions"]["sni_hostname"] == target_hostname
+            assert target_hostname not in requested_url
 
     async def test_fetch_url_safely_ipv6(self, monkeypatch):
         """Verify fetch_url_safely correctly constructs URL with IPv6 address."""
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import MagicMock, patch
 
         import httpx
 
@@ -221,18 +221,96 @@ class TestValidateUrl:
 
         monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
 
-        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
-            resp = httpx.Response(200, content=b"content")
+        with patch("httpx.AsyncClient.stream", new_callable=MagicMock) as mock_stream:
+            resp = httpx.Response(200)
             resp._request = httpx.Request("GET", f"http://[{safe_ip}]:8080/data")
-            mock_get.return_value = resp
+
+            async def mock_aiter_bytes(chunk_size=None):
+                yield b"content"
+
+            resp.aiter_bytes = mock_aiter_bytes
+
+            mock_stream.return_value.__aenter__.return_value = resp
 
             await fetch_url_safely(f"http://{target_hostname}:8080/data")
 
-            args, kwargs = mock_get.call_args
-            requested_url = str(args[0])
+            args, kwargs = mock_stream.call_args
+            requested_url = str(args[1])
             assert requested_url == f"http://[{safe_ip}]:8080/data"
             assert kwargs["headers"]["Host"] == target_hostname
             assert kwargs["extensions"]["sni_hostname"] == target_hostname
+
+    async def test_fetch_url_safely_max_size_content_length(self, monkeypatch):
+        """Verify fetch_url_safely rejects files larger than max_size based on Content-Length."""
+        from unittest.mock import MagicMock, patch
+
+        import httpx
+
+        from better_telegram_mcp.backends.security import (
+            SecurityError,
+            fetch_url_safely,
+        )
+
+        target_hostname = "example.com"
+        safe_ip = "93.184.216.34"
+
+        def mock_getaddrinfo(host, port, *args, **kwargs):
+            return [(socket.AF_INET, 1, 6, "", (safe_ip, 80, 0, 0))]
+
+        monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
+
+        with patch("httpx.AsyncClient.stream", new_callable=MagicMock) as mock_stream:
+            resp = httpx.Response(200, headers={"Content-Length": "101"})
+            resp._request = httpx.Request("GET", f"http://{safe_ip}/data")
+
+            mock_stream.return_value.__aenter__.return_value = resp
+
+            import pytest
+
+            with pytest.raises(
+                SecurityError, match="File size exceeds maximum allowed"
+            ):
+                await fetch_url_safely(f"http://{target_hostname}/data", max_size=100)
+
+    async def test_fetch_url_safely_max_size_accumulated(self, monkeypatch):
+        """Verify fetch_url_safely rejects files larger than max_size based on accumulated chunks."""
+        from unittest.mock import MagicMock, patch
+
+        import httpx
+
+        from better_telegram_mcp.backends.security import (
+            SecurityError,
+            fetch_url_safely,
+        )
+
+        target_hostname = "example.com"
+        safe_ip = "93.184.216.34"
+
+        def mock_getaddrinfo(host, port, *args, **kwargs):
+            return [(socket.AF_INET, 1, 6, "", (safe_ip, 80, 0, 0))]
+
+        monkeypatch.setattr("socket.getaddrinfo", mock_getaddrinfo)
+
+        with patch("httpx.AsyncClient.stream", new_callable=MagicMock) as mock_stream:
+            resp = httpx.Response(200)
+            resp._request = httpx.Request("GET", f"http://{safe_ip}/data")
+
+            async def mock_aiter_bytes(chunk_size=None):
+                yield b"chunk1 "
+                yield b"chunk2 "
+                yield b"chunk3"
+
+            resp.aiter_bytes = mock_aiter_bytes
+
+            mock_stream.return_value.__aenter__.return_value = resp
+
+            import pytest
+
+            # Total size is 21 bytes. Let's limit it to 10
+            with pytest.raises(
+                SecurityError, match="File size exceeds maximum allowed"
+            ):
+                await fetch_url_safely(f"http://{target_hostname}/data", max_size=10)
 
 
 class TestValidateFilePath:
