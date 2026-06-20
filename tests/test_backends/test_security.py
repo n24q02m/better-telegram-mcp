@@ -163,7 +163,7 @@ class TestValidateUrl:
     @pytest.mark.asyncio
     async def test_fetch_url_safely_prevents_rebinding(self, monkeypatch):
         """Test that fetch_url_safely uses the validated IP and ignores subsequent DNS changes."""
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import MagicMock, patch
 
         import httpx
 
@@ -192,6 +192,7 @@ class TestValidateUrl:
 
             async def mock_aiter_bytes(chunk_size=None):
                 yield b"content"
+
             resp.aiter_bytes = mock_aiter_bytes
 
             mock_stream.return_value.__aenter__.return_value = resp
