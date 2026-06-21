@@ -47,8 +47,11 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 
 - [Features](#features)
 - [Status](#status)
+- [Install](#install)
+- [Configuration](#configuration)
 - [Documentation](#documentation)
 - [Tools](#tools)
+- [Comparison](#comparison)
 - [Security](#security)
 - [Build from Source](#build-from-source)
 - [Trust Model](#trust-model)
@@ -65,30 +68,74 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 - **Dual mode** -- Bot API (httpx) for bots, MTProto (Telethon) for user accounts
 - **7 tools** with action dispatch: `message`, `chat`, `media`, `contact`, `config`, `help`, `config__open_relay`
 - **Auto-detect mode** -- Set bot token for bot mode, or API credentials for user mode
-- **Web-based OTP auth** -- Browser-based authentication with remote relay support for headless environments
+- **Web-based OTP auth** -- HTTP-mode browser relay form handles phone, OTP, and 2FA for user accounts (no session strings, no CLI sign-in)
 - **Tool annotations** -- Each tool declares `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`
 - **MCP Resources** -- Documentation available as `telegram://docs/*` resources
 - **Security hardened** -- SSRF protection, path traversal prevention, error sanitization
 
 ## Status
 
-> **2026-05-02 -- Architecture stabilization update**
->
-> Past months saw significant churn around credential handling and the daemon-bridge auto-spawn pattern. This caused multi-process races, browser tab spam, and inconsistent setup UX across plugins. **As of v&lt;auto&gt;, the architecture is stable**: 2 clean modes (stdio + HTTP), no daemon-bridge layer, no auto-spawn from stdio.
->
-> Apologies for the instability period. If you encountered issues with prior versions, please update to v&lt;auto&gt;+ and follow the current [Setup docs](https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/) -- most prior workarounds are no longer needed.
->
-> **Related plugins from the same author**:
-> - [wet-mcp](https://github.com/n24q02m/wet-mcp) -- Web search + content extraction
-> - [mnemo-mcp](https://github.com/n24q02m/mnemo-mcp) -- Persistent AI memory
-> - [imagine-mcp](https://github.com/n24q02m/imagine-mcp) -- Image/video understanding + generation
-> - [better-notion-mcp](https://github.com/n24q02m/better-notion-mcp) -- Notion API
-> - [better-email-mcp](https://github.com/n24q02m/better-email-mcp) -- Email management
-> - [better-telegram-mcp](https://github.com/n24q02m/better-telegram-mcp) -- Telegram
-> - [better-godot-mcp](https://github.com/n24q02m/better-godot-mcp) -- Godot Engine
-> - [better-code-review-graph](https://github.com/n24q02m/better-code-review-graph) -- Code review knowledge graph
->
-> All plugins share the same architecture -- install once, learn pattern transfers.
+Two clean transports: **stdio** (default, bot mode) and **HTTP** (bot + user mode, browser relay setup, optional multi-user). No daemon-bridge layer and no auto-spawn from stdio. See [Modes overview](https://mcp.n24q02m.com/get-started/modes-overview/) for the full transport model.
+
+Sister MCP servers from the same author are listed in the [collapsible section above](#better-telegram-mcp) -- they share this architecture, so install patterns transfer.
+
+## Install
+
+```bash
+# Method 1 (default): plugin install via Claude Code (stdio, bot mode)
+/plugin marketplace add n24q02m/claude-plugins
+/plugin install better-telegram-mcp@n24q02m-plugins
+
+# Method 1 (CLI): direct uvx invocation (stdio, bot mode)
+claude mcp add telegram -e TELEGRAM_BOT_TOKEN=123456:ABC-DEF -- uvx better-telegram-mcp
+
+# Method 2 (fallback): Docker stdio
+docker run -i --rm -e TELEGRAM_BOT_TOKEN=123456:ABC-DEF n24q02m/better-telegram-mcp
+
+# Method 3 (recommended for user mode / multi-device / OAuth): Docker HTTP
+docker run -d --name better-telegram-mcp-http -p 8080:8080 \
+  -e MCP_TRANSPORT=http \
+  -e PUBLIC_URL=https://telegram.example.com \
+  -e MCP_DCR_SERVER_SECRET=<32+ random bytes> \
+  n24q02m/better-telegram-mcp:latest
+```
+
+Stdio mode is **bot mode only** (`TELEGRAM_BOT_TOKEN`). User mode (full account via
+phone + OTP) runs in HTTP mode, where credentials are entered through the
+browser-based relay form at `/authorize`.
+
+Full setup matrices live at the canonical docs site
+[mcp.n24q02m.com/servers/better-telegram-mcp/setup/](https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/),
+and the paste-to-agent snippets at
+[claude-plugins/plugins/better-telegram-mcp/setup-with-agent.md](https://github.com/n24q02m/claude-plugins/blob/main/plugins/better-telegram-mcp/setup-with-agent.md).
+
+## Configuration
+
+Settings load from `TELEGRAM_`-prefixed environment variables (Pydantic Settings).
+
+**Stdio mode (bot only):**
+
+| Variable | Required | Description |
+|:---------|:---------|:------------|
+| `TELEGRAM_BOT_TOKEN` | Yes | Bot token from [@BotFather](https://t.me/BotFather) (format `123456789:ABCdef...`) |
+
+**HTTP mode (bot + user):** credentials are entered via the browser relay form,
+not env vars. Server-side env vars for self-hosting:
+
+| Variable | Required | Default | Description |
+|:---------|:---------|:--------|:------------|
+| `MCP_TRANSPORT` | Yes | `stdio` | Set to `http` to enable HTTP mode (`--http` CLI flag or `TRANSPORT_MODE=http` also work) |
+| `PUBLIC_URL` | Self-host | -- | Public URL of the server; presence enables the multi-user OAuth branch |
+| `MCP_DCR_SERVER_SECRET` | Self-host | -- | Multi-user OAuth shared secret, 32+ random bytes (legacy `DCR_SERVER_SECRET` still accepted) |
+| `HOST` | No | `0.0.0.0` | Bind address |
+| `PORT` | No | `8080` | HTTP port |
+
+**User-mode credentials (optional overrides):** `TELEGRAM_API_ID` and
+`TELEGRAM_API_HASH` ship with built-in public dev defaults, so only
+`TELEGRAM_PHONE` is needed to start the phone + OTP flow. `TELEGRAM_SESSION_NAME`
+and `TELEGRAM_DATA_DIR` customize the Telethon session file location. There is no
+`TELEGRAM_PASSWORD` env var -- 2FA is entered through the web UI and never stored
+in the environment.
 
 ## Documentation
 
