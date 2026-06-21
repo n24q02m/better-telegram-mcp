@@ -2,6 +2,53 @@
 
 <!-- version list -->
 
+## v4.13.0-beta.3 (2026-06-21)
+
+### Bug Fixes
+
+- Add cf:deploy script for live wrangler deploy
+  ([#813](https://github.com/n24q02m/better-telegram-mcp/pull/813),
+  [`1e1308c`](https://github.com/n24q02m/better-telegram-mcp/commit/1e1308cf759d5c0504cc6656fdc073cc6713a506))
+
+- Make canary gate utf-8-safe (decode+encode) and Cloudflare-UA-aware
+  ([`8300810`](https://github.com/n24q02m/better-telegram-mcp/commit/8300810590e7d5a193253a8c3a66f102d8850dae))
+
+- Make canary gate utf-8-safe and Cloudflare-UA-aware
+  ([`8300810`](https://github.com/n24q02m/better-telegram-mcp/commit/8300810590e7d5a193253a8c3a66f102d8850dae))
+
+- Neutral default endpoint + env-first secrets in CF self-host scripts
+  ([`5662102`](https://github.com/n24q02m/better-telegram-mcp/commit/566210259b3f71d5effa4761ad56e110ecccc23a))
+
+- Right-size CF container to basic instance and cap max_instances at 10
+  ([#812](https://github.com/n24q02m/better-telegram-mcp/pull/812),
+  [`e11574e`](https://github.com/n24q02m/better-telegram-mcp/commit/e11574eafcd321279ec786639bcead38aebe3474))
+
+- Ruff-format cf_full_flow harness
+  ([`49e04d0`](https://github.com/n24q02m/better-telegram-mcp/commit/49e04d014821bc69bfe4e701d5c8bf0fe04c695e))
+
+- Use contextlib.suppress for stdout reconfigure (SIM105)
+  ([`8300810`](https://github.com/n24q02m/better-telegram-mcp/commit/8300810590e7d5a193253a8c3a66f102d8850dae))
+
+- **deps**: Update non-major dependencies
+  ([#803](https://github.com/n24q02m/better-telegram-mcp/pull/803),
+  [`772ca38`](https://github.com/n24q02m/better-telegram-mcp/commit/772ca386fa551571206c1e1aa0022f0e4855756e))
+
+### Chores
+
+- **deps**: Update actions/checkout action to v7
+  ([#804](https://github.com/n24q02m/better-telegram-mcp/pull/804),
+  [`7d51841`](https://github.com/n24q02m/better-telegram-mcp/commit/7d51841c6e00e265d9f8bd77feed0d5fd6589ed2))
+
+### Features
+
+- Add CF protocol-test harness cf_full_flow.py
+  ([`49e04d0`](https://github.com/n24q02m/better-telegram-mcp/commit/49e04d014821bc69bfe4e701d5c8bf0fe04c695e))
+
+- **ux**: Add aria-pressed and color-scheme for a11y and visual polish
+  ([#808](https://github.com/n24q02m/better-telegram-mcp/pull/808),
+  [`8447aef`](https://github.com/n24q02m/better-telegram-mcp/commit/8447aefe57822c436aba91bbfb93219a9f11825d))
+
+
 ## v4.13.0-beta.2 (2026-06-18)
 
 ### Bug Fixes
