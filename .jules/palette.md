@@ -35,3 +35,11 @@
 ## 2024-07-29 - Enhancing State Change UX with Subtle Animations
 **Learning:** Instantaneous layout shifts or state changes (e.g., switching between tabs or dynamically surfacing complex multi-step forms) can feel jarring or unpolished, potentially increasing cognitive load as users mentally trace the new UI structure. Subtle animations, such as a quick fade-in with a slight downward translation (`translateY`), soften these transitions, providing a much smoother, higher-quality interaction.
 **Action:** Apply lightweight, short-duration CSS `@keyframes` animations (e.g., `<0.3s`) to significant DOM additions or view transitions, particularly when toggling `.active` panel states or appending new user prompts.
+
+## 2026-06-21 - Prevent Hover Styles on Disabled Interactive Elements
+**Learning:** Applying `:hover` styles universally to interactive elements like buttons and tabs creates confusing visual feedback when those elements are `disabled`. Users may interpret the hover effect as an indication that the element is clickable, leading to frustration.
+**Action:** When styling `:hover` states, always use the `:not(:disabled):hover` pseudo-class (or equivalent) to ensure interactive styling is only applied to active elements. Additionally, explicitly style `:disabled` states (e.g. `opacity: 0.5; cursor: not-allowed;`) to make the disabled status visually unambiguous.
+
+## 2026-06-21 - Prefer Native Labels over ARIA for Dynamic Prompts
+**Learning:** Using a generic `<p>` tag combined with `aria-labelledby` on an input for dynamic forms (like multi-step OTP prompts) provides accessible names to screen readers but misses a key physical usability benefit. A semantic `<label>` properly associated with an input using the `for`/`id` relationship increases the clickable/tap area, allowing users to click the text prompt itself to focus the input field.
+**Action:** When dynamically generating form elements in JavaScript, always prefer creating a `<label>` element and setting its `for` attribute to the input's `id` instead of relying on `aria-labelledby` with generic block elements.
