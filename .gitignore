@@ -68,6 +68,11 @@ JULES.md
 
 # Generated files
 *_e2e_result.json
+
+# Cloudflare deploy-time artifacts (real IDs / substituted configs, never commit)
+wrangler.deploy.jsonc
+wrangler.cf-deploy.tmp.jsonc
+.wrangler-dryrun/
 docs/superpowers/
 # AI Assistant / Rules
 .jules/
