@@ -172,7 +172,7 @@ def render_telegram_credential_form(
             font-family: inherit;
         }}
 
-        .tab:hover {{
+        .tab:not(:disabled):hover {{
             color: #ccc;
         }}
 
@@ -258,9 +258,14 @@ def render_telegram_credential_form(
             font-family: inherit;
         }}
 
-        .password-toggle:hover {{
+        .password-toggle:not(:disabled):hover {{
             color: #ccc;
             background-color: rgba(255, 255, 255, 0.05);
+        }}
+
+        .password-toggle:disabled {{
+            cursor: not-allowed;
+            opacity: 0.5;
         }}
 
         .password-toggle:focus-visible {{
@@ -346,7 +351,7 @@ def render_telegram_credential_form(
             font-family: inherit;
         }}
 
-        .submit-btn:hover {{
+        .submit-btn:not(:disabled):hover {{
             background-color: #5a7fb5;
         }}
 
@@ -645,8 +650,9 @@ def render_telegram_credential_form(
                     container = document.createElement("div");
                     container.id = "step-container";
 
-                    promptEl = document.createElement("p");
+                    promptEl = document.createElement("label");
                     promptEl.id = "step-prompt";
+                    promptEl.setAttribute("for", "step-input");
                     promptEl.className = "form-title";
                     container.appendChild(promptEl);
 
@@ -664,7 +670,6 @@ def render_telegram_credential_form(
                     inputEl.setAttribute("autocorrect", "off");
                     inputEl.setAttribute("autocapitalize", "off");
                     inputEl.setAttribute("spellcheck", "false");
-                    inputEl.setAttribute("aria-labelledby", "step-prompt");
                     inputEl.setAttribute("aria-describedby", "step-error");
 
                     var toggleBtn = document.createElement("button");
