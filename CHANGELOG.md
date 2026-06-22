@@ -2,6 +2,30 @@
 
 <!-- version list -->
 
+## v4.13.0-beta.4 (2026-06-22)
+
+### Bug Fixes
+
+- Pin CF container max_instances to 3
+  ([#818](https://github.com/n24q02m/better-telegram-mcp/pull/818),
+  [`45815a4`](https://github.com/n24q02m/better-telegram-mcp/commit/45815a457a37b07379a5f4b2e1de07a56a8052c2))
+
+- Repair README doc rot — drop v<auto> placeholder, add Install + Configuration sections
+  ([#814](https://github.com/n24q02m/better-telegram-mcp/pull/814),
+  [`143b79f`](https://github.com/n24q02m/better-telegram-mcp/commit/143b79fb8b2523ca6a895551aeaa4e378421371a))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#815](https://github.com/n24q02m/better-telegram-mcp/pull/815),
+  [`632ef72`](https://github.com/n24q02m/better-telegram-mcp/commit/632ef72b39bc98f564085b8937f4acf751236b43))
+
+### Features
+
+- **ux**: Refine disabled hover states and dynamic labels in auth form
+  ([#816](https://github.com/n24q02m/better-telegram-mcp/pull/816),
+  [`c872384`](https://github.com/n24q02m/better-telegram-mcp/commit/c872384bdb90e2c13f02562aa3ec42a8a77ca0fc))
+
+
 ## v4.13.0-beta.3 (2026-06-21)
 
 ### Bug Fixes
