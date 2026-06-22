@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v4.13.0-beta.5 (2026-06-22)
+
+### Bug Fixes
+
+- Bump mcp-core to 1.18.0b19 (relay model-search catalog + OAuth refresh-TTL)
+  ([#819](https://github.com/n24q02m/better-telegram-mcp/pull/819),
+  [`1b4e2af`](https://github.com/n24q02m/better-telegram-mcp/commit/1b4e2af6353c8e2ce93e6356d450ac6317c16c09))
+
+- Make mcp-core pin guard compare floor version instead of literal string
+  ([#819](https://github.com/n24q02m/better-telegram-mcp/pull/819),
+  [`1b4e2af`](https://github.com/n24q02m/better-telegram-mcp/commit/1b4e2af6353c8e2ce93e6356d450ac6317c16c09))
+
+
 ## v4.13.0-beta.4 (2026-06-22)
 
 ### Bug Fixes
