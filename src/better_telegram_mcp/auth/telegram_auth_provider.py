@@ -68,12 +68,14 @@ class TelegramAuthProvider:
         api_hash: str,
         backend=None,
         store=None,
+        pending_store=None,
     ) -> None:
         self._data_dir = data_dir
         self._api_id = api_id
         self._api_hash = api_hash
         self._backend = backend
         self._store = store if store is not None else InMemorySessionStore()
+        self._pending_store = pending_store  # None = no KV persistence
 
         # bearer -> active TelegramBackend
         self.active_clients: dict[str, TelegramBackend] = {}
@@ -247,14 +249,30 @@ class TelegramAuthProvider:
         if (existing := self._pending_otps.pop(bearer, None)) is not None:
             await existing["backend"].disconnect()
 
+        now = time.time()
         self._pending_otps[bearer] = {
             "bearer": bearer,
             "backend": backend,
             "phone": phone,
             "phone_code_hash": phone_code_hash,
             "session_name": session_name,
-            "created_at": time.time(),
+            "created_at": now,
         }
+
+        # Persist metadata to KV so the OTP state survives container sleep/recreate.
+        # The live Telethon backend cannot be serialized, but the metadata (phone,
+        # phone_code_hash, session_name) is enough to recreate it after a restart.
+        if self._pending_store is not None:
+            self._pending_store.save_pending_otp(
+                sub=bearer,
+                bearer=bearer,
+                data={
+                    "phone": phone,
+                    "phone_code_hash": phone_code_hash,
+                    "session_name": session_name,
+                    "created_at": now,
+                },
+            )
 
     async def start_user_auth(self, bearer: str, phone: str) -> dict:
         """Start user authentication by sending OTP code.
@@ -306,6 +324,35 @@ class TelegramAuthProvider:
             ValueError: If bearer not found in pending OTPs or sign-in fails.
         """
         pending = self._pending_otps.get(bearer)
+
+        # Fallback: if the container slept/recreated, the RAM dict is empty
+        # but the metadata may still be in KV. Recreate a fresh UserBackend
+        # from the persisted metadata.
+        if pending is None and self._pending_store is not None:
+            kv_data = self._pending_store.load_pending_otp(
+                sub=bearer, bearer=bearer
+            )
+            if kv_data is not None:
+                phone = kv_data["phone"]
+                session_name = kv_data["session_name"]
+                phone_code_hash = kv_data["phone_code_hash"]
+                backend = await self._init_user_backend(phone, session_name)
+                pending = {
+                    "bearer": bearer,
+                    "backend": backend,
+                    "phone": phone,
+                    "phone_code_hash": phone_code_hash,
+                    "session_name": session_name,
+                    "created_at": kv_data.get("created_at", time.time()),
+                }
+                # Re-register in RAM so retries work without another KV read
+                self._pending_otps[bearer] = pending
+                logger.info(
+                    "Restored pending OTP from KV for {}: {}",
+                    bearer[:12],
+                    session_name[:8],
+                )
+
         if pending is None:
             msg = "No pending authentication for this bearer token"
             raise ValueError(msg)
@@ -322,6 +369,8 @@ class TelegramAuthProvider:
 
         # Success - store session and activate backend
         del self._pending_otps[bearer]
+        if self._pending_store is not None:
+            self._pending_store.delete_pending_otp(sub=bearer, bearer=bearer)
 
         info = SessionInfo(
             session_name=pending["session_name"],

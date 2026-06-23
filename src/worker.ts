@@ -135,17 +135,17 @@ function extractUserId(request: Request): string {
 // JWT sub. The container's HTTP server listens on 8080 (Dockerfile http target:
 // MCP_PORT=8080 + EXPOSE 8080).
 //
-// sleepAfter footgun (telegram-specific): a slept/recycled container drops the
-// live Telethon TCP/MTProto socket. On wake, connect() rebuilds from the
-// externalized StringSession (Subsystem A), so a sleep is safe for AUTHENTICATED
-// users. But a sleep DURING an in-flight OTP flow loses the pending-OTP backend
-// (RAM, telegram_auth_provider.py:77). sleepAfter='1h' keeps the instance warm
-// well past the 5-min OTP TTL; the one-DO-per-sub routing keeps /authorize and
-// /otp on the same instance so the pending state is found.
-// Do NOT lower sleepAfter below the OTP window.
+// sleepAfter: a slept/recycled container drops the live Telethon TCP/MTProto
+// socket. On wake, connect() rebuilds from the externalized StringSession
+// (Subsystem A), so a sleep is safe for AUTHENTICATED users. A sleep DURING an
+// in-flight OTP flow no longer loses state — pending OTP metadata (phone,
+// phone_code_hash, session_name) is persisted to KV via PendingOtpStore
+// (pending_otp_store.py). On container restart, complete_user_auth() falls
+// back to KV to recreate the UserBackend and resume the OTP flow.
+// sleepAfter='5m' is now safe because the OTP TTL (5 min) is covered by KV.
 export class TelegramContainer extends Container<Env> {
   defaultPort = 8080
-  sleepAfter = '1h'
+  sleepAfter = '5m'
   // The container reaches Telegram MTProto APIs over the public internet;
   // kv.internal stays intercepted (see outboundByHost below).
   enableInternet = true
