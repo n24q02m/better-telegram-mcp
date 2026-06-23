@@ -255,34 +255,8 @@ async def _per_request_sub_scope(
             _current_backend.reset(backend_token)
 
 
-def _start_multi_user_http(settings: Settings) -> None:
-    """Multi-user HTTP mode: per-JWT-sub Telethon backends.
-
-    Runs the same mcp-core ``run_http_server`` as single-user mode but
-    binds ``0.0.0.0:8080`` (deployment behind reverse proxy), wires
-    ``auth_scope=_per_request_sub_scope`` to pin per-request user state,
-    and routes credential writes through a per-sub
-    ``TelegramAuthProvider`` so concurrent users do not share Telethon
-    sessions.
-
-    The ``MCP_DCR_SERVER_SECRET`` env var (legacy ``DCR_SERVER_SECRET``
-    still accepted) is required by the upstream check in
-    :func:`_is_multi_user_mode`; mcp-core's local OAuth AS reuses it
-    to mint per-user JWTs.
-    """
-    import asyncio
-
-    from mcp_core.transport.local_server import run_http_server
-
+def _setup_multi_user_auth_provider(settings: Settings):
     from ..auth.telegram_auth_provider import TelegramAuthProvider, set_global_provider
-    from ..credential_form import render_telegram_credential_form
-    from ..credential_state import on_step_submitted, save_credentials
-    from ..server import create_http_mcp_server
-
-    # Set _multi_user_mode = True in server module so get_backend() reads
-    # the per-request contextvar set by _per_request_sub_scope below
-    # instead of falling back to the global single-user backend.
-    mcp = create_http_mcp_server()
 
     # Build the global TelegramAuthProvider so ``save_credentials``,
     # ``on_step_submitted``, and the auth_scope middleware all share the
@@ -304,6 +278,73 @@ def _start_multi_user_http(settings: Settings) -> None:
         store=store,
     )
     set_global_provider(auth_provider)
+    return auth_provider
+
+
+async def _run_multi_user_lifecycle(
+    mcp: Any,
+    auth_provider: Any,
+    port: int,
+    host: str,
+) -> None:
+    from mcp_core.transport.local_server import run_http_server
+
+    from ..credential_form import render_telegram_credential_form
+    from ..credential_state import on_step_submitted, save_credentials
+
+    try:
+        await auth_provider.restore_sessions()
+    except Exception:
+        logger.opt(exception=True).warning(
+            "Failed to restore Telegram sessions on startup"
+        )
+    try:
+        await run_http_server(
+            mcp,
+            server_name="better-telegram-mcp",
+            relay_schema=RELAY_SCHEMA,
+            port=port,
+            host=host,
+            on_credentials_saved=save_credentials,
+            on_step_submitted=on_step_submitted,
+            custom_credential_form_html=render_telegram_credential_form,
+            auth_scope=_per_request_sub_scope,
+            auth_disabled=os.environ.get("MCP_AUTH_DISABLE") == "1",
+        )
+    finally:
+        try:
+            await auth_provider.shutdown()
+        except Exception:
+            logger.opt(exception=True).warning(
+                "Failed to cleanly shut down TelegramAuthProvider"
+            )
+
+
+def _start_multi_user_http(settings: Settings) -> None:
+    """Multi-user HTTP mode: per-JWT-sub Telethon backends.
+
+    Runs the same mcp-core ``run_http_server`` as single-user mode but
+    binds ``0.0.0.0:8080`` (deployment behind reverse proxy), wires
+    ``auth_scope=_per_request_sub_scope`` to pin per-request user state,
+    and routes credential writes through a per-sub
+    ``TelegramAuthProvider`` so concurrent users do not share Telethon
+    sessions.
+
+    The ``MCP_DCR_SERVER_SECRET`` env var (legacy ``DCR_SERVER_SECRET``
+    still accepted) is required by the upstream check in
+    :func:`_is_multi_user_mode`; mcp-core's local OAuth AS reuses it
+    to mint per-user JWTs.
+    """
+    import asyncio
+
+    from ..server import create_http_mcp_server
+
+    # Set _multi_user_mode = True in server module so get_backend() reads
+    # the per-request contextvar set by _per_request_sub_scope below
+    # instead of falling back to the global single-user backend.
+    mcp = create_http_mcp_server()
+
+    auth_provider = _setup_multi_user_auth_provider(settings)
 
     port = _resolve_port(8080)
     host = os.environ.get("HOST", "0.0.0.0")
@@ -312,32 +353,4 @@ def _start_multi_user_http(settings: Settings) -> None:
     logger.info("Starting multi-user HTTP server on {}:{}", host, port)
     logger.info("Public URL: {}", public_url)
 
-    async def _run_with_lifecycle() -> None:
-        try:
-            await auth_provider.restore_sessions()
-        except Exception:
-            logger.opt(exception=True).warning(
-                "Failed to restore Telegram sessions on startup"
-            )
-        try:
-            await run_http_server(
-                mcp,
-                server_name="better-telegram-mcp",
-                relay_schema=RELAY_SCHEMA,
-                port=port,
-                host=host,
-                on_credentials_saved=save_credentials,
-                on_step_submitted=on_step_submitted,
-                custom_credential_form_html=render_telegram_credential_form,
-                auth_scope=_per_request_sub_scope,
-                auth_disabled=os.environ.get("MCP_AUTH_DISABLE") == "1",
-            )
-        finally:
-            try:
-                await auth_provider.shutdown()
-            except Exception:
-                logger.opt(exception=True).warning(
-                    "Failed to cleanly shut down TelegramAuthProvider"
-                )
-
-    asyncio.run(_run_with_lifecycle())
+    asyncio.run(_run_multi_user_lifecycle(mcp, auth_provider, port, host))
