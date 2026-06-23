@@ -373,131 +373,152 @@ def reset_state() -> None:
         logger.warning("Failed to delete config during state reset: {}", e)
 
 
+async def _handle_multi_user_otp(provider, sub: str, otp_code: str) -> dict | None:
+    """Handle OTP code submission for multi-user mode."""
+    global _state
+    try:
+        await provider.complete_user_auth(sub, otp_code)
+    except ValueError as e:
+        error_msg = str(e)
+        if _needs_2fa_password(error_msg):
+            if sub in _per_sub_steps:
+                backend, phone, _ = _per_sub_steps[sub]
+                _per_sub_steps[sub] = (backend, phone, otp_code)
+            else:
+                _per_sub_steps[sub] = (None, "", otp_code)
+            return {
+                "type": "password_required",
+                "text": (
+                    "Your account has two-factor authentication. "
+                    "Enter your 2FA password."
+                ),
+                "field": "password",
+                "input_type": "password",
+            }
+        _per_sub_steps.pop(sub, None)
+        return {
+            "type": "error",
+            "text": f"Authentication failed: {_sanitize_error(error_msg)}",
+        }
+    else:
+        _per_sub_steps.pop(sub, None)
+        _state = CredentialState.CONFIGURED
+        return None
+
+
+async def _handle_multi_user_password(provider, sub: str, password: str) -> dict | None:
+    """Handle 2FA password submission for multi-user mode."""
+    global _state
+    stash = _per_sub_steps.get(sub)
+    if stash is None or stash[2] is None:
+        return {
+            "type": "error",
+            "text": "OTP code missing. Please restart setup.",
+        }
+    otp_code = stash[2]
+    try:
+        await provider.complete_user_auth(sub, otp_code, password=password)
+    except ValueError as e:
+        _per_sub_steps.pop(sub, None)
+        return {
+            "type": "error",
+            "text": f"2FA failed: {_sanitize_error(str(e))}",
+        }
+    else:
+        _per_sub_steps.pop(sub, None)
+        _state = CredentialState.CONFIGURED
+        return None
+
+
 async def _handle_multi_user_step(
     provider, sub: str, step_data: dict[str, str]
 ) -> dict | None:
     """Handle OTP/2FA for multi-user mode via TelegramAuthProvider."""
     if "otp_code" in step_data:
-        otp_code = step_data["otp_code"].strip()
-        try:
-            await provider.complete_user_auth(sub, otp_code)
-        except ValueError as e:
-            error_msg = str(e)
-            if _needs_2fa_password(error_msg):
-                if sub in _per_sub_steps:
-                    backend, phone, _ = _per_sub_steps[sub]
-                    _per_sub_steps[sub] = (backend, phone, otp_code)
-                else:
-                    _per_sub_steps[sub] = (None, "", otp_code)
-                return {
-                    "type": "password_required",
-                    "text": (
-                        "Your account has two-factor authentication. "
-                        "Enter your 2FA password."
-                    ),
-                    "field": "password",
-                    "input_type": "password",
-                }
-            _per_sub_steps.pop(sub, None)
-            return {
-                "type": "error",
-                "text": f"Authentication failed: {_sanitize_error(error_msg)}",
-            }
-        else:
-            _per_sub_steps.pop(sub, None)
-            global _state
-            _state = CredentialState.CONFIGURED
-            return None
+        return await _handle_multi_user_otp(
+            provider, sub, step_data["otp_code"].strip()
+        )
 
     if "password" in step_data:
-        password = step_data["password"]
-        stash = _per_sub_steps.get(sub)
-        if stash is None or stash[2] is None:
-            return {
-                "type": "error",
-                "text": "OTP code missing. Please restart setup.",
-            }
-        otp_code = stash[2]
-        try:
-            await provider.complete_user_auth(sub, otp_code, password=password)
-        except ValueError as e:
-            _per_sub_steps.pop(sub, None)
-            return {
-                "type": "error",
-                "text": f"2FA failed: {_sanitize_error(str(e))}",
-            }
-        else:
-            _per_sub_steps.pop(sub, None)
-            _state = CredentialState.CONFIGURED
-            return None
+        return await _handle_multi_user_password(provider, sub, step_data["password"])
 
     return {"type": "error", "text": "Unexpected input."}
 
 
+async def _handle_single_user_otp(otp_code: str) -> dict | None:
+    """Handle OTP code submission for single-user mode."""
+    global _step_backend, _step_phone, _step_otp_code
+    _step_otp_code = otp_code
+
+    try:
+        await _step_backend.sign_in(_step_phone, otp_code)
+        await _finalize_auth()
+        return None
+    except Exception as e:
+        error_msg = str(e)
+        if _needs_2fa_password(error_msg):
+            return {
+                "type": "password_required",
+                "text": (
+                    "Your account has two-factor authentication. "
+                    "Enter your 2FA password."
+                ),
+                "field": "password",
+                "input_type": "password",
+            }
+        try:
+            await _step_backend.disconnect()
+        except Exception as disconnect_err:
+            logger.debug("Best-effort disconnect failed: {}", disconnect_err)
+        _step_backend = None
+        _step_phone = ""
+        _step_otp_code = None
+        return {
+            "type": "error",
+            "text": f"Authentication failed: {_sanitize_error(error_msg)}",
+        }
+
+
+async def _handle_single_user_password(password: str) -> dict | None:
+    """Handle 2FA password submission for single-user mode."""
+    global _step_backend, _step_phone, _step_otp_code
+    if _step_otp_code is None:
+        return {
+            "type": "error",
+            "text": "OTP code missing. Please restart setup.",
+        }
+
+    try:
+        await _step_backend.sign_in(_step_phone, _step_otp_code, password=password)
+        await _finalize_auth()
+        return None
+    except Exception as e:
+        error_msg = str(e)
+        try:
+            await _step_backend.disconnect()
+        except Exception as disconnect_err:
+            logger.debug("Best-effort disconnect failed: {}", disconnect_err)
+        _step_backend = None
+        _step_phone = ""
+        _step_otp_code = None
+        return {
+            "type": "error",
+            "text": f"2FA failed: {_sanitize_error(error_msg)}",
+        }
+
+
 async def _handle_single_user_step(step_data: dict[str, str]) -> dict | None:
     """Handle OTP/2FA for single-user mode via global _step_* state."""
-    global _step_backend, _step_phone, _step_otp_code
+    global _step_backend
 
     if _step_backend is None:
         return {"type": "error", "text": "No active authentication session."}
 
     if "otp_code" in step_data:
-        otp_code = step_data["otp_code"].strip()
-        _step_otp_code = otp_code
-
-        try:
-            await _step_backend.sign_in(_step_phone, otp_code)
-            await _finalize_auth()
-            return None
-        except Exception as e:
-            error_msg = str(e)
-            if _needs_2fa_password(error_msg):
-                return {
-                    "type": "password_required",
-                    "text": (
-                        "Your account has two-factor authentication. "
-                        "Enter your 2FA password."
-                    ),
-                    "field": "password",
-                    "input_type": "password",
-                }
-            try:
-                await _step_backend.disconnect()
-            except Exception as disconnect_err:
-                logger.debug("Best-effort disconnect failed: {}", disconnect_err)
-            _step_backend = None
-            _step_phone = ""
-            _step_otp_code = None
-            return {
-                "type": "error",
-                "text": f"Authentication failed: {_sanitize_error(error_msg)}",
-            }
+        return await _handle_single_user_otp(step_data["otp_code"].strip())
 
     if "password" in step_data:
-        password = step_data["password"]
-        if _step_otp_code is None:
-            return {
-                "type": "error",
-                "text": "OTP code missing. Please restart setup.",
-            }
-
-        try:
-            await _step_backend.sign_in(_step_phone, _step_otp_code, password=password)
-            await _finalize_auth()
-            return None
-        except Exception as e:
-            error_msg = str(e)
-            try:
-                await _step_backend.disconnect()
-            except Exception as disconnect_err:
-                logger.debug("Best-effort disconnect failed: {}", disconnect_err)
-            _step_backend = None
-            _step_phone = ""
-            _step_otp_code = None
-            return {
-                "type": "error",
-                "text": f"2FA failed: {_sanitize_error(error_msg)}",
-            }
+        return await _handle_single_user_password(step_data["password"])
 
     return {"type": "error", "text": "Unexpected input."}
 
