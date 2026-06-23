@@ -4,6 +4,7 @@ The persistent server secret (CREDENTIAL_SECRET env var or auto-generated)
 is stored at: DATA_DIR/.secret with 0o600 permissions.
 """
 
+import asyncio
 import os
 import stat
 from pathlib import Path
@@ -60,6 +61,11 @@ def _atomic_write_bytes_0600(path: Path, data: bytes) -> None:
         f.write(data)
 
 
+async def async_atomic_write_bytes_0600(path: Path, data: bytes) -> None:
+    """Write ``data`` to ``path`` atomically with 0o600 permissions (async)."""
+    await asyncio.to_thread(_atomic_write_bytes_0600, path, data)
+
+
 class CredentialStore:
     """Master-secret resolution for HTTP transport mode.
 
@@ -75,4 +81,22 @@ class CredentialStore:
             return secret_path.read_text().strip()
         secret = os.urandom(32).hex()
         _atomic_write_bytes_0600(secret_path, secret.encode())
+        return secret
+
+    @staticmethod
+    async def async_resolve_or_generate_secret(data_dir: Path) -> str:
+        """Load persisted secret or generate a new one (async, atomic 0o600 write)."""
+        secret_path = data_dir / ".secret"
+
+        def _read_if_exists() -> str | None:
+            if secret_path.exists():
+                return secret_path.read_text().strip()
+            return None
+
+        secret = await asyncio.to_thread(_read_if_exists)
+        if secret is not None:
+            return secret
+
+        secret = os.urandom(32).hex()
+        await async_atomic_write_bytes_0600(secret_path, secret.encode())
         return secret

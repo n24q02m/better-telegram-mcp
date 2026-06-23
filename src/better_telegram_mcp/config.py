@@ -109,6 +109,30 @@ class Settings(BaseSettings):
     def session_path(self) -> Path:
         return self.data_dir / f"{self.session_name}.session"
 
+    async def async_secret(self) -> str:
+        """Resolve master encryption secret from env or disk (async)."""
+        # If already cached by the sync property, return it
+        if "secret" in self.__dict__:
+            return self.secret
+
+        # 1. Check explicit env vars (prioritize CREDENTIAL_SECRET)
+        secret = (
+            os.environ.get("CREDENTIAL_SECRET")
+            or os.environ.get("MCP_DCR_SERVER_SECRET")
+            or os.environ.get("DCR_SERVER_SECRET")
+            or os.environ.get("MASTER_SECRET")
+        )
+        if secret:
+            self.__dict__["secret"] = secret
+            return secret
+
+        # 2. Resolve or generate persistent secret on disk
+        from .transports.credential_store import CredentialStore
+
+        res = await CredentialStore.async_resolve_or_generate_secret(self.data_dir)
+        self.__dict__["secret"] = res
+        return res
+
     @cached_property
     def secret(self) -> str:
         """Resolve master encryption secret from env or disk."""
