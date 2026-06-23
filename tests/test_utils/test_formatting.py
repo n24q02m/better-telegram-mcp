@@ -1,9 +1,31 @@
 import json
 from datetime import datetime
 
+import pytest
+
 from better_telegram_mcp.backends.base import ModeError
 from better_telegram_mcp.backends.security import SecurityError
-from better_telegram_mcp.utils.formatting import err, ok, safe_error
+from better_telegram_mcp.utils.formatting import err, escape_html, ok, safe_error
+
+
+@pytest.mark.parametrize(
+    "input_val, expected",
+    [
+        ("Hello World", "Hello World"),
+        ("", ""),
+        ("<tag>", "&lt;tag&gt;"),
+        ("A & B", "A &amp; B"),
+        ('Quote "test"', "Quote &quot;test&quot;"),
+        ("Single 'quote'", "Single &#x27;quote&#x27;"),
+        (123, "123"),
+        (1.23, "1.23"),
+        (None, "None"),
+        ([1, 2], "[1, 2]"),
+        ({"a": 1}, "{&#x27;a&#x27;: 1}"),
+    ],
+)
+def test_escape_html(input_val, expected):
+    assert escape_html(input_val) == expected
 
 
 def test_ok_basic_serialization():

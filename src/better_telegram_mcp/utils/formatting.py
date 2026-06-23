@@ -1,3 +1,4 @@
+import html
 import json
 from typing import Any
 
@@ -8,6 +9,13 @@ def ok(data: Any) -> str:
 
 def err(message: str) -> str:
     return json.dumps({"error": message}, ensure_ascii=False)
+
+
+def escape_html(text: str) -> str:
+    """
+    A lightweight helper for Telegram HTML formatting.
+    """
+    return html.escape(str(text))
 
 
 def safe_error(e: Exception) -> str:
