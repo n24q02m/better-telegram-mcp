@@ -4,12 +4,23 @@ from __future__ import annotations
 
 import ipaddress
 import socket
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 
 
 class SecurityError(Exception):
     pass
+
+
+# DNS cache to avoid repeated network overhead
+_DNS_CACHE: dict[str, tuple[float, list[tuple]]] = {}
+_DNS_CACHE_TTL = 60.0  # seconds
+
+
+def clear_dns_cache() -> None:
+    """Clear the local DNS cache."""
+    _DNS_CACHE.clear()
 
 
 # Private/internal IP ranges that should not be accessed via SSRF
@@ -54,7 +65,8 @@ def _validate_ip(ip_str: str, hostname: str) -> None:
                 msg = f"Access to internal/private IP {ip_str} ({hostname}) is blocked"
                 raise SecurityError(msg)
     except ValueError as e:
-        # Handle potential zone indices in IPv6 (e.g., fe80::1%eth0)
+        # Check if it has a zone index (e.g. fe80::1%eth0) which ipaddress doesn't support
+        # but socket.getaddrinfo can return. We block all potential zone indices in IPv6
         if "%" in ip_str:
             try:
                 clean_ip = ip_str.split("%")[0]
@@ -92,6 +104,12 @@ def validate_url(url: str) -> str:
         msg = f"Access to {hostname} is blocked"
         raise SecurityError(msg)
     try:
+        now = time.monotonic()
+        if hostname in _DNS_CACHE:
+            timestamp, addr_info = _DNS_CACHE[hostname]
+            if now - timestamp < _DNS_CACHE_TTL:
+                return addr_info[0][4][0]
+
         # Get all IPs for this hostname
         addr_info = socket.getaddrinfo(hostname, None)
         for _, _, _, _, sockaddr in addr_info:
@@ -100,6 +118,8 @@ def validate_url(url: str) -> str:
         if not addr_info:
             msg = f"Failed to resolve hostname {hostname}"
             raise SecurityError(msg)
+
+        _DNS_CACHE[hostname] = (now, addr_info)
         return addr_info[0][4][0]
     except OSError as e:
         # If hostname resolution fails, deny access instead of silently passing

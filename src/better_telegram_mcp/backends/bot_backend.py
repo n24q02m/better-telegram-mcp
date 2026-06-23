@@ -7,7 +7,7 @@ import httpx
 
 from ..relay_setup import redact_bot_token
 from .base import TelegramBackend
-from .security import fetch_url_safely, validate_file_path
+from .security import clear_dns_cache, fetch_url_safely, validate_file_path
 
 API_BASE = "https://api.telegram.org/bot{}/"
 
@@ -89,7 +89,8 @@ class BotBackend(TelegramBackend):
         return {"message": "Bot mode does not require sign-in."}
 
     async def clear_cache(self) -> None:
-        pass  # Bot API is stateless, no cache to clear
+        # Bot API is stateless, but we clear the shared DNS cache
+        clear_dns_cache()
 
     # --- Messages ---
     async def send_message(

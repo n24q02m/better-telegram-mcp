@@ -17,6 +17,7 @@ from telethon.tl.types import Channel, Chat, InputPhoneContact, User
 from ..config import Settings
 from .base import TelegramBackend
 from .security import (
+    clear_dns_cache,
     fetch_url_safely,
     validate_file_path,
     validate_output_dir,
@@ -163,6 +164,7 @@ class UserBackend(TelegramBackend):
         return bool(connected)
 
     async def clear_cache(self) -> None:
+        clear_dns_cache()
         if self._client is not None and self._client.session:
             # Clear Telethon's entity cache by deleting cached entities
             try:
