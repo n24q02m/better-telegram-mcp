@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import socket
 from pathlib import Path
@@ -71,7 +72,7 @@ def _validate_ip(ip_str: str, hostname: str) -> None:
             raise SecurityError(msg) from e
 
 
-def validate_url(url: str) -> str:
+async def validate_url(url: str) -> str:
     """Validate URL is safe (no SSRF to internal networks)."""
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"}:
@@ -93,7 +94,7 @@ def validate_url(url: str) -> str:
         raise SecurityError(msg)
     try:
         # Get all IPs for this hostname
-        addr_info = socket.getaddrinfo(hostname, None)
+        addr_info = await asyncio.to_thread(socket.getaddrinfo, hostname, None)
         for _, _, _, _, sockaddr in addr_info:
             ip_str = sockaddr[0]
             _validate_ip(ip_str, hostname)
@@ -245,7 +246,7 @@ async def fetch_url_safely(
 
     import httpx
 
-    ip_addr = validate_url(url)
+    ip_addr = await validate_url(url)
     parsed = urlparse(url)
 
     # Construct a new URL using the IP address

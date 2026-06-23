@@ -21,90 +21,90 @@ _IS_WINDOWS = sys.platform == "win32"
 
 
 class TestValidateUrl:
-    def test_https_allowed(self):
-        validate_url("https://example.com/photo.jpg")
+    async def test_https_allowed(self):
+        await validate_url("https://example.com/photo.jpg")
 
-    def test_http_allowed(self):
-        validate_url("http://example.com/photo.jpg")
+    async def test_http_allowed(self):
+        await validate_url("http://example.com/photo.jpg")
 
-    def test_ftp_blocked(self):
+    async def test_ftp_blocked(self):
         with pytest.raises(SecurityError, match="Only http/https"):
-            validate_url("ftp://example.com/file")
+            await validate_url("ftp://example.com/file")
 
-    def test_file_blocked(self):
+    async def test_file_blocked(self):
         with pytest.raises(SecurityError, match="Only http/https"):
-            validate_url("file:///etc/passwd")
+            await validate_url("file:///etc/passwd")
 
-    def test_localhost_blocked(self):
+    async def test_localhost_blocked(self):
         with pytest.raises(SecurityError, match="blocked"):
-            validate_url("http://localhost/admin")
+            await validate_url("http://localhost/admin")
 
-    def test_127_blocked(self):
+    async def test_127_blocked(self):
         with pytest.raises(SecurityError, match="internal/private"):
-            validate_url("http://127.0.0.1/admin")
+            await validate_url("http://127.0.0.1/admin")
 
-    def test_metadata_endpoint_blocked(self):
+    async def test_metadata_endpoint_blocked(self):
         with pytest.raises(SecurityError, match="metadata"):
-            validate_url("http://metadata.google.internal/computeMetadata/v1/")
+            await validate_url("http://metadata.google.internal/computeMetadata/v1/")
 
-    def test_private_10_blocked(self):
+    async def test_private_10_blocked(self):
         with pytest.raises(SecurityError, match="internal/private"):
-            validate_url("http://10.0.0.1/")
+            await validate_url("http://10.0.0.1/")
 
-    def test_private_172_blocked(self):
+    async def test_private_172_blocked(self):
         with pytest.raises(SecurityError, match="internal/private"):
-            validate_url("http://172.16.0.1/")
+            await validate_url("http://172.16.0.1/")
 
-    def test_private_192_blocked(self):
+    async def test_private_192_blocked(self):
         with pytest.raises(SecurityError, match="internal/private"):
-            validate_url("http://192.168.1.1/")
+            await validate_url("http://192.168.1.1/")
 
-    def test_link_local_blocked(self):
+    async def test_link_local_blocked(self):
         with pytest.raises(SecurityError, match="internal/private"):
-            validate_url("http://169.254.169.254/latest/meta-data/")
+            await validate_url("http://169.254.169.254/latest/meta-data/")
 
-    def test_ipv6_loopback_blocked(self):
+    async def test_ipv6_loopback_blocked(self):
         with pytest.raises(SecurityError, match="internal/private"):
-            validate_url("http://[::1]/")
+            await validate_url("http://[::1]/")
 
-    def test_ipv4_mapped_ipv6_loopback_blocked(self, monkeypatch):
+    async def test_ipv4_mapped_ipv6_loopback_blocked(self, monkeypatch):
         """IPv4-mapped IPv6 like ::ffff:127.0.0.1 must be blocked (issue #42)."""
         monkeypatch.setattr(
             "socket.getaddrinfo",
             lambda host, port: [(10, 1, 6, "", ("::ffff:127.0.0.1", 80, 0, 0))],
         )
         with pytest.raises(SecurityError, match="internal/private"):
-            validate_url("http://ipv4mapped.attacker.com/")
+            await validate_url("http://ipv4mapped.attacker.com/")
 
-    def test_ipv4_mapped_ipv6_private_blocked(self, monkeypatch):
+    async def test_ipv4_mapped_ipv6_private_blocked(self, monkeypatch):
         """IPv4-mapped IPv6 like ::ffff:10.0.0.1 must be blocked (issue #42)."""
         monkeypatch.setattr(
             "socket.getaddrinfo",
             lambda host, port: [(10, 1, 6, "", ("::ffff:10.0.0.1", 80, 0, 0))],
         )
         with pytest.raises(SecurityError, match="internal/private"):
-            validate_url("http://ipv4mapped-private.attacker.com/")
+            await validate_url("http://ipv4mapped-private.attacker.com/")
 
-    def test_zero_ip_blocked(self):
+    async def test_zero_ip_blocked(self):
         with pytest.raises(SecurityError, match="blocked"):
-            validate_url("http://0.0.0.0/")  # noqa: S104
+            await validate_url("http://0.0.0.0/")  # noqa: S104
 
-    def test_no_hostname(self):
+    async def test_no_hostname(self):
         with pytest.raises(SecurityError, match="no hostname"):
-            validate_url("http://")
+            await validate_url("http://")
 
-    def test_public_ip_allowed(self):
-        validate_url("https://93.184.216.34/image.jpg")
+    async def test_public_ip_allowed(self):
+        await validate_url("https://93.184.216.34/image.jpg")
 
-    def test_dns_resolution_blocks_internal(self, monkeypatch):
+    async def test_dns_resolution_blocks_internal(self, monkeypatch):
         # Mock socket.getaddrinfo to simulate malicious domain resolving to 127.0.0.1
         monkeypatch.setattr(
             "socket.getaddrinfo", lambda host, port: [(2, 1, 6, "", ("127.0.0.1", 80))]
         )
         with pytest.raises(SecurityError, match="internal/private"):
-            validate_url("http://malicious-domain-resolving-to-local.com/admin")
+            await validate_url("http://malicious-domain-resolving-to-local.com/admin")
 
-    def test_dns_resolution_blocks_mixed_ips(self, monkeypatch):
+    async def test_dns_resolution_blocks_mixed_ips(self, monkeypatch):
         """Hostnames resolving to multiple IPs (one public, one private) must be blocked."""
         monkeypatch.setattr(
             "socket.getaddrinfo",
@@ -114,17 +114,17 @@ class TestValidateUrl:
             ],
         )
         with pytest.raises(SecurityError, match="internal/private"):
-            validate_url("http://mixed-ips.attacker.com/")
+            await validate_url("http://mixed-ips.attacker.com/")
 
-    def test_dns_resolution_allows_external(self, monkeypatch):
+    async def test_dns_resolution_allows_external(self, monkeypatch):
         # Mock socket.getaddrinfo to simulate benign domain resolving to public IP
         monkeypatch.setattr(
             "socket.getaddrinfo",
             lambda host, port: [(2, 1, 6, "", ("93.184.216.34", 80))],
         )
-        validate_url("http://example.com/image.jpg")
+        await validate_url("http://example.com/image.jpg")
 
-    def test_dns_resolution_failure_blocked(self, monkeypatch):
+    async def test_dns_resolution_failure_blocked(self, monkeypatch):
         original_err = OSError("Temporary failure in name resolution")
 
         def mock_getaddrinfo(*args, **kwargs):
@@ -134,12 +134,12 @@ class TestValidateUrl:
         with pytest.raises(
             SecurityError, match="Failed to resolve hostname"
         ) as excinfo:
-            validate_url("http://nonexistent.domain.internal/admin")
+            await validate_url("http://nonexistent.domain.internal/admin")
 
         # Verify exception chaining (__cause__)
         assert excinfo.value.__cause__ is original_err
 
-    def test_dns_resolution_gaierror_blocked(self, monkeypatch):
+    async def test_dns_resolution_gaierror_blocked(self, monkeypatch):
         """socket.gaierror (subclass of OSError) is also caught and wrapped."""
         original_err = socket.gaierror(-2, "Name or service not known")
 
@@ -150,15 +150,15 @@ class TestValidateUrl:
         with pytest.raises(
             SecurityError, match="Failed to resolve hostname"
         ) as excinfo:
-            validate_url("http://gaierror.attacker.com/")
+            await validate_url("http://gaierror.attacker.com/")
 
         assert excinfo.value.__cause__ is original_err
 
-    def test_dns_resolution_empty_result_allowed(self, monkeypatch):
+    async def test_dns_resolution_empty_result_allowed(self, monkeypatch):
         """If hostname resolves to empty result list, it is blocked (resolution failure)."""
         monkeypatch.setattr("socket.getaddrinfo", lambda host, port: [])
         with pytest.raises(SecurityError, match="Failed to resolve hostname"):
-            validate_url("http://resolves-to-nothing.com/")
+            await validate_url("http://resolves-to-nothing.com/")
 
     @pytest.mark.asyncio
     async def test_fetch_url_safely_prevents_rebinding(self, monkeypatch):
