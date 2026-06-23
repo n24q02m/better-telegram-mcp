@@ -4,17 +4,19 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 
-class ModeError(Exception):
-    def __init__(self, required_mode: str):
-        if required_mode == "user":
-            msg = (
-                "This action requires user mode. "
-                "Set TELEGRAM_API_ID + TELEGRAM_API_HASH + TELEGRAM_PHONE."
-            )
+class ModeError(ValueError):
+    def __init__(self, required_mode: str, current_mode: str | None = None):
+        if current_mode:
+            msg = f"This operation requires {required_mode} mode, but server is in {current_mode} mode."
         else:
             msg = f"This action requires {required_mode} mode."
+
+        if required_mode == "user":
+            msg += " Set TELEGRAM_API_ID + TELEGRAM_API_HASH + TELEGRAM_PHONE."
+
         super().__init__(msg)
         self.required_mode = required_mode
+        self.current_mode = current_mode
 
 
 class TelegramBackend(ABC):
@@ -23,7 +25,7 @@ class TelegramBackend(ABC):
 
     def ensure_mode(self, required: str) -> None:
         if self.mode != required:
-            raise ModeError(required)
+            raise ModeError(required, self.mode)
 
     # --- Connection ---
     @abstractmethod
