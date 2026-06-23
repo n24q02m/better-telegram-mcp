@@ -16,7 +16,7 @@
       // better-telegram-mcp:beta, then fill <YOUR_ACCOUNT_ID>.
       "image": "registry.cloudflare.com/<YOUR_ACCOUNT_ID>/better-telegram-mcp:beta",
       "instance_type": "basic",
-      "max_instances": 3
+      "max_instances": 1
     }
   ],
   "durable_objects": {
