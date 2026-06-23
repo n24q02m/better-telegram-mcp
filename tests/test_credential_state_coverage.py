@@ -47,6 +47,7 @@ async def test_on_step_submitted_multi_user_2fa_flow_coverage():
 
         res = await on_step_submitted(step_data, context)
 
+        assert res is not None
         assert res["type"] == "password_required"
         assert "user1" in _per_sub_steps
         assert _per_sub_steps["user1"][2] == "12345"
@@ -82,6 +83,7 @@ async def test_on_step_submitted_multi_user_otp_failure_not_2fa():
         context = {"sub": "user1"}
 
         res = await on_step_submitted(step_data, context)
+        assert res is not None
         assert res["type"] == "error"
         assert "Authentication failed" in res["text"]
         assert "user1" not in _per_sub_steps
@@ -105,6 +107,7 @@ async def test_on_step_submitted_multi_user_password_failure():
         context = {"sub": "user1"}
 
         res = await on_step_submitted(step_data, context)
+        assert res is not None
         assert res["type"] == "error"
         assert "2FA failed" in res["text"]
         assert "user1" not in _per_sub_steps
@@ -123,6 +126,7 @@ async def test_on_step_submitted_multi_user_password_missing_stash():
         context = {"sub": "user1"}
 
         res = await on_step_submitted(step_data, context)
+        assert res is not None
         assert res["type"] == "error"
         assert "OTP code missing" in res["text"]
 
@@ -140,6 +144,7 @@ async def test_on_step_submitted_unexpected_input():
         context = {"sub": "user1"}
 
         res = await on_step_submitted(step_data, context)
+        assert res is not None
         assert res["type"] == "error"
         assert "Unexpected input" in res["text"]
 
@@ -168,5 +173,6 @@ async def test_on_step_submitted_multi_user_otp_needs_2fa_with_stash():
         context = {"sub": "user1"}
 
         res = await on_step_submitted(step_data, context)
+        assert res is not None
         assert res["type"] == "password_required"
         assert _per_sub_steps["user1"] == ("mock_backend", "mock_phone", "12345")
