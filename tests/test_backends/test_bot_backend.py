@@ -31,7 +31,7 @@ def _make_transport(result: dict | list | bool, ok: bool = True):
 
 def _make_bot(result: dict | list | bool = True, ok: bool = True) -> BotBackend:
     """Create a BotBackend with mocked HTTP transport."""
-    bot = BotBackend("123456:ABC-DEF")
+    bot = BotBackend("123456:AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
     bot._client = httpx.AsyncClient(
         transport=_make_transport(result, ok),
         base_url=bot._base_url,
@@ -43,7 +43,7 @@ def _make_bot(result: dict | list | bool = True, ok: bool = True) -> BotBackend:
 
 
 async def test_connect_success():
-    bot = BotBackend("123456:ABC-DEF")
+    bot = BotBackend("123456:AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
     bot._client = httpx.AsyncClient(
         transport=_make_transport({"id": 123, "is_bot": True, "first_name": "TestBot"}),
         base_url=bot._base_url,
@@ -413,7 +413,7 @@ async def test_connect_non_unauthorized_error():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(429, json=body)
 
-    bot = BotBackend("123456:ABC-DEF")
+    bot = BotBackend("123456:AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
     bot._client = httpx.AsyncClient(
         transport=httpx.MockTransport(handler),
         base_url=bot._base_url,
@@ -431,7 +431,7 @@ async def test_call_form_error():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(400, json=body)
 
-    bot = BotBackend("123456:ABC-DEF")
+    bot = BotBackend("123456:AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
     bot._client = httpx.AsyncClient(
         transport=httpx.MockTransport(handler),
         base_url=bot._base_url,
@@ -482,7 +482,7 @@ async def test_send_message_request_body():
             json={"ok": True, "result": {"message_id": 1}},
         )
 
-    bot = BotBackend("123456:ABC-DEF")
+    bot = BotBackend("123456:AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
     bot._client = httpx.AsyncClient(
         transport=httpx.MockTransport(handler),
         base_url=bot._base_url,
@@ -504,7 +504,7 @@ async def test_connect_error_chaining():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(429, json=body)
 
-    bot = BotBackend("123456:ABC-DEF")
+    bot = BotBackend("123456:AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
     bot._client = httpx.AsyncClient(
         transport=httpx.MockTransport(handler),
         base_url=bot._base_url,
@@ -523,10 +523,54 @@ async def test_connect_unknown_error():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(400, json=body)
 
-    bot = BotBackend("123456:ABC-DEF")
+    bot = BotBackend("123456:AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
     bot._client = httpx.AsyncClient(
         transport=httpx.MockTransport(handler),
         base_url=bot._base_url,
     )
     with pytest.raises(ConnectionError, match="Unknown error"):
         await bot.connect()
+
+
+# --- Direct mock tests ---
+
+
+async def test_call_http_error_direct():
+    """Verify that _call handles direct httpx.HTTPError mocking."""
+    bot = BotBackend("123456:AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+    bot._client = httpx.AsyncClient()
+    # Mocking post directly as requested in the rationale
+    bot._client.post = AsyncMock(
+        side_effect=httpx.HTTPError(
+            "Direct error with 123456:AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        )
+    )
+
+    with pytest.raises(TelegramAPIError) as exc_info:
+        await bot.send_message(123, "hello")
+
+    assert "123456:AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" not in str(exc_info.value)
+    assert "<redacted>" in str(exc_info.value)
+    # Verify 'from None' (suppressed context)
+    assert exc_info.value.__cause__ is None
+
+
+async def test_call_form_http_error_direct():
+    """Verify that _call_form handles direct httpx.HTTPError mocking."""
+    bot = BotBackend("123456:AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+    bot._client = httpx.AsyncClient()
+    bot._client.post = AsyncMock(
+        side_effect=httpx.HTTPError(
+            "Direct form error with 123456:AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        )
+    )
+
+    with pytest.raises(TelegramAPIError) as exc_info:
+        await bot._call_form(
+            "sendDocument", files={"document": ("t.txt", b"d")}, chat_id=1
+        )
+
+    assert "123456:AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" not in str(exc_info.value)
+    assert "<redacted>" in str(exc_info.value)
+    # Verify 'from None' (suppressed context)
+    assert exc_info.value.__cause__ is None
