@@ -150,4 +150,4 @@ Conventional Commits: `type(scope): message`. Automated semantic release.
 
 ## TODO / Backlog
 
-- [ ] **Glama display name**: Cannot set programmatically. Update manually via Glama admin page.
+- [x] **Glama display name**: Cannot set programmatically. Update manually via Glama admin page.

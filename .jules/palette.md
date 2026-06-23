@@ -43,3 +43,6 @@
 ## 2026-06-21 - Prefer Native Labels over ARIA for Dynamic Prompts
 **Learning:** Using a generic `<p>` tag combined with `aria-labelledby` on an input for dynamic forms (like multi-step OTP prompts) provides accessible names to screen readers but misses a key physical usability benefit. A semantic `<label>` properly associated with an input using the `for`/`id` relationship increases the clickable/tap area, allowing users to click the text prompt itself to focus the input field.
 **Action:** When dynamically generating form elements in JavaScript, always prefer creating a `<label>` element and setting its `for` attribute to the input's `id` instead of relying on `aria-labelledby` with generic block elements.
+## 2025-05-15 - [FIX] Glama display name verified
+**Learning:** External platform status (like Glama admin settings) should be tracked in AGENTS.md and verified via public endpoints if possible.
+**Action:** Always check the live state of external integrations before marking backlog items as complete.
