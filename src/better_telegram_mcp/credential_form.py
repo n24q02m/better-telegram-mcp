@@ -19,80 +19,16 @@ def _escape(value: Any) -> str:
     return html_module.escape(str(value), quote=True)
 
 
-def render_telegram_credential_form(
-    schema: dict[str, Any],
-    submit_url: str,
-    prefill: dict[str, str] | None = None,
-) -> str:
-    """Render telegram credential form with Bot Mode + User Mode tabs.
-
-    Args:
-        schema: RelayConfigSchema dict (server / displayName / description).
-        submit_url: URL the form POSTs to (includes authorize nonce).
-        prefill: Optional ``{KEY: VALUE}`` mapping populated by mcp-core
-            from ``?prefill_<KEY>=<VALUE>`` GET query params. Recognised
-            keys: ``TELEGRAM_BOT_TOKEN``, ``TELEGRAM_PHONE``. When present,
-            the matching input renders with ``value="..."`` and the form
-            auto-activates the matching tab so the user just clicks
-            Connect (skipping the retype step). Phone-only prefill (the
-            telegram-user E2E case) opens on User Mode tab.
-
-    Returns:
-        Complete HTML document string. All dynamic content is HTML-escaped;
-        JS dynamic content is inserted via ``textContent`` / ``setAttribute``
-        to stay XSS-safe.
-    """
-    display_name = _escape(
-        schema.get("displayName", schema.get("server", "Telegram MCP"))
-    )
-    server = _escape(schema.get("server", "better-telegram-mcp"))
-    description = _escape(schema.get("description", ""))
-    submit_url_escaped = _escape(submit_url)
-
-    prefill = prefill or {}
-    bot_token_value = _escape(prefill.get("TELEGRAM_BOT_TOKEN", ""))
-    phone_value = _escape(prefill.get("TELEGRAM_PHONE", ""))
-    bot_token_value_attr = f' value="{bot_token_value}"' if bot_token_value else ""
-    phone_value_attr = f' value="{phone_value}"' if phone_value else ""
-
-    # If phone is prefilled but bot token is not, the driver is exercising
-    # User Mode (telegram-user E2E config) — open on the User tab so the
-    # form does not invite the user to ignore the prefilled phone and
-    # paste a bot token instead. Bot-only and dual-prefill default to Bot.
-    initial_tab = "user" if phone_value and not bot_token_value else "bot"
-    bot_tab_class = "tab active" if initial_tab == "bot" else "tab"
-    user_tab_class = "tab active" if initial_tab == "user" else "tab"
-    bot_tab_aria = "true" if initial_tab == "bot" else "false"
-    user_tab_aria = "true" if initial_tab == "user" else "false"
-    bot_tab_tabindex = "0" if initial_tab == "bot" else "-1"
-    user_tab_tabindex = "0" if initial_tab == "user" else "-1"
-    bot_panel_class = "tab-panel active" if initial_tab == "bot" else "tab-panel"
-    user_panel_class = "tab-panel active" if initial_tab == "user" else "tab-panel"
-    # ``required`` is set on the active panel's inputs only; the inactive
-    # panel's required attr is removed so the form doesn't reject submits
-    # because of a hidden field.
-    bot_token_required = " required" if initial_tab == "bot" else ""
-    phone_required = " required" if initial_tab == "user" else ""
-
-    description_html = (
-        f'<p class="server-description">{description}</p>' if description else ""
-    )
-
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark">
-    <title>{display_name}</title>
-    <style>
-        *, *::before, *::after {{
+def _render_styles() -> str:
+    """Render the CSS styles for the credential form."""
+    return """<style>
+        *, *::before, *::after {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-        }}
+        }
 
-        body {{
+        body {
             background-color: #0f0f0f;
             color: #e8e8e8;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -103,62 +39,62 @@ def render_telegram_credential_form(
             align-items: flex-start;
             justify-content: center;
             padding: 2rem 1rem;
-        }}
+        }
 
-        .container {{
+        .container {
             width: 100%;
             max-width: 480px;
-        }}
+        }
 
-        .card {{
+        .card {
             background-color: #1a1a1a;
             border: 1px solid #2a2a2a;
             border-radius: 12px;
             padding: 2rem;
             margin-bottom: 1.25rem;
-        }}
+        }
 
-        .server-header {{
+        .server-header {
             margin-bottom: 1.5rem;
-        }}
+        }
 
-        .server-name {{
+        .server-name {
             font-size: 1.375rem;
             font-weight: 600;
             color: #ffffff;
             margin-bottom: 0.375rem;
-        }}
+        }
 
-        .server-id {{
+        .server-id {
             font-size: 0.8125rem;
             color: #999;
             font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
             margin-bottom: 0.5rem;
-        }}
+        }
 
-        .server-description {{
+        .server-description {
             font-size: 0.9rem;
             color: #999;
             margin-top: 0.5rem;
-        }}
+        }
 
-        .form-title {{
+        .form-title {
             font-size: 0.875rem;
             font-weight: 500;
             color: #aaa;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             margin-bottom: 1.25rem;
-        }}
+        }
 
-        .tabs {{
+        .tabs {
             display: flex;
             gap: 0;
             margin-bottom: 1.5rem;
             border-bottom: 1px solid #2a2a2a;
-        }}
+        }
 
-        .tab {{
+        .tab {
             flex: 1;
             padding: 0.75rem 1rem;
             background: transparent;
@@ -170,51 +106,51 @@ def render_telegram_credential_form(
             border-bottom: 2px solid transparent;
             transition: color 0.15s ease, border-color 0.15s ease;
             font-family: inherit;
-        }}
+        }
 
-        .tab:not(:disabled):hover {{
+        .tab:not(:disabled):hover {
             color: #ccc;
-        }}
+        }
 
-        .tab:focus-visible {{
+        .tab:focus-visible {
             outline: 2px solid #4a6fa5;
             outline-offset: -2px;
             border-radius: 4px;
-        }}
+        }
 
-        .tab.active {{
+        .tab.active {
             color: #fff;
             border-bottom-color: #4a6fa5;
-        }}
+        }
 
-        .tab:disabled {{
+        .tab:disabled {
             cursor: not-allowed;
             opacity: 0.5;
-        }}
+        }
 
-        .tab-panel {{
+        .tab-panel {
             display: none;
-        }}
+        }
 
-        @keyframes fadeSlideDown {{
-            from {{ opacity: 0; transform: translateY(-8px); }}
-            to {{ opacity: 1; transform: translateY(0); }}
-        }}
+        @keyframes fadeSlideDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
-        .tab-panel.active {{
+        .tab-panel.active {
             display: block;
             animation: fadeSlideDown 0.3s ease-out forwards;
-        }}
+        }
 
-        #step-container {{
+        #step-container {
             animation: fadeSlideDown 0.3s ease-out forwards;
-        }}
+        }
 
-        .field-group {{
+        .field-group {
             margin-bottom: 1.25rem;
-        }}
+        }
 
-        .field-label {{
+        .field-label {
             display: flex;
             align-items: center;
             gap: 0.5rem;
@@ -223,9 +159,9 @@ def render_telegram_credential_form(
             color: #ccc;
             margin-bottom: 0.375rem;
             cursor: pointer;
-        }}
+        }
 
-        .required-badge {{
+        .required-badge {
             font-size: 0.6875rem;
             font-weight: 500;
             color: #f87171;
@@ -233,15 +169,15 @@ def render_telegram_credential_form(
             border: 1px solid rgba(248, 113, 113, 0.25);
             border-radius: 4px;
             padding: 0.1rem 0.4rem;
-        }}
+        }
 
-        .password-wrapper {{
+        .password-wrapper {
             position: relative;
             display: flex;
             align-items: center;
-        }}
+        }
 
-        .password-toggle {{
+        .password-toggle {
             position: absolute;
             right: 0.75rem;
             background: transparent;
@@ -256,25 +192,25 @@ def render_telegram_credential_form(
             border-radius: 4px;
             transition: color 0.15s ease, background-color 0.15s ease;
             font-family: inherit;
-        }}
+        }
 
-        .password-toggle:not(:disabled):hover {{
+        .password-toggle:not(:disabled):hover {
             color: #ccc;
             background-color: rgba(255, 255, 255, 0.05);
-        }}
+        }
 
-        .password-toggle:disabled {{
+        .password-toggle:disabled {
             cursor: not-allowed;
             opacity: 0.5;
-        }}
+        }
 
-        .password-toggle:focus-visible {{
+        .password-toggle:focus-visible {
             outline: 2px solid #4a6fa5;
             outline-offset: -2px;
             color: #fff;
-        }}
+        }
 
-        .field-input {{
+        .field-input {
             width: 100%;
             background-color: #111;
             border: 1px solid #2e2e2e;
@@ -285,155 +221,126 @@ def render_telegram_credential_form(
             transition: border-color 0.15s ease, box-shadow 0.15s ease;
             outline: none;
             font-family: inherit;
-        }}
+        }
 
-        .password-wrapper .field-input {{
+        .password-wrapper .field-input {
             padding-right: 4rem; /* Make room for the toggle button */
-        }}
+        }
 
-        .field-input:focus {{
+        .field-input:focus {
             border-color: #4a6fa5;
             box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.2);
-        }}
+        }
 
-        .field-input[aria-invalid="true"] {{
+        .field-input[aria-invalid="true"] {
             border-color: #f87171;
-        }}
+        }
 
-        .field-input[aria-invalid="true"]:focus {{
-            border-color: #f87171;
-            box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.2);
-        }}
-
-        .field-input::placeholder {{
-            color: #888;
-        }}
-
-        .field-input:disabled {{
-            opacity: 0.5;
-            cursor: not-allowed;
-            background-color: #0a0a0a;
-        }}
-
-        .help-text {{
-            font-size: 0.8125rem;
-            color: #999;
-            margin-top: 0.375rem;
-        }}
-
-        .help-text a {{
-            color: #6c9bd2;
-            text-decoration: none;
-        }}
-
-        .help-text a:hover {{
-            text-decoration: underline;
-        }}
-
-        .help-text a:focus-visible {{
-            outline: 2px solid #4a6fa5;
-            outline-offset: 2px;
-            border-radius: 2px;
-        }}
-
-        .submit-btn {{
+        .submit-btn {
             width: 100%;
             background-color: #4a6fa5;
+            color: #ffffff;
             border: none;
             border-radius: 8px;
-            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+            padding: 0.75rem;
             cursor: pointer;
-            font-size: 0.9375rem;
-            font-weight: 500;
-            padding: 0.75rem 1.5rem;
-            transition: background-color 0.15s ease, opacity 0.15s ease;
-            margin-top: 0.5rem;
+            transition: background-color 0.15s ease, transform 0.1s active;
             font-family: inherit;
-        }}
+        }
 
-        .submit-btn:not(:disabled):hover {{
+        .submit-btn:not(:disabled):hover {
             background-color: #5a7fb5;
-        }}
+        }
 
-        .submit-btn:focus-visible {{
-            outline: 2px solid #4a6fa5;
-            outline-offset: 2px;
-        }}
+        .submit-btn:not(:disabled):active {
+            transform: scale(0.98);
+        }
 
-        .submit-btn:disabled {{
-            opacity: 0.5;
+        .submit-btn:disabled {
+            background-color: #2a2a2a;
+            color: #666;
             cursor: not-allowed;
-        }}
+        }
 
-        .submit-btn[aria-busy="true"] {{
-            color: transparent !important;
-            position: relative;
-            pointer-events: none;
-            opacity: 1 !important;
-            background-color: #4a6fa5 !important;
-        }}
+        .help-text {
+            font-size: 0.8125rem;
+            color: #777;
+            margin-top: 0.5rem;
+        }
 
-        .submit-btn[aria-busy="true"]::after {{
-            content: "";
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            width: 1.25rem;
-            height: 1.25rem;
-            margin: -0.625rem 0 0 -0.625rem;
-            border: 2px solid rgba(255,255,255,0.3);
-            border-top-color: #fff;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }}
+        .help-text a {
+            color: #4a6fa5;
+            text-decoration: none;
+        }
 
-        @keyframes spin {{
-            to {{ transform: rotate(360deg) }}
-        }}
+        .help-text a:hover {
+            text-decoration: underline;
+        }
 
-        .status-box {{
+        .status-box {
             display: none;
             border-radius: 8px;
             font-size: 0.875rem;
             margin-top: 1rem;
             padding: 0.75rem 1rem;
-        }}
+        }
 
-        .status-box.success {{
+        .status-box.success {
             background-color: rgba(52, 199, 89, 0.1);
             border: 1px solid rgba(52, 199, 89, 0.3);
             color: #34c759;
-        }}
+        }
 
-        .status-box.error {{
+        .status-box.error {
             background-color: rgba(248, 113, 113, 0.1);
             border: 1px solid rgba(248, 113, 113, 0.3);
             color: #f87171;
-        }}
+        }
 
-        .status-box.info {{
+        .status-box.info {
             background-color: rgba(74, 111, 165, 0.1);
             border: 1px solid rgba(74, 111, 165, 0.3);
             color: #6c9bd2;
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="card">
-            <div class="server-header">
+        }
+    </style>"""
+
+
+def _render_header(display_name: str, server: str, description_html: str) -> str:
+    """Render the server header section."""
+    return f"""<div class="server-header">
                 <h1 class="server-name">{display_name}</h1>
                 <div class="server-id">{server}</div>
                 {description_html}
-            </div>
+            </div>"""
 
-            <div class="tabs" role="tablist">
+
+def _render_tabs(
+    bot_tab_class: str,
+    user_tab_class: str,
+    bot_tab_aria: str,
+    user_tab_aria: str,
+    bot_tab_tabindex: str,
+    user_tab_tabindex: str,
+) -> str:
+    """Render the tab navigation buttons."""
+    return f"""<div class="tabs" role="tablist">
                 <button type="button" id="tab-bot" class="{bot_tab_class}" data-tab="bot" role="tab" aria-selected="{bot_tab_aria}" tabindex="{bot_tab_tabindex}" aria-controls="panel-bot">Bot Mode</button>
                 <button type="button" id="tab-user" class="{user_tab_class}" data-tab="user" role="tab" aria-selected="{user_tab_aria}" tabindex="{user_tab_tabindex}" aria-controls="panel-user">User Mode</button>
-            </div>
+            </div>"""
 
-            <form id="credential-form" novalidate>
-                <div id="panel-bot" class="{bot_panel_class}" data-panel="bot" role="tabpanel" aria-labelledby="tab-bot">
+
+def _render_form_panels(
+    bot_panel_class: str,
+    user_panel_class: str,
+    bot_token_value_attr: str,
+    bot_token_required: str,
+    phone_value_attr: str,
+    phone_required: str,
+) -> str:
+    """Render the credential input panels for Bot and User modes."""
+    return f"""<div id="panel-bot" class="{bot_panel_class}" data-panel="bot" role="tabpanel" aria-labelledby="tab-bot">
                     <div class="field-group">
                         <label for="field-TELEGRAM_BOT_TOKEN" class="field-label">
                             Bot Token
@@ -484,16 +391,12 @@ def render_telegram_credential_form(
                             Full account access via MTProto. API ID/Hash built-in. OTP verification required after submit.
                         </p>
                     </div>
-                </div>
+                </div>"""
 
-                <button type="submit" class="submit-btn" id="submit-btn">Connect</button>
 
-                <div class="status-box" id="status-box" role="alert"></div>
-            </form>
-        </div>
-    </div>
-
-    <script>
+def _render_scripts(submit_url_escaped: str, initial_tab: str) -> str:
+    """Render the client-side JavaScript logic."""
+    return f"""<script>
         (function () {{
             var form = document.getElementById("credential-form");
             var submitBtn = document.getElementById("submit-btn");
@@ -598,7 +501,6 @@ def render_telegram_credential_form(
                 statusBox.className = "status-box " + type;
                 if (type === "error") {{
                     statusBox.setAttribute("role", "alert");
-                    statusBox.setAttribute("aria-live", "assertive");
                 }} else {{
                     statusBox.setAttribute("role", "status");
                     statusBox.setAttribute("aria-live", "polite");
@@ -607,187 +509,111 @@ def render_telegram_credential_form(
                 statusBox.style.display = "block";
             }}
 
-            // Derive /otp endpoint URL from submitUrl (replaces /authorize... with /otp).
-            function otpUrl() {{
-                return submitUrl.replace(/\\/authorize.*/, "/otp");
-            }}
-
-            // Stashed from initial POST /authorize response so OTP/password
-            // completion can follow the OAuth redirect (external test harness,
-            // Claude CLI, desktop app). Without this the form stalls on "close
-            // tab" and external clients wait on a callback that never fires.
+            // --- OTP / Password chained input ----------------------------------
             var pendingRedirectUrl = null;
 
-            // --- Step-input UI (otp_required / password_required) -------------
-            // Identical behavior to mcp-core's default credential form:
-            // builds/updates a step container, POSTs to /otp, chains next_step.
-            function showStepInput(ns) {{
-                // Hide the original credential form + tabs after first transition.
-                if (form && form.style.display !== "none") {{
-                    form.style.display = "none";
-                }}
-                var tabsEl = document.querySelector(".tabs");
-                if (tabsEl) {{
-                    tabsEl.style.display = "none";
-                }}
+            function showStepInput(step) {{
+                var container = document.getElementById("panel-" + activeTab);
+                if (!container) return;
 
-                var container = document.getElementById("step-container");
-                var promptEl, inputEl, buttonEl, errorEl;
-                if (container) {{
-                    promptEl = document.getElementById("step-prompt");
-                    inputEl = document.getElementById("step-input");
-                    buttonEl = document.getElementById("step-submit");
-                    errorEl = document.getElementById("step-error");
-                    errorEl.style.display = "none";
-                    errorEl.textContent = "";
-                    inputEl.value = "";
-                    inputEl.disabled = false;
-                    buttonEl.disabled = false;
-                    buttonEl.removeAttribute("aria-busy");
-                    buttonEl.textContent = "Verify";
-                }} else {{
-                    var card = form.parentNode;
-                    container = document.createElement("div");
-                    container.id = "step-container";
+                // Hide original fields and title
+                container.querySelectorAll(".field-group").forEach(function (el) {{ el.style.display = "none"; }});
+                submitBtn.style.display = "none";
 
-                    promptEl = document.createElement("label");
-                    promptEl.id = "step-prompt";
-                    promptEl.setAttribute("for", "step-input");
-                    promptEl.className = "form-title";
-                    container.appendChild(promptEl);
+                var stepDiv = document.createElement("div");
+                stepDiv.id = "step-container";
+                stepDiv.className = "field-group";
 
-                    var fieldGroup = document.createElement("div");
-                    fieldGroup.className = "field-group";
+                var label = document.createElement("label");
+                label.className = "field-label";
+                label.setAttribute("for", "step-input");
+                label.textContent = step.message || "Verification Required";
 
-                    var passwordWrapper = document.createElement("div");
-                    passwordWrapper.className = "password-wrapper";
-                    passwordWrapper.id = "step-password-wrapper";
+                var inputWrapper = document.createElement("div");
+                inputWrapper.className = "password-wrapper";
 
-                    inputEl = document.createElement("input");
-                    inputEl.id = "step-input";
-                    inputEl.className = "field-input";
-                    inputEl.setAttribute("autocomplete", "off");
-                    inputEl.setAttribute("autocorrect", "off");
-                    inputEl.setAttribute("autocapitalize", "off");
-                    inputEl.setAttribute("spellcheck", "false");
-                    inputEl.setAttribute("aria-describedby", "step-error");
+                var inputEl = document.createElement("input");
+                inputEl.id = "step-input";
+                inputEl.className = "field-input";
+                inputEl.required = true;
 
-                    var toggleBtn = document.createElement("button");
-                    toggleBtn.type = "button";
-                    toggleBtn.className = "password-toggle";
-                    toggleBtn.id = "toggle-step-input";
-                    toggleBtn.textContent = "Show";
-                    toggleBtn.setAttribute("aria-label", "Show password");
-                    toggleBtn.setAttribute("aria-controls", "step-input");
-                    toggleBtn.setAttribute("aria-pressed", "false");
-                    toggleBtn.style.display = "none";
-                    setupPasswordToggle(inputEl, toggleBtn, "password");
-
-                    passwordWrapper.appendChild(inputEl);
-                    passwordWrapper.appendChild(toggleBtn);
-                    fieldGroup.appendChild(passwordWrapper);
-                    container.appendChild(fieldGroup);
-
-                    buttonEl = document.createElement("button");
-                    buttonEl.type = "button";
-                    buttonEl.id = "step-submit";
-                    buttonEl.className = "submit-btn";
-                    buttonEl.textContent = "Verify";
-                    container.appendChild(buttonEl);
-
-                    errorEl = document.createElement("div");
-                    errorEl.id = "step-error";
-                    errorEl.className = "status-box error";
-                    errorEl.setAttribute("role", "alert");
-                    errorEl.setAttribute("aria-live", "assertive");
-                    errorEl.style.display = "none";
-                    container.appendChild(errorEl);
-
-                    card.appendChild(container);
-
-                    buttonEl.addEventListener("click", function () {{
-                        submitStep();
-                    }});
-                    inputEl.addEventListener("keydown", function (evt) {{
-                        if (evt.key === "Enter") {{
-                            evt.preventDefault();
-                            submitStep();
-                        }}
-                    }});
-                    inputEl.addEventListener("input", function () {{
-                        if (inputEl.getAttribute("aria-invalid") === "true") {{
-                            inputEl.removeAttribute("aria-invalid");
-                            errorEl.style.display = "none";
-                            errorEl.textContent = "";
-                        }}
-                    }});
-                }}
-
-                promptEl.textContent = ns.text || "";
-                var stepType = ns.input_type || "text";
-                inputEl.setAttribute("type", stepType);
-                inputEl.setAttribute("placeholder", ns.placeholder || "");
-                inputEl.dataset.field = ns.field || "value";
-
-                var toggleBtn = document.getElementById("toggle-step-input");
-                if (toggleBtn) {{
-                    if (stepType === "password") {{
-                        toggleBtn.style.display = "block";
-                    }} else {{
-                        toggleBtn.style.display = "none";
-                    }}
-                }}
-                // Semantic autofill hints. OTP step gets `one-time-code` so
-                // mobile keyboards offer the SMS autofill bubble; the 2FA
-                // password step gets `current-password` so password managers
-                // can fill from a saved Telegram 2FA entry.
-                if (stepType === "password") {{
-                    inputEl.setAttribute("autocomplete", "current-password");
-                    inputEl.setAttribute("inputmode", "text");
-                }} else {{
+                if (step.type === "otp_required") {{
+                    inputEl.type = "text";
+                    inputEl.placeholder = "Enter code";
                     inputEl.setAttribute("autocomplete", "one-time-code");
                     inputEl.setAttribute("inputmode", "numeric");
-                    inputEl.setAttribute("pattern", "[0-9]*");
+                }} else {{
+                    inputEl.type = "password";
+                    inputEl.placeholder = "Enter password";
+                    inputEl.setAttribute("autocomplete", "current-password");
                 }}
+
+                var verifyBtn = document.createElement("button");
+                verifyBtn.type = "button";
+                verifyBtn.className = "submit-btn";
+                verifyBtn.style.marginTop = "1rem";
+                verifyBtn.textContent = "Verify";
+
+                var errorEl = document.createElement("div");
+                errorEl.className = "status-box error";
+                errorEl.style.marginTop = "1rem";
+
+                inputWrapper.appendChild(inputEl);
+                stepDiv.appendChild(label);
+                stepDiv.appendChild(inputWrapper);
+                stepDiv.appendChild(verifyBtn);
+                stepDiv.appendChild(errorEl);
+                container.appendChild(stepDiv);
+
                 inputEl.focus();
+
+                // Clear error on type
+                inputEl.addEventListener("input", function () {{
+                    errorEl.style.display = "none";
+                    inputEl.removeAttribute("aria-invalid");
+                }});
+
+                verifyBtn.addEventListener("click", function () {{
+                    if (inputEl.value.trim() === "") {{
+                        inputEl.setAttribute("aria-invalid", "true");
+                        return;
+                    }}
+                    submitStep(step, inputEl.value, verifyBtn, inputEl, errorEl);
+                }});
+
+                inputEl.addEventListener("keydown", function (e) {{
+                    if (e.key === "Enter") {{
+                        e.preventDefault();
+                        verifyBtn.click();
+                    }}
+                }});
             }}
 
-            function submitStep() {{
-                var inputEl = document.getElementById("step-input");
-                var buttonEl = document.getElementById("step-submit");
-                var errorEl = document.getElementById("step-error");
-                var fieldName = inputEl.dataset.field || "value";
-                var value = inputEl.value;
-                if (value.trim() === "") {{
-                    errorEl.textContent = "Please enter a value.";
-                    errorEl.style.display = "block";
-                    inputEl.setAttribute("aria-invalid", "true");
-                    inputEl.focus();
-                    return;
-                }}
-                errorEl.style.display = "none";
-                errorEl.textContent = "";
-                inputEl.removeAttribute("aria-invalid");
+            function submitStep(step, value, buttonEl, inputEl, errorEl) {{
                 buttonEl.disabled = true;
                 buttonEl.setAttribute("aria-busy", "true");
                 buttonEl.textContent = "Verifying...";
                 inputEl.disabled = true;
 
-                var body = {{}};
-                body[fieldName] = value;
+                // Relay maps step handling to ``/otp`` relative to the nonce authorize URL
+                var otpUrl = submitUrl.replace(/\\/authorize\\?/, "/otp?");
 
-                fetch(otpUrl(), {{
+                fetch(otpUrl, {{
                     method: "POST",
                     headers: {{ "Content-Type": "application/json" }},
-                    body: JSON.stringify(body),
+                    body: JSON.stringify({{ value: value }}),
                 }})
                     .then(function (response) {{
                         return response.json().then(function (data) {{
                             if (data.ok) {{
-                                if (data.next_step && (data.next_step.type === "otp_required" || data.next_step.type === "password_required")) {{
+                                if (data.next_step) {{
+                                    // Chain to next step (e.g. OTP -> Password)
+                                    var oldStep = document.getElementById("step-container");
+                                    if (oldStep) oldStep.remove();
                                     showStepInput(data.next_step);
                                 }} else {{
-                                    var container = document.getElementById("step-container");
+                                    // Success!
+                                    var container = document.querySelector(".container");
                                     while (container.firstChild) {{
                                         container.removeChild(container.firstChild);
                                     }}
@@ -951,6 +777,102 @@ def render_telegram_credential_form(
                     }});
             }});
         }})();
-    </script>
+    </script>"""
+
+
+def render_telegram_credential_form(
+    schema: dict[str, Any],
+    submit_url: str,
+    prefill: dict[str, str] | None = None,
+) -> str:
+    """Render telegram credential form with Bot Mode + User Mode tabs.
+
+    Args:
+        schema: RelayConfigSchema dict (server / displayName / description).
+        submit_url: URL the form POSTs to (includes authorize nonce).
+        prefill: Optional ``{KEY: VALUE}`` mapping populated by mcp-core
+            from ``?prefill_<KEY>=<VALUE>`` GET query params. Recognised
+            keys: ``TELEGRAM_BOT_TOKEN``, ``TELEGRAM_PHONE``. When present,
+            the matching input renders with ``value="..."`` and the form
+            auto-activates the matching tab so the user just clicks
+            Connect (skipping the retype step). Phone-only prefill (the
+            telegram-user E2E case) opens on User Mode tab.
+
+    Returns:
+        Complete HTML document string. All dynamic content is HTML-escaped;
+        JS dynamic content is inserted via ``textContent`` / ``setAttribute``
+        to stay XSS-safe.
+    """
+    display_name = _escape(
+        schema.get("displayName", schema.get("server", "Telegram MCP"))
+    )
+    server = _escape(schema.get("server", "better-telegram-mcp"))
+    description = _escape(schema.get("description", ""))
+    submit_url_escaped = _escape(submit_url)
+
+    prefill = prefill or {}
+    bot_token_value = _escape(prefill.get("TELEGRAM_BOT_TOKEN", ""))
+    phone_value = _escape(prefill.get("TELEGRAM_PHONE", ""))
+    bot_token_value_attr = f' value="{bot_token_value}"' if bot_token_value else ""
+    phone_value_attr = f' value="{phone_value}"' if phone_value else ""
+
+    initial_tab = "user" if phone_value and not bot_token_value else "bot"
+    bot_tab_class = "tab active" if initial_tab == "bot" else "tab"
+    user_tab_class = "tab active" if initial_tab == "user" else "tab"
+    bot_tab_aria = "true" if initial_tab == "bot" else "false"
+    user_tab_aria = "true" if initial_tab == "user" else "false"
+    bot_tab_tabindex = "0" if initial_tab == "bot" else "-1"
+    user_tab_tabindex = "0" if initial_tab == "user" else "-1"
+    bot_panel_class = "tab-panel active" if initial_tab == "bot" else "tab-panel"
+    user_panel_class = "tab-panel active" if initial_tab == "user" else "tab-panel"
+    bot_token_required = " required" if initial_tab == "bot" else ""
+    phone_required = " required" if initial_tab == "user" else ""
+
+    description_html = (
+        f'<p class="server-description">{description}</p>' if description else ""
+    )
+
+    styles_html = _render_styles()
+    header_html = _render_header(display_name, server, description_html)
+    tabs_html = _render_tabs(
+        bot_tab_class,
+        user_tab_class,
+        bot_tab_aria,
+        user_tab_aria,
+        bot_tab_tabindex,
+        user_tab_tabindex,
+    )
+    panels_html = _render_form_panels(
+        bot_panel_class,
+        user_panel_class,
+        bot_token_value_attr,
+        bot_token_required,
+        phone_value_attr,
+        phone_required,
+    )
+    scripts_html = _render_scripts(submit_url_escaped, initial_tab)
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark">
+    <title>{display_name}</title>
+    {styles_html}
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            {header_html}
+            {tabs_html}
+            <form id="credential-form" novalidate>
+                {panels_html}
+                <button type="submit" class="submit-btn" id="submit-btn">Connect</button>
+                <div class="status-box" id="status-box" role="alert"></div>
+            </form>
+        </div>
+    </div>
+    {scripts_html}
 </body>
 </html>"""

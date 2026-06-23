@@ -1,0 +1,3 @@
+## 2026-06-21 - Modularize large HTML-rendering functions
+**Learning:** Functions that generate complex HTML strings (like \`render_telegram_credential_form\`) can grow to unmanageable sizes, making them difficult to maintain and test. Modularizing these functions into private helper functions (e.g., \`_render_styles\`, \`_render_scripts\`) within the same module significantly improves readability and follows the Single Responsibility Principle.
+**Action:** When an HTML-rendering function exceeds ~100 lines, refactor it by extracting logical sections (CSS, Header, JS, etc.) into private helper functions.
