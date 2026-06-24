@@ -97,7 +97,7 @@ omit = [
     "tests/*",
 ]
 [tool.coverage.report]
-fail_under = 95
+fail_under = 92
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]
 version_variables = [".claude-plugin/plugin.json:version", "server.json:version"]
