@@ -5,6 +5,7 @@ is stored at: DATA_DIR/.secret with 0o600 permissions.
 """
 
 import os
+import secrets
 import stat
 from pathlib import Path
 
@@ -73,6 +74,6 @@ class CredentialStore:
         secret_path = data_dir / ".secret"
         if secret_path.exists():
             return secret_path.read_text().strip()
-        secret = os.urandom(32).hex()
+        secret = secrets.token_hex(32)
         _atomic_write_bytes_0600(secret_path, secret.encode())
         return secret
