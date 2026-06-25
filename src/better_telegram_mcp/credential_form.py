@@ -168,12 +168,16 @@ def render_telegram_credential_form(
             font-size: 0.9rem;
             font-weight: 500;
             border-bottom: 2px solid transparent;
-            transition: color 0.15s ease, border-color 0.15s ease;
+            transition: color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
             font-family: inherit;
         }}
 
         .tab:not(:disabled):hover {{
             color: #ccc;
+        }}
+
+        .tab:not(:disabled):active {{
+            transform: scale(0.98);
         }}
 
         .tab:focus-visible {{
@@ -254,13 +258,17 @@ def render_telegram_credential_form(
             cursor: pointer;
             padding: 0.25rem 0.5rem;
             border-radius: 4px;
-            transition: color 0.15s ease, background-color 0.15s ease;
+            transition: color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
             font-family: inherit;
         }}
 
         .password-toggle:not(:disabled):hover {{
             color: #ccc;
             background-color: rgba(255, 255, 255, 0.05);
+        }}
+
+        .password-toggle:not(:disabled):active {{
+            transform: scale(0.98);
         }}
 
         .password-toggle:disabled {{
@@ -346,13 +354,17 @@ def render_telegram_credential_form(
             font-size: 0.9375rem;
             font-weight: 500;
             padding: 0.75rem 1.5rem;
-            transition: background-color 0.15s ease, opacity 0.15s ease;
+            transition: background-color 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
             margin-top: 0.5rem;
             font-family: inherit;
         }}
 
         .submit-btn:not(:disabled):hover {{
             background-color: #5a7fb5;
+        }}
+
+        .submit-btn:not(:disabled):active {{
+            transform: scale(0.98);
         }}
 
         .submit-btn:focus-visible {{
