@@ -17,14 +17,6 @@ def clear_dns_cache() -> None:
     _DNS_CACHE.clear()
 
 
-_DNS_CACHE: dict[str, tuple[float, str]] = {}
-_DNS_CACHE_TTL = 60.0
-
-
-def clear_dns_cache() -> None:
-    """Clear the global DNS cache."""
-    _DNS_CACHE.clear()
-
 
 class SecurityError(Exception):
     pass
