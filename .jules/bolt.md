@@ -1,0 +1,3 @@
+## 2024-05-24 - DNS Caching for SSRF Prevention
+**Learning:** Calling `socket.getaddrinfo` on every URL validation in `validate_url` to prevent SSRF (Server-Side Request Forgery) creates significant overhead on hot network paths, because it blocks on DNS resolution.
+**Action:** Implement a short-lived (e.g. 60s) in-memory DNS cache (`_DNS_CACHE`) using `time.monotonic()` to memoize safe IP resolutions, avoiding repeated DNS lookups while maintaining the security property of pinning the IP. Ensure global DNS cache state is cleared within the `clear_cache` implementations of all backend components.

@@ -163,6 +163,9 @@ class UserBackend(TelegramBackend):
         return bool(connected)
 
     async def clear_cache(self) -> None:
+        from .security import clear_dns_cache
+
+        clear_dns_cache()
         if self._client is not None and self._client.session:
             # Clear Telethon's entity cache by deleting cached entities
             try:

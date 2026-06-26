@@ -4,8 +4,17 @@ from __future__ import annotations
 
 import ipaddress
 import socket
+import time
 from pathlib import Path
 from urllib.parse import urlparse
+
+_DNS_CACHE: dict[str, tuple[float, str]] = {}
+_DNS_CACHE_TTL = 60.0
+
+
+def clear_dns_cache() -> None:
+    """Clear the global DNS cache."""
+    _DNS_CACHE.clear()
 
 
 class SecurityError(Exception):
@@ -85,6 +94,16 @@ def validate_url(url: str) -> str:
     if hostname in {"metadata.google.internal", "metadata.internal"}:
         msg = "Access to cloud metadata endpoints is blocked"
         raise SecurityError(msg)
+
+    # ⚡ Bolt: Check DNS cache to avoid repeated socket.getaddrinfo overhead
+    now = time.monotonic()
+    if hostname in _DNS_CACHE:
+        cached_time, cached_ip = _DNS_CACHE[hostname]
+        if now - cached_time < _DNS_CACHE_TTL:
+            return cached_ip
+        else:
+            del _DNS_CACHE[hostname]
+
     # Resolve and check IPs
     # Not an IP literal -- resolve to prevent SSRF via DNS like 127.0.0.1.nip.io
     # Block known dangerous hostnames as an early check
@@ -100,7 +119,10 @@ def validate_url(url: str) -> str:
         if not addr_info:
             msg = f"Failed to resolve hostname {hostname}"
             raise SecurityError(msg)
-        return addr_info[0][4][0]
+
+        validated_ip = addr_info[0][4][0]
+        _DNS_CACHE[hostname] = (now, validated_ip)
+        return validated_ip
     except OSError as e:
         # If hostname resolution fails, deny access instead of silently passing
         # to prevent bypassing SSRF checks via transient failures or DNS rebinding

@@ -89,7 +89,9 @@ class BotBackend(TelegramBackend):
         return {"message": "Bot mode does not require sign-in."}
 
     async def clear_cache(self) -> None:
-        pass  # Bot API is stateless, no cache to clear
+        from .security import clear_dns_cache
+
+        clear_dns_cache()
 
     # --- Messages ---
     async def send_message(
