@@ -380,7 +380,8 @@ class TelegramAuthProvider:
 
         self._store.store(bearer, info)
         self.active_clients[bearer] = backend
-        logger.info("Registered user session: {}", pending["session_name"][:8])
+        session_name: str = pending["session_name"]  # type: ignore[assignment]
+        logger.info("Registered user session: {}", session_name[:8])
         return result
 
     async def revoke_session(self, bearer: str) -> bool:
