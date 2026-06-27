@@ -43,3 +43,7 @@
 ## 2026-06-21 - Prefer Native Labels over ARIA for Dynamic Prompts
 **Learning:** Using a generic `<p>` tag combined with `aria-labelledby` on an input for dynamic forms (like multi-step OTP prompts) provides accessible names to screen readers but misses a key physical usability benefit. A semantic `<label>` properly associated with an input using the `for`/`id` relationship increases the clickable/tap area, allowing users to click the text prompt itself to focus the input field.
 **Action:** When dynamically generating form elements in JavaScript, always prefer creating a `<label>` element and setting its `for` attribute to the input's `id` instead of relying on `aria-labelledby` with generic block elements.
+
+## 2024-07-29 - Enhancing State Change UX with Tactile Visual Feedback
+**Learning:** Providing tactile visual feedback for interactive elements (like buttons and tabs) by defining an `:active` pseudo-class with a subtle effect, such as `transform: scale(0.98)` or a background color shift, significantly improves the perceived responsiveness of the UI. It gives users immediate, satisfying feedback that their click/tap was registered.
+**Action:** Always include an `:active` state for interactive elements (buttons, tabs, toggles) using a subtle `transform: scale(...)`. Ensure that `transform` is explicitly included in the element's `transition` property (e.g., `transform 0.1s ease`) to make the scale effect smooth rather than jarring.

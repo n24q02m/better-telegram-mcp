@@ -154,7 +154,10 @@ class PendingOtpStore:
             stale_bearers = []
             now = time.time()
             for bearer, entry in existing.items():
-                if isinstance(entry, dict) and now - entry.get("created_at", 0) > _OTP_TTL:
+                if (
+                    isinstance(entry, dict)
+                    and now - entry.get("created_at", 0) > _OTP_TTL
+                ):
                     stale_bearers.append(bearer)
             for bearer in stale_bearers:
                 del existing[bearer]
