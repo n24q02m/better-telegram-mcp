@@ -329,9 +329,7 @@ class TelegramAuthProvider:
         # but the metadata may still be in KV. Recreate a fresh UserBackend
         # from the persisted metadata.
         if pending is None and self._pending_store is not None:
-            kv_data = self._pending_store.load_pending_otp(
-                sub=bearer, bearer=bearer
-            )
+            kv_data = self._pending_store.load_pending_otp(sub=bearer, bearer=bearer)
             if kv_data is not None:
                 phone = kv_data["phone"]
                 session_name = kv_data["session_name"]
