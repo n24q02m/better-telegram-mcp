@@ -32,7 +32,7 @@ class TestResolveOrGenerateSecret:
         secret = CredentialStore._resolve_or_generate_secret(data_dir)
         secret_path = data_dir / ".secret"
         assert secret_path.exists()
-        assert secret_path.read_text().strip() == secret
+        assert secret_path.read_text().strip().startswith("v2:")
         assert len(secret) == 64  # 32 bytes hex-encoded
 
         # Second call returns the same persisted secret.

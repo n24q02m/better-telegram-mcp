@@ -4,6 +4,7 @@ The persistent server secret (CREDENTIAL_SECRET env var or auto-generated)
 is stored at: DATA_DIR/.secret with 0o600 permissions.
 """
 
+import hashlib
 import os
 import secrets
 import stat
@@ -70,10 +71,39 @@ class CredentialStore:
 
     @staticmethod
     def _resolve_or_generate_secret(data_dir: Path) -> str:
-        """Load persisted secret or generate a new one (atomic 0o600 write)."""
+        """Load persisted secret or generate a new one (atomic 0o600 write).
+
+        Supports v2 KDF-derived secrets for improved strength while maintaining
+        backward compatibility with legacy hex-only secrets.
+        """
+
         secret_path = data_dir / ".secret"
         if secret_path.exists():
-            return secret_path.read_text().strip()
-        secret = secrets.token_hex(32)
-        _atomic_write_bytes_0600(secret_path, secret.encode())
-        return secret
+            raw = secret_path.read_text().strip()
+            # Format: v2:pbkdf2:sha256:600000:<salt_hex>:<seed_hex>
+            if raw.startswith("v2:pbkdf2:sha256:600000:"):
+                parts = raw.split(":")
+                if len(parts) == 6:
+                    try:
+                        salt = bytes.fromhex(parts[4])
+                        seed = bytes.fromhex(parts[5])
+                        # Derive operational secret (32 bytes -> 64 hex chars)
+                        derived = hashlib.pbkdf2_hmac("sha256", seed, salt, 600000)
+                        return derived.hex()
+                    except (ValueError, IndexError):
+                        # Malformed v2, fallback to raw
+                        return raw
+            # Legacy hex secret or malformed v2
+            return raw
+
+        # Generate new v2 secret
+        salt = secrets.token_bytes(16)
+        seed = secrets.token_bytes(32)
+
+        # Format for storage: v2 prefix prevents collision with legacy hex secrets
+        storage_str = f"v2:pbkdf2:sha256:600000:{salt.hex()}:{seed.hex()}"
+        _atomic_write_bytes_0600(secret_path, storage_str.encode())
+
+        # Derive initial operational secret
+        derived = hashlib.pbkdf2_hmac("sha256", seed, salt, 600000)
+        return derived.hex()
