@@ -88,14 +88,25 @@ class KvSessionStore:
         return SessionInfo.from_dict(data)
 
     def load_all(self) -> dict[str, SessionInfo]:
-        """Load all stored sessions from the index."""
+        """Load all stored sessions from the index in parallel.
+
+        Addresses the N+1 slowness caused by individual KV reads and heavy
+        PBKDF2 key derivation (600k iterations) for each session.
+        """
         subs = self._load_index()
-        result: dict[str, SessionInfo] = {}
-        for sub in subs:
-            info = self.load(sub)
-            if info is not None:
-                result[sub] = info
-        return result
+        if not subs:
+            return {}
+
+        from concurrent.futures import ThreadPoolExecutor
+
+        # Parallelize to overlap KV I/O and utilize multiple cores for PBKDF2.
+        # cryptography releases the GIL during PBKDF2HMAC.derive().
+        with ThreadPoolExecutor() as executor:
+            infos = list(executor.map(self.load, subs))
+
+        return {
+            sub: info for sub, info in zip(subs, infos, strict=True) if info is not None
+        }
 
     def delete(self, bearer: str) -> bool:
         """Delete session for bearer. Returns True if it existed."""
