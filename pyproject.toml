@@ -22,7 +22,7 @@ classifiers = [
     "Topic :: Communications :: Chat",
 ]
 dependencies = [
-    "mcp[cli]>=1.28.0",
+    "mcp[cli]>=1.28.1",
     "httpx>=0.28.1",
     "telethon>=1.44.0",
     "pydantic>=2.13.4,<2.14",
@@ -41,8 +41,8 @@ dev = [
     "pytest-timeout>=2.4.0",
     "pytest-cov>=7.1.0",
     "pytest-xdist>=3.8.0",
-    "ruff>=0.15.18",
-    "ty>=0.0.51",
+    "ruff>=0.15.20",
+    "ty>=0.0.55",
     "pre-commit>=4.6.0",
 ]
 [project.scripts]
