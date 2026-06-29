@@ -1,7 +1,7 @@
 """Credential resolution helpers for better-telegram-mcp.
 
 Public surface used by ``credential_state``:
-- ``check_saved_sessions`` / ``_is_user_mode_config``
+- ``check_saved_sessions``
 - ``_sanitize_error`` / ``_needs_2fa_password``
 - Module-level constants (``SERVER_NAME``, ``REQUIRED_FIELDS_*`` ...).
 
@@ -110,12 +110,3 @@ def check_saved_sessions(backend=None) -> bool:
         return False
     sessions = list(data_dir.glob("*.session"))
     return len(sessions) > 0
-
-
-def _is_user_mode_config(config: dict[str, str]) -> bool:
-    """Check if config has user-mode credentials (phone number).
-
-    API ID and API Hash have built-in defaults in config.py, so only phone
-    is needed from relay to identify user mode.
-    """
-    return bool(config.get("TELEGRAM_PHONE"))
