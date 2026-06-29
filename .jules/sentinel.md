@@ -6,3 +6,8 @@
 **Vulnerability:** Use of `os.urandom(32).hex()` for secret token generation.
 **Learning:** While `os.urandom` is cryptographically secure, using the explicit `secrets` module (e.g. `secrets.token_hex(32)`) conveys a clearer security intent, is less prone to misuse, and aligns with modern Python security best practices.
 **Prevention:** Use `secrets.token_hex()` or `secrets.token_urlsafe()` instead of raw `os.urandom` where appropriate.
+
+## 2025-05-22 - Insecure Security Downgrade via Configuration
+**Vulnerability:** The server allowed a `TELEGRAM_ACCEPT_SHARED_SINGLE_USER=1` override to skip safety checks when `PUBLIC_URL` was set, allowing a single shared session to be used in public deployments.
+**Learning:** Providing explicit "escape hatches" for security guards, even if opt-in, significantly increases the risk of catastrophic misconfiguration and credential leakage in multi-user environments.
+**Prevention:** Remove dangerous security overrides entirely. If a deployment mode is inherently insecure (like shared single-user on a public URL), the application should refuse to start without exception.
