@@ -1559,7 +1559,7 @@ class TestUserBackendLogging:
         backend = UserBackend(settings)
 
         with patch("os.chmod", side_effect=OSError("chmod failed")):
-            backend._secure_session_file()
+            await backend._secure_session_file()
 
         mock_logger.debug.assert_called()
         # Verify the specific message
