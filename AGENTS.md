@@ -147,7 +147,3 @@ Conventional Commits: `type(scope): message`. Automated semantic release.
 - **Session persistence**: `~/.better-telegram-mcp/<name>.session` for Telethon (MTProto)
 - **Auth flow**: HTTP mode only. User-account auth runs through the relay credential form (phone -> OTP -> optional 2FA password) served by mcp-core's local OAuth AS; there is no terminal auth CLI or `config` auth action. Bot mode needs only `TELEGRAM_BOT_TOKEN`
 - **Glama integration**: The display name cannot be set programmatically and must be updated manually via the Glama admin page. Although 'server.json' contains a 'title' property, it does not control the external Glama listing. The 'glama.json' file is used exclusively for ownership claiming via the 'maintainers' array.
-
-## TODO / Backlog
-
-- [ ] **Glama display name**: Cannot set programmatically. Update manually via Glama admin page.
