@@ -36,7 +36,6 @@ _BLOCKED_NETWORKS = (
     ipaddress.ip_network("fc00::/7"),
     ipaddress.ip_network("fe80::/10"),
     ipaddress.ip_network("2001:db8::/32"),  # Documentation
-    ipaddress.ip_network("3ffe::/16"),  # 6bone (deprecated)
     ipaddress.ip_network("ff00::/8"),  # Multicast
 )
 

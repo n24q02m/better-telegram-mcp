@@ -6,3 +6,8 @@
 **Vulnerability:** Use of `os.urandom(32).hex()` for secret token generation.
 **Learning:** While `os.urandom` is cryptographically secure, using the explicit `secrets` module (e.g. `secrets.token_hex(32)`) conveys a clearer security intent, is less prone to misuse, and aligns with modern Python security best practices.
 **Prevention:** Use `secrets.token_hex()` or `secrets.token_urlsafe()` instead of raw `os.urandom` where appropriate.
+
+## 2025-06-29 - [Deprecated 6bone IPv6 network check removal]
+**Vulnerability:** Inclusion of deprecated network ranges in security blocklists.
+**Learning:** The 3ffe::/16 network was the 6bone experimental network which has been deprecated and returned to IANA. While blocking it is harmless, it adds unnecessary clutter to security constants.
+**Prevention:** Regularly audit security constants and blocklists against current IANA assignments and RFCs to maintain code hygiene and accuracy.
