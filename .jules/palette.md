@@ -46,3 +46,6 @@
 ## 2024-08-01 - Active States for Interactive Elements
 **Learning:** Adding subtle `:active` pseudo-class styles with `transform: scale()` provides tactile visual feedback for interactive elements (like buttons and tabs), making the interface feel more responsive.
 **Action:** When creating custom buttons or interactive tabs, define an `:active` state using `:not(:disabled):active` and apply a slight scale down (e.g., `transform: scale(0.98)`) and ensure `transform` is included in the element's `transition` property.
+## 2024-08-05 - Reduced Motion Accessibility
+**Learning:** Animations and transitions can be uncomfortable or inaccessible for users with vestibular disorders or motion sensitivities. Relying solely on CSS transitions and keyframes without respecting the operating system's reduced motion settings is a widespread accessibility failure.
+**Action:** Always include a `@media (prefers-reduced-motion: reduce)` block in custom CSS to globally neutralize animations (e.g., setting `animation-duration: 0.01ms !important; transition-duration: 0.01ms !important;`) for environments where users have requested reduced motion.

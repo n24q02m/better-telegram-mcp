@@ -429,6 +429,17 @@ def render_telegram_credential_form(
             border: 1px solid rgba(74, 111, 165, 0.3);
             color: #6c9bd2;
         }}
+
+        @media (prefers-reduced-motion: reduce) {{
+            *,
+            *::before,
+            *::after {{
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }}
+        }}
     </style>
 </head>
 <body>
