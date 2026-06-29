@@ -20,6 +20,7 @@ import hashlib
 import secrets
 import time
 from pathlib import Path
+from typing import TypedDict
 
 from loguru import logger
 
@@ -50,8 +51,15 @@ def get_global_provider() -> TelegramAuthProvider | None:
 # Session expiry: 30 days
 _SESSION_TTL = 30 * 24 * 60 * 60
 
+
 # Pending OTP state (phone_code_hash + backend ref)
-_PendingOTP = dict  # {bearer, backend, phone, phone_code_hash, created_at}
+class _PendingOTP(TypedDict):
+    bearer: str
+    backend: UserBackend
+    phone: str
+    phone_code_hash: str
+    session_name: str
+    created_at: float
 
 
 class TelegramAuthProvider:
@@ -335,14 +343,14 @@ class TelegramAuthProvider:
                 session_name = kv_data["session_name"]
                 phone_code_hash = kv_data["phone_code_hash"]
                 backend = await self._init_user_backend(phone, session_name)
-                pending = {
-                    "bearer": bearer,
-                    "backend": backend,
-                    "phone": phone,
-                    "phone_code_hash": phone_code_hash,
-                    "session_name": session_name,
-                    "created_at": kv_data.get("created_at", time.time()),
-                }
+                pending = _PendingOTP(
+                    bearer=bearer,
+                    backend=backend,
+                    phone=phone,
+                    phone_code_hash=phone_code_hash,
+                    session_name=session_name,
+                    created_at=kv_data.get("created_at", time.time()),
+                )
                 # Re-register in RAM so retries work without another KV read
                 self._pending_otps[bearer] = pending
                 logger.info(
