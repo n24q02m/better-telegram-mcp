@@ -5,8 +5,8 @@ from __future__ import annotations
 from mcp_core.storage.backends import InMemoryBackend
 
 from better_telegram_mcp.credential_state import (
-    _read_single_user_config,
     _write_single_user_config,
+    read_single_user_config,
 )
 
 
@@ -24,7 +24,7 @@ def test_cf_mode_roundtrip_via_backend(monkeypatch):
     assert mem.get("telegram/subs/shared-single-user/config") is not None
     # Sanity: there is NO sub=None blob (which would be machine-.secret-encrypted).
     assert mem.get("telegram/config") is None
-    assert _read_single_user_config(backend=mem) == cfg
+    assert read_single_user_config(backend=mem) == cfg
 
 
 def test_local_default_uses_config_enc(monkeypatch, tmp_path):
@@ -35,7 +35,7 @@ def test_local_default_uses_config_enc(monkeypatch, tmp_path):
     config_file.set_config_path(str(tmp_path / "config.enc"))
     try:
         _write_single_user_config({"TELEGRAM_PHONE": "+1"})
-        assert _read_single_user_config() == {"TELEGRAM_PHONE": "+1"}
+        assert read_single_user_config() == {"TELEGRAM_PHONE": "+1"}
     finally:
         config_file.set_config_path(None)
         config_file.clear_key_cache_for_testing()

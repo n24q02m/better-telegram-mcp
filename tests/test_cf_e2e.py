@@ -112,8 +112,8 @@ async def test_single_user_config_survives_ephemeral_machine_secret(
     backend = InMemoryBackend()
 
     from better_telegram_mcp.credential_state import (
-        _read_single_user_config,
         _write_single_user_config,
+        read_single_user_config,
     )
 
     home_a = tmp_path / "home_a"
@@ -124,7 +124,7 @@ async def test_single_user_config_survives_ephemeral_machine_secret(
     home_b = tmp_path / "home_b"
     home_b.mkdir()
     monkeypatch.setattr("pathlib.Path.home", lambda: home_b)
-    assert _read_single_user_config(backend=backend) == {
+    assert read_single_user_config(backend=backend) == {
         "TELEGRAM_PHONE": "+10000000000"
     }, "single-user config must decrypt under a NEW machine-key context"
 

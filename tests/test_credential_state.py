@@ -159,7 +159,7 @@ def test_resolve_phone_from_env():
 
 
 def test_resolve_from_config_file_bot():
-    """Config file has bot token -> CONFIGURED, env var applied."""
+    """Config file has bot token -> CONFIGURED, env var NOT applied."""
     saved = {"TELEGRAM_BOT_TOKEN": "token_from_file"}
 
     with patch.dict(os.environ, {}, clear=False):
@@ -170,7 +170,7 @@ def test_resolve_from_config_file_bot():
             state = resolve_credential_state()
 
         assert state == CredentialState.CONFIGURED
-        assert os.environ.get("TELEGRAM_BOT_TOKEN") == "token_from_file"
+        assert os.environ.get("TELEGRAM_BOT_TOKEN") is None
 
     os.environ.pop("TELEGRAM_BOT_TOKEN", None)
 

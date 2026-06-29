@@ -91,12 +91,16 @@ def _ensure_settings() -> Settings:
     """Initialize settings and resolve credential state."""
     settings = Settings()
     if not settings.is_configured:
-        from .credential_state import resolve_credential_state
+        from .credential_state import read_single_user_config, resolve_credential_state
 
         state = resolve_credential_state()
-        # If config was loaded from file, re-create Settings to pick up env vars
+        # If config was loaded from file, pick it up directly instead of via env
         if state.value == "configured":
-            settings = Settings()
+            saved = read_single_user_config()
+            if saved:
+                settings = Settings.from_relay_config(saved)
+            else:
+                settings = Settings()
     return settings
 
 

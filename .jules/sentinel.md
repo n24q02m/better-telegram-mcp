@@ -6,3 +6,8 @@
 **Vulnerability:** Use of `os.urandom(32).hex()` for secret token generation.
 **Learning:** While `os.urandom` is cryptographically secure, using the explicit `secrets` module (e.g. `secrets.token_hex(32)`) conveys a clearer security intent, is less prone to misuse, and aligns with modern Python security best practices.
 **Prevention:** Use `secrets.token_hex()` or `secrets.token_urlsafe()` instead of raw `os.urandom` where appropriate.
+
+## 2026-06-29 - Secrets Exposure in Environment Variables
+**Vulnerability:** Saved credentials (bot tokens, phone numbers) were being injected into `os.environ` after being loaded from encrypted files or saved via relay. This exposed secrets to all child processes and anything capable of reading the process environment.
+**Learning:** Over-reliance on environment variables for configuration propagation led to insecure handling of sensitive data once it moved beyond the initial startup phase.
+**Prevention:** Propagate sensitive configuration through explicit `Settings` objects or direct function arguments instead of the global process environment. Use specialized loaders like `Settings.from_relay_config()` to bridge between raw dictionaries and structured configuration.
