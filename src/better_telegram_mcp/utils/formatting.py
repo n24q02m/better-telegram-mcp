@@ -1,3 +1,4 @@
+import html
 import json
 from typing import Any
 
@@ -18,3 +19,10 @@ def safe_error(e: Exception) -> str:
     if isinstance(e, (ModeError, SecurityError, ValueError, FileNotFoundError)):
         return err(str(e))
     return err(f"{type(e).__name__}: Operation failed. Check server logs for details.")
+
+
+def escape_html(text: Any) -> str:
+    """
+    A lightweight helper for Telegram HTML formatting.
+    """
+    return html.escape(str(text))

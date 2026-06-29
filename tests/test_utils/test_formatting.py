@@ -1,9 +1,11 @@
 import json
 from datetime import datetime
 
+import pytest
+
 from better_telegram_mcp.backends.base import ModeError
 from better_telegram_mcp.backends.security import SecurityError
-from better_telegram_mcp.utils.formatting import err, ok, safe_error
+from better_telegram_mcp.utils.formatting import err, escape_html, ok, safe_error
 
 
 def test_ok_basic_serialization():
@@ -191,3 +193,22 @@ def test_ok_nested_mixed_types():
     assert parsed["nested"]["exc"] == "nested error"
     assert parsed["list"][0] == 1
     assert parsed["list"][1]["a"] == 1
+
+
+@pytest.mark.parametrize(
+    "input_val, expected",
+    [
+        ("plain text", "plain text"),
+        ("Hello <world>", "Hello &lt;world&gt;"),
+        ("Keep & Calm", "Keep &amp; Calm"),
+        ("Quotes \"and\" 'more'", "Quotes &quot;and&quot; &#x27;more&#x27;"),
+        (None, "None"),
+        ("", ""),
+        (123, "123"),
+        ({"key": "value"}, "{&#x27;key&#x27;: &#x27;value&#x27;}"),
+        ([1, 2, "<"], "[1, 2, &#x27;&lt;&#x27;]"),
+        ("😊", "😊"),
+    ],
+)
+def test_escape_html(input_val, expected):
+    assert escape_html(input_val) == expected
