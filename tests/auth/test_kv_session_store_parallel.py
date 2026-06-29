@@ -1,14 +1,18 @@
 import pytest
 from mcp_core.storage.backends import InMemoryBackend
+
 from better_telegram_mcp.auth.in_memory_session_store import SessionInfo
 from better_telegram_mcp.auth.kv_session_store import KvSessionStore
+
 
 def _info(name: str) -> SessionInfo:
     return SessionInfo(session_name=name, mode="user", phone="+1")
 
+
 @pytest.fixture(autouse=True)
 def _patch_credential_secret(monkeypatch):
     monkeypatch.setenv("CREDENTIAL_SECRET", "test-secret-32-bytes-padded-here!")
+
 
 def test_load_all_many_sessions_parallel():
     """Verify that load_all works correctly with many sessions.
@@ -28,10 +32,12 @@ def test_load_all_many_sessions_parallel():
         assert sub in all_sessions
         assert all_sessions[sub].session_name == f"sess-{sub}"
 
+
 def test_load_all_empty():
     backend = InMemoryBackend()
     store = KvSessionStore(backend=backend)
     assert store.load_all() == {}
+
 
 def test_load_all_handles_missing_data():
     """Verify load_all skips subs that exist in index but not in storage."""
