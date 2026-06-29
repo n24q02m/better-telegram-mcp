@@ -396,14 +396,18 @@ class TelegramAuthProvider:
 
         Returns True if the session existed.
         """
+        tasks = []
         backend = self.active_clients.pop(bearer, None)
         if backend is not None:
-            await backend.disconnect()
+            tasks.append(backend.disconnect())
 
         # Remove pending OTP if any
         pending = self._pending_otps.pop(bearer, None)
         if pending is not None:
-            await pending["backend"].disconnect()
+            tasks.append(pending["backend"].disconnect())
+
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
         # Remove from ownership map
         to_remove = [sid for sid, b in self.session_owners.items() if b == bearer]
@@ -439,18 +443,28 @@ class TelegramAuthProvider:
         # Since start_user_auth pops-then-reinserts each bearer, the oldest entries
         # are always at the front, so we can stop at the first non-stale entry instead
         # of scanning the full dict on every cleanup tick.
+        stale_otps = []
         while self._pending_otps:
             bearer, pending = next(iter(self._pending_otps.items()))
             if now - pending["created_at"] <= 300:
                 break
-            self._pending_otps.pop(bearer)
-            try:
-                await pending["backend"].disconnect()
-            except Exception as exc:  # pragma: no cover - best-effort cleanup
-                logger.warning(
-                    "Error disconnecting stale OTP backend {}: {}", bearer[:8], exc
-                )
-            removed += 1
+            stale_otps.append((bearer, self._pending_otps.pop(bearer)))
+
+        if stale_otps:
+
+            async def _disconnect(b: str, p: dict) -> None:
+                try:
+                    await p["backend"].disconnect()
+                except Exception as exc:  # pragma: no cover - best-effort cleanup
+                    logger.warning(
+                        "Error disconnecting stale OTP backend {}: {}", b[:8], exc
+                    )
+
+            await asyncio.gather(
+                *(_disconnect(b, p) for b, p in stale_otps),
+                return_exceptions=True,
+            )
+            removed += len(stale_otps)
 
         return removed
 
