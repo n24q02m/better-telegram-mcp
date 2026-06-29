@@ -89,12 +89,18 @@ class KvSessionStore:
 
     def load_all(self) -> dict[str, SessionInfo]:
         """Load all stored sessions from the index."""
+        import concurrent.futures
+
         subs = self._load_index()
         result: dict[str, SessionInfo] = {}
-        for sub in subs:
-            info = self.load(sub)
-            if info is not None:
-                result[sub] = info
+
+        # ⚡ Bolt: Execute N+1 KV store I/O and PBKDF2 derivations in parallel.
+        # This speeds up load_all by avoiding sequential bottleneck.
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            infos = executor.map(self.load, subs)
+            for sub, info in zip(subs, infos, strict=True):
+                if info is not None:
+                    result[sub] = info
         return result
 
     def delete(self, bearer: str) -> bool:
