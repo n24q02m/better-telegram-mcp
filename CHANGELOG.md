@@ -2,6 +2,60 @@
 
 <!-- version list -->
 
+## v4.13.0-beta.6 (2026-06-29)
+
+### Bug Fixes
+
+- Add :active states to credential form + correct session_name log
+  ([`a277c5a`](https://github.com/n24q02m/better-telegram-mcp/commit/a277c5aff925592fdfe4c19e8749178e2ff0324a))
+
+- Apply ruff format to satisfy CI format gate
+  ([`8f3f4d0`](https://github.com/n24q02m/better-telegram-mcp/commit/8f3f4d0c2ff54fdebc90172371643b02fe97ba83))
+
+- Cap max_instances=1 for CF container cost (solo dev default)
+  ([`5398fa0`](https://github.com/n24q02m/better-telegram-mcp/commit/5398fa0cb04af18e8bf83c900c3d7ea9c05430e2))
+
+- Centralize bot-token redaction in error messages
+  ([`d6a09fe`](https://github.com/n24q02m/better-telegram-mcp/commit/d6a09fe37836bcf4c0b33d7f18e28c2d2def38c2))
+
+- Cover bot_backend _call error path (token redaction, raise-from-None)
+  ([`a979291`](https://github.com/n24q02m/better-telegram-mcp/commit/a979291495cbfb0fea4455f0c13f6b56fe27d597))
+
+- Cover pending_otp_store + KV-restore branch to satisfy 95% coverage gate
+  ([`5a78e1a`](https://github.com/n24q02m/better-telegram-mcp/commit/5a78e1a7a4e6f12c1376716e1c9ffb3bdd3e01ad))
+
+- Disconnect telegram sessions concurrently in cleanup and revoke
+  ([#830](https://github.com/n24q02m/better-telegram-mcp/pull/830),
+  [`12a77c2`](https://github.com/n24q02m/better-telegram-mcp/commit/12a77c2b63f2c8cbb48e774189203e2c759eb9e7))
+
+- Persist OTP state to KV, reduce sleepAfter 1h→5m
+  ([`4eee059`](https://github.com/n24q02m/better-telegram-mcp/commit/4eee059fd0ffd9d78ccfadcc83d95ed83d4c6ed2))
+
+- Type _PendingOTP as TypedDict to fix ty not-subscriptable on session_name slice
+  ([`7e680fa`](https://github.com/n24q02m/better-telegram-mcp/commit/7e680fa33ea462d181a7017e8b3f343a0a0c1085))
+
+- Update actions/setup-python digest
+  ([`6c0f823`](https://github.com/n24q02m/better-telegram-mcp/commit/6c0f8233c6845470531854c65ab7f4f0c7c9daa0))
+
+- Update dawidd6/action-send-mail action
+  ([`41ec5b7`](https://github.com/n24q02m/better-telegram-mcp/commit/41ec5b7958bfdced4946282642e376d980096807))
+
+- Update python:3.13-slim-bookworm docker digest
+  ([`b816c58`](https://github.com/n24q02m/better-telegram-mcp/commit/b816c5880653ab5570aaee48d35e8797f87cae68))
+
+- Use secrets.token_hex for master-secret generation
+  ([`bc4e8db`](https://github.com/n24q02m/better-telegram-mcp/commit/bc4e8dbc0b2c5dd0e9bc473a3402abcaf6f518b2))
+
+- **deps**: Update non-major dependencies
+  ([#836](https://github.com/n24q02m/better-telegram-mcp/pull/836),
+  [`2ce2dae`](https://github.com/n24q02m/better-telegram-mcp/commit/2ce2dae8fe37d1422d4a3dc4360fa1e03f8d061a))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#820](https://github.com/n24q02m/better-telegram-mcp/pull/820),
+  [`a065e91`](https://github.com/n24q02m/better-telegram-mcp/commit/a065e91b903669da31eb07690912870b747f22b9))
+
+
 ## v4.13.0-beta.5 (2026-06-22)
 
 ### Bug Fixes
