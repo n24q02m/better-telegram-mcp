@@ -9,6 +9,7 @@ is ephemeral on Cloudflare containers.
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
 from mcp_core.storage.per_plugin_store import PerPluginStore
@@ -88,13 +89,22 @@ class KvSessionStore:
         return SessionInfo.from_dict(data)
 
     def load_all(self) -> dict[str, SessionInfo]:
-        """Load all stored sessions from the index."""
+        """Load all stored sessions from the index.
+
+        Optimized to parallelize individual `load()` calls across all session subjects.
+        This resolves an N+1 query bottleneck and overlaps KV store I/O and
+        heavy PBKDF2 key derivations, as cryptography releases the GIL.
+        """
         subs = self._load_index()
         result: dict[str, SessionInfo] = {}
-        for sub in subs:
-            info = self.load(sub)
+
+        with ThreadPoolExecutor() as executor:
+            infos = executor.map(self.load, subs)
+
+        for sub, info in zip(subs, infos, strict=True):
             if info is not None:
                 result[sub] = info
+
         return result
 
     def delete(self, bearer: str) -> bool:
