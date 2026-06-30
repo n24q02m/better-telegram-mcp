@@ -49,3 +49,7 @@
 ## 2024-08-05 - Reduced Motion Accessibility
 **Learning:** Animations and transitions can be uncomfortable or inaccessible for users with vestibular disorders or motion sensitivities. Relying solely on CSS transitions and keyframes without respecting the operating system's reduced motion settings is a widespread accessibility failure.
 **Action:** Always include a `@media (prefers-reduced-motion: reduce)` block in custom CSS to globally neutralize animations (e.g., setting `animation-duration: 0.01ms !important; transition-duration: 0.01ms !important;`) for environments where users have requested reduced motion.
+
+## 2024-11-20 - Dual-Channel Validation Feedback
+**Learning:** Relying solely on color (like `#f87171` red borders) for `aria-invalid` states is insufficient for users with color vision deficiencies and can be easily missed. Providing dual-channel feedback by combining color with a subtle, non-disruptive motion animation (like a short horizontal `@keyframes shake`) significantly improves error discoverability and accessibility.
+**Action:** When implementing client-side validation, always apply a subtle motion animation (e.g., `shake 0.4s ease-in-out`) alongside color changes to `.field-input[aria-invalid="true"]` elements to provide robust, dual-channel error feedback, while ensuring it respects `prefers-reduced-motion: reduce`.
