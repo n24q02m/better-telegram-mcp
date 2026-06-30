@@ -108,20 +108,6 @@ def validate_url(url: str) -> str:
         raise SecurityError(msg) from e
 
 
-def _normalize_for_prefix_check(path: Path) -> str:
-    """Return a forward-slash path string suitable for blocked-prefix matching.
-
-    Handles the macOS firmlink quirk where `/etc`, `/var`, `/tmp` resolve to
-    `/private/etc`, `/private/var`, `/private/tmp`. We strip a leading `/private`
-    so the same blocklist works identically on Linux and macOS.
-    """
-    path_str = str(path).replace("\\", "/")
-    if path_str.startswith("/private/"):
-        # /private/etc -> /etc, /private/var -> /var, /private/tmp -> /tmp
-        path_str = path_str[len("/private") :]
-    return path_str if path_str.endswith("/") else path_str + "/"
-
-
 def _is_under_blocked_prefix(
     resolved: Path, lexical: Path, prefixes: tuple[str, ...]
 ) -> str | None:
