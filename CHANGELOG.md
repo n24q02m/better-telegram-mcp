@@ -2,6 +2,37 @@
 
 <!-- version list -->
 
+## v4.13.0-beta.7 (2026-06-30)
+
+### Bug Fixes
+
+- Canary Gate-A/B settle-retry to avoid false-fail on slow container startup
+  ([#862](https://github.com/n24q02m/better-telegram-mcp/pull/862),
+  [`f74d480`](https://github.com/n24q02m/better-telegram-mcp/commit/f74d480dfe613a8524489be214b60c7837bd5372))
+
+- Collapse OAuth + per-sub routing to one DO (resolve max_instances=1 deadlock)
+  ([#867](https://github.com/n24q02m/better-telegram-mcp/pull/867),
+  [`2a15e8d`](https://github.com/n24q02m/better-telegram-mcp/commit/2a15e8d04be5728a685e90e2f71e4fbc6af6037c))
+
+- Lock file maintenance
+  ([`9547697`](https://github.com/n24q02m/better-telegram-mcp/commit/9547697a8222b3167441451f7fc2bbd6ca74f616))
+
+- Remove unused function _is_user_mode_config
+  ([`c932d44`](https://github.com/n24q02m/better-telegram-mcp/commit/c932d441a6cbfd0f57b34ac503f162688a9b6069))
+
+- Route OAuth /token refresh to the sub's DO to avoid max_instances=1 deadlock
+  ([#863](https://github.com/n24q02m/better-telegram-mcp/pull/863),
+  [`6924003`](https://github.com/n24q02m/better-telegram-mcp/commit/69240035be366070e0d99629eedde7c8c64402ee))
+
+- Unused function _normalize_for_prefix_check
+  ([`8248513`](https://github.com/n24q02m/better-telegram-mcp/commit/8248513c62b3ff583f4574929001504441492539))
+
+### Features
+
+- Add prefers-reduced-motion CSS media query
+  ([`acbd99c`](https://github.com/n24q02m/better-telegram-mcp/commit/acbd99c58337d1cb8254380c68480f0adc444af6))
+
+
 ## v4.13.0-beta.6 (2026-06-29)
 
 ### Bug Fixes
