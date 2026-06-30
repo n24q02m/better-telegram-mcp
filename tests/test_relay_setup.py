@@ -8,7 +8,6 @@ import pytest
 
 from better_telegram_mcp.config import Settings
 from better_telegram_mcp.relay_setup import (
-    _is_user_mode_config,
     _needs_2fa_password,
     _sanitize_error,
     redact_bot_token,
@@ -323,32 +322,3 @@ class TestNeeds2faPassword:
     )
     def test_needs_2fa_password(self, error_msg: str, expected: bool):
         assert _needs_2fa_password(error_msg) is expected
-
-
-# --- _is_user_mode_config ---
-
-
-class TestIsUserModeConfig:
-    def test_phone_present(self):
-        config = {"TELEGRAM_PHONE": "+84912345678"}
-        assert _is_user_mode_config(config) is True
-
-    def test_full_user_config_with_phone(self):
-        config = {
-            "TELEGRAM_API_ID": "123",
-            "TELEGRAM_API_HASH": "abc",
-            "TELEGRAM_PHONE": "+84912345678",
-        }
-        assert _is_user_mode_config(config) is True
-
-    def test_missing_phone(self):
-        config = {"TELEGRAM_API_ID": "123", "TELEGRAM_API_HASH": "abc"}
-        assert _is_user_mode_config(config) is False
-
-    def test_bot_config(self):
-        config = {"TELEGRAM_BOT_TOKEN": "123:ABC"}
-        assert _is_user_mode_config(config) is False
-
-    def test_empty_phone(self):
-        config = {"TELEGRAM_PHONE": ""}
-        assert _is_user_mode_config(config) is False
