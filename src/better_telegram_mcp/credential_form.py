@@ -305,8 +305,17 @@ def render_telegram_credential_form(
             box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.2);
         }}
 
+        @keyframes shake {{
+            0%, 100% {{ transform: translateX(0); }}
+            20% {{ transform: translateX(-4px); }}
+            40% {{ transform: translateX(4px); }}
+            60% {{ transform: translateX(-4px); }}
+            80% {{ transform: translateX(4px); }}
+        }}
+
         .field-input[aria-invalid="true"] {{
             border-color: #f87171;
+            animation: shake 0.4s ease-in-out;
         }}
 
         .field-input[aria-invalid="true"]:focus {{
@@ -410,6 +419,7 @@ def render_telegram_credential_form(
             font-size: 0.875rem;
             margin-top: 1rem;
             padding: 0.75rem 1rem;
+            animation: fadeSlideDown 0.3s ease-out forwards;
         }}
 
         .status-box.success {{
@@ -438,6 +448,12 @@ def render_telegram_credential_form(
                 animation-iteration-count: 1 !important;
                 transition-duration: 0.01ms !important;
                 scroll-behavior: auto !important;
+            }}
+            .field-input[aria-invalid="true"] {{
+                animation: none !important;
+            }}
+            .status-box {{
+                animation: none !important;
             }}
         }}
     </style>
