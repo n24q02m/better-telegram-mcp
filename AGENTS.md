@@ -112,7 +112,7 @@ src/better_telegram_mcp/
     base.py                   # TelegramBackend ABC
     bot_backend.py            # httpx -> Telegram Bot API
     user_backend.py           # Telethon MTProto client
-  tools/                      # 6 mega-tools (action dispatch)
+  tools/                      # 7 tools: 6 domain mega-tools (action dispatch) + config__open_relay
     messages.py               # send, edit, delete, forward, pin, search
     chats.py                  # info, create, join, leave, settings
     media.py                  # send photo/file/voice/video, download

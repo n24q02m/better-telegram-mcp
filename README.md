@@ -142,7 +142,7 @@ in the environment.
 Full docs at **[mcp.n24q02m.com/servers/better-telegram-mcp/setup/](https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/)**:
 
 - [Setup](https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/) -- install methods for Claude Code, Codex, Gemini CLI, Cursor, Windsurf, mcp.json
-- [Modes overview](https://mcp.n24q02m.com/get-started/modes-overview/) -- stdio / local-relay / remote-relay / remote-oauth
+- [Modes overview](https://mcp.n24q02m.com/get-started/modes-overview/) -- stdio (local, bot mode) and HTTP (remote, OAuth 2.1)
 - [Multi-user setup](https://mcp.n24q02m.com/get-started/multi-user/) -- per-JWT-sub credential model
 
 **Install with AI agent** -- paste this to your AI coding agent:
