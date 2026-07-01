@@ -2,6 +2,30 @@
 
 <!-- version list -->
 
+## v4.13.0-beta.8 (2026-07-01)
+
+### Bug Fixes
+
+- Align modes-overview link and tool count with current two-transport model
+  ([#873](https://github.com/n24q02m/better-telegram-mcp/pull/873),
+  [`a24e580`](https://github.com/n24q02m/better-telegram-mcp/commit/a24e580fd30c3042e37ab78b344221d988ea8a09))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#869](https://github.com/n24q02m/better-telegram-mcp/pull/869),
+  [`c9cb090`](https://github.com/n24q02m/better-telegram-mcp/commit/c9cb09058277377859b4a9b18baf86d7ec9eb8df))
+
+- **deps**: Update non-major dependencies
+  ([#868](https://github.com/n24q02m/better-telegram-mcp/pull/868),
+  [`30de287`](https://github.com/n24q02m/better-telegram-mcp/commit/30de287c6867526d6d4355ad04387170949f1c71))
+
+### Features
+
+- **ux**: Add dual-channel validation feedback for credential form
+  ([#871](https://github.com/n24q02m/better-telegram-mcp/pull/871),
+  [`dd708e8`](https://github.com/n24q02m/better-telegram-mcp/commit/dd708e842446c5e93e18b715e2be36ddc591625f))
+
+
 ## v4.13.0-beta.7 (2026-06-30)
 
 ### Bug Fixes
