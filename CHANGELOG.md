@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v4.14.0-beta.1 (2026-07-02)
+
+### Features
+
+- Deploy CF Worker+Container on release from cd.yml
+  ([#878](https://github.com/n24q02m/better-telegram-mcp/pull/878),
+  [`e74a7aa`](https://github.com/n24q02m/better-telegram-mcp/commit/e74a7aa8bed00315900334b53fd137c6fffb84d1))
+
+
 ## v4.13.0 (2026-07-01)
 
 
