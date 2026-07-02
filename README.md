@@ -54,6 +54,7 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 - [Comparison](#comparison)
 - [Security](#security)
 - [Build from Source](#build-from-source)
+- [Deploy to Cloudflare](#deploy-to-cloudflare)
 - [Trust Model](#trust-model)
 - [License](#license)
 
@@ -204,6 +205,46 @@ cd better-telegram-mcp
 uv sync
 uv run better-telegram-mcp
 ```
+
+## Deploy to Cloudflare
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/n24q02m/better-telegram-mcp)
+
+Run your own multi-user better-telegram-mcp serverless on Cloudflare (Worker + Container + KV).
+
+**Prerequisites:** a Cloudflare account on the Workers Paid plan and the `wrangler` CLI.
+
+1. `git clone https://github.com/n24q02m/better-telegram-mcp && cd better-telegram-mcp`
+2. `wrangler login`
+3. Provision the KV namespace and paste its id into `wrangler.jsonc`:
+   ```
+   wrangler kv namespace create better-telegram-kv
+   ```
+4. Push the container image to your Cloudflare managed registry (CF Containers cannot
+   pull from external registries directly), then set `<YOUR_ACCOUNT_ID>` in `wrangler.jsonc`:
+   ```
+   docker pull ghcr.io/n24q02m/better-telegram-mcp:beta
+   docker tag ghcr.io/n24q02m/better-telegram-mcp:beta better-telegram-mcp:beta
+   wrangler containers push better-telegram-mcp:beta   # prints registry.cloudflare.com/<ACCOUNT_ID>/better-telegram-mcp:beta
+   ```
+5. Set `<YOUR_PUBLIC_URL>` (e.g. `https://telegram.example.com`) and `<YOUR_WORKER_DOMAIN>`
+   (e.g. `telegram.example.com`) in `wrangler.jsonc`, then set secrets:
+   ```
+   wrangler secret put CREDENTIAL_SECRET
+   wrangler secret put MCP_RELAY_PASSWORD
+   wrangler secret put MCP_DCR_SERVER_SECRET
+   ```
+   `CREDENTIAL_SECRET` is REQUIRED: it derives a deterministic OAuth signing key so
+   user identity survives container recreation. `MCP_RELAY_PASSWORD` gates the browser
+   setup form (Gate A shared front door); `MCP_DCR_SERVER_SECRET` (32+ random bytes)
+   marks the deploy as intentionally multi-user.
+6. `wrangler deploy`, then complete setup in the browser relay form at your Worker domain --
+   each user enters their own bot token or phone + OTP there, so no per-user Telegram
+   credentials live on the Worker.
+
+Storage maps to Cloudflare via `MCP_STORAGE_BACKEND=cf-kv` (the encrypted setup config).
+Do NOT set `MCP_AUTH_DISABLE` on a shared/public deployment -- it collapses all users
+into a single credential bucket.
 
 ## Trust Model
 
