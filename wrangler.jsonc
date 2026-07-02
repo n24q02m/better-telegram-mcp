@@ -28,12 +28,12 @@
   // Secrets via `wrangler secret put`: CREDENTIAL_SECRET, MCP_RELAY_PASSWORD
   // (Gate A shared relay-password front door), MCP_DCR_SERVER_SECRET.
   "vars": {
-    "PUBLIC_URL": "https://telegram.n24q02m.com",
+    "PUBLIC_URL": "<YOUR_PUBLIC_URL>",
     "MCP_STORAGE_BACKEND": "cf-kv",
     "MCP_KV_BASE_URL": "http://kv.internal",
     "MCP_TRANSPORT": "http",
     "MCP_PORT": "8080"
   },
-  "routes": [{ "pattern": "telegram.n24q02m.com", "custom_domain": true }],
+  "routes": [{ "pattern": "<YOUR_WORKER_DOMAIN>", "custom_domain": true }],
   "observability": { "enabled": true }
 }
