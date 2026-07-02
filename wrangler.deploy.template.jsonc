@@ -1,0 +1,35 @@
+// wrangler.deploy.template.jsonc - COMMITTED placeholder template for CI CF deploy.
+// scripts/deploy_cf.py --from-template renders this into the gitignored
+// wrangler.deploy.jsonc by substituting the placeholder tokens below from the
+// environment (CI provides them from GitHub Actions secrets synced from skret).
+// Real account/KV IDs never live in git; they are placeholders here.
+// NO routes block (telegram.n24q02m.com already attached; the deploy token can't
+// reconcile routes). workers_dev:false keeps the worker off *.workers.dev.
+{
+  "name": "better-telegram-mcp-worker",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-06-14",
+  "workers_dev": false,
+  "containers": [
+    {
+      "name": "better-telegram-mcp-worker",
+      "class_name": "TelegramContainer",
+      "image": "registry.cloudflare.com/${CLOUDFLARE_ACCOUNT_ID}/better-telegram-mcp:${IMAGE_TAG}",
+      "instance_type": "basic",
+      "max_instances": 1
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "TELEGRAM", "class_name": "TelegramContainer" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TelegramContainer"] }],
+  "kv_namespaces": [{ "binding": "KV", "id": "${CF_KV_ID}" }],
+  "vars": {
+    "PUBLIC_URL": "${PUBLIC_URL}",
+    "MCP_STORAGE_BACKEND": "cf-kv",
+    "MCP_KV_BASE_URL": "http://kv.internal",
+    "MCP_TRANSPORT": "http",
+    "MCP_PORT": "8080"
+  },
+  "observability": { "enabled": true }
+}
