@@ -17,6 +17,8 @@
  * Required env:
  *   CLOUDFLARE_API_TOKEN    - CF API token (full-access dev token works)
  *   CLOUDFLARE_ACCOUNT_ID   - substituted for <YOUR_ACCOUNT_ID> in the image ref
+ *   PUBLIC_URL              - substituted for <YOUR_PUBLIC_URL>; its host also
+ *                             fills the <YOUR_WORKER_DOMAIN> custom-domain route
  *
  * Optional env:
  *   TELEGRAM_KV_NAMESPACE_ID - substituted for <telegram-kv-namespace-id>; if a
@@ -55,6 +57,23 @@ if (!accountId) {
 
 let config = readFileSync(srcConfig, "utf8");
 config = config.replaceAll("<YOUR_ACCOUNT_ID>", accountId);
+
+// The committed base wrangler.jsonc uses <YOUR_PUBLIC_URL> plus a matching
+// <YOUR_WORKER_DOMAIN> route; substitute both from PUBLIC_URL when the
+// placeholder is present so the config-only deploy never ships a placeholder.
+// The custom-domain route is always the PUBLIC_URL host, so it is derived from
+// PUBLIC_URL rather than taking a second env var.
+if (config.includes("<YOUR_PUBLIC_URL>")) {
+    const publicUrl = process.env.PUBLIC_URL;
+    if (!publicUrl) {
+        console.error(
+            "PUBLIC_URL is not set (base wrangler.jsonc uses <YOUR_PUBLIC_URL>)."
+        );
+        process.exit(1);
+    }
+    config = config.replaceAll("<YOUR_PUBLIC_URL>", publicUrl);
+    config = config.replaceAll("<YOUR_WORKER_DOMAIN>", new URL(publicUrl).host);
+}
 
 const kvId = process.env.TELEGRAM_KV_NAMESPACE_ID;
 if (kvId) {
