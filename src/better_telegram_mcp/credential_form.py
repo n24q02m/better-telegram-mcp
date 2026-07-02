@@ -690,14 +690,14 @@ def render_telegram_credential_form(
                     container = document.createElement("div");
                     container.id = "step-container";
 
+                    var fieldGroup = document.createElement("div");
+                    fieldGroup.className = "field-group";
+
                     promptEl = document.createElement("label");
                     promptEl.id = "step-prompt";
                     promptEl.setAttribute("for", "step-input");
-                    promptEl.className = "form-title";
-                    container.appendChild(promptEl);
-
-                    var fieldGroup = document.createElement("div");
-                    fieldGroup.className = "field-group";
+                    promptEl.className = "field-label";
+                    fieldGroup.appendChild(promptEl);
 
                     var passwordWrapper = document.createElement("div");
                     passwordWrapper.className = "password-wrapper";
@@ -711,6 +711,7 @@ def render_telegram_credential_form(
                     inputEl.setAttribute("autocapitalize", "off");
                     inputEl.setAttribute("spellcheck", "false");
                     inputEl.setAttribute("aria-describedby", "step-error");
+                    inputEl.setAttribute("required", "");
 
                     var toggleBtn = document.createElement("button");
                     toggleBtn.type = "button";
@@ -763,7 +764,12 @@ def render_telegram_credential_form(
                     }});
                 }}
 
-                promptEl.textContent = ns.text || "";
+                promptEl.textContent = (ns.text || "") + " ";
+                var requiredBadge = document.createElement("span");
+                requiredBadge.className = "required-badge";
+                requiredBadge.setAttribute("aria-hidden", "true");
+                requiredBadge.textContent = "Required";
+                promptEl.appendChild(requiredBadge);
                 var stepType = ns.input_type || "text";
                 inputEl.setAttribute("type", stepType);
                 inputEl.setAttribute("placeholder", ns.placeholder || "");
