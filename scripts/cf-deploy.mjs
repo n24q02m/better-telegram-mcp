@@ -17,6 +17,8 @@
  * Required env:
  *   CLOUDFLARE_API_TOKEN    - CF API token (full-access dev token works)
  *   CLOUDFLARE_ACCOUNT_ID   - substituted for <YOUR_ACCOUNT_ID> in the image ref
+ *   PUBLIC_URL              - substituted for <YOUR_PUBLIC_URL>; its host also
+ *                             fills the <YOUR_WORKER_DOMAIN> custom-domain route
  *
  * Optional env:
  *   TELEGRAM_KV_NAMESPACE_ID - substituted for <telegram-kv-namespace-id>; if a
@@ -53,8 +55,25 @@ if (!accountId) {
     process.exit(1);
 }
 
+const publicUrl = process.env.PUBLIC_URL;
+if (!publicUrl) {
+    console.error("PUBLIC_URL is required (substituted for <YOUR_PUBLIC_URL>).");
+    process.exit(1);
+}
+// The Worker custom-domain route is always the PUBLIC_URL host, so derive it
+// instead of taking a second env var (keeps the route in sync with PUBLIC_URL).
+let workerDomain;
+try {
+    workerDomain = new URL(publicUrl).host;
+} catch {
+    console.error(`PUBLIC_URL is not a valid URL: ${publicUrl}`);
+    process.exit(1);
+}
+
 let config = readFileSync(srcConfig, "utf8");
 config = config.replaceAll("<YOUR_ACCOUNT_ID>", accountId);
+config = config.replaceAll("<YOUR_PUBLIC_URL>", publicUrl);
+config = config.replaceAll("<YOUR_WORKER_DOMAIN>", workerDomain);
 
 const kvId = process.env.TELEGRAM_KV_NAMESPACE_ID;
 if (kvId) {
