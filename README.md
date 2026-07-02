@@ -212,7 +212,7 @@ uv run better-telegram-mcp
 
 Run your own multi-user better-telegram-mcp serverless on Cloudflare (Worker + Container + KV).
 
-**Prerequisites:** a Cloudflare account on the Workers Paid plan and the `wrangler` CLI.
+**Prerequisites:** a Cloudflare account on the **Workers Paid plan** -- required for Containers (the Cloudflare free tier does not include Containers) -- and the `wrangler` CLI.
 
 1. `git clone https://github.com/n24q02m/better-telegram-mcp && cd better-telegram-mcp`
 2. `wrangler login`
