@@ -142,15 +142,6 @@ def render_telegram_credential_form(
             margin-top: 0.5rem;
         }}
 
-        .form-title {{
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: #aaa;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 1.25rem;
-        }}
-
         .tabs {{
             display: flex;
             gap: 0;
@@ -690,14 +681,15 @@ def render_telegram_credential_form(
                     container = document.createElement("div");
                     container.id = "step-container";
 
+                    var fieldGroup = document.createElement("div");
+                    fieldGroup.className = "field-group";
+                    container.appendChild(fieldGroup);
+
                     promptEl = document.createElement("label");
                     promptEl.id = "step-prompt";
                     promptEl.setAttribute("for", "step-input");
-                    promptEl.className = "form-title";
-                    container.appendChild(promptEl);
-
-                    var fieldGroup = document.createElement("div");
-                    fieldGroup.className = "field-group";
+                    promptEl.className = "field-label";
+                    fieldGroup.appendChild(promptEl);
 
                     var passwordWrapper = document.createElement("div");
                     passwordWrapper.className = "password-wrapper";
@@ -726,7 +718,6 @@ def render_telegram_credential_form(
                     passwordWrapper.appendChild(inputEl);
                     passwordWrapper.appendChild(toggleBtn);
                     fieldGroup.appendChild(passwordWrapper);
-                    container.appendChild(fieldGroup);
 
                     buttonEl = document.createElement("button");
                     buttonEl.type = "button";
@@ -741,7 +732,7 @@ def render_telegram_credential_form(
                     errorEl.setAttribute("role", "alert");
                     errorEl.setAttribute("aria-live", "assertive");
                     errorEl.style.display = "none";
-                    container.appendChild(errorEl);
+                    fieldGroup.appendChild(errorEl);
 
                     card.appendChild(container);
 
@@ -764,6 +755,13 @@ def render_telegram_credential_form(
                 }}
 
                 promptEl.textContent = ns.text || "";
+                var requiredBadge = document.createElement("span");
+                requiredBadge.className = "required-badge";
+                requiredBadge.setAttribute("aria-hidden", "true");
+                requiredBadge.textContent = "Required";
+                promptEl.appendChild(document.createTextNode(" "));
+                promptEl.appendChild(requiredBadge);
+
                 var stepType = ns.input_type || "text";
                 inputEl.setAttribute("type", stepType);
                 inputEl.setAttribute("placeholder", ns.placeholder || "");
