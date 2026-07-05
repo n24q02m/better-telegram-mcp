@@ -53,3 +53,6 @@
 ## 2024-11-20 - Dual-Channel Validation Feedback
 **Learning:** Relying solely on color (like `#f87171` red borders) for `aria-invalid` states is insufficient for users with color vision deficiencies and can be easily missed. Providing dual-channel feedback by combining color with a subtle, non-disruptive motion animation (like a short horizontal `@keyframes shake`) significantly improves error discoverability and accessibility.
 **Action:** When implementing client-side validation, always apply a subtle motion animation (e.g., `shake 0.4s ease-in-out`) alongside color changes to `.field-input[aria-invalid="true"]` elements to provide robust, dual-channel error feedback, while ensuring it respects `prefers-reduced-motion: reduce`.
+## 2024-05-19 - Use field-group and semantic labels for dynamic prompts
+**Learning:** For dynamic form inputs (like OTP steps), ensure visual consistency and accessibility by wrapping the input and label in a `.field-group` container, applying the `.field-label` class to the semantic `<label>`, and explicitly appending `<span class="required-badge" aria-hidden="true">Required</span>` to mandatory fields instead of rendering prompts as title headers.
+**Action:** Always maintain uniform visual hierarchy by matching the dynamic step form markup structure with the main form's styling pattern.
