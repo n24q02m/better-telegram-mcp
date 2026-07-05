@@ -2,6 +2,56 @@
 
 <!-- version list -->
 
+## v4.15.0-beta.1 (2026-07-05)
+
+### Bug Fixes
+
+- Guard PUBLIC_URL substitution on placeholder presence in cf-deploy.mjs
+  ([#881](https://github.com/n24q02m/better-telegram-mcp/pull/881),
+  [`daef308`](https://github.com/n24q02m/better-telegram-mcp/commit/daef308e8c4157200837e6b48c2662b7f470506b))
+
+- Make Workers Paid plan prerequisite explicit for Containers in README
+  ([#881](https://github.com/n24q02m/better-telegram-mcp/pull/881),
+  [`daef308`](https://github.com/n24q02m/better-telegram-mcp/commit/daef308e8c4157200837e6b48c2662b7f470506b))
+
+- Substitute PUBLIC_URL and derive worker domain in cf-deploy.mjs
+  ([#881](https://github.com/n24q02m/better-telegram-mcp/pull/881),
+  [`daef308`](https://github.com/n24q02m/better-telegram-mcp/commit/daef308e8c4157200837e6b48c2662b7f470506b))
+
+- Use field-group and semantic labels in credential form
+  ([`378b854`](https://github.com/n24q02m/better-telegram-mcp/commit/378b854eb9641842f60e7ae9b0626876c1fbf62e))
+
+- Use placeholders for PUBLIC_URL and routes in wrangler.jsonc (BYO-generic)
+  ([#881](https://github.com/n24q02m/better-telegram-mcp/pull/881),
+  [`daef308`](https://github.com/n24q02m/better-telegram-mcp/commit/daef308e8c4157200837e6b48c2662b7f470506b))
+
+- **deps**: Update docker/login-action digest to af1e73f
+  ([`de36328`](https://github.com/n24q02m/better-telegram-mcp/commit/de3632867c733bcf665ca6d0efcd5244ae24446b))
+
+- **deps**: Update non-major dependencies
+  ([#876](https://github.com/n24q02m/better-telegram-mcp/pull/876),
+  [`16989be`](https://github.com/n24q02m/better-telegram-mcp/commit/16989beb7538f6ed3ed05cff01f5338a8212173b))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#877](https://github.com/n24q02m/better-telegram-mcp/pull/877),
+  [`6b511ff`](https://github.com/n24q02m/better-telegram-mcp/commit/6b511ff7aa39650d4c43776e618beb258fa0d67c))
+
+- **deps**: Update docker/build-push-action digest to 53b7df9
+  ([#875](https://github.com/n24q02m/better-telegram-mcp/pull/875),
+  [`05cf33c`](https://github.com/n24q02m/better-telegram-mcp/commit/05cf33cb234cb4f978be9da91ff9fc7607ad48ec))
+
+- **deps**: Update docker/setup-buildx-action digest to bb05f3f
+  ([#883](https://github.com/n24q02m/better-telegram-mcp/pull/883),
+  [`5e172e2`](https://github.com/n24q02m/better-telegram-mcp/commit/5e172e2bc017a83561994806c2efc091f6b8dec5))
+
+### Features
+
+- Add BYO Deploy to Cloudflare section to README
+  ([#881](https://github.com/n24q02m/better-telegram-mcp/pull/881),
+  [`daef308`](https://github.com/n24q02m/better-telegram-mcp/commit/daef308e8c4157200837e6b48c2662b7f470506b))
+
+
 ## v4.14.0 (2026-07-02)
 
 ### Bug Fixes
