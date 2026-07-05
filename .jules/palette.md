@@ -60,3 +60,7 @@
 ## 2024-11-21 - Disable Associated Utility Controls During Form Submission
 **Learning:** Leaving auxiliary interactive elements (like password visibility toggles) enabled while the primary inputs and submit button are disabled in a loading state creates an inconsistent UI state and can lead to confusing behavior during async operations.
 **Action:** Always ensure that all interactive utility elements associated with a form are explicitly disabled alongside the main inputs and submit button when transitioning into a disabled/loading state, and properly re-enabled when the state resets.
+
+## 2024-11-21 - Dual-Channel Validation for Server Errors
+**Learning:** While client-side validation correctly applied dual-channel feedback (color + shake animation) via `aria-invalid="true"`, server-side and network errors simply focused the input and showed a text error. This inconsistency meant users who bypassed client validation or hit server errors didn't receive the same robust accessibility feedback.
+**Action:** When handling server-side validation or network errors that relate to an input field, always apply `aria-invalid="true"` to that field before focusing it, ensuring consistent dual-channel feedback regardless of where the validation failed.
