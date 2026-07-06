@@ -6,3 +6,7 @@
 **Vulnerability:** Use of `os.urandom(32).hex()` for secret token generation.
 **Learning:** While `os.urandom` is cryptographically secure, using the explicit `secrets` module (e.g. `secrets.token_hex(32)`) conveys a clearer security intent, is less prone to misuse, and aligns with modern Python security best practices.
 **Prevention:** Use `secrets.token_hex()` or `secrets.token_urlsafe()` instead of raw `os.urandom` where appropriate.
+## 2025-07-06 - Remove TELEGRAM_ACCEPT_SHARED_SINGLE_USER override
+**Vulnerability:** The HTTP transport allowed falling back to a shared single-user session when a `PUBLIC_URL` was configured by setting `TELEGRAM_ACCEPT_SHARED_SINGLE_USER=1`, creating a risk of session leakage.
+**Learning:** Shared single-user sessions in public deployments represent a catastrophic misconfiguration risk.
+**Prevention:** Strictly prohibit falling back to a shared single-user session when a `PUBLIC_URL` is configured, removing any override flags.
