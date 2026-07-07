@@ -56,3 +56,7 @@
 ## 2024-05-19 - Use field-group and semantic labels for dynamic prompts
 **Learning:** For dynamic form inputs (like OTP steps), ensure visual consistency and accessibility by wrapping the input and label in a `.field-group` container, applying the `.field-label` class to the semantic `<label>`, and explicitly appending `<span class="required-badge" aria-hidden="true">Required</span>` to mandatory fields instead of rendering prompts as title headers.
 **Action:** Always maintain uniform visual hierarchy by matching the dynamic step form markup structure with the main form's styling pattern.
+
+## 2024-10-21 - Disable Auxiliary Elements During Async Form Submission
+**Learning:** UX/Accessibility Pattern: When transitioning a form into a loading or disabled state during async submissions, explicitly disable all associated auxiliary interactive elements (such as password visibility toggles) alongside the primary inputs and submit buttons to prevent inconsistent UI states.
+**Action:** Always verify all interactive elements are disabled during form submits, including toggle buttons.
