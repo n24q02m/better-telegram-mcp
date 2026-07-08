@@ -4,3 +4,6 @@
 ## 2025-06-30 - Parallel KV Session Store Loading
 **Learning:** `load_all` on a credential backend with individual `load()` operations suffers from an N+1 query bottleneck. Since the underlying PBKDF2 key derivations using the `cryptography` library release the GIL, thread pools provide significant speedups even in Python, overlapping both I/O and heavy crypto compute.
 **Action:** Parallelize bulk load operations over single-item APIs using `ThreadPoolExecutor.map()` to avoid sequential blocking. Combine results with `zip(..., strict=True)`.
+## 2025-07-28 - Skip Unnecessary KV Store Writes
+**Learning:** In periodic cleanup operations (like `cleanup_expired` for OTP entries), checking all records without verifying modifications can lead to redundant, unconditional `store.save()` calls.
+**Action:** Always verify if state has actually changed (e.g., via early `if not stale_bearers: continue` checks) to bypass expensive I/O operations and avoid taxing KV stores unnecessarily.

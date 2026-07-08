@@ -159,6 +159,10 @@ class PendingOtpStore:
                     and now - entry.get("created_at", 0) > _OTP_TTL
                 ):
                     stale_bearers.append(bearer)
+
+            if not stale_bearers:
+                continue
+
             for bearer in stale_bearers:
                 del existing[bearer]
                 removed += 1
