@@ -676,6 +676,13 @@ def render_telegram_credential_form(
                     buttonEl.disabled = false;
                     buttonEl.removeAttribute("aria-busy");
                     buttonEl.textContent = "Verify";
+                    var existingToggle = document.getElementById("toggle-step-input");
+                    if (existingToggle) {{
+                        existingToggle.textContent = "Show";
+                        existingToggle.setAttribute("aria-label", "Show password");
+                        existingToggle.setAttribute("aria-pressed", "false");
+                        existingToggle.disabled = false;
+                    }}
                 }} else {{
                     var card = form.parentNode;
                     container = document.createElement("div");
@@ -810,6 +817,10 @@ def render_telegram_credential_form(
                 buttonEl.setAttribute("aria-busy", "true");
                 buttonEl.textContent = "Verifying...";
                 inputEl.disabled = true;
+                var stepToggleBtn = document.getElementById("toggle-step-input");
+                if (stepToggleBtn) {{
+                    stepToggleBtn.disabled = true;
+                }}
 
                 var body = {{}};
                 body[fieldName] = value;
@@ -851,6 +862,9 @@ def render_telegram_credential_form(
                                 buttonEl.disabled = false;
                                 buttonEl.removeAttribute("aria-busy");
                                 buttonEl.textContent = "Verify";
+                                if (stepToggleBtn) {{
+                                    stepToggleBtn.disabled = false;
+                                }}
                                 inputEl.focus();
                             }}
                         }});
@@ -863,6 +877,9 @@ def render_telegram_credential_form(
                         buttonEl.disabled = false;
                         buttonEl.removeAttribute("aria-busy");
                         buttonEl.textContent = "Verify";
+                        if (stepToggleBtn) {{
+                            stepToggleBtn.disabled = false;
+                        }}
                         inputEl.focus();
                     }});
             }}
@@ -906,6 +923,7 @@ def render_telegram_credential_form(
                 submitBtn.textContent = "Connecting...";
                 statusBox.style.display = "none";
                 form.querySelectorAll(".field-input").forEach(function (i) {{ i.disabled = true; }});
+                form.querySelectorAll(".password-toggle").forEach(function (btn) {{ btn.disabled = true; }});
                 tabs.forEach(function (t) {{ t.disabled = true; }});
 
                 fetch(submitUrl, {{
@@ -957,6 +975,7 @@ def render_telegram_credential_form(
                                 submitBtn.removeAttribute("aria-busy");
                                 submitBtn.textContent = "Connect";
                                 form.querySelectorAll(".field-input").forEach(function (i) {{ i.disabled = false; }});
+                                form.querySelectorAll(".password-toggle").forEach(function (btn) {{ btn.disabled = false; }});
                                 tabs.forEach(function (t) {{ t.disabled = false; }});
 
                                 // Restore focus to the first visible input field so users can immediately correct it
@@ -976,6 +995,7 @@ def render_telegram_credential_form(
                         submitBtn.removeAttribute("aria-busy");
                         submitBtn.textContent = "Connect";
                         form.querySelectorAll(".field-input").forEach(function (i) {{ i.disabled = false; }});
+                        form.querySelectorAll(".password-toggle").forEach(function (btn) {{ btn.disabled = false; }});
                         tabs.forEach(function (t) {{ t.disabled = false; }});
 
                         // Restore focus to the first visible input field so users can immediately correct it
