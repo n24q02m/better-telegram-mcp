@@ -771,6 +771,8 @@ def render_telegram_credential_form(
                 if (toggleBtn) {{
                     if (stepType === "password") {{
                         toggleBtn.style.display = "block";
+                        toggleBtn.textContent = "Show";
+                        toggleBtn.setAttribute("aria-pressed", "false");
                     }} else {{
                         toggleBtn.style.display = "none";
                     }}
@@ -977,6 +979,7 @@ def render_telegram_credential_form(
                                 if (activePanel) {{
                                     var firstInput = activePanel.querySelector('.field-input');
                                     if (firstInput) {{
+                                        firstInput.setAttribute("aria-invalid", "true");
                                         firstInput.focus();
                                     }}
                                 }}
@@ -997,6 +1000,7 @@ def render_telegram_credential_form(
                         if (activePanel) {{
                             var firstInput = activePanel.querySelector('.field-input');
                             if (firstInput) {{
+                                firstInput.setAttribute("aria-invalid", "true");
                                 firstInput.focus();
                             }}
                         }}
