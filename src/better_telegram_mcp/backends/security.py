@@ -31,6 +31,7 @@ _BLOCKED_NETWORKS = (
     ipaddress.ip_network("224.0.0.0/4"),  # Multicast
     ipaddress.ip_network("240.0.0.0/4"),  # Reserved
     ipaddress.ip_network("255.255.255.255/32"),  # Limited Broadcast
+    ipaddress.ip_network("::/128"),  # Unspecified (IPv6 equivalent of 0.0.0.0)
     ipaddress.ip_network("::1/128"),
     ipaddress.ip_network("::ffff:0:0/96"),
     ipaddress.ip_network("fc00::/7"),
@@ -88,7 +89,7 @@ def validate_url(url: str) -> str:
     # Resolve and check IPs
     # Not an IP literal -- resolve to prevent SSRF via DNS like 127.0.0.1.nip.io
     # Block known dangerous hostnames as an early check
-    if hostname in {"localhost", "0.0.0.0"}:  # noqa: S104
+    if hostname in {"localhost", "0.0.0.0", "::"}:  # noqa: S104
         msg = f"Access to {hostname} is blocked"
         raise SecurityError(msg)
     try:
