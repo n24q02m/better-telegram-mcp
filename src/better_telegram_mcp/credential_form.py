@@ -773,6 +773,7 @@ def render_telegram_credential_form(
                         toggleBtn.style.display = "block";
                         toggleBtn.textContent = "Show";
                         toggleBtn.setAttribute("aria-pressed", "false");
+                        toggleBtn.setAttribute("aria-label", "Show password");
                     }} else {{
                         toggleBtn.style.display = "none";
                     }}
