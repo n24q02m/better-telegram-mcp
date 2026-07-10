@@ -73,6 +73,8 @@ JULES.md
 wrangler.deploy.jsonc
 wrangler.cf-deploy.tmp.jsonc
 .wrangler-dryrun/
+# Live CF OAuth self-test credential cache (scripts/cf_full_flow.py), never commit
+scripts/.telegram_cf_token
 docs/superpowers/
 # AI Assistant / Rules
 .jules/
