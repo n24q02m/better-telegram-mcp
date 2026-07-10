@@ -70,8 +70,8 @@ describe('pickContainerEnv forwards security-critical secrets into the container
   })
 })
 
-describe('fetch routes to per-user DO by JWT sub', () => {
-  it('uses sub from the Bearer token as the DO name', async () => {
+describe('fetch routes to the single reserved container DO', () => {
+  it('names the DO "default" regardless of the Bearer token sub (SINGLE-DO COLLAPSE, see extractUserId)', async () => {
     let namedWith = ''
     const env = {
       TELEGRAM: {
@@ -86,6 +86,58 @@ describe('fetch routes to per-user DO by JWT sub', () => {
     })
     const res = await worker.fetch(req, env)
     expect(await res.text()).toBe('ok')
-    expect(namedWith).toBe('user-xyz')
+    expect(namedWith).toBe('default')
+  })
+})
+
+describe('edge auth gate rejects anonymous /mcp before touching the container DO', () => {
+  function makeEnv() {
+    let stubCalls = 0
+    const env = {
+      TELEGRAM: {
+        idFromName(n: string) { return { n } },
+        get() { return { fetch: async () => { stubCalls++; return new Response('ok') } } },
+      },
+    } as any
+    return { env, calls: () => stubCalls }
+  }
+
+  it('POST /mcp with no Authorization -> 401, stub never called', async () => {
+    const { env, calls } = makeEnv()
+    const req = new Request('https://telegram.n24q02m.com/mcp', { method: 'POST' })
+    const res = await worker.fetch(req, env)
+    expect(res.status).toBe(401)
+    expect(res.headers.get('WWW-Authenticate')).toMatch(
+      /^Bearer resource_metadata="https:\/\/[^"]+\/\.well-known\/oauth-protected-resource"$/,
+    )
+    expect(await res.text()).toBe('')
+    expect(calls()).toBe(0)
+  })
+
+  it('OPTIONS /mcp with no Authorization -> 401, stub never called', async () => {
+    const { env, calls } = makeEnv()
+    const req = new Request('https://telegram.n24q02m.com/mcp', { method: 'OPTIONS' })
+    const res = await worker.fetch(req, env)
+    expect(res.status).toBe(401)
+    expect(calls()).toBe(0)
+  })
+
+  it('POST /mcp with Authorization: Bearer anything -> stub called exactly once', async () => {
+    const { env, calls } = makeEnv()
+    const req = new Request('https://telegram.n24q02m.com/mcp', {
+      method: 'POST',
+      headers: { authorization: 'Bearer anything' },
+    })
+    const res = await worker.fetch(req, env)
+    expect(res.status).toBe(200)
+    expect(calls()).toBe(1)
+  })
+
+  it('GET /authorize with no Authorization -> non-/mcp path passes through to the DO', async () => {
+    const { env, calls } = makeEnv()
+    const req = new Request('https://telegram.n24q02m.com/authorize?foo=1')
+    const res = await worker.fetch(req, env)
+    expect(res.status).toBe(200)
+    expect(calls()).toBe(1)
   })
 })

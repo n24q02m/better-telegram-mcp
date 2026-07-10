@@ -67,6 +67,17 @@ jobs:
         with:
           files: coverage.xml
 
+      - name: Setup Node.js 24
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: "24"
+
+      - name: Install worker dependencies
+        run: npm ci
+
+      - name: Run worker tests
+        run: npm run test:worker
+
   dependency-review:
     name: Dependency Review
     if: github.event_name == 'pull_request'
