@@ -1026,19 +1026,18 @@ def test_get_backend_multi_user_mode_fallback():
 
     old_multi = srv._multi_user_mode
     old_backend = srv._backend
+    old_get_current = srv._get_current_backend
     try:
         srv._multi_user_mode = True
         srv._backend = MagicMock()
+        srv._get_current_backend = MagicMock(return_value=None)
 
-        with patch(
-            "better_telegram_mcp.transports.http.get_current_backend",
-            return_value=None,
-        ):
-            result = get_backend()
-            assert result is srv._backend
+        result = get_backend()
+        assert result is srv._backend
     finally:
         srv._multi_user_mode = old_multi
         srv._backend = old_backend
+        srv._get_current_backend = old_get_current
 
 
 # --- main() HTTP transport ---
