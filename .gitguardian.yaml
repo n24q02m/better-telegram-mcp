@@ -1,0 +1,16 @@
+# Public-by-design app identifiers -- reviewed and deliberately kept.
+# Telegram's api_id/api_hash pair embedded in src/better_telegram_mcp/config.py
+# is the official embedded-app-credential pattern (my.telegram.org "App
+# configuration" -- every client using the Telegram API, official or third
+# party, ships an api_id/api_hash baked into the app). Scanner alerts on this
+# exact value are a false positive. Do NOT rotate, do NOT placeholder-ize.
+#
+# Note: api_id (37984984) is a bare integer with no distinguishing format, so
+# it is not expected to trip any secret detector and is intentionally left
+# out of ignored_matches below -- add it here if a scanner ever actually
+# flags it.
+version: 2
+secret:
+  ignored_matches:
+    - name: telegram-embedded-app-api-hash
+      match: "2f5f4c76c4de7c07302380c788390100"
