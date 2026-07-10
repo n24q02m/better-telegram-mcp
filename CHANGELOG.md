@@ -2,6 +2,29 @@
 
 <!-- version list -->
 
+## v4.16.0-beta.1 (2026-07-10)
+
+### Bug Fixes
+
+- Reject unauthenticated /mcp at the Worker edge
+  ([#902](https://github.com/n24q02m/better-telegram-mcp/pull/902),
+  [`42e8d76`](https://github.com/n24q02m/better-telegram-mcp/commit/42e8d76c5f48ff576c7b6ff758203ad6dc47d114))
+
+### Features
+
+- Add opencode github agent (responds to /oc)
+  ([`bc2a718`](https://github.com/n24q02m/better-telegram-mcp/commit/bc2a71840620374478915cb04dfb0d6582971ead))
+
+- Add review-learnings store the automated reviewer must obey
+  ([`284e406`](https://github.com/n24q02m/better-telegram-mcp/commit/284e406b63471b5cadcaac7d777cddbbe1691512))
+
+- Auto-respond only to issues and PRs opened by outside people
+  ([`4d0b28c`](https://github.com/n24q02m/better-telegram-mcp/commit/4d0b28cf595f6ec831e3b639696848f9e82ea579))
+
+- Reviewer must obey .github/review-learnings.md
+  ([`4509e1b`](https://github.com/n24q02m/better-telegram-mcp/commit/4509e1ba34beac98319117137442147881031917))
+
+
 ## v4.15.0 (2026-07-05)
 
 
