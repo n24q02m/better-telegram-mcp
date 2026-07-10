@@ -94,8 +94,36 @@ const kvOutbound: OutboundHandler<Env> = async (request, env) => {
   return new Response('method not allowed', { status: 405 })
 }
 
+// Bearer credential presence check for the edge auth gate below. Structural
+// only -- validity is the container's job (mcp-core's OAuth AS runs inside it).
+const BEARER = /^Bearer\s+\S/i
+
+function unauthenticated(request: Request): Response {
+  const { origin } = new URL(request.url)
+  return new Response(null, {
+    status: 401,
+    headers: {
+      'WWW-Authenticate': `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
+    },
+  })
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    // Edge auth gate. mcp-core's OAuth AS runs INSIDE the container, so before
+    // this gate every anonymous /mcp request started the container and reset
+    // its 5m idle timer -- an unauthenticated caller could pin it awake and
+    // bill GiB-s around the clock. Verified 2026-07-09 on the sibling
+    // better-email-mcp deployment: a python-httpx client POSTed /mcp with no
+    // Authorization header every ~20s for 12h+. The check is STRUCTURAL: it
+    // rejects requests carrying no bearer credential at all and reproduces the
+    // container's own 401 (empty body + RFC 9728 WWW-Authenticate). Token
+    // VALIDITY is never judged here -- the container remains the sole
+    // authority, so no mcp-core auth logic is duplicated at the edge.
+    const url = new URL(request.url)
+    if (url.pathname === '/mcp' || url.pathname.startsWith('/mcp/')) {
+      if (!BEARER.test(request.headers.get('authorization') ?? '')) return unauthenticated(request)
+    }
     // Public entrypoint: ONLY routes inbound requests to the per-user container
     // DO. The kv.internal outbound handler is deliberately NOT dispatched here —
     // exposing it on the public fetch surface would let an external caller
