@@ -65,6 +65,18 @@ class TestValidateUrl:
         with pytest.raises(SecurityError, match="internal/private"):
             validate_url("http://[::1]/")
 
+    def test_ipv6_unspecified_blocked(self):
+        """Ensure IPv6 unspecified address (::) is blocked directly by string check."""
+        with pytest.raises(SecurityError, match="blocked"):
+            validate_url("http://[::]/")
+
+    @pytest.mark.asyncio
+    async def test_fetch_url_safely_ipv6_unspecified(self):
+        from better_telegram_mcp.backends.security import fetch_url_safely
+
+        with pytest.raises(SecurityError, match="blocked"):
+            await fetch_url_safely("http://[::]/")
+
     def test_ipv4_mapped_ipv6_loopback_blocked(self, monkeypatch):
         """IPv4-mapped IPv6 like ::ffff:127.0.0.1 must be blocked (issue #42)."""
         monkeypatch.setattr(
