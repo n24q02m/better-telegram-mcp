@@ -13,6 +13,7 @@ a full key-space scan.
 from __future__ import annotations
 
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
 from mcp_core.storage.per_plugin_store import PerPluginStore
@@ -143,28 +144,48 @@ class PendingOtpStore:
 
     def cleanup_expired(self) -> int:
         """Remove expired pending OTP entries from KV. Returns count removed."""
-        subs = self._load_index()
+        # Make a shallow copy of subs to prevent runtime errors if self._remove_from_index
+        # mutates the underlying list during the zip iteration
+        subs = list(self._load_index())
+        if not subs:
+            return 0
+
         removed = 0
-        for sub in list(subs):
-            store = self._sub_store(sub)
-            existing = store.load()
+        now = time.time()
+
+        # Bolt: Parallelize bulk load operations to avoid sequential N+1 blocking
+        # on heavy PBKDF2 key derivations, matching the pattern in KvSessionStore.
+        with ThreadPoolExecutor() as executor:
+            stores = [self._sub_store(sub) for sub in subs]
+            # store.load() does the heavy cryptography work
+            existings = list(executor.map(lambda s: s.load(), stores))
+
+        for sub, store, existing in zip(subs, stores, existings, strict=True):
             if not isinstance(existing, dict) or not existing:
                 self._remove_from_index(sub)
                 continue
+
             stale_bearers = []
-            now = time.time()
             for bearer, entry in existing.items():
                 if (
                     isinstance(entry, dict)
                     and now - entry.get("created_at", 0) > _OTP_TTL
                 ):
                     stale_bearers.append(bearer)
+
+            # Bolt: Add early return to skip unnecessary KV store writes
+            # when no entries were expired (the common case)
+            if not stale_bearers:
+                continue
+
             for bearer in stale_bearers:
                 del existing[bearer]
                 removed += 1
+
             if existing:
                 store.save(existing)
             else:
                 store.clear()
                 self._remove_from_index(sub)
+
         return removed
