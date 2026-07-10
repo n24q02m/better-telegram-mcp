@@ -3,14 +3,18 @@ import { describe, expect, it } from 'vitest'
 import worker, { TelegramContainer, pickContainerEnv } from '../src/worker'
 
 // Minimal in-memory KV that matches the Env.KV shape (arrayBuffer get/put/delete).
+// ArrayBufferLike (not ArrayBuffer): TypeScript's Uint8Array is generic since
+// TS 5.7, so `TextEncoder#encode(...).buffer` is typed ArrayBufferLike (the
+// ArrayBuffer | SharedArrayBuffer union), even though a real TextEncoder never
+// backs its output with a SharedArrayBuffer.
 function makeKv() {
-  const store = new Map<string, ArrayBuffer>()
+  const store = new Map<string, ArrayBufferLike>()
   return {
     store,
     async get(k: string, type?: string) {
       const v = store.get(k)
       if (v === undefined) return null
-      return type === 'arrayBuffer' ? v : new TextDecoder().decode(v)
+      return type === 'arrayBuffer' ? v : new TextDecoder().decode(v as ArrayBuffer)
     },
     async put(k: string, v: string | ArrayBuffer) {
       store.set(k, typeof v === 'string' ? new TextEncoder().encode(v).buffer : v)
@@ -19,29 +23,40 @@ function makeKv() {
   }
 }
 
+// OutboundHandlerContext<unknown> (the kvOutbound handler's ctx type): only
+// containerId/className are required, `params` stays optional -- see
+// @cloudflare/containers dist/lib/container.d.ts OutboundHandlerContext.
+const outboundCtx = { containerId: 'test-container', className: 'TelegramContainer' }
+
 describe('kvOutbound (via TelegramContainer.outboundByHost)', () => {
-  const handler = TelegramContainer.outboundByHost['kv.internal']
+  // outboundByHost is typed possibly-undefined by the library (it's only set
+  // once ../src/worker's module-level `TelegramContainer.outboundByHost = {...}`
+  // assignment runs) -- assert the invariant explicitly instead of `!`, so a
+  // future refactor that drops the assignment fails loudly here, not silently.
+  const outboundByHost = TelegramContainer.outboundByHost
+  if (!outboundByHost) throw new Error('TelegramContainer.outboundByHost not registered by ../src/worker import')
+  const handler = outboundByHost['kv.internal']
 
   it('returns 404 for a missing key', async () => {
     const env = { KV: makeKv() } as any
-    const res = await handler(new Request('http://kv.internal/telegram%2Fsubs%2Fu1%2Fsession'), env)
+    const res = await handler(new Request('http://kv.internal/telegram%2Fsubs%2Fu1%2Fsession'), env, outboundCtx)
     expect(res.status).toBe(404)
   })
 
   it('round-trips a binary blob via arrayBuffer (PUT then GET)', async () => {
     const env = { KV: makeKv() } as any
     const blob = new Uint8Array([0, 1, 2, 250, 251, 255]).buffer  // non-UTF8 bytes
-    await handler(new Request('http://kv.internal/telegram%2Fconfig', { method: 'PUT', body: blob }), env)
-    const res = await handler(new Request('http://kv.internal/telegram%2Fconfig'), env)
+    await handler(new Request('http://kv.internal/telegram%2Fconfig', { method: 'PUT', body: blob }), env, outboundCtx)
+    const res = await handler(new Request('http://kv.internal/telegram%2Fconfig'), env, outboundCtx)
     expect(res.status).toBe(200)
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(new Uint8Array(blob))
   })
 
   it('DELETE removes the key', async () => {
     const env = { KV: makeKv() } as any
-    await handler(new Request('http://kv.internal/k', { method: 'PUT', body: new ArrayBuffer(1) }), env)
-    await handler(new Request('http://kv.internal/k', { method: 'DELETE' }), env)
-    const res = await handler(new Request('http://kv.internal/k'), env)
+    await handler(new Request('http://kv.internal/k', { method: 'PUT', body: new ArrayBuffer(1) }), env, outboundCtx)
+    await handler(new Request('http://kv.internal/k', { method: 'DELETE' }), env, outboundCtx)
+    const res = await handler(new Request('http://kv.internal/k'), env, outboundCtx)
     expect(res.status).toBe(404)
   })
 })
