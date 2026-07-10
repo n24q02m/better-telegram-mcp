@@ -81,7 +81,11 @@ describe('fetch routes to the single reserved container DO', () => {
     } as any
     // JWT with payload {"sub":"user-xyz"} (header.payload.sig; only payload is read)
     const payload = btoa(JSON.stringify({ sub: 'user-xyz' }))
+    // POST, not GET: the edge now declines the standing GET /mcp SSE stream
+    // with 405 (see "edge declines the standing GET /mcp SSE stream" below),
+    // so DO-routing is exercised via POST here.
     const req = new Request('https://telegram.n24q02m.com/mcp', {
+      method: 'POST',
       headers: { authorization: `Bearer h.${payload}.s` },
     })
     const res = await worker.fetch(req, env)
@@ -139,5 +143,49 @@ describe('edge auth gate rejects anonymous /mcp before touching the container DO
     const res = await worker.fetch(req, env)
     expect(res.status).toBe(200)
     expect(calls()).toBe(1)
+  })
+})
+
+describe('edge declines the standing GET /mcp SSE stream (container never pinned awake by an idle stream)', () => {
+  function makeEnv() {
+    let stubCalls = 0
+    const env = {
+      TELEGRAM: {
+        idFromName(n: string) { return { n } },
+        get() { return { fetch: async () => { stubCalls++; return new Response('ok') } } },
+      },
+    } as any
+    return { env, calls: () => stubCalls }
+  }
+
+  it('GET /mcp with Authorization -> 405, Allow: POST, DELETE, stub never called', async () => {
+    const { env, calls } = makeEnv()
+    const req = new Request('https://telegram.n24q02m.com/mcp', {
+      method: 'GET',
+      headers: { authorization: 'Bearer x' },
+    })
+    const res = await worker.fetch(req, env)
+    expect(res.status).toBe(405)
+    expect(res.headers.get('Allow')).toBe('POST, DELETE')
+    expect(calls()).toBe(0)
+  })
+
+  it('GET /mcp/sub with Authorization -> 405', async () => {
+    const { env, calls } = makeEnv()
+    const req = new Request('https://telegram.n24q02m.com/mcp/sub', {
+      method: 'GET',
+      headers: { authorization: 'Bearer x' },
+    })
+    const res = await worker.fetch(req, env)
+    expect(res.status).toBe(405)
+    expect(calls()).toBe(0)
+  })
+
+  it('GET /mcp with no Authorization -> still 401 (bearer gate runs first)', async () => {
+    const { env, calls } = makeEnv()
+    const req = new Request('https://telegram.n24q02m.com/mcp', { method: 'GET' })
+    const res = await worker.fetch(req, env)
+    expect(res.status).toBe(401)
+    expect(calls()).toBe(0)
   })
 })
