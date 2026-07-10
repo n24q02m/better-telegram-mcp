@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v4.16.0-beta.2 (2026-07-10)
+
+### Bug Fixes
+
+- Decline standing GET /mcp SSE stream at the edge
+  ([#904](https://github.com/n24q02m/better-telegram-mcp/pull/904),
+  [`52d88cf`](https://github.com/n24q02m/better-telegram-mcp/commit/52d88cf75e903ac99283df0f1883d29ae1623f8c))
+
+- Fail the release when the computed version already exists on PyPI
+  ([#903](https://github.com/n24q02m/better-telegram-mcp/pull/903),
+  [`6c5e2ac`](https://github.com/n24q02m/better-telegram-mcp/commit/6c5e2acdc0772b31b6c57f30a26bff2a0bcfdeab))
+
+
 ## v4.16.0-beta.1 (2026-07-10)
 
 ### Bug Fixes
