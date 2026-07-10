@@ -78,6 +78,9 @@ jobs:
       - name: Run worker tests
         run: npm run test:worker
 
+      - name: Run worker type check
+        run: npm run type-check
+
   dependency-review:
     name: Dependency Review
     if: github.event_name == 'pull_request'
