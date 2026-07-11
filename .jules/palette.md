@@ -64,3 +64,7 @@
 ## 2024-11-21 - Dual-Channel Validation for Server Errors
 **Learning:** While client-side validation correctly applied dual-channel feedback (color + shake animation) via `aria-invalid="true"`, server-side and network errors simply focused the input and showed a text error. This inconsistency meant users who bypassed client validation or hit server errors didn't receive the same robust accessibility feedback.
 **Action:** When handling server-side validation or network errors that relate to an input field, always apply `aria-invalid="true"` to that field before focusing it, ensuring consistent dual-channel feedback regardless of where the validation failed.
+
+## 2024-11-21 - Synchronize ARIA Labels When Reusing DOM Containers
+**Learning:** Reusing DOM containers for dynamic form steps (e.g., OTP or password prompts) can lead to desynchronized accessibility states if all associated attributes are not reset. While visual properties like `textContent` might be reset when re-initializing the view, missing updates to attributes like `aria-label` can leave screen readers announcing stale and confusing states (e.g., a button displaying "Show" but announcing "Hide password").
+**Action:** When dynamically resetting or reusing stateful UI components, ensure that invisible attributes like `aria-label` are explicitly reset alongside their visible counterparts (like `textContent` and `aria-pressed`) to prevent out-of-sync UI states.
