@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v4.16.0-beta.5 (2026-07-11)
+
+### Features
+
+- Return structured content from domain tools
+  ([#918](https://github.com/n24q02m/better-telegram-mcp/pull/918),
+  [`44daf4a`](https://github.com/n24q02m/better-telegram-mcp/commit/44daf4a28731782b67bfe67cb784029152b21885))
+
+
 ## v4.16.0-beta.4 (2026-07-11)
 
 ### Bug Fixes
