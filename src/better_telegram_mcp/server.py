@@ -612,22 +612,24 @@ def main() -> None:
     if not is_http:
         # Stdio mode (default): run FastMCP stdio server directly. No bridge layer.
         # Universal MCP client compatibility (Claude Code, Cursor, VS Code Copilot, etc.).
-        # Per spec ~/projects/.superpower/mcp-core/specs/2026-05-01-stdio-pure-http-multiuser.md:
-        # stdio mode = bot mode only (TELEGRAM_BOT_TOKEN). User mode (MTProto session
-        # via phone+OTP) is HTTP-only.
-        if not os.environ.get("TELEGRAM_BOT_TOKEN"):
+        # Credentials come from env, the encrypted single-user config, or a saved
+        # Telethon session (bot token OR phone+session). resolve_credential_state
+        # consults all three and hydrates os.environ from a saved config so the
+        # lifespan below picks it up; only a truly unconfigured stdio server exits.
+        from .credential_state import CredentialState, resolve_credential_state
+
+        if resolve_credential_state() != CredentialState.CONFIGURED:
             msg = (
-                "[better-telegram-mcp] TELEGRAM_BOT_TOKEN required for stdio "
-                "mode but not set.\n"
+                "[better-telegram-mcp] No Telegram credentials configured for "
+                "stdio mode.\n"
                 "\n"
-                "Note: User mode (MTProto session via phone+OTP) is only "
-                "available in HTTP mode.\n"
+                "Run one of:\n"
+                "  better-telegram-mcp login --bot-token <token>   "
+                "(bot mode, get token from @BotFather)\n"
+                "  better-telegram-mcp login --phone <+number>     "
+                "(user mode, interactive OTP/2FA)\n"
                 "\n"
-                "Options:\n"
-                "  1. Set TELEGRAM_BOT_TOKEN in plugin config "
-                "(get from @BotFather)\n"
-                "  2. Switch to HTTP mode for user mode auth "
-                "(see https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/)\n"
+                "Or set TELEGRAM_BOT_TOKEN in your plugin/server env config.\n"
                 "\n"
                 "Documentation: https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/\n"
             )

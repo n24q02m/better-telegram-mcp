@@ -536,18 +536,69 @@ def test_main_calls_run():
     mock_run.assert_called_once_with(transport="stdio")
 
 
-def test_main_stdio_missing_bot_token_exits_1(capsys):
-    """Stdio mode without TELEGRAM_BOT_TOKEN exits 1 with stderr hint."""
+def test_main_stdio_missing_credentials_exits_1(capsys):
+    """Stdio mode with no credentials (env/config/session) exits 1 with a login hint.
+
+    The gate now consults ``resolve_credential_state`` instead of hard-requiring
+    the ``TELEGRAM_BOT_TOKEN`` env var, so the config/session sources are mocked
+    empty here to pin the truly-unconfigured branch (was
+    ``test_main_stdio_missing_bot_token_exits_1``; message/behaviour changed on
+    purpose in S6/WS-B3).
+    """
     with (
         patch.dict(os.environ, {}, clear=True),
+        patch(
+            "better_telegram_mcp.credential_state._read_single_user_config",
+            return_value=None,
+        ),
+        patch(
+            "better_telegram_mcp.credential_state.check_saved_sessions",
+            return_value=False,
+        ),
         pytest.raises(SystemExit) as exc_info,
     ):
         main()
     assert exc_info.value.code == 1
     captured = capsys.readouterr()
-    assert "TELEGRAM_BOT_TOKEN" in captured.err
     assert "stdio mode" in captured.err
-    assert "HTTP mode" in captured.err
+    assert "login" in captured.err
+    assert "TELEGRAM_BOT_TOKEN" in captured.err
+
+
+def test_main_stdio_config_bot_token_no_env_runs():
+    """Stdio: a bot token in the single-user config (not env) resolves CONFIGURED.
+
+    The gate hydrates env from the saved config via resolve_credential_state and
+    starts the server -- no exit, even though TELEGRAM_BOT_TOKEN is unset in env.
+    """
+    import better_telegram_mcp.server as srv
+
+    with (
+        patch.dict(os.environ, {}, clear=True),
+        patch(
+            "better_telegram_mcp.credential_state._read_single_user_config",
+            return_value={"TELEGRAM_BOT_TOKEN": "123:ABC"},
+        ),
+        patch.object(srv.mcp, "run") as mock_run,
+    ):
+        main()
+    mock_run.assert_called_once_with(transport="stdio")
+
+
+def test_main_stdio_phone_session_runs():
+    """Stdio: a phone in the single-user config (user mode + session) is CONFIGURED."""
+    import better_telegram_mcp.server as srv
+
+    with (
+        patch.dict(os.environ, {}, clear=True),
+        patch(
+            "better_telegram_mcp.credential_state._read_single_user_config",
+            return_value={"TELEGRAM_PHONE": "+84900000000"},
+        ),
+        patch.object(srv.mcp, "run") as mock_run,
+    ):
+        main()
+    mock_run.assert_called_once_with(transport="stdio")
 
 
 # --- unconfigured state tests (no credentials) ---
