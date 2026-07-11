@@ -2,6 +2,67 @@
 
 <!-- version list -->
 
+## v4.16.0-beta.3 (2026-07-11)
+
+### Bug Fixes
+
+- Block SSRF bypass via IPv6 unspecified address
+  ([`e636718`](https://github.com/n24q02m/better-telegram-mcp/commit/e6367187cf7643982b3deb7b0e04b1592d80231a))
+
+- Bump @cloudflare/workers-types to v5
+  ([#908](https://github.com/n24q02m/better-telegram-mcp/pull/908),
+  [`dc027c0`](https://github.com/n24q02m/better-telegram-mcp/commit/dc027c07c21ad01b4ec41671feee25916d12ba03))
+
+- Bump mcp-core floor to 1.19.0b2 ([#916](https://github.com/n24q02m/better-telegram-mcp/pull/916),
+  [`cf88205`](https://github.com/n24q02m/better-telegram-mcp/commit/cf882057a5a1042d453d638ecd268cf3e620f88a))
+
+- Bump n24q02m-mcp-core to 1.18.2 ([#907](https://github.com/n24q02m/better-telegram-mcp/pull/907),
+  [`eceb6be`](https://github.com/n24q02m/better-telegram-mcp/commit/eceb6be969a5a460eaa4ab505e97b0a375004686))
+
+- Cache dynamic backend import in get_backend hot path
+  ([`abee7da`](https://github.com/n24q02m/better-telegram-mcp/commit/abee7da9d1cc0f258f97174003b01cada166044c))
+
+- Disable password toggles during form submission
+  ([`cbc8614`](https://github.com/n24q02m/better-telegram-mcp/commit/cbc8614b9081321b404d1784d3b570c6293f2cbb))
+
+- Document public-by-design identifiers for secret scanners
+  ([#905](https://github.com/n24q02m/better-telegram-mcp/pull/905),
+  [`960855c`](https://github.com/n24q02m/better-telegram-mcp/commit/960855ce8d59fcace86ada5100c0efc8bbdaf927))
+
+- Enforce fix(deps) semantic commit prefix in renovate config
+  ([`a893e56`](https://github.com/n24q02m/better-telegram-mcp/commit/a893e5636b852d67aad6a85d3d2d967418823e71))
+
+- Ensure dual-channel validation feedback on server errors
+  ([`083e553`](https://github.com/n24q02m/better-telegram-mcp/commit/083e5537bb899f6799793a6f8fef0d0e78d350d7))
+
+- Lock file maintenance
+  ([`695a114`](https://github.com/n24q02m/better-telegram-mcp/commit/695a11446981b460014f49baf7d5ca646d45371d))
+
+- Make renovate automerge effective (isolated groups, digest+lockfile automerge, 7-day cooldown)
+  ([`23e56b3`](https://github.com/n24q02m/better-telegram-mcp/commit/23e56b3bf35c77eb0f45128d061d1edc3b0c8aa2))
+
+- Parallelize pending OTP cleanup and skip redundant KV writes
+  ([`cf76497`](https://github.com/n24q02m/better-telegram-mcp/commit/cf764970d6f1c60ce9291a6d76e1e0776814ab09))
+
+- Repair worker test types and gate CI on tsc --noEmit
+  ([`cf29efe`](https://github.com/n24q02m/better-telegram-mcp/commit/cf29efecbd72569ffd9593a0bdf4d5e634a76d8f))
+
+- Sync aria-label when resetting password toggle
+  ([`c4293e8`](https://github.com/n24q02m/better-telegram-mcp/commit/c4293e878b452092088713f17f1453d06a355ffc))
+
+### Chores
+
+- **deps**: Update astral-sh/setup-uv action to v8.3.2
+  ([#912](https://github.com/n24q02m/better-telegram-mcp/pull/912),
+  [`dd89f1d`](https://github.com/n24q02m/better-telegram-mcp/commit/dd89f1db1a510305780798f7fb6fe5b46bfa8f5e))
+
+### Features
+
+- Resolve telegram api identity via bundled client BYO chain
+  ([#916](https://github.com/n24q02m/better-telegram-mcp/pull/916),
+  [`cf88205`](https://github.com/n24q02m/better-telegram-mcp/commit/cf882057a5a1042d453d638ecd268cf3e620f88a))
+
+
 ## v4.16.0-beta.2 (2026-07-10)
 
 ### Bug Fixes
