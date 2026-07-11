@@ -443,14 +443,21 @@ def render_telegram_credential_form(
             .field-input[aria-invalid="true"] {{
                 animation: none !important;
             }}
+
             .status-box {{
                 animation: none !important;
+            }}
+            .submit-btn[aria-busy="true"] {{
+                color: #fff !important;
+            }}
+            .submit-btn[aria-busy="true"]::after {{
+                display: none !important;
             }}
         }}
     </style>
 </head>
 <body>
-    <div class="container">
+    <main class="container">
         <div class="card">
             <div class="server-header">
                 <h1 class="server-name">{display_name}</h1>
@@ -522,7 +529,7 @@ def render_telegram_credential_form(
                 <div class="status-box" id="status-box" role="alert"></div>
             </form>
         </div>
-    </div>
+    </main>
 
     <script>
         (function () {{
