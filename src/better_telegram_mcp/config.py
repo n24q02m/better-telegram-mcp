@@ -6,7 +6,8 @@ from functools import cached_property
 from pathlib import Path
 from typing import Literal
 
-from pydantic import model_validator
+from mcp_core.auth import BundledClientSpec, resolve_bundled_client
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -17,6 +18,23 @@ def _empty_to_none(v: str | None) -> str | None:
     return v
 
 
+# Telegram api_id/api_hash identity (BYO resolver chain: CLI (unused here) >
+# env pair > bundled default, unless USE_BUNDLED_TELEGRAM_CLIENT explicitly
+# disables it). This is Telegram's own public desktop app pair
+# (https://core.telegram.org/api/obtaining_api_id) -- hardcoding it here is
+# safe and gives users zero-config user-mode after relay submit.
+_BUNDLED_TELEGRAM_API_ID = "37984984"
+_BUNDLED_TELEGRAM_API_HASH = "2f5f4c76c4de7c07302380c788390100"  # gitleaks:allow
+_TELEGRAM_CLIENT_SPEC = BundledClientSpec(
+    provider="telegram",
+    env_id="TELEGRAM_API_ID",
+    env_secret="TELEGRAM_API_HASH",
+    bundled_id=_BUNDLED_TELEGRAM_API_ID,
+    bundled_secret=_BUNDLED_TELEGRAM_API_HASH,
+    use_bundled_env="USE_BUNDLED_TELEGRAM_CLIENT",
+)
+
+
 class Settings(BaseSettings):
     model_config = {"env_prefix": "TELEGRAM_", "extra": "ignore"}
 
@@ -24,8 +42,16 @@ class Settings(BaseSettings):
     bot_token: str | None = None
 
     # User mode (app-level credentials with built-in defaults, like Google Drive client_id/secret)
-    api_id: int | None = 37984984
-    api_hash: str | None = "2f5f4c76c4de7c07302380c788390100"
+    api_id: int | None = Field(
+        default_factory=lambda: int(
+            resolve_bundled_client(_TELEGRAM_CLIENT_SPEC).client_id
+        )
+    )
+    api_hash: str | None = Field(
+        default_factory=lambda: (
+            resolve_bundled_client(_TELEGRAM_CLIENT_SPEC).client_secret
+        )
+    )
     phone: str | None = None
     session_name: str = "default"
 
