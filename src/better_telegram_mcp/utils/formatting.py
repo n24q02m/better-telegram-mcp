@@ -1,16 +1,15 @@
-import json
 from typing import Any
 
 
-def ok(data: Any) -> str:
-    return json.dumps(data, ensure_ascii=False, default=str)
+def ok(data: dict[str, Any]) -> dict[str, Any]:
+    return data
 
 
-def err(message: str) -> str:
-    return json.dumps({"error": message}, ensure_ascii=False)
+def err(message: str) -> dict[str, Any]:
+    return {"error": message}
 
 
-def safe_error(e: Exception) -> str:
+def safe_error(e: Exception) -> dict[str, Any]:
     """Return sanitized error without leaking internal details."""
     from ..backends.base import ModeError
     from ..backends.security import SecurityError

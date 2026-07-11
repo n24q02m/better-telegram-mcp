@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from ..backends.base import ModeError, TelegramBackend
@@ -32,7 +34,7 @@ async def handle_media(
     backend: TelegramBackend,
     action: str,
     options: MediaOptions,
-) -> str:
+) -> dict[str, Any]:
     try:
         if action in _ACTION_TO_MEDIA_TYPE:
             if not options.chat_id or not options.file_path_or_url:

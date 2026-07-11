@@ -1,14 +1,20 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
-
-from ..utils.formatting import err
 
 _DOCS_DIR = Path(__file__).resolve().parent.parent / "docs"
 
 _VALID_TOPICS = {"messages", "chats", "media", "contacts"}
 _DOC_CACHE: dict[str, str] = {}
+
+
+def _err(message: str) -> str:
+    # help stays a str-returning tool (markdown/text by design); this repo's
+    # shared ok()/err() now return dict for the structured domain+config
+    # tools, so help keeps its own JSON-string error formatting.
+    return json.dumps({"error": message}, ensure_ascii=False)
 
 
 async def handle_help(topic: str | None = None) -> str:
@@ -19,7 +25,7 @@ async def handle_help(topic: str | None = None) -> str:
         parts = [doc for doc in results if doc]
         if parts:
             return "\n\n---\n\n".join(parts)
-        return err("No documentation found.")
+        return _err("No documentation found.")
 
     if topic not in _VALID_TOPICS:
         import difflib
@@ -28,7 +34,7 @@ async def handle_help(topic: str | None = None) -> str:
             topic, [*_VALID_TOPICS, "all", "telegram"], n=1
         )
         suggestion = f" Did you mean '{closest[0]}'?" if closest else ""
-        return err(
+        return _err(
             f"Unknown topic '{topic}'.{suggestion} "
             "Valid: telegram|messages|chats|media|contacts|all"
         )
@@ -36,7 +42,7 @@ async def handle_help(topic: str | None = None) -> str:
     doc = await _load_doc(topic)
     if doc:
         return doc
-    return err(f"Documentation for '{topic}' not found.")
+    return _err(f"Documentation for '{topic}' not found.")
 
 
 async def _load_doc(topic: str) -> str | None:

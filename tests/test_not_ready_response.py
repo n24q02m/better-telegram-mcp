@@ -1,5 +1,3 @@
-import json
-
 import better_telegram_mcp.server as srv
 
 
@@ -8,8 +6,7 @@ def test_not_ready_response_unconfigured():
     old_unconfigured = srv._unconfigured
     try:
         srv._unconfigured = True
-        response = srv._not_ready_response()
-        data = json.loads(response)
+        data = srv._not_ready_response()
         assert data["error"] == "Not configured"
         assert "setup" in data
         assert "relay" in data["setup"]
@@ -22,8 +19,7 @@ def test_not_ready_response_authenticated_error():
     old_unconfigured = srv._unconfigured
     try:
         srv._unconfigured = False
-        response = srv._not_ready_response()
-        data = json.loads(response)
+        data = srv._not_ready_response()
         assert "error" in data
         assert "not authenticated" in data["error"].lower()
     finally:

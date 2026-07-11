@@ -5,7 +5,7 @@ from ..backends.base import TelegramBackend
 from ..utils.formatting import err, ok, safe_error
 
 
-async def _handle_status(backend: TelegramBackend, **kwargs: Any) -> str:
+async def _handle_status(backend: TelegramBackend, **kwargs: Any) -> dict[str, Any]:
     from ..server import _pending_auth, _runtime_config
 
     connected = await backend.is_connected()
@@ -20,7 +20,7 @@ async def _handle_status(backend: TelegramBackend, **kwargs: Any) -> str:
     return ok(result)
 
 
-async def _handle_set(backend: TelegramBackend, **kwargs: Any) -> str:
+async def _handle_set(backend: TelegramBackend, **kwargs: Any) -> dict[str, Any]:
     from ..server import _runtime_config
 
     updated: dict[str, int] = {}
@@ -33,12 +33,14 @@ async def _handle_set(backend: TelegramBackend, **kwargs: Any) -> str:
     return ok({"updated": updated, "current": _runtime_config})
 
 
-async def _handle_cache_clear(backend: TelegramBackend, **kwargs: Any) -> str:
+async def _handle_cache_clear(
+    backend: TelegramBackend, **kwargs: Any
+) -> dict[str, Any]:
     await backend.clear_cache()
     return ok({"message": "Cache cleared."})
 
 
-_HANDLERS: dict[str, Callable[..., Awaitable[str]]] = {
+_HANDLERS: dict[str, Callable[..., Awaitable[dict[str, Any]]]] = {
     "status": _handle_status,
     "set": _handle_set,
     "cache_clear": _handle_cache_clear,
@@ -49,7 +51,7 @@ async def handle_config(
     backend: TelegramBackend,
     action: str,
     **kwargs: Any,
-) -> str:
+) -> dict[str, Any]:
     try:
         handler = _HANDLERS.get(action)
         if not handler:

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-
 import pytest
 
 from better_telegram_mcp.backends.base import ModeError
@@ -10,10 +8,8 @@ from better_telegram_mcp.tools.messages import MessagesArgs, handle_messages
 
 @pytest.mark.asyncio
 async def test_send(mock_backend):
-    result = json.loads(
-        await handle_messages(
-            mock_backend, MessagesArgs(action="send", chat_id=123, text="hello")
-        )
+    result = await handle_messages(
+        mock_backend, MessagesArgs(action="send", chat_id=123, text="hello")
     )
     assert result["message_id"] == 1
     mock_backend.send_message.assert_awaited_once_with(
@@ -23,17 +19,15 @@ async def test_send(mock_backend):
 
 @pytest.mark.asyncio
 async def test_send_with_reply_and_parse_mode(mock_backend):
-    result = json.loads(
-        await handle_messages(
-            mock_backend,
-            MessagesArgs(
-                action="send",
-                chat_id=123,
-                text="hi",
-                reply_to=5,
-                parse_mode="HTML",
-            ),
-        )
+    result = await handle_messages(
+        mock_backend,
+        MessagesArgs(
+            action="send",
+            chat_id=123,
+            text="hi",
+            reply_to=5,
+            parse_mode="HTML",
+        ),
     )
     assert result["message_id"] == 1
     mock_backend.send_message.assert_awaited_once_with(
@@ -43,24 +37,20 @@ async def test_send_with_reply_and_parse_mode(mock_backend):
 
 @pytest.mark.asyncio
 async def test_send_missing_params(mock_backend):
-    result = json.loads(
-        await handle_messages(mock_backend, MessagesArgs(action="send"))
-    )
+    result = await handle_messages(mock_backend, MessagesArgs(action="send"))
     assert "error" in result
 
-    result = json.loads(
-        await handle_messages(mock_backend, MessagesArgs(action="send", chat_id=123))
+    result = await handle_messages(
+        mock_backend, MessagesArgs(action="send", chat_id=123)
     )
     assert "error" in result
 
 
 @pytest.mark.asyncio
 async def test_edit(mock_backend):
-    result = json.loads(
-        await handle_messages(
-            mock_backend,
-            MessagesArgs(action="edit", chat_id=123, message_id=1, text="edited"),
-        )
+    result = await handle_messages(
+        mock_backend,
+        MessagesArgs(action="edit", chat_id=123, message_id=1, text="edited"),
     )
     assert result["message_id"] == 1
     mock_backend.edit_message.assert_awaited_once_with(
@@ -70,110 +60,92 @@ async def test_edit(mock_backend):
 
 @pytest.mark.asyncio
 async def test_edit_missing_params(mock_backend):
-    result = json.loads(
-        await handle_messages(
-            mock_backend, MessagesArgs(action="edit", chat_id=123, text="x")
-        )
+    result = await handle_messages(
+        mock_backend, MessagesArgs(action="edit", chat_id=123, text="x")
     )
     assert "error" in result
 
-    result = json.loads(
-        await handle_messages(
-            mock_backend, MessagesArgs(action="edit", chat_id=123, message_id=1)
-        )
+    result = await handle_messages(
+        mock_backend, MessagesArgs(action="edit", chat_id=123, message_id=1)
     )
     assert "error" in result
 
 
 @pytest.mark.asyncio
 async def test_delete(mock_backend):
-    result = json.loads(
-        await handle_messages(
-            mock_backend, MessagesArgs(action="delete", chat_id=123, message_id=1)
-        )
+    result = await handle_messages(
+        mock_backend, MessagesArgs(action="delete", chat_id=123, message_id=1)
     )
     assert result["deleted"] is True
 
 
 @pytest.mark.asyncio
 async def test_delete_missing_params(mock_backend):
-    result = json.loads(
-        await handle_messages(mock_backend, MessagesArgs(action="delete", chat_id=123))
+    result = await handle_messages(
+        mock_backend, MessagesArgs(action="delete", chat_id=123)
     )
     assert "error" in result
 
 
 @pytest.mark.asyncio
 async def test_forward(mock_backend):
-    result = json.loads(
-        await handle_messages(
-            mock_backend,
-            MessagesArgs(
-                action="forward",
-                from_chat=1,
-                to_chat=2,
-                message_id=10,
-            ),
-        )
+    result = await handle_messages(
+        mock_backend,
+        MessagesArgs(
+            action="forward",
+            from_chat=1,
+            to_chat=2,
+            message_id=10,
+        ),
     )
     assert result["message_id"] == 2
 
 
 @pytest.mark.asyncio
 async def test_forward_missing_params(mock_backend):
-    result = json.loads(
-        await handle_messages(
-            mock_backend, MessagesArgs(action="forward", from_chat=1, to_chat=2)
-        )
+    result = await handle_messages(
+        mock_backend, MessagesArgs(action="forward", from_chat=1, to_chat=2)
     )
     assert "error" in result
 
 
 @pytest.mark.asyncio
 async def test_pin(mock_backend):
-    result = json.loads(
-        await handle_messages(
-            mock_backend, MessagesArgs(action="pin", chat_id=123, message_id=1)
-        )
+    result = await handle_messages(
+        mock_backend, MessagesArgs(action="pin", chat_id=123, message_id=1)
     )
     assert result["pinned"] is True
 
 
 @pytest.mark.asyncio
 async def test_pin_missing_params(mock_backend):
-    result = json.loads(
-        await handle_messages(mock_backend, MessagesArgs(action="pin", chat_id=123))
+    result = await handle_messages(
+        mock_backend, MessagesArgs(action="pin", chat_id=123)
     )
     assert "error" in result
 
 
 @pytest.mark.asyncio
 async def test_react(mock_backend):
-    result = json.loads(
-        await handle_messages(
-            mock_backend,
-            MessagesArgs(action="react", chat_id=123, message_id=1, emoji="👍"),
-        )
+    result = await handle_messages(
+        mock_backend,
+        MessagesArgs(action="react", chat_id=123, message_id=1, emoji="👍"),
     )
     assert result["reacted"] is True
 
 
 @pytest.mark.asyncio
 async def test_react_missing_params(mock_backend):
-    result = json.loads(
-        await handle_messages(
-            mock_backend, MessagesArgs(action="react", chat_id=123, message_id=1)
-        )
+    result = await handle_messages(
+        mock_backend, MessagesArgs(action="react", chat_id=123, message_id=1)
     )
     assert "error" in result
 
 
 @pytest.mark.asyncio
 async def test_search(mock_backend):
-    result = json.loads(
-        await handle_messages(
-            mock_backend, MessagesArgs(action="search", query="test", limit=10)
-        )
+    result = await handle_messages(
+        mock_backend, MessagesArgs(action="search", query="test", limit=10)
     )
     assert result["messages"] == []
     assert result["count"] == 0
@@ -181,19 +153,15 @@ async def test_search(mock_backend):
 
 @pytest.mark.asyncio
 async def test_search_missing_params(mock_backend):
-    result = json.loads(
-        await handle_messages(mock_backend, MessagesArgs(action="search"))
-    )
+    result = await handle_messages(mock_backend, MessagesArgs(action="search"))
     assert "error" in result
 
 
 @pytest.mark.asyncio
 async def test_history(mock_backend):
-    result = json.loads(
-        await handle_messages(
-            mock_backend,
-            MessagesArgs(action="history", chat_id=123, limit=5, offset_id=100),
-        )
+    result = await handle_messages(
+        mock_backend,
+        MessagesArgs(action="history", chat_id=123, limit=5, offset_id=100),
     )
     assert result["messages"] == []
     assert result["count"] == 0
@@ -201,17 +169,13 @@ async def test_history(mock_backend):
 
 @pytest.mark.asyncio
 async def test_history_missing_params(mock_backend):
-    result = json.loads(
-        await handle_messages(mock_backend, MessagesArgs(action="history"))
-    )
+    result = await handle_messages(mock_backend, MessagesArgs(action="history"))
     assert "error" in result
 
 
 @pytest.mark.asyncio
 async def test_unknown_action(mock_backend):
-    result = json.loads(
-        await handle_messages(mock_backend, MessagesArgs(action="unknown"))
-    )
+    result = await handle_messages(mock_backend, MessagesArgs(action="unknown"))
     assert "error" in result
     assert "Unknown action" in result["error"]
 
@@ -219,8 +183,8 @@ async def test_unknown_action(mock_backend):
 @pytest.mark.asyncio
 async def test_mode_error(mock_backend):
     mock_backend.search_messages.side_effect = ModeError("user")
-    result = json.loads(
-        await handle_messages(mock_backend, MessagesArgs(action="search", query="test"))
+    result = await handle_messages(
+        mock_backend, MessagesArgs(action="search", query="test")
     )
     assert "error" in result
     assert "user mode" in result["error"]
@@ -229,10 +193,8 @@ async def test_mode_error(mock_backend):
 @pytest.mark.asyncio
 async def test_general_exception(mock_backend):
     mock_backend.send_message.side_effect = RuntimeError("boom")
-    result = json.loads(
-        await handle_messages(
-            mock_backend, MessagesArgs(action="send", chat_id=1, text="x")
-        )
+    result = await handle_messages(
+        mock_backend, MessagesArgs(action="send", chat_id=1, text="x")
     )
     assert "error" in result
     assert "RuntimeError" in result["error"]
@@ -241,9 +203,7 @@ async def test_general_exception(mock_backend):
 @pytest.mark.asyncio
 async def test_unknown_action_suggestion(mock_backend):
     # 'sendd' should suggest 'send'
-    result = json.loads(
-        await handle_messages(mock_backend, MessagesArgs(action="sendd"))
-    )
+    result = await handle_messages(mock_backend, MessagesArgs(action="sendd"))
     assert "error" in result
     assert "Unknown action 'sendd'." in result["error"]
     assert "Did you mean 'send'?" in result["error"]
