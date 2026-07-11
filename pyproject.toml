@@ -46,7 +46,7 @@ dev = [
     "pre-commit>=4.6.0",
 ]
 [project.scripts]
-better-telegram-mcp = "better_telegram_mcp.__main__:_cli"
+better-telegram-mcp = "better_telegram_mcp.cli:main"
 [project.urls]
 Homepage = "https://github.com/n24q02m/better-telegram-mcp"
 Repository = "https://github.com/n24q02m/better-telegram-mcp"

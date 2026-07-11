@@ -204,6 +204,15 @@ class UserBackend(TelegramBackend):
             "username": getattr(me, "username", None),
         }
 
+    async def log_out(self) -> bool:
+        """Revoke the session with Telegram and delete the local ``.session``.
+
+        Telethon's ``log_out`` invalidates the auth key server-side and removes
+        the on-disk session file. Used by the ``logout`` CLI subcommand.
+        """
+        client = self._ensure_client()
+        return await client.log_out()
+
     # --- Messages ---
     async def send_message(
         self,

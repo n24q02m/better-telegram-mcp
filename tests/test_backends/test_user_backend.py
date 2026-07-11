@@ -1598,3 +1598,19 @@ class TestUserBackendLogging:
                 found = True
                 break
         assert found
+
+
+class TestLogOut:
+    async def test_log_out_revokes_via_client(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_client.log_out = AsyncMock(return_value=True)
+        backend = UserBackend(_make_settings(tmp_path))
+        await backend.connect()
+
+        result = await backend.log_out()
+
+        assert result is True
+        mock_client.log_out.assert_awaited_once()
