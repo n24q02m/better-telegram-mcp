@@ -4,6 +4,7 @@ import logging
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
@@ -69,7 +70,7 @@ def get_settings() -> Settings:
     return _settings
 
 
-def _not_ready_response() -> str:
+def _not_ready_response() -> dict[str, Any]:
     if _unconfigured:
         return ok(
             {
@@ -246,7 +247,7 @@ async def message(
     query: str | None = None,
     limit: int = 20,
     offset_id: int | None = None,
-) -> str:
+) -> dict[str, Any]:
     """Send, edit, delete, forward, pin, react, search, and get message history.
 
     Actions (chat_id: "@username" | int):
@@ -301,7 +302,7 @@ async def chat(
     topic_action: str | None = None,
     topic_id: int | None = None,
     topic_name: str | None = None,
-) -> str:
+) -> dict[str, Any]:
     """List, create, join, leave, manage members, settings, and topics.
 
     Actions:
@@ -350,7 +351,7 @@ async def media(
     message_id: int | None = None,
     caption: str | None = None,
     output_dir: str | None = None,
-) -> str:
+) -> dict[str, Any]:
     """Send photos, files, voice, video, and download media from messages.
 
     Actions (file_path_or_url: local path or URL):
@@ -390,7 +391,7 @@ async def contact(
     last_name: str | None = None,
     user_id: int | None = None,
     unblock: bool = False,
-) -> str:
+) -> dict[str, Any]:
     """Manage contacts: list, search, add, and block/unblock users (user mode only).
 
     Actions:
@@ -427,7 +428,7 @@ async def config(
     message_limit: int | None = None,
     timeout: int | None = None,
     key: str | None = None,
-) -> str:
+) -> dict[str, Any]:
     """Server configuration and runtime settings.
 
     Actions (required params):

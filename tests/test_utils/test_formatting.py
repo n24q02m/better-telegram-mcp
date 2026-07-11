@@ -1,89 +1,49 @@
-import json
-from datetime import datetime
+from __future__ import annotations
 
 from better_telegram_mcp.backends.base import ModeError
 from better_telegram_mcp.backends.security import SecurityError
 from better_telegram_mcp.utils.formatting import err, ok, safe_error
 
 
-def test_ok_basic_serialization():
+def test_ok_basic_passthrough():
     data = {"key": "value", "number": 42}
-    result = ok(data)
-    assert result == '{"key": "value", "number": 42}'
-    assert json.loads(result) == data
+    assert ok(data) == data
 
 
-def test_ok_unicode_handling():
+def test_ok_unicode_passthrough():
     data = {"emoji": "😊", "cyrillic": "Привет", "chinese": "你好"}
     result = ok(data)
-    # Ensure Unicode characters are NOT escaped (ensure_ascii=False)
-    assert "😊" in result
-    assert "Привет" in result
-    assert "你好" in result
-    assert json.loads(result) == data
+    assert result["emoji"] == "😊"
+    assert result["cyrillic"] == "Привет"
+    assert result["chinese"] == "你好"
 
 
-def test_ok_unserializable_objects():
-    # Objects that aren't natively JSON serializable should fallback to str
-    class CustomObject:
-        def __str__(self):
-            return "CustomObjectString"
+def test_ok_empty_dict():
+    assert ok({}) == {}
 
-    dt = datetime(2024, 1, 1, 12, 0, 0)
-    data = {"date": dt, "custom": CustomObject()}
 
+def test_ok_nested_mixed_types():
+    data = {
+        "str": "text",
+        "nested": {"val": 1},
+        "list": [1, {"a": 1}],
+    }
     result = ok(data)
-    assert '"date": "2024-01-01 12:00:00"' in result
-    assert '"custom": "CustomObjectString"' in result
-
-    parsed = json.loads(result)
-    assert parsed["date"] == "2024-01-01 12:00:00"
-    assert parsed["custom"] == "CustomObjectString"
+    assert result is data
+    assert result["nested"]["val"] == 1
+    assert result["list"][1] == {"a": 1}
 
 
-def test_ok_edge_cases():
-    assert ok(None) == "null"
-    assert ok([]) == "[]"
-    assert ok({}) == "{}"
-
-
-def test_ok_collections():
-    # set is not JSON serializable, should use str() via default=str
-    data = {"s": {1, 2, 3}}
-    result = ok(data)
-    parsed = json.loads(result)
-    # set str representation contains 1, 2, 3 and is wrapped in {}
-    assert isinstance(parsed["s"], str)
-    assert "1" in parsed["s"]
-    assert "2" in parsed["s"]
-    assert "3" in parsed["s"]
-    assert parsed["s"].startswith("{")
-    assert parsed["s"].endswith("}")
-
-
-def test_err_basic_serialization():
+def test_err_basic():
     message = "Something went wrong"
     result = err(message)
-    assert result == '{"error": "Something went wrong"}'
-
-    parsed = json.loads(result)
-    assert parsed["error"] == message
+    assert result == {"error": message}
 
 
-def test_err_unicode_handling():
+def test_err_unicode():
     message = "Ошибка: ❌"
     result = err(message)
-    # Ensure Unicode characters are NOT escaped
-    assert "Ошибка: ❌" in result
-
-    parsed = json.loads(result)
-    assert parsed["error"] == message
-
-
-def test_err_non_string_input():
-    # err() expects a str, but json.dumps handles other types too
-    result = err(123)
-    assert json.loads(result) == {"error": 123}
+    assert result == {"error": message}
 
 
 def test_safe_error_allowed_exceptions():
@@ -101,8 +61,7 @@ def test_safe_error_allowed_exceptions():
 
     for exc, expected_msg in allowed_exceptions:
         result = safe_error(exc)
-        parsed = json.loads(result)
-        assert parsed["error"] == expected_msg
+        assert result == {"error": expected_msg}
 
 
 def test_safe_error_generic_exceptions():
@@ -116,28 +75,27 @@ def test_safe_error_generic_exceptions():
 
     for exc in generic_exceptions:
         result = safe_error(exc)
-        parsed = json.loads(result)
 
         # Format should be: "{ExceptionName}: Operation failed. Check server logs for details."
         expected_msg = (
             f"{type(exc).__name__}: Operation failed. Check server logs for details."
         )
-        assert parsed["error"] == expected_msg
+        assert result == {"error": expected_msg}
 
         # Ensure internal details are NOT leaked
-        assert str(exc) not in result
+        assert str(exc) not in result["error"]
 
 
 def test_safe_error_empty_message():
     # Allowed exception with empty message
     exc = ValueError("")
     result = safe_error(exc)
-    assert json.loads(result) == {"error": ""}
+    assert result == {"error": ""}
 
     # Generic exception with empty message
     exc = Exception("")
     result = safe_error(exc)
-    assert json.loads(result) == {
+    assert result == {
         "error": "Exception: Operation failed. Check server logs for details."
     }
 
@@ -148,19 +106,18 @@ def test_safe_error_subclasses_allowed():
 
     exc = CustomValueError("custom message")
     result = safe_error(exc)
-    assert json.loads(result) == {"error": "custom message"}
+    assert result == {"error": "custom message"}
 
 
 def test_safe_error_disallowed_oserror():
     # PermissionError is an OSError but not FileNotFoundError
     exc = PermissionError("access denied")
     result = safe_error(exc)
-    parsed = json.loads(result)
     assert (
-        parsed["error"]
+        result["error"]
         == "PermissionError: Operation failed. Check server logs for details."
     )
-    assert "access denied" not in result
+    assert "access denied" not in result["error"]
 
 
 def test_safe_error_base_exception():
@@ -170,24 +127,8 @@ def test_safe_error_base_exception():
     # KeyboardInterrupt is NOT a subclass of Exception, it's a sibling.
     # The code uses isinstance(e, (...)) and it doesn't match, so it falls through.
     result = safe_error(exc)
-    parsed = json.loads(result)
     assert (
-        parsed["error"]
+        result["error"]
         == "KeyboardInterrupt: Operation failed. Check server logs for details."
     )
-    assert "stop" not in result
-
-
-def test_ok_nested_mixed_types():
-    data = {
-        "str": "text",
-        "nested": {"val": 1, "exc": ValueError("nested error")},
-        "list": [1, {"a": 1}],
-    }
-    result = ok(data)
-    parsed = json.loads(result)
-    assert parsed["str"] == "text"
-    assert parsed["nested"]["val"] == 1
-    assert parsed["nested"]["exc"] == "nested error"
-    assert parsed["list"][0] == 1
-    assert parsed["list"][1]["a"] == 1
+    assert "stop" not in result["error"]

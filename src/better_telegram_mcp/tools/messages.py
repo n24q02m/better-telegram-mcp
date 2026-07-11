@@ -22,7 +22,7 @@ class MessagesArgs(BaseModel):
     offset_id: int | None = None
 
 
-async def _handle_send(backend: TelegramBackend, args: MessagesArgs) -> str:
+async def _handle_send(backend: TelegramBackend, args: MessagesArgs) -> dict[str, Any]:
     if not args.chat_id or not args.text:
         return err(
             "'send' requires chat_id and text. "
@@ -38,7 +38,7 @@ async def _handle_send(backend: TelegramBackend, args: MessagesArgs) -> str:
     return ok(result)
 
 
-async def _handle_edit(backend: TelegramBackend, args: MessagesArgs) -> str:
+async def _handle_edit(backend: TelegramBackend, args: MessagesArgs) -> dict[str, Any]:
     if not args.chat_id or args.message_id is None or not args.text:
         return err(
             "'edit' requires chat_id, message_id, and text. "
@@ -50,14 +50,18 @@ async def _handle_edit(backend: TelegramBackend, args: MessagesArgs) -> str:
     return ok(result)
 
 
-async def _handle_delete(backend: TelegramBackend, args: MessagesArgs) -> str:
+async def _handle_delete(
+    backend: TelegramBackend, args: MessagesArgs
+) -> dict[str, Any]:
     if not args.chat_id or args.message_id is None:
         return err("'delete' requires chat_id and message_id")
     result = await backend.delete_message(args.chat_id, args.message_id)
     return ok({"deleted": result})
 
 
-async def _handle_forward(backend: TelegramBackend, args: MessagesArgs) -> str:
+async def _handle_forward(
+    backend: TelegramBackend, args: MessagesArgs
+) -> dict[str, Any]:
     if not args.from_chat or not args.to_chat or args.message_id is None:
         return err("'forward' requires from_chat, to_chat, and message_id")
     result = await backend.forward_message(
@@ -66,21 +70,23 @@ async def _handle_forward(backend: TelegramBackend, args: MessagesArgs) -> str:
     return ok(result)
 
 
-async def _handle_pin(backend: TelegramBackend, args: MessagesArgs) -> str:
+async def _handle_pin(backend: TelegramBackend, args: MessagesArgs) -> dict[str, Any]:
     if not args.chat_id or args.message_id is None:
         return err("'pin' requires chat_id and message_id")
     result = await backend.pin_message(args.chat_id, args.message_id)
     return ok({"pinned": result})
 
 
-async def _handle_react(backend: TelegramBackend, args: MessagesArgs) -> str:
+async def _handle_react(backend: TelegramBackend, args: MessagesArgs) -> dict[str, Any]:
     if not args.chat_id or args.message_id is None or not args.emoji:
         return err("'react' requires chat_id, message_id, and emoji")
     result = await backend.react_to_message(args.chat_id, args.message_id, args.emoji)
     return ok({"reacted": result})
 
 
-async def _handle_search(backend: TelegramBackend, args: MessagesArgs) -> str:
+async def _handle_search(
+    backend: TelegramBackend, args: MessagesArgs
+) -> dict[str, Any]:
     if not args.query:
         return err("'search' requires query")
     results = await backend.search_messages(
@@ -89,7 +95,9 @@ async def _handle_search(backend: TelegramBackend, args: MessagesArgs) -> str:
     return ok({"messages": results, "count": len(results)})
 
 
-async def _handle_history(backend: TelegramBackend, args: MessagesArgs) -> str:
+async def _handle_history(
+    backend: TelegramBackend, args: MessagesArgs
+) -> dict[str, Any]:
     if not args.chat_id:
         return err("'history' requires chat_id")
     results = await backend.get_history(
@@ -99,7 +107,7 @@ async def _handle_history(backend: TelegramBackend, args: MessagesArgs) -> str:
 
 
 _ACTION_HANDLERS: dict[
-    str, Callable[[TelegramBackend, MessagesArgs], Coroutine[Any, Any, str]]
+    str, Callable[[TelegramBackend, MessagesArgs], Coroutine[Any, Any, dict[str, Any]]]
 ] = {
     "send": _handle_send,
     "edit": _handle_edit,
@@ -115,7 +123,7 @@ _ACTION_HANDLERS: dict[
 async def handle_messages(
     backend: TelegramBackend,
     args: MessagesArgs,
-) -> str:
+) -> dict[str, Any]:
     try:
         handler = _ACTION_HANDLERS.get(args.action)
         if handler is None:

@@ -179,8 +179,7 @@ async def test_clear_cache_noop(bot: BotBackend):
 
 async def test_config_status_connected(bot: BotBackend):
     """config status action returns connected=True for a live bot."""
-    result_str = await handle_config(bot, "status")
-    result = json.loads(result_str)
+    result = await handle_config(bot, "status")
     assert result["mode"] == "bot"
     assert result["connected"] is True
     assert "config" in result
@@ -192,8 +191,7 @@ async def test_config_set_and_read_back(bot: BotBackend):
 
     original_limit = _runtime_config["message_limit"]
     try:
-        result_str = await handle_config(bot, "set", message_limit=42)
-        result = json.loads(result_str)
+        result = await handle_config(bot, "set", message_limit=42)
         assert result["updated"]["message_limit"] == 42
         assert result["current"]["message_limit"] == 42
     finally:
@@ -202,15 +200,13 @@ async def test_config_set_and_read_back(bot: BotBackend):
 
 async def test_config_cache_clear(bot: BotBackend):
     """config cache_clear action succeeds."""
-    result_str = await handle_config(bot, "cache_clear")
-    result = json.loads(result_str)
+    result = await handle_config(bot, "cache_clear")
     assert result["message"] == "Cache cleared."
 
 
 async def test_config_unknown_action(bot: BotBackend):
     """config with unknown action returns error."""
-    result_str = await handle_config(bot, "nonexistent")
-    result = json.loads(result_str)
+    result = await handle_config(bot, "nonexistent")
     assert "error" in result
 
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -89,7 +88,7 @@ async def test_message_send(mock_backend):
 
 @pytest.mark.asyncio
 async def test_message_backend_exception(mock_backend):
-    """message tool returns error string when backend raises an exception."""
+    """message tool returns error dict when backend raises an exception."""
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import message
 
@@ -100,8 +99,7 @@ async def test_message_backend_exception(mock_backend):
         srv._pending_auth = False
         mock_backend.send_message.side_effect = RuntimeError("Backend failure")
 
-        result_str = await message(action="send", chat_id=123, text="hi")
-        result = json.loads(result_str)
+        result = await message(action="send", chat_id=123, text="hi")
         assert "error" in result
         assert "RuntimeError" in result["error"]
         assert "Operation failed" in result["error"]
@@ -158,7 +156,7 @@ async def test_contact_list(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = json.loads(await contact(action="list"))
+        result = await contact(action="list")
         assert "contacts" in result
         mock_backend.list_contacts.assert_awaited_once()
     finally:
@@ -253,7 +251,7 @@ async def test_contact_error(mock_backend):
         srv._backend = mock_backend
         srv._pending_auth = False
         mock_backend.list_contacts.side_effect = Exception("test error")
-        result = json.loads(await contact(action="list"))
+        result = await contact(action="list")
         assert "error" in result
         assert "Operation failed" in result["error"]
     finally:
@@ -271,7 +269,7 @@ async def test_contact_unknown_action(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = json.loads(await contact(action="invalid_action"))
+        result = await contact(action="invalid_action")
         assert "error" in result
         assert "Unknown action" in result["error"]
     finally:
@@ -303,7 +301,7 @@ async def test_message_unknown_action(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = json.loads(await message(action="nonexistent"))
+        result = await message(action="nonexistent")
         assert "error" in result
         assert "Unknown action" in result["error"]
     finally:
@@ -424,7 +422,7 @@ async def test_message_blocked_during_pending_auth(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        result = json.loads(await message(action="send", chat_id=123, text="hi"))
+        result = await message(action="send", chat_id=123, text="hi")
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
     finally:
@@ -442,7 +440,7 @@ async def test_chat_blocked_during_pending_auth(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        result = json.loads(await chat(action="list"))
+        result = await chat(action="list")
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
     finally:
@@ -460,12 +458,10 @@ async def test_media_blocked_during_pending_auth(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        result = json.loads(
-            await media(
-                action="send_photo",
-                chat_id=123,
-                file_path_or_url="https://example.com/photo.jpg",
-            )
+        result = await media(
+            action="send_photo",
+            chat_id=123,
+            file_path_or_url="https://example.com/photo.jpg",
         )
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
@@ -484,7 +480,7 @@ async def test_contact_blocked_during_pending_auth(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        result = json.loads(await contact(action="list"))
+        result = await contact(action="list")
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
     finally:
@@ -503,7 +499,7 @@ async def test_config_works_during_pending_auth(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        result = json.loads(await config(action="status"))
+        result = await config(action="status")
         assert "mode" in result
         assert result["pending_auth"] is True
     finally:
@@ -644,7 +640,7 @@ async def test_message_returns_setup_hint_when_unconfigured():
     try:
         srv._unconfigured = True
         srv._pending_auth = False
-        result = json.loads(await message(action="send", chat_id=123, text="hi"))
+        result = await message(action="send", chat_id=123, text="hi")
         assert "error" in result
         assert result["error"] == "Not configured"
         assert "setup" in result
@@ -665,7 +661,7 @@ async def test_chat_returns_setup_hint_when_unconfigured():
     old = srv._unconfigured
     try:
         srv._unconfigured = True
-        result = json.loads(await chat(action="list"))
+        result = await chat(action="list")
         assert result["error"] == "Not configured"
         assert "setup" in result
     finally:
@@ -679,8 +675,7 @@ async def test_not_ready_response_unconfigured():
     old = server._unconfigured
     try:
         server._unconfigured = True
-        response = server._not_ready_response()
-        data = json.loads(response)
+        data = server._not_ready_response()
         assert data["error"] == "Not configured"
         assert "bot_mode" in data["setup"]
         assert "user_mode" in data["setup"]
@@ -697,8 +692,7 @@ async def test_not_ready_response_pending_auth():
     try:
         server._unconfigured = False
         server._pending_auth = True
-        response = server._not_ready_response()
-        data = json.loads(response)
+        data = server._not_ready_response()
         assert "error" in data
         assert "not authenticated" in data["error"].lower()
     finally:
@@ -715,12 +709,10 @@ async def test_media_returns_setup_hint_when_unconfigured():
     old = srv._unconfigured
     try:
         srv._unconfigured = True
-        result = json.loads(
-            await media(
-                action="send_photo",
-                chat_id=123,
-                file_path_or_url="https://example.com/photo.jpg",
-            )
+        result = await media(
+            action="send_photo",
+            chat_id=123,
+            file_path_or_url="https://example.com/photo.jpg",
         )
         assert result["error"] == "Not configured"
         assert "setup" in result
@@ -737,7 +729,7 @@ async def test_contact_returns_setup_hint_when_unconfigured():
     old = srv._unconfigured
     try:
         srv._unconfigured = True
-        result = json.loads(await contact(action="list"))
+        result = await contact(action="list")
         assert result["error"] == "Not configured"
         assert "setup" in result
     finally:
@@ -753,7 +745,7 @@ async def test_config_status_works_when_unconfigured():
     old = srv._unconfigured
     try:
         srv._unconfigured = True
-        result = json.loads(await config(action="status"))
+        result = await config(action="status")
         assert result["configured"] is False
         assert result["connected"] is False
         assert "setup" in result
@@ -770,7 +762,7 @@ async def test_config_set_blocked_when_unconfigured():
     old = srv._unconfigured
     try:
         srv._unconfigured = True
-        result = json.loads(await config(action="set", message_limit=42))
+        result = await config(action="set", message_limit=42)
         assert result["error"] == "Not configured"
     finally:
         srv._unconfigured = old
@@ -831,7 +823,7 @@ async def test_config_setup_status():
                 return_value=None,
             ),
         ):
-            result = json.loads(await config(action="setup_status"))
+            result = await config(action="setup_status")
             assert result["state"] == "configured"
             assert "setup_url" in result
             assert "configured" in result
@@ -851,7 +843,7 @@ async def test_config_setup_start_already_configured():
         "better_telegram_mcp.credential_state.get_state",
         return_value=CredentialState.CONFIGURED,
     ):
-        result = json.loads(await config(action="setup_start"))
+        result = await config(action="setup_start")
         assert result["status"] == "already_configured"
         assert "force" in result["message"].lower()
 
@@ -871,7 +863,7 @@ async def test_config_setup_start_force_returns_stdio_unsupported():
         "better_telegram_mcp.credential_state.get_state",
         return_value=CredentialState.CONFIGURED,
     ):
-        result = json.loads(await config(action="setup_start", key="force"))
+        result = await config(action="setup_start", key="force")
         assert result["status"] == "stdio_unsupported"
         assert "TELEGRAM_BOT_TOKEN" in result["message"]
 
@@ -886,7 +878,7 @@ async def test_config_setup_start_awaiting_returns_stdio_unsupported():
         "better_telegram_mcp.credential_state.get_state",
         return_value=CredentialState.AWAITING_SETUP,
     ):
-        result = json.loads(await config(action="setup_start"))
+        result = await config(action="setup_start")
         assert result["status"] == "stdio_unsupported"
         assert "HTTP mode" in result["message"]
 
@@ -897,7 +889,7 @@ async def test_config_setup_reset():
     from better_telegram_mcp.server import config
 
     with patch("better_telegram_mcp.credential_state.reset_state") as mock_reset:
-        result = json.loads(await config(action="setup_reset"))
+        result = await config(action="setup_reset")
         assert result["status"] == "ok"
         assert "cleared" in result["message"].lower()
         mock_reset.assert_called_once()
@@ -919,7 +911,7 @@ async def test_config_setup_complete():
             return_value=CredentialState.CONFIGURED,
         ),
     ):
-        result = json.loads(await config(action="setup_complete"))
+        result = await config(action="setup_complete")
         assert result["status"] == "ok"
         assert result["state"] == "configured"
 
@@ -943,7 +935,7 @@ async def test_config_setup_status_works_when_unconfigured():
                 return_value=None,
             ),
         ):
-            result = json.loads(await config(action="setup_status"))
+            result = await config(action="setup_status")
             assert result["state"] == "awaiting_setup"
     finally:
         srv._unconfigured = old
@@ -959,7 +951,7 @@ async def test_config_setup_reset_works_when_unconfigured():
     try:
         srv._unconfigured = True
         with patch("better_telegram_mcp.credential_state.reset_state"):
-            result = json.loads(await config(action="setup_reset"))
+            result = await config(action="setup_reset")
             assert result["status"] == "ok"
     finally:
         srv._unconfigured = old

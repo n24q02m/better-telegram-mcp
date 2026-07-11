@@ -23,12 +23,16 @@ class ChatOptions(BaseModel):
     topic_name: str | None = Field(default=None, description="Topic name to create")
 
 
-async def _handle_list(backend: TelegramBackend, options: ChatOptions) -> str:
+async def _handle_list(
+    backend: TelegramBackend, options: ChatOptions
+) -> dict[str, Any]:
     results = await backend.list_chats(limit=options.limit)
     return ok({"chats": results, "count": len(results)})
 
 
-async def _handle_info(backend: TelegramBackend, options: ChatOptions) -> str:
+async def _handle_info(
+    backend: TelegramBackend, options: ChatOptions
+) -> dict[str, Any]:
     if not options.chat_id:
         return err(
             "'info' requires chat_id. "
@@ -38,35 +42,45 @@ async def _handle_info(backend: TelegramBackend, options: ChatOptions) -> str:
     return ok(result)
 
 
-async def _handle_create(backend: TelegramBackend, options: ChatOptions) -> str:
+async def _handle_create(
+    backend: TelegramBackend, options: ChatOptions
+) -> dict[str, Any]:
     if not options.title:
         return err("'create' requires title")
     result = await backend.create_chat(options.title, is_channel=options.is_channel)
     return ok(result)
 
 
-async def _handle_join(backend: TelegramBackend, options: ChatOptions) -> str:
+async def _handle_join(
+    backend: TelegramBackend, options: ChatOptions
+) -> dict[str, Any]:
     if not options.link_or_hash:
         return err("'join' requires link_or_hash")
     result = await backend.join_chat(options.link_or_hash)
     return ok({"joined": result})
 
 
-async def _handle_leave(backend: TelegramBackend, options: ChatOptions) -> str:
+async def _handle_leave(
+    backend: TelegramBackend, options: ChatOptions
+) -> dict[str, Any]:
     if not options.chat_id:
         return err("'leave' requires chat_id")
     result = await backend.leave_chat(options.chat_id)
     return ok({"left": result})
 
 
-async def _handle_members(backend: TelegramBackend, options: ChatOptions) -> str:
+async def _handle_members(
+    backend: TelegramBackend, options: ChatOptions
+) -> dict[str, Any]:
     if not options.chat_id:
         return err("'members' requires chat_id")
     results = await backend.get_members(options.chat_id, limit=options.limit)
     return ok({"members": results, "count": len(results)})
 
 
-async def _handle_admin(backend: TelegramBackend, options: ChatOptions) -> str:
+async def _handle_admin(
+    backend: TelegramBackend, options: ChatOptions
+) -> dict[str, Any]:
     if not options.chat_id or options.user_id is None:
         return err("'admin' requires chat_id and user_id")
     result = await backend.promote_admin(
@@ -76,7 +90,9 @@ async def _handle_admin(backend: TelegramBackend, options: ChatOptions) -> str:
     return ok({action_word: result})
 
 
-async def _handle_settings(backend: TelegramBackend, options: ChatOptions) -> str:
+async def _handle_settings(
+    backend: TelegramBackend, options: ChatOptions
+) -> dict[str, Any]:
     if not options.chat_id:
         return err("'settings' requires chat_id")
     kwargs: dict[str, Any] = {}
@@ -90,7 +106,9 @@ async def _handle_settings(backend: TelegramBackend, options: ChatOptions) -> st
     return ok({"updated": result})
 
 
-async def _handle_topics(backend: TelegramBackend, options: ChatOptions) -> str:
+async def _handle_topics(
+    backend: TelegramBackend, options: ChatOptions
+) -> dict[str, Any]:
     if not options.chat_id:
         return err("'topics' requires chat_id")
     if not options.topic_action:
@@ -107,7 +125,7 @@ async def _handle_topics(backend: TelegramBackend, options: ChatOptions) -> str:
 
 
 _ACTION_HANDLERS: dict[
-    str, Callable[[TelegramBackend, ChatOptions], Awaitable[str]]
+    str, Callable[[TelegramBackend, ChatOptions], Awaitable[dict[str, Any]]]
 ] = {
     "list": _handle_list,
     "info": _handle_info,
@@ -125,7 +143,7 @@ async def handle_chats(
     backend: TelegramBackend,
     action: str,
     options: ChatOptions,
-) -> str:
+) -> dict[str, Any]:
     try:
         handler = _ACTION_HANDLERS.get(action)
         if handler:

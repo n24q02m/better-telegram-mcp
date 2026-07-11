@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from ..backends.base import ModeError, TelegramBackend
@@ -19,7 +21,7 @@ async def handle_contacts(
     backend: TelegramBackend,
     action: str,
     options: ContactsOptions | None = None,
-) -> str:
+) -> dict[str, Any]:
     if options is None:
         options = ContactsOptions()
     try:
