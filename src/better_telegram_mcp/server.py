@@ -34,6 +34,7 @@ _runtime_config: dict[str, int] = {
 
 # Track whether we're in multi-user HTTP mode
 _multi_user_mode: bool = False
+_get_current_backend = None
 
 
 def get_backend() -> TelegramBackend:
@@ -43,9 +44,15 @@ def get_backend() -> TelegramBackend:
     In stdio/single-user mode: returns the global _backend.
     """
     if _multi_user_mode:
-        from .transports.http import get_current_backend
+        global _get_current_backend
+        if _get_current_backend is None:
+            # ⚡ Bolt: Lazy-load get_current_backend once to avoid the overhead of
+            # evaluating the import statement on every single tool invocation.
+            from .transports.http import get_current_backend
 
-        backend = get_current_backend()
+            _get_current_backend = get_current_backend
+
+        backend = _get_current_backend()
         if backend is not None:
             return backend
 
