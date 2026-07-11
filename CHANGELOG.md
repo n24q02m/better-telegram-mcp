@@ -2,6 +2,28 @@
 
 <!-- version list -->
 
+## v4.16.0-beta.4 (2026-07-11)
+
+### Bug Fixes
+
+- Bump mcp-core floor to 1.19.0b4 ([#917](https://github.com/n24q02m/better-telegram-mcp/pull/917),
+  [`af82098`](https://github.com/n24q02m/better-telegram-mcp/commit/af82098e6fedae3b2bc1e2b3cc5593005bb6f428))
+
+### Features
+
+- Cli login/logout with api identity marker and credential-state stdio gate
+  ([#917](https://github.com/n24q02m/better-telegram-mcp/pull/917),
+  [`af82098`](https://github.com/n24q02m/better-telegram-mcp/commit/af82098e6fedae3b2bc1e2b3cc5593005bb6f428))
+
+- Mount shared cli builder with login/logout subcommands
+  ([#917](https://github.com/n24q02m/better-telegram-mcp/pull/917),
+  [`af82098`](https://github.com/n24q02m/better-telegram-mcp/commit/af82098e6fedae3b2bc1e2b3cc5593005bb6f428))
+
+- Relax stdio gate to credential state and warn on api identity change
+  ([#917](https://github.com/n24q02m/better-telegram-mcp/pull/917),
+  [`af82098`](https://github.com/n24q02m/better-telegram-mcp/commit/af82098e6fedae3b2bc1e2b3cc5593005bb6f428))
+
+
 ## v4.16.0-beta.3 (2026-07-11)
 
 ### Bug Fixes
