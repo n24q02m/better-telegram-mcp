@@ -1600,6 +1600,76 @@ class TestUserBackendLogging:
         assert found
 
 
+class TestApiIdentityMarker:
+    """_warn_on_api_identity_change only warns when the recorded id differs."""
+
+    def _backend(self, tmp_path, api_id=12345):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        settings = Settings(
+            api_id=api_id,
+            api_hash="test_hash",
+            phone="+84912345678",
+            data_dir=tmp_path,
+            session_name="test_session",
+        )
+        return UserBackend(settings)
+
+    def test_no_marker_no_warning(self, tmp_path):
+        backend = self._backend(tmp_path)
+        store = MagicMock()
+        store.load.return_value = None
+        with (
+            patch(
+                "mcp_core.storage.per_plugin_store.PerPluginStore",
+                return_value=store,
+            ),
+            patch("better_telegram_mcp.backends.user_backend.logger") as mock_logger,
+        ):
+            backend._warn_on_api_identity_change()
+        mock_logger.warning.assert_not_called()
+
+    def test_matching_marker_no_warning(self, tmp_path):
+        backend = self._backend(tmp_path, api_id=12345)
+        store = MagicMock()
+        store.load.return_value = {"api_id": "12345"}
+        with (
+            patch(
+                "mcp_core.storage.per_plugin_store.PerPluginStore",
+                return_value=store,
+            ),
+            patch("better_telegram_mcp.backends.user_backend.logger") as mock_logger,
+        ):
+            backend._warn_on_api_identity_change()
+        mock_logger.warning.assert_not_called()
+
+    def test_differing_marker_warns(self, tmp_path):
+        backend = self._backend(tmp_path, api_id=12345)
+        store = MagicMock()
+        store.load.return_value = {"api_id": "99999"}
+        with (
+            patch(
+                "mcp_core.storage.per_plugin_store.PerPluginStore",
+                return_value=store,
+            ),
+            patch("better_telegram_mcp.backends.user_backend.logger") as mock_logger,
+        ):
+            backend._warn_on_api_identity_change()
+        mock_logger.warning.assert_called_once()
+
+    def test_marker_read_error_is_swallowed(self, tmp_path):
+        backend = self._backend(tmp_path)
+        with (
+            patch(
+                "mcp_core.storage.per_plugin_store.PerPluginStore",
+                side_effect=Exception("backend down"),
+            ),
+            patch("better_telegram_mcp.backends.user_backend.logger") as mock_logger,
+        ):
+            backend._warn_on_api_identity_change()
+        mock_logger.warning.assert_not_called()
+
+
 class TestLogOut:
     async def test_log_out_revokes_via_client(
         self, tmp_path, mock_client, mock_client_class

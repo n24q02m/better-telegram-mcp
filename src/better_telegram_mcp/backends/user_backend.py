@@ -72,6 +72,38 @@ class UserBackend(TelegramBackend):
             except OSError as e:
                 logger.debug("Could not set session file permissions: {e}", e=e)
 
+    def _warn_on_api_identity_change(self) -> None:
+        """Warn (do not act) when the recorded api_id differs from the current one.
+
+        ``better-telegram-mcp login --phone`` records the ``api_id`` the session
+        was created under (via ``PerPluginStore``). A session's auth_key is bound
+        to that api_id, so reconnecting under a different one silently fails to
+        authorize. We only warn and point at ``logout``/``login`` -- clearing the
+        session automatically would destroy a working login on a spurious marker
+        read.
+        """
+        from mcp_core.storage.per_plugin_store import PerPluginStore
+
+        try:
+            marker = PerPluginStore("telegram", sub_key="tokens/app-identity").load()
+        except Exception as e:
+            logger.debug("Could not read api identity marker: {e}", e=e)
+            return
+        if not marker:
+            return
+        recorded = marker.get("api_id")
+        current = str(self._settings.api_id)
+        if recorded and recorded != current:
+            logger.warning(
+                "Telegram api_id changed since this session was created "
+                "(session api_id={recorded}, current api_id={current}). The "
+                "saved session may fail to authorize. Run "
+                "`better-telegram-mcp logout` then `better-telegram-mcp login` "
+                "to re-create it.",
+                recorded=recorded,
+                current=current,
+            )
+
     @staticmethod
     def _serialize_message(msg: Any) -> dict[str, Any]:
         sender_id = None
@@ -134,6 +166,7 @@ class UserBackend(TelegramBackend):
             self._client = TelegramClient(session, s.api_id, s.api_hash)
         else:
             # Local default: durable on-disk ``.session`` SQLite.
+            self._warn_on_api_identity_change()
             # Bolt: Move blocking I/O to a background thread.
             await asyncio.to_thread(self._prepare_session_file)
             # Telethon auto-appends .session, so pass path without extension.
