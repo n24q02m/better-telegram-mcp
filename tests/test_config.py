@@ -69,6 +69,50 @@ def test_default_api_credentials():
     assert s.api_hash == "2f5f4c76c4de7c07302380c788390100"
 
 
+# -----------------------------------------------------------------------
+# Telegram api_id/api_hash BYO client resolver (bundled default + env pair +
+# kill-switch)
+# -----------------------------------------------------------------------
+
+_TELEGRAM_CLIENT_ENV_VARS = (
+    "TELEGRAM_API_ID",
+    "TELEGRAM_API_HASH",
+    "USE_BUNDLED_TELEGRAM_CLIENT",
+)
+
+
+def test_telegram_api_env_pair_beats_bundled(monkeypatch):
+    """A full BYO env pair overrides the bundled default."""
+    for v in _TELEGRAM_CLIENT_ENV_VARS:
+        monkeypatch.delenv(v, raising=False)
+    monkeypatch.setenv("TELEGRAM_API_ID", "12345")
+    monkeypatch.setenv("TELEGRAM_API_HASH", "my-hash")
+    s = Settings()
+    assert (s.api_id, s.api_hash) == (12345, "my-hash")
+
+
+@pytest.mark.parametrize("set_id, set_hash", [(True, False), (False, True)])
+def test_telegram_api_env_half_pair_fails_loud(monkeypatch, set_id, set_hash):
+    """Setting only one half of the BYO pair raises instead of silently falling back."""
+    for v in _TELEGRAM_CLIENT_ENV_VARS:
+        monkeypatch.delenv(v, raising=False)
+    if set_id:
+        monkeypatch.setenv("TELEGRAM_API_ID", "12345")
+    if set_hash:
+        monkeypatch.setenv("TELEGRAM_API_HASH", "my-hash")
+    with pytest.raises(Exception, match="together"):
+        Settings()
+
+
+def test_telegram_api_kill_switch_fails_loud_without_override(monkeypatch):
+    """USE_BUNDLED_TELEGRAM_CLIENT=false with no BYO pair raises instead of using bundled."""
+    for v in _TELEGRAM_CLIENT_ENV_VARS:
+        monkeypatch.delenv(v, raising=False)
+    monkeypatch.setenv("USE_BUNDLED_TELEGRAM_CLIENT", "false")
+    with pytest.raises(Exception, match="disables the bundled client"):
+        Settings()
+
+
 def test_default_data_dir(monkeypatch):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC")
     s = Settings()
