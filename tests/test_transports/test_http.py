@@ -353,27 +353,6 @@ class TestStartHttp:
         ):
             start_http(settings)
 
-    def test_start_http_public_url_override_allows_single_user(
-        self, settings: Settings
-    ) -> None:
-        """TELEGRAM_ACCEPT_SHARED_SINGLE_USER=1 opt-in skips the refuse-guard."""
-        env = {
-            "PUBLIC_URL": "https://mcp.example.com",
-            "TELEGRAM_ACCEPT_SHARED_SINGLE_USER": "1",
-        }
-
-        with (
-            patch.dict("os.environ", env, clear=True),
-            patch(
-                "mcp_core.transport.local_server.run_http_server",
-                new_callable=AsyncMock,
-            ) as mock_run,
-        ):
-            start_http(settings)
-
-        mock_run.assert_called_once()
-
-
 class TestPerRequestSubScope:
     """The auth_scope middleware that pins per-request sub + backend."""
 

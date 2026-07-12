@@ -170,7 +170,7 @@ def test_resolve_from_config_file_bot():
             state = resolve_credential_state()
 
         assert state == CredentialState.CONFIGURED
-        assert os.environ.get("TELEGRAM_BOT_TOKEN") == "token_from_file"
+        assert os.environ.get("TELEGRAM_BOT_TOKEN") is None  # Sentinel: no longer injected
 
     os.environ.pop("TELEGRAM_BOT_TOKEN", None)
 

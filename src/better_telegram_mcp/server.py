@@ -100,11 +100,16 @@ def _ensure_settings() -> Settings:
     settings = Settings()
     if not settings.is_configured:
         from .credential_state import resolve_credential_state
+        from mcp_core.storage.config_file import read_config
 
         state = resolve_credential_state()
-        # If config was loaded from file, re-create Settings to pick up env vars
         if state.value == "configured":
-            settings = Settings()
+            # 🛡️ Sentinel: Load saved config explicitly rather than relying on os.environ injection
+            saved_config = read_config("better-telegram-mcp")
+            if saved_config:
+                settings = Settings.from_relay_config(saved_config)
+            else:
+                settings = Settings()
     return settings
 
 

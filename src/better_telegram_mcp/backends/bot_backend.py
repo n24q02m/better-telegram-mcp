@@ -37,7 +37,7 @@ class BotBackend(TelegramBackend):
         except httpx.HTTPError as e:
             # httpx exceptions include the request URL, which carries the bot
             # token; redact before re-raising so it cannot leak into logs.
-            raise TelegramAPIError(str(e)) from None
+            raise TelegramAPIError(redact_bot_token(str(e))) from None
         body = resp.json()
         if not body.get("ok"):
             desc = body.get("description", "Unknown error")
@@ -49,7 +49,7 @@ class BotBackend(TelegramBackend):
         try:
             resp = await self._client.post(method, data=data, files=files)
         except httpx.HTTPError as e:
-            raise TelegramAPIError(str(e)) from None
+            raise TelegramAPIError(redact_bot_token(str(e))) from None
         body = resp.json()
         if not body.get("ok"):
             raise TelegramAPIError(body.get("description", "Unknown error"))
