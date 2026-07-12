@@ -353,6 +353,7 @@ class TestStartHttp:
         ):
             start_http(settings)
 
+
 class TestPerRequestSubScope:
     """The auth_scope middleware that pins per-request sub + backend."""
 

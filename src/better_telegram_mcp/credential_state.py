@@ -289,7 +289,6 @@ async def save_credentials(
     # ----- Single-user branch: shared config.enc (local) / KV (CF) + global backend -----
     _write_single_user_config(config)
 
-
     logger.info("Credentials saved via local OAuth form")
 
     if is_user_mode:

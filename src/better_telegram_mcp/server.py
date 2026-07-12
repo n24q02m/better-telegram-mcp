@@ -99,8 +99,9 @@ def _ensure_settings() -> Settings:
     """Initialize settings and resolve credential state."""
     settings = Settings()
     if not settings.is_configured:
-        from .credential_state import resolve_credential_state
         from mcp_core.storage.config_file import read_config
+
+        from .credential_state import resolve_credential_state
 
         state = resolve_credential_state()
         if state.value == "configured":
