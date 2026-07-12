@@ -68,3 +68,11 @@
 ## 2024-11-21 - Synchronize ARIA Labels When Reusing DOM Containers
 **Learning:** Reusing DOM containers for dynamic form steps (e.g., OTP or password prompts) can lead to desynchronized accessibility states if all associated attributes are not reset. While visual properties like `textContent` might be reset when re-initializing the view, missing updates to attributes like `aria-label` can leave screen readers announcing stale and confusing states (e.g., a button displaying "Show" but announcing "Hide password").
 **Action:** When dynamically resetting or reusing stateful UI components, ensure that invisible attributes like `aria-label` are explicitly reset alongside their visible counterparts (like `textContent` and `aria-pressed`) to prevent out-of-sync UI states.
+
+## 2024-11-21 - Fallback Loading States for Reduced Motion
+**Learning:** Hiding text and applying a CSS spinner (e.g., using `color: transparent` and a spinning pseudo-element) creates a completely blank, broken-looking button when `prefers-reduced-motion: reduce` freezes the animation. This leaves motion-sensitive users with no indication that the system is processing their request.
+**Action:** Always provide an explicit fallback within `@media (prefers-reduced-motion: reduce)` to restore the original text (e.g., `color: inherit`) and hide the animated pseudo-element (e.g., `display: none`) when replacing text with a loading spinner.
+
+## 2024-11-21 - Semantic Landmarks for Screen Readers
+**Learning:** Using a generic `<div class="container">` for the primary content of a page (like a login or credential form) prevents screen reader users from using semantic landmark navigation to jump directly to the core functionality, forcing them to tab through potentially repetitive header content.
+**Action:** Always use semantic ARIA landmarks, such as replacing a generic wrapper `<div>` with `<main>`, to properly identify the primary content region of a page and improve navigability.
