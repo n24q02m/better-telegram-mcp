@@ -4,6 +4,7 @@ import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from structured import payload
 
 from better_telegram_mcp.server import (
     create_http_mcp_server,
@@ -79,7 +80,7 @@ async def test_message_send(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = await message(action="send", chat_id=123, text="hi")
+        result = payload(await message(action="send", chat_id=123, text="hi"))
         assert "message_id" in result
     finally:
         srv._backend = old_backend
@@ -99,7 +100,7 @@ async def test_message_backend_exception(mock_backend):
         srv._pending_auth = False
         mock_backend.send_message.side_effect = RuntimeError("Backend failure")
 
-        result = await message(action="send", chat_id=123, text="hi")
+        result = payload(await message(action="send", chat_id=123, text="hi"))
         assert "error" in result
         assert "RuntimeError" in result["error"]
         assert "Operation failed" in result["error"]
@@ -118,7 +119,7 @@ async def test_chat_list(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = await chat(action="list")
+        result = payload(await chat(action="list"))
         assert "chats" in result
     finally:
         srv._backend = old_backend
@@ -135,10 +136,12 @@ async def test_media_send_photo(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = await media(
-            action="send_photo",
-            chat_id=123,
-            file_path_or_url="https://example.com/photo.jpg",
+        result = payload(
+            await media(
+                action="send_photo",
+                chat_id=123,
+                file_path_or_url="https://example.com/photo.jpg",
+            )
         )
         assert "message_id" in result
     finally:
@@ -156,7 +159,7 @@ async def test_contact_list(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = await contact(action="list")
+        result = payload(await contact(action="list"))
         assert "contacts" in result
         mock_backend.list_contacts.assert_awaited_once()
     finally:
@@ -174,7 +177,7 @@ async def test_contact_search(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = await contact(action="search", query="John")
+        result = payload(await contact(action="search", query="John"))
         assert "contacts" in result
         mock_backend.search_contacts.assert_awaited_once_with("John")
     finally:
@@ -192,8 +195,13 @@ async def test_contact_add(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = await contact(
-            action="add", phone="+1234567890", first_name="John", last_name="Doe"
+        result = payload(
+            await contact(
+                action="add",
+                phone="+1234567890",
+                first_name="John",
+                last_name="Doe",
+            )
         )
         assert "added" in result
         mock_backend.add_contact.assert_awaited_once_with(
@@ -214,7 +222,7 @@ async def test_contact_block(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = await contact(action="block", user_id=123)
+        result = payload(await contact(action="block", user_id=123))
         assert "blocked" in result
         mock_backend.block_user.assert_awaited_once_with(123, unblock=False)
     finally:
@@ -232,7 +240,7 @@ async def test_contact_unblock(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = await contact(action="block", user_id=123, unblock=True)
+        result = payload(await contact(action="block", user_id=123, unblock=True))
         assert "unblocked" in result
         mock_backend.block_user.assert_awaited_once_with(123, unblock=True)
     finally:
@@ -251,7 +259,7 @@ async def test_contact_error(mock_backend):
         srv._backend = mock_backend
         srv._pending_auth = False
         mock_backend.list_contacts.side_effect = Exception("test error")
-        result = await contact(action="list")
+        result = payload(await contact(action="list"))
         assert "error" in result
         assert "Operation failed" in result["error"]
     finally:
@@ -269,7 +277,7 @@ async def test_contact_unknown_action(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = await contact(action="invalid_action")
+        result = payload(await contact(action="invalid_action"))
         assert "error" in result
         assert "Unknown action" in result["error"]
     finally:
@@ -301,7 +309,7 @@ async def test_message_unknown_action(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = False
-        result = await message(action="nonexistent")
+        result = payload(await message(action="nonexistent"))
         assert "error" in result
         assert "Unknown action" in result["error"]
     finally:
@@ -422,7 +430,7 @@ async def test_message_blocked_during_pending_auth(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        result = await message(action="send", chat_id=123, text="hi")
+        result = payload(await message(action="send", chat_id=123, text="hi"))
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
     finally:
@@ -440,7 +448,7 @@ async def test_chat_blocked_during_pending_auth(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        result = await chat(action="list")
+        result = payload(await chat(action="list"))
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
     finally:
@@ -458,10 +466,12 @@ async def test_media_blocked_during_pending_auth(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        result = await media(
-            action="send_photo",
-            chat_id=123,
-            file_path_or_url="https://example.com/photo.jpg",
+        result = payload(
+            await media(
+                action="send_photo",
+                chat_id=123,
+                file_path_or_url="https://example.com/photo.jpg",
+            )
         )
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
@@ -480,7 +490,7 @@ async def test_contact_blocked_during_pending_auth(mock_backend):
     try:
         srv._backend = mock_backend
         srv._pending_auth = True
-        result = await contact(action="list")
+        result = payload(await contact(action="list"))
         assert "error" in result
         assert "not authenticated" in result["error"].lower()
     finally:
@@ -640,7 +650,7 @@ async def test_message_returns_setup_hint_when_unconfigured():
     try:
         srv._unconfigured = True
         srv._pending_auth = False
-        result = await message(action="send", chat_id=123, text="hi")
+        result = payload(await message(action="send", chat_id=123, text="hi"))
         assert "error" in result
         assert result["error"] == "Not configured"
         assert "setup" in result
@@ -661,7 +671,7 @@ async def test_chat_returns_setup_hint_when_unconfigured():
     old = srv._unconfigured
     try:
         srv._unconfigured = True
-        result = await chat(action="list")
+        result = payload(await chat(action="list"))
         assert result["error"] == "Not configured"
         assert "setup" in result
     finally:
@@ -709,10 +719,12 @@ async def test_media_returns_setup_hint_when_unconfigured():
     old = srv._unconfigured
     try:
         srv._unconfigured = True
-        result = await media(
-            action="send_photo",
-            chat_id=123,
-            file_path_or_url="https://example.com/photo.jpg",
+        result = payload(
+            await media(
+                action="send_photo",
+                chat_id=123,
+                file_path_or_url="https://example.com/photo.jpg",
+            )
         )
         assert result["error"] == "Not configured"
         assert "setup" in result
@@ -729,7 +741,7 @@ async def test_contact_returns_setup_hint_when_unconfigured():
     old = srv._unconfigured
     try:
         srv._unconfigured = True
-        result = await contact(action="list")
+        result = payload(await contact(action="list"))
         assert result["error"] == "Not configured"
         assert "setup" in result
     finally:

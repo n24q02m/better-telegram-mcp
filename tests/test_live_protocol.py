@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 
 import pytest
 from mcp import StdioServerParameters
@@ -22,10 +23,21 @@ BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 
 live = pytest.mark.live
 
+# External-content tools wrap their JSON payload in <untrusted_..._content> XPIA
+# boundary tags + a [SECURITY: ...] warning; strip them to recover the JSON body.
+_UNTRUSTED_WRAPPER = re.compile(
+    r"^<untrusted_[a-z_]+_content>\n(?P<body>.*)\n</untrusted_[a-z_]+_content>\n\n"
+    r"\[SECURITY:",
+    re.DOTALL,
+)
+
 
 def _parse_result(result) -> dict | str:
     """Extract text from MCP call_tool result and try to parse as JSON."""
     text = result.content[0].text
+    match = _UNTRUSTED_WRAPPER.match(text)
+    if match:
+        text = match.group("body")
     try:
         return json.loads(text)
     except (json.JSONDecodeError, TypeError):
