@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v4.16.0-beta.6 (2026-07-13)
+
+### Bug Fixes
+
+- Add XPIA defense wrapper for external Telegram content
+  ([#927](https://github.com/n24q02m/better-telegram-mcp/pull/927),
+  [`fd74595`](https://github.com/n24q02m/better-telegram-mcp/commit/fd74595bfd478a49d3fe1c5e3694cf11a2ad03bc))
+
+- **deps**: Lock file maintenance ([#924](https://github.com/n24q02m/better-telegram-mcp/pull/924),
+  [`e05b72d`](https://github.com/n24q02m/better-telegram-mcp/commit/e05b72d88a9655670fc4dc8783eb0a058f7dc23d))
+
+- **deps**: Lock file maintenance ([#922](https://github.com/n24q02m/better-telegram-mcp/pull/922),
+  [`e938fe8`](https://github.com/n24q02m/better-telegram-mcp/commit/e938fe8963cbf30c1e2311f129da879534d5134b))
+
+- **deps**: Lock file maintenance ([#921](https://github.com/n24q02m/better-telegram-mcp/pull/921),
+  [`56a6b06`](https://github.com/n24q02m/better-telegram-mcp/commit/56a6b06126229045ad37ebf3f2c243f3b250d132))
+
+
 ## v4.16.0-beta.5 (2026-07-11)
 
 ### Features
