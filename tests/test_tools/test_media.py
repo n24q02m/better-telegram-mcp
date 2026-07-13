@@ -264,7 +264,27 @@ async def test_download_no_output_dir(mock_backend):
         ),
     )
     assert result["path"] == "/tmp/file.jpg"
-    mock_backend.download_media.assert_awaited_once_with(123, 10, output_dir=None)
+    mock_backend.download_media.assert_awaited_once_with(
+        123, 10, file_id=None, output_dir=None
+    )
+
+
+@pytest.mark.asyncio
+async def test_download_with_file_id(mock_backend):
+    result = await handle_media(
+        mock_backend,
+        "download",
+        MediaOptions(
+            chat_id=123,
+            message_id=10,
+            file_id="AAAqqq",
+            output_dir="/tmp",
+        ),
+    )
+    assert result["path"] == "/tmp/file.jpg"
+    mock_backend.download_media.assert_awaited_once_with(
+        123, 10, file_id="AAAqqq", output_dir="/tmp"
+    )
 
 
 @pytest.mark.asyncio

@@ -103,7 +103,12 @@ class MockBackend(TelegramBackend):
         caption: str | None = None,
     ) -> dict[str, Any]: ...
     async def download_media(
-        self, chat_id: str | int, message_id: int, *, output_dir: str | None = None
+        self,
+        chat_id: str | int,
+        message_id: int,
+        *,
+        file_id: str | None = None,
+        output_dir: str | None = None,
     ) -> str: ...
     async def list_contacts(self) -> list[dict[str, Any]]: ...
     async def search_contacts(self, query: str) -> list[dict[str, Any]]: ...

@@ -163,9 +163,10 @@ async def test_get_history_returns_empty(bot: BotBackend, bot_id: int):
     assert result == []
 
 
-async def test_download_media_not_implemented(bot: BotBackend):
-    """download_media raises NotImplementedError in bot mode."""
-    with pytest.raises(NotImplementedError, match="Bot API download requires"):
+async def test_download_media_without_file_id_errors_honestly(bot: BotBackend):
+    """download_media requires file_id in bot mode (Bot API cannot look up
+    a message's media by chat_id/message_id alone)."""
+    with pytest.raises(ValueError, match="file_id is required in bot mode"):
         await bot.download_media(123, 42)
 
 

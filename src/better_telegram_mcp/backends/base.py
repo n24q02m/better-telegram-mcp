@@ -139,6 +139,7 @@ class TelegramBackend(ABC):
         chat_id: str | int,
         message_id: int,
         *,
+        file_id: str | None = None,
         output_dir: str | None = None,
     ) -> str: ...
 

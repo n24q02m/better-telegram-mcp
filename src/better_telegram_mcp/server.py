@@ -383,6 +383,7 @@ async def media(
     message_id: int | None = None,
     caption: str | None = None,
     output_dir: str | None = None,
+    file_id: str | None = None,
 ) -> dict[str, Any]:
     """Send photos, files, voice, video, and download media from messages.
 
@@ -391,7 +392,7 @@ async def media(
     - send_file (chat_id, file_path_or_url -> caption)
     - send_voice (chat_id, file_path_or_url -> caption)
     - send_video (chat_id, file_path_or_url -> caption)
-    - download (chat_id, message_id -> output_dir)
+    - download (chat_id, message_id -> output_dir; bot mode also requires file_id)
     """
     if _unconfigured or _pending_auth:
         return _not_ready_response()
@@ -402,6 +403,7 @@ async def media(
         message_id=message_id,
         caption=caption,
         output_dir=output_dir,
+        file_id=file_id,
     )
     return await handle_media(get_backend(), action, opts)
 

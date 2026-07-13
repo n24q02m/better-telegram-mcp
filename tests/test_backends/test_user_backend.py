@@ -1124,6 +1124,26 @@ class TestDownloadMedia:
         with pytest.raises(ValueError, match="Failed to download"):
             await backend.download_media(123, 1)
 
+    async def test_download_media_ignores_file_id(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        """user mode uses the Telethon chat/message lookup; file_id is a
+        bot-mode-only concept and is accepted but ignored here."""
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        msg = _mock_message()
+        msg.media = MagicMock()
+        mock_client.get_messages = AsyncMock(return_value=msg)
+        mock_client.download_media = AsyncMock(return_value="/tmp/photo.jpg")
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        result = await backend.download_media(123, 1, file_id="unused-in-user-mode")
+
+        assert result == "/tmp/photo.jpg"
+
 
 class TestListContacts:
     async def test_list_contacts_returns_list(
