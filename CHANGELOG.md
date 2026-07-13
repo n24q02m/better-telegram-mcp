@@ -2,6 +2,31 @@
 
 <!-- version list -->
 
+## v4.16.0-beta.7 (2026-07-13)
+
+### Bug Fixes
+
+- Correct mention gate expression (balanced parens + precedence)
+  ([#929](https://github.com/n24q02m/better-telegram-mcp/pull/929),
+  [`3d7e5cf`](https://github.com/n24q02m/better-telegram-mcp/commit/3d7e5cfa3edefddc0ca4f1d9aeb805a2fa349026))
+
+- Gate oc mention job on comment author write access
+  ([#929](https://github.com/n24q02m/better-telegram-mcp/pull/929),
+  [`3d7e5cf`](https://github.com/n24q02m/better-telegram-mcp/commit/3d7e5cfa3edefddc0ca4f1d9aeb805a2fa349026))
+
+- Give bot-mode download_media a real path via getFile
+  ([#930](https://github.com/n24q02m/better-telegram-mcp/pull/930),
+  [`2722120`](https://github.com/n24q02m/better-telegram-mcp/commit/2722120796e5638031b8de986dbcdf8bd18a0a91))
+
+- Redact bot token in download_media file-GET error path
+  ([#930](https://github.com/n24q02m/better-telegram-mcp/pull/930),
+  [`2722120`](https://github.com/n24q02m/better-telegram-mcp/commit/2722120796e5638031b8de986dbcdf8bd18a0a91))
+
+- Run opencode bot on hosted runners
+  ([#928](https://github.com/n24q02m/better-telegram-mcp/pull/928),
+  [`fef22a0`](https://github.com/n24q02m/better-telegram-mcp/commit/fef22a046b6a7744a8b450f31e219865b262166a))
+
+
 ## v4.16.0-beta.6 (2026-07-13)
 
 ### Bug Fixes
