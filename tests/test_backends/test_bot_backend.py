@@ -238,6 +238,36 @@ async def test_download_media_with_file_id(tmp_path):
     assert Path(path).name == "file_1.jpg"
 
 
+async def test_download_media_file_get_error_redacts_bot_token():
+    """The file-GET error path must redact the bot token like the _call/
+    _call_form paths already do (see test_transport_error_redacts_bot_token):
+    the file URL is https://api.telegram.org/file/bot<token>/<path>, and
+    httpx.HTTPStatusError's message embeds that URL verbatim."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/getFile"):
+            return httpx.Response(
+                200,
+                json={
+                    "ok": True,
+                    "result": {"file_id": "CCCqqq", "file_path": "photos/f.jpg"},
+                },
+            )
+        return httpx.Response(404, content=b"Not Found")
+
+    bot = BotBackend(_FAKE_TOKEN)
+    bot._client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler), base_url=bot._base_url
+    )
+
+    with pytest.raises(TelegramAPIError) as exc_info:
+        await bot.download_media(123, 1, file_id="CCCqqq")
+
+    message = str(exc_info.value)
+    assert _FAKE_SECRET not in message
+    assert f"{_FAKE_TOKEN.split(':')[0]}:<redacted>" in message
+
+
 async def test_download_media_no_output_dir_uses_tempdir(monkeypatch, tmp_path):
     """Without output_dir, bot mode falls back to the system temp dir."""
     monkeypatch.setattr(
