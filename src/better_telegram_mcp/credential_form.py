@@ -446,6 +446,12 @@ def render_telegram_credential_form(
             .status-box {{
                 animation: none !important;
             }}
+            .submit-btn[aria-busy="true"] {{
+                color: inherit !important;
+            }}
+            .submit-btn[aria-busy="true"]::after {{
+                display: none !important;
+            }}
         }}
     </style>
 </head>

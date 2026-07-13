@@ -68,3 +68,7 @@
 ## 2024-11-21 - Synchronize ARIA Labels When Reusing DOM Containers
 **Learning:** Reusing DOM containers for dynamic form steps (e.g., OTP or password prompts) can lead to desynchronized accessibility states if all associated attributes are not reset. While visual properties like `textContent` might be reset when re-initializing the view, missing updates to attributes like `aria-label` can leave screen readers announcing stale and confusing states (e.g., a button displaying "Show" but announcing "Hide password").
 **Action:** When dynamically resetting or reusing stateful UI components, ensure that invisible attributes like `aria-label` are explicitly reset alongside their visible counterparts (like `textContent` and `aria-pressed`) to prevent out-of-sync UI states.
+
+## 2024-11-21 - Fallback Loading States
+**Learning:** When replacing interactive text with a CSS spinner (e.g., setting color: transparent to overlay a spinner), failing to explicitly override this for reduced motion leaves users with a broken, blank button during asynchronous loading states.
+**Action:** Always explicitly define an override within `@media (prefers-reduced-motion: reduce)` that restores the original text (e.g., `color: inherit !important`) and hides the animated pseudo-element (e.g., `display: none !important`).
