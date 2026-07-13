@@ -551,8 +551,12 @@ class UserBackend(TelegramBackend):
         chat_id: str | int,
         message_id: int,
         *,
+        file_id: str | None = None,
         output_dir: str | None = None,
     ) -> str:
+        # file_id is a bot-mode-only concept (Bot API cannot look up a
+        # message's media by chat_id/message_id); user mode always resolves
+        # media via the Telethon chat/message lookup below, so it is ignored.
         client = self._ensure_client()
         messages = await client.get_messages(chat_id, ids=message_id)
         msg = (

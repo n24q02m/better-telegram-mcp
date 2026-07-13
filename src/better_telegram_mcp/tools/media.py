@@ -20,6 +20,10 @@ class MediaOptions(BaseModel):
     output_dir: str | None = Field(
         default=None, description="Output directory for download"
     )
+    file_id: str | None = Field(
+        default=None,
+        description="Telegram file_id to download (required in bot mode)",
+    )
 
 
 _ACTION_TO_MEDIA_TYPE = {
@@ -56,7 +60,10 @@ async def handle_media(
             if not options.chat_id or options.message_id is None:
                 return err("'download' requires chat_id and message_id")
             path = await backend.download_media(
-                options.chat_id, options.message_id, output_dir=options.output_dir
+                options.chat_id,
+                options.message_id,
+                file_id=options.file_id,
+                output_dir=options.output_dir,
             )
             return ok({"path": path})
 

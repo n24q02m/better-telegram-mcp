@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import asyncio
+import tempfile
+from pathlib import Path
 from typing import Any
 
 import httpx
 
 from ..relay_setup import redact_bot_token
 from .base import TelegramBackend
-from .security import fetch_url_safely, validate_file_path
+from .security import fetch_url_safely, validate_file_path, validate_output_dir
 
 API_BASE = "https://api.telegram.org/bot{}/"
+FILE_API_BASE = "https://api.telegram.org/file/bot{}/"
 
 
 class TelegramAPIError(Exception):
@@ -26,6 +29,7 @@ class BotBackend(TelegramBackend):
         super().__init__("bot")
         self._token = bot_token
         self._base_url = API_BASE.format(bot_token)
+        self._file_base_url = FILE_API_BASE.format(bot_token)
         self._client = httpx.AsyncClient(base_url=self._base_url, timeout=30.0)
         self._connected = False
         self._bot_info: dict[str, Any] = {}
@@ -291,12 +295,31 @@ class BotBackend(TelegramBackend):
         chat_id: str | int,
         message_id: int,
         *,
+        file_id: str | None = None,
         output_dir: str | None = None,
     ) -> str:
-        raise NotImplementedError(
-            "Bot API download requires file_id. "
-            "Use get_history to get message with file info first."
-        )
+        if not file_id:
+            raise ValueError(
+                "file_id is required in bot mode: the Bot API cannot look up a "
+                "message's media by (chat_id, message_id). Get file_id from a "
+                "message this bot received (message tool results include it), "
+                "then call media(action='download', file_id=...)."
+            )
+        info = await self._call("getFile", file_id=file_id)
+        file_path = info["file_path"]
+        target_dir = validate_output_dir(output_dir or tempfile.gettempdir())
+        # Bolt: Move blocking I/O to a background thread.
+        await asyncio.to_thread(target_dir.mkdir, parents=True, exist_ok=True)
+        target = target_dir / Path(file_path).name
+        try:
+            resp = await self._client.get(f"{self._file_base_url}{file_path}")
+            resp.raise_for_status()
+        except httpx.HTTPError as e:
+            # httpx exceptions include the request URL, which carries the bot
+            # token; redact before re-raising so it cannot leak into logs.
+            raise TelegramAPIError(str(e)) from None
+        await asyncio.to_thread(target.write_bytes, resp.content)
+        return str(target)
 
     # --- Contacts (user-only) ---
     async def list_contacts(self) -> list[dict[str, Any]]:

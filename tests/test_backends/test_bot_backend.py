@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from unittest.mock import AsyncMock
 
 import httpx
@@ -204,10 +205,77 @@ async def test_get_history_returns_empty():
     assert result == []
 
 
-async def test_download_media_raises_not_implemented():
+async def test_download_media_without_file_id_errors_honestly():
     bot = _make_bot()
-    with pytest.raises(NotImplementedError, match="Bot API download requires"):
+    with pytest.raises(ValueError, match="file_id is required in bot mode"):
         await bot.download_media(123, 42)
+
+
+async def test_download_media_with_file_id(tmp_path):
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/getFile"):
+            body = json.loads(request.content)
+            assert body["file_id"] == "AAAqqq"
+            return httpx.Response(
+                200,
+                json={
+                    "ok": True,
+                    "result": {"file_id": "AAAqqq", "file_path": "photos/file_1.jpg"},
+                },
+            )
+        assert request.url.path.endswith("photos/file_1.jpg")
+        return httpx.Response(200, content=b"JPEGDATA")
+
+    bot = BotBackend("123456:AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+    bot._client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler), base_url=bot._base_url
+    )
+
+    path = await bot.download_media(
+        "123", 45, file_id="AAAqqq", output_dir=str(tmp_path)
+    )
+    assert Path(path).read_bytes() == b"JPEGDATA"
+    assert Path(path).name == "file_1.jpg"
+
+
+async def test_download_media_no_output_dir_uses_tempdir(monkeypatch, tmp_path):
+    """Without output_dir, bot mode falls back to the system temp dir."""
+    monkeypatch.setattr(
+        "better_telegram_mcp.backends.bot_backend.tempfile.gettempdir",
+        lambda: str(tmp_path),
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/getFile"):
+            return httpx.Response(
+                200,
+                json={
+                    "ok": True,
+                    "result": {"file_id": "BBBqqq", "file_path": "docs/note.txt"},
+                },
+            )
+        return httpx.Response(200, content=b"DATA")
+
+    bot = BotBackend("123456:AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+    bot._client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler), base_url=bot._base_url
+    )
+
+    path = await bot.download_media(123, 1, file_id="BBBqqq")
+    assert Path(path).parent == tmp_path
+    assert Path(path).read_bytes() == b"DATA"
+
+
+async def test_forward_message_media_result_includes_file_id():
+    """Bot mode passes the raw Telegram Message JSON through untouched, so a
+    forwarded media message's file_id is available for media(action='download')."""
+    msg = {
+        "message_id": 99,
+        "photo": [{"file_id": "AAAqqq", "file_unique_id": "u1", "width": 90}],
+    }
+    bot = _make_bot(msg)
+    result = await bot.forward_message(123, 456, 42)
+    assert result["photo"][0]["file_id"] == "AAAqqq"
 
 
 # --- Chat operations ---
