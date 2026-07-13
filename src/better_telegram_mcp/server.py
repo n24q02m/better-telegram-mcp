@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import logging
 import os
 from collections.abc import AsyncIterator
@@ -12,6 +13,7 @@ from mcp.types import ToolAnnotations
 
 from .backends.base import TelegramBackend
 from .config import Settings
+from .security import build_external_tool_result
 from .tools.chats import ChatOptions, handle_chats
 from .tools.config_tool import handle_config
 from .tools.contacts import ContactsOptions, handle_contacts
@@ -222,6 +224,33 @@ _PUBLIC_URL = os.environ.get("PUBLIC_URL")
 register_open_relay_tool(mcp, "better-telegram-mcp", _PUBLIC_URL)
 
 
+def _wrap_tool(tool_name: str):
+    """Decorate an ``@mcp.tool`` so external Telegram content is XPIA-marked.
+
+    The wrapped tool returns a plain ``dict``; this turns it into a
+    ``CallToolResult`` so both response channels are defended: the text block
+    gains ``<untrusted_{tool}_content>`` boundary tags and ``structuredContent``
+    carries the envelope markers (a client reading structured output never sees
+    the text block). FastMCP still derives the tool's ``outputSchema`` from the
+    wrapped function's ``-> dict`` annotation, which ``functools.wraps`` keeps
+    reachable via ``__wrapped__``.
+
+    Applied only to tools that surface arbitrary users' authored content
+    (message, chat, contact, media); config/help return the server's own state
+    and stay plain dicts.
+    """
+
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args: Any, **kwargs: Any):
+            result = await func(*args, **kwargs)
+            return build_external_tool_result(tool_name, result)
+
+        return wrapper
+
+    return decorator
+
+
 # --- Tools ---
 
 
@@ -234,6 +263,7 @@ register_open_relay_tool(mcp, "better-telegram-mcp", _PUBLIC_URL)
         openWorldHint=True,
     )
 )
+@_wrap_tool("message")
 async def message(
     action: str,
     chat_id: str | int | None = None,
@@ -289,6 +319,7 @@ async def message(
         openWorldHint=True,
     )
 )
+@_wrap_tool("chat")
 async def chat(
     action: str,
     chat_id: str | int | None = None,
@@ -344,6 +375,7 @@ async def chat(
         openWorldHint=True,
     )
 )
+@_wrap_tool("media")
 async def media(
     action: str,
     chat_id: str | int | None = None,
@@ -383,6 +415,7 @@ async def media(
         openWorldHint=True,
     )
 )
+@_wrap_tool("contact")
 async def contact(
     action: str,
     query: str | None = None,
