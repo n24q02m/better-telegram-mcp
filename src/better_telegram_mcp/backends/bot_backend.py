@@ -319,14 +319,18 @@ class BotBackend(TelegramBackend):
 
         max_size = 50 * 1024 * 1024  # 50MB
         try:
-            async with self._client.stream("GET", f"{self._file_base_url}{file_path}") as resp:
+            async with self._client.stream(
+                "GET", f"{self._file_base_url}{file_path}"
+            ) as resp:
                 resp.raise_for_status()
 
                 content_length = resp.headers.get("Content-Length")
                 if content_length:
                     try:
                         if int(content_length) > max_size:
-                            msg = f"File size exceeds maximum allowed ({max_size} bytes)"
+                            msg = (
+                                f"File size exceeds maximum allowed ({max_size} bytes)"
+                            )
                             raise SecurityError(msg)
                     except ValueError:
                         pass
@@ -341,7 +345,9 @@ class BotBackend(TelegramBackend):
                     async for chunk in resp.aiter_bytes(chunk_size=8192):
                         accumulated_size += len(chunk)
                         if accumulated_size > max_size:
-                            msg = f"File size exceeds maximum allowed ({max_size} bytes)"
+                            msg = (
+                                f"File size exceeds maximum allowed ({max_size} bytes)"
+                            )
                             raise SecurityError(msg)
                         # Small chunk writes are usually fast enough to not block the event loop noticeably
                         # due to OS level buffering, avoiding massive overhead of asyncio.to_thread per chunk
