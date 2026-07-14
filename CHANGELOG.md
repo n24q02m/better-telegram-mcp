@@ -2,6 +2,20 @@
 
 <!-- version list -->
 
+## v4.16.0 (2026-07-14)
+
+### Bug Fixes
+
+- **deps**: Lock file maintenance ([#931](https://github.com/n24q02m/better-telegram-mcp/pull/931),
+  [`4505561`](https://github.com/n24q02m/better-telegram-mcp/commit/4505561c56cbb34c0d0b317dd84a0867ce5b63d9))
+
+### Features
+
+- Add smithery.yaml for stdio deployment
+  ([#933](https://github.com/n24q02m/better-telegram-mcp/pull/933),
+  [`74acd75`](https://github.com/n24q02m/better-telegram-mcp/commit/74acd753a8a5e0a75c8d89f7e2b8b63d8124b317))
+
+
 ## v4.16.0-beta.7 (2026-07-13)
 
 ### Bug Fixes
