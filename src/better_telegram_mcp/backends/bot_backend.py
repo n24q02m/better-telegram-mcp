@@ -9,7 +9,12 @@ import httpx
 
 from ..relay_setup import redact_bot_token
 from .base import TelegramBackend
-from .security import SecurityError, fetch_url_safely, validate_file_path, validate_output_dir
+from .security import (
+    SecurityError,
+    fetch_url_safely,
+    validate_file_path,
+    validate_output_dir,
+)
 
 API_BASE = "https://api.telegram.org/bot{}/"
 FILE_API_BASE = "https://api.telegram.org/file/bot{}/"
