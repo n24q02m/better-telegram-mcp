@@ -319,17 +319,22 @@ class BotBackend(TelegramBackend):
 
         max_size = 50 * 1024 * 1024  # 50MB
         try:
-            async with self._client.stream("GET", f"{self._file_base_url}{file_path}") as resp:
+            async with self._client.stream(
+                "GET", f"{self._file_base_url}{file_path}"
+            ) as resp:
                 resp.raise_for_status()
                 content_length = resp.headers.get("Content-Length")
                 if content_length:
                     try:
                         if int(content_length) > max_size:
-                            raise SecurityError(f"File size exceeds maximum allowed ({max_size} bytes)")
+                            raise SecurityError(
+                                f"File size exceeds maximum allowed ({max_size} bytes)"
+                            )
                     except ValueError:
                         pass
 
                 downloaded_size = 0
+
                 def _write_chunk(f, chunk):
                     f.write(chunk)
 
@@ -337,7 +342,9 @@ class BotBackend(TelegramBackend):
                     async for chunk in resp.aiter_bytes():
                         downloaded_size += len(chunk)
                         if downloaded_size > max_size:
-                            raise SecurityError(f"File size exceeds maximum allowed ({max_size} bytes)")
+                            raise SecurityError(
+                                f"File size exceeds maximum allowed ({max_size} bytes)"
+                            )
                         await asyncio.to_thread(_write_chunk, f, chunk)
 
         except httpx.HTTPError as e:
