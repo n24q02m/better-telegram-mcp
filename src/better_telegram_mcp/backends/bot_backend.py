@@ -9,7 +9,12 @@ import httpx
 
 from ..relay_setup import redact_bot_token
 from .base import TelegramBackend
-from .security import fetch_url_safely, validate_file_path, validate_output_dir
+from .security import (
+    SecurityError,
+    fetch_url_safely,
+    validate_file_path,
+    validate_output_dir,
+)
 
 API_BASE = "https://api.telegram.org/bot{}/"
 FILE_API_BASE = "https://api.telegram.org/file/bot{}/"
@@ -311,14 +316,35 @@ class BotBackend(TelegramBackend):
         # Bolt: Move blocking I/O to a background thread.
         await asyncio.to_thread(target_dir.mkdir, parents=True, exist_ok=True)
         target = target_dir / Path(file_path).name
+
+        max_size = 50 * 1024 * 1024  # 50MB
         try:
-            resp = await self._client.get(f"{self._file_base_url}{file_path}")
-            resp.raise_for_status()
+            async with self._client.stream("GET", f"{self._file_base_url}{file_path}") as resp:
+                resp.raise_for_status()
+                content_length = resp.headers.get("Content-Length")
+                if content_length:
+                    try:
+                        if int(content_length) > max_size:
+                            raise SecurityError(f"File size exceeds maximum allowed ({max_size} bytes)")
+                    except ValueError:
+                        pass
+
+                downloaded_size = 0
+                def _write_chunk(f, chunk):
+                    f.write(chunk)
+
+                with target.open("wb") as f:
+                    async for chunk in resp.aiter_bytes():
+                        downloaded_size += len(chunk)
+                        if downloaded_size > max_size:
+                            raise SecurityError(f"File size exceeds maximum allowed ({max_size} bytes)")
+                        await asyncio.to_thread(_write_chunk, f, chunk)
+
         except httpx.HTTPError as e:
             # httpx exceptions include the request URL, which carries the bot
             # token; redact before re-raising so it cannot leak into logs.
             raise TelegramAPIError(redact_bot_token(str(e))) from None
-        await asyncio.to_thread(target.write_bytes, resp.content)
+
         return str(target)
 
     # --- Contacts (user-only) ---

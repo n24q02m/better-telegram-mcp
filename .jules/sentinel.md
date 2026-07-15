@@ -11,3 +11,7 @@
 **Vulnerability:** The URL validation logic correctly blocked the IPv4 unspecified address `0.0.0.0` but failed to block its IPv6 equivalent `::`. This allowed SSRF requests to bypass the filter and target `localhost` on systems with IPv6 enabled.
 **Learning:** Hardcoded string checks (like `hostname in {"0.0.0.0"}`) and IPv4-only IP network blocks are insufficient when IPv6 is available, as attackers can use IPv6 variants (like `::`) to achieve the same routing behavior.
 **Prevention:** Always include the IPv6 equivalent `::/128` (unspecified) in blocked internal networks alongside `0.0.0.0/8`, and ensure string-based early filters catch `::`.
+## 2025-02-27 - Fix DoS via memory exhaustion in download_media
+**Vulnerability:** `download_media` in `BotBackend` used `httpx.AsyncClient.get` which loads the entire response into memory at once, creating a risk for Denial of Service (DoS) via Out-Of-Memory (OOM) attacks if a malicious or large file is fetched, similar to the previous `fetch_url_safely` vulnerability.
+**Learning:** External URLs or Bot API files should be fetched with size limits and streaming to prevent memory exhaustion, as even validated bot API URLs can return massive payloads that consume too much memory if read entirely at once.
+**Prevention:** Always use `httpx.stream` and iterate over chunks (`aiter_bytes`) while enforcing a strict `max_size` limit (e.g. 50MB) on the accumulated data and checking the Content-Length header, writing chunks explicitly to the target file.
