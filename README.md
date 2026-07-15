@@ -48,7 +48,9 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 - [Features](#features)
 - [Status](#status)
 - [Install](#install)
+- [Smithery](#smithery)
 - [Configuration](#configuration)
+- [CLI](#cli)
 - [Documentation](#documentation)
 - [Tools](#tools)
 - [Comparison](#comparison)
@@ -105,10 +107,25 @@ Stdio mode is **bot mode only** (`TELEGRAM_BOT_TOKEN`). User mode (full account 
 phone + OTP) runs in HTTP mode, where credentials are entered through the
 browser-based relay form at `/authorize`.
 
+**Hosted endpoint** -- a managed instance runs at `https://telegram.n24q02m.com/mcp`
+(HTTP transport, OAuth-gated). Point any MCP client that speaks Streamable HTTP +
+OAuth 2.1 at that URL to use it without self-hosting; each user completes the browser
+relay setup (bot token, or phone + OTP) on first connect. To run your own instance,
+use the Docker HTTP method above or the [Cloudflare deploy](#deploy-to-cloudflare) below.
+
 Full setup matrices live at the canonical docs site
 [mcp.n24q02m.com/servers/better-telegram-mcp/setup/](https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/),
 and the paste-to-agent snippets at
 [claude-plugins/plugins/better-telegram-mcp/setup-with-agent.md](https://github.com/n24q02m/claude-plugins/blob/main/plugins/better-telegram-mcp/setup-with-agent.md).
+
+## Smithery
+
+Also listed on [Smithery](https://smithery.ai/servers/n24q02m/better-telegram-mcp).
+Per [`smithery.yaml`](smithery.yaml), Smithery starts the server over **stdio** with
+`uvx --python 3.13 better-telegram-mcp` and takes **no install-time configuration**
+(empty `configSchema`) -- credentials are provided at runtime through the server's own
+setup flow: the `TELEGRAM_BOT_TOKEN` env var for stdio bot mode, or the browser relay
+form for HTTP user mode (see [Configuration](#configuration)).
 
 ## Configuration
 
@@ -137,6 +154,46 @@ not env vars. Server-side env vars for self-hosting:
 and `TELEGRAM_DATA_DIR` customize the Telethon session file location. There is no
 `TELEGRAM_PASSWORD` env var -- 2FA is entered through the web UI and never stored
 in the environment.
+
+## CLI
+
+The `better-telegram-mcp` console script (installed by `uvx` / `pip`) **starts the
+server** when run with no subcommand, and exposes a few operator subcommands for local
+single-user setup and diagnostics. Any flag that is not a subcommand is passed straight
+through to the server (e.g. `--http`).
+
+```bash
+better-telegram-mcp            # start the MCP server (stdio, bot mode by default)
+better-telegram-mcp --http     # start in HTTP mode
+better-telegram-mcp --version  # print the version
+```
+
+**Subcommands** (`better-telegram-mcp <subcommand>`):
+
+| Subcommand | Usage | Description |
+|:-----------|:------|:------------|
+| `login` | `login --bot-token <token>` or `login --phone <+number>` | Authenticate this machine (single-user). Bot mode validates the token; phone mode runs the interactive OTP/2FA flow and stores the Telethon session on disk |
+| `logout` | `logout` | Revoke the Telegram session server-side, delete the local session file, and clear saved credentials |
+| `config` | `config status`, `config delete [--yes]` | Show or delete the saved local credential config (env overrides still take precedence at server start) |
+| `relay` | `relay status`, `relay open`, `relay reset` | Inspect, open (print a fresh setup URL for), or reset the browser relay setup session |
+| `doctor` | `doctor` | Print environment diagnostics -- Python version, credential backend, config + relay state, and transport mode |
+
+```bash
+# Bot mode: validate a bot token and save it to the local config
+better-telegram-mcp login --bot-token 123456:ABC-DEF
+
+# User mode: interactive phone + OTP (+ 2FA if enabled) sign-in
+better-telegram-mcp login --phone +15551234567
+
+# Remove local credentials and revoke the session
+better-telegram-mcp logout
+```
+
+The `login` / `logout` subcommands are single-user and local-machine only -- they write
+the on-disk Telethon session and the encrypted single-user config, so run them on the
+machine that hosts the stdio server. For remote / multi-user HTTP deployments,
+credentials are entered through the browser relay form instead (see the
+[hosted endpoint](#install) and [Configuration](#configuration)).
 
 ## Documentation
 
