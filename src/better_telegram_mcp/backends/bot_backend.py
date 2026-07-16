@@ -306,7 +306,11 @@ class BotBackend(TelegramBackend):
                 "then call media(action='download', file_id=...)."
             )
         info = await self._call("getFile", file_id=file_id)
-        file_path = info["file_path"]
+        file_path = info.get("file_path")
+        if not file_path:
+            raise TelegramAPIError(
+                "getFile returned no file_path (file may exceed bot API 20MB limit)"
+            )
         target_dir = validate_output_dir(output_dir or tempfile.gettempdir())
         # Bolt: Move blocking I/O to a background thread.
         await asyncio.to_thread(target_dir.mkdir, parents=True, exist_ok=True)
