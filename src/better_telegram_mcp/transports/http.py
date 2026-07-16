@@ -35,7 +35,7 @@ from typing import Any
 from loguru import logger
 
 from ..config import Settings
-from ..relay_schema import RELAY_SCHEMA
+from ..relay_schema import RELAY_SCHEMA, render_telegram_form
 
 # ContextVar for per-user backend injection in multi-user HTTP mode.
 #
@@ -159,7 +159,6 @@ def _start_single_user_http(settings: Settings) -> None:
 
     from mcp_core.transport.local_server import run_http_server
 
-    from ..credential_form import render_telegram_credential_form
     from ..credential_state import on_step_submitted, save_credentials
     from ..server import mcp
 
@@ -180,7 +179,7 @@ def _start_single_user_http(settings: Settings) -> None:
             host=host,
             on_credentials_saved=save_credentials,
             on_step_submitted=on_step_submitted,
-            custom_credential_form_html=render_telegram_credential_form,
+            custom_credential_form_html=render_telegram_form,
             auth_disabled=auth_disabled,
         )
     )
@@ -275,7 +274,6 @@ def _start_multi_user_http(settings: Settings) -> None:
     from mcp_core.transport.local_server import run_http_server
 
     from ..auth.telegram_auth_provider import TelegramAuthProvider, set_global_provider
-    from ..credential_form import render_telegram_credential_form
     from ..credential_state import on_step_submitted, save_credentials
     from ..server import create_http_mcp_server
 
@@ -332,7 +330,7 @@ def _start_multi_user_http(settings: Settings) -> None:
                 host=host,
                 on_credentials_saved=save_credentials,
                 on_step_submitted=on_step_submitted,
-                custom_credential_form_html=render_telegram_credential_form,
+                custom_credential_form_html=render_telegram_form,
                 auth_scope=_per_request_sub_scope,
                 auth_disabled=os.environ.get("MCP_AUTH_DISABLE") == "1",
             )

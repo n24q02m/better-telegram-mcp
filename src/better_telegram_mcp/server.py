@@ -618,9 +618,8 @@ async def run_http(port: int = 0) -> None:
     """Run as HTTP server with local OAuth 2.1 AS via mcp-core."""
     from mcp_core.transport.local_server import run_http_server
 
-    from .credential_form import render_telegram_credential_form
     from .credential_state import on_step_submitted, save_credentials
-    from .relay_schema import RELAY_SCHEMA
+    from .relay_schema import RELAY_SCHEMA, render_telegram_form
 
     host = os.environ.get("HOST")
 
@@ -632,7 +631,7 @@ async def run_http(port: int = 0) -> None:
         host=host,
         on_credentials_saved=save_credentials,
         on_step_submitted=on_step_submitted,
-        custom_credential_form_html=render_telegram_credential_form,
+        custom_credential_form_html=render_telegram_form,
     )
 
 
