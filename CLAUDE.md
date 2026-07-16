@@ -28,8 +28,8 @@ src/better_telegram_mcp/
   backends/            # TelegramBackend ABC -> BotBackend (httpx), UserBackend (Telethon)
   backends/security.py # validate_url, validate_file_path, validate_output_dir
   relay_setup.py       # Shared error sanitization, field constants
-  relay_schema.py      # Relay form schema (bot mode + user mode fields)
-  credential_form.py   # Custom HTML form (phone -> OTP -> 2FA password)
+  relay_schema.py      # Relay schema + TELEGRAM_TABS layout + render_telegram_form
+                       # (Bot/User tabs drawn by mcp-core render_credential_form)
   transports/
     http.py            # _start_single_user_http + _start_multi_user_http
                        # (both via mcp-core run_http_server)
@@ -100,16 +100,18 @@ re-open closed issues.)
    `logging.getLogger("httpx").setLevel(logging.WARNING)` so request URLs
    (which include the bot token) never reach stderr at INFO level.
 
-2. **User mode OTP/2FA multi-step flow** -- RESOLVED. `credential_form.py`
-   ships a custom dark-themed form with `showStepInput` JS that handles
+2. **User mode OTP/2FA multi-step flow** -- RESOLVED. mcp-core's shared
+   credential form (schema-level `tabs`, mcp-core >=1.20.0b1) renders the
+   Bot/User tabs; its `showStepInput` JS handles
    `next_step.type === "otp_required"` + `password_required`. Wired into
-   mcp-core's local OAuth AS via `run_local_server(...,
-   custom_credential_form_html=render_telegram_credential_form,
-   on_step_submitted=on_step_submitted)`. After phone submit, the same
-   page re-renders the OTP input, posts to `/otp`, and chains to the 2FA
-   password step if Telethon reports it. Recent reinforcements:
-   `0560529 fix: follow redirect_url after async OTP/password completion`,
-   `eb1993f fix: clear aria-busy on step-input reset to unblock 2FA submit`.
+   mcp-core's local OAuth AS via `run_http_server(...,
+   custom_credential_form_html=render_telegram_form,
+   on_step_submitted=on_step_submitted)` — `render_telegram_form`
+   (`relay_schema.py`) declares `TELEGRAM_TABS` + the `initial_tab` hint and
+   delegates rendering to `render_credential_form`. After phone submit, the
+   same page re-renders the OTP input, posts to `/otp`, and chains to the 2FA
+   password step if Telethon reports it. The forked `credential_form.py` was
+   dropped once the tabs capability landed in mcp-core.
 
 3. **Setup-complete UI redirect** -- RESOLVED via mcp-core
    `feedback_relay_form_must_follow_redirect.md` fix; the form follows
