@@ -238,6 +238,17 @@ async def test_download_media_with_file_id(tmp_path):
     assert Path(path).name == "file_1.jpg"
 
 
+async def test_download_media_getfile_response_missing_file_path():
+    """getFile can return {"ok": true} without file_path (Telegram omits it
+    for files exceeding the Bot API's 20MB limit). Accessing
+    info["file_path"] directly raises an opaque KeyError; assert a clear
+    TelegramAPIError is raised instead."""
+    bot = _make_bot(result={"file_id": "AAAqqq"}, ok=True)
+
+    with pytest.raises(TelegramAPIError, match="file_path"):
+        await bot.download_media(123, 1, file_id="AAAqqq")
+
+
 async def test_download_media_file_get_error_redacts_bot_token():
     """The file-GET error path must redact the bot token like the _call/
     _call_form paths already do (see test_transport_error_redacts_bot_token):
