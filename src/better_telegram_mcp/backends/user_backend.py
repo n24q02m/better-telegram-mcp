@@ -94,7 +94,9 @@ class UserBackend(TelegramBackend):
 
         def _sync_warn():
             try:
-                marker = PerPluginStore("telegram", sub_key="tokens/app-identity").load()
+                marker = PerPluginStore(
+                    "telegram", sub_key="tokens/app-identity"
+                ).load()
             except Exception as e:
                 logger.debug("Could not read api identity marker: {e}", e=e)
                 return
