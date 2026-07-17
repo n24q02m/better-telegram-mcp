@@ -574,8 +574,8 @@ def test_main_stdio_missing_credentials_exits_1(capsys):
 def test_main_stdio_config_bot_token_no_env_runs():
     """Stdio: a bot token in the single-user config (not env) resolves CONFIGURED.
 
-    The gate hydrates env from the saved config via resolve_credential_state and
-    starts the server -- no exit, even though TELEGRAM_BOT_TOKEN is unset in env.
+    resolve_credential_state reports CONFIGURED from the saved config so the
+    server starts -- no exit, even though TELEGRAM_BOT_TOKEN is unset in env.
     """
     import better_telegram_mcp.server as srv
 
@@ -969,12 +969,43 @@ async def test_config_setup_reset_works_when_unconfigured():
         srv._unconfigured = old
 
 
+# --- _ensure_settings: explicit config load without env injection ---
+
+
+def test_ensure_settings_loads_config_without_env_injection():
+    """_ensure_settings loads the saved single-user config via
+    Settings.from_relay_config and must NOT mutate os.environ.
+
+    Exporting credentials into the process environment leaks them to every
+    subprocess and third-party dependency, defeating the encrypted store. The
+    saved config must be read explicitly instead.
+    """
+    import better_telegram_mcp.server as srv
+
+    token = "123456:ABCdefGHIjklMNOpqrsTUVwxyz0123456789"
+
+    with (
+        patch.dict(os.environ, {}, clear=True),
+        patch(
+            "better_telegram_mcp.credential_state._read_single_user_config",
+            return_value={"TELEGRAM_BOT_TOKEN": token},
+        ),
+    ):
+        settings = srv._ensure_settings()
+
+        assert settings.is_configured
+        assert settings.bot_token == token
+        # Security: credentials must not leak into the process environment.
+        assert "TELEGRAM_BOT_TOKEN" not in os.environ
+
+
 # --- lifespan: resolve_credential_state integration ---
 
 
 @pytest.mark.asyncio
 async def test_lifespan_resolves_credentials_when_unconfigured():
-    """Lifespan calls resolve_credential_state and re-creates Settings if configured."""
+    """Lifespan calls resolve_credential_state and, when configured, loads the
+    saved config via Settings.from_relay_config (not a second bare Settings())."""
     import better_telegram_mcp.server as srv
     from better_telegram_mcp.server import _lifespan
 
@@ -989,22 +1020,17 @@ async def test_lifespan_resolves_credentials_when_unconfigured():
     mock_bot = AsyncMock()
     mock_bot.is_authorized = AsyncMock(return_value=True)
 
-    settings_call_count = 0
-
-    def settings_factory(*args, **kwargs):
-        nonlocal settings_call_count
-        settings_call_count += 1
-        if settings_call_count == 1:
-            return mock_settings_initial
-        return mock_settings_reconfigured
-
     from better_telegram_mcp.credential_state import CredentialState
 
     with (
-        patch.object(srv, "Settings", side_effect=settings_factory),
+        patch.object(srv, "Settings") as mock_settings_cls,
         patch(
             "better_telegram_mcp.credential_state.resolve_credential_state",
             return_value=CredentialState.CONFIGURED,
+        ),
+        patch(
+            "better_telegram_mcp.credential_state._read_single_user_config",
+            return_value={"TELEGRAM_BOT_TOKEN": "resolved:token"},
         ),
         patch.dict(
             "sys.modules",
@@ -1017,8 +1043,15 @@ async def test_lifespan_resolves_credentials_when_unconfigured():
             },
         ),
     ):
+        # Bare Settings() -> unconfigured; explicit from_relay_config -> configured.
+        mock_settings_cls.return_value = mock_settings_initial
+        mock_settings_cls.from_relay_config.return_value = mock_settings_reconfigured
+
         async with _lifespan(mcp):
             assert srv._settings is mock_settings_reconfigured
+            mock_settings_cls.from_relay_config.assert_called_once_with(
+                {"TELEGRAM_BOT_TOKEN": "resolved:token"}
+            )
             mock_bot.connect.assert_awaited_once()
 
         mock_bot.disconnect.assert_awaited_once()

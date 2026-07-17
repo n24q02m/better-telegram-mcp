@@ -101,12 +101,21 @@ def _ensure_settings() -> Settings:
     """Initialize settings and resolve credential state."""
     settings = Settings()
     if not settings.is_configured:
-        from .credential_state import resolve_credential_state
+        from .credential_state import (
+            _read_single_user_config,
+            resolve_credential_state,
+        )
 
         state = resolve_credential_state()
-        # If config was loaded from file, re-create Settings to pick up env vars
         if state.value == "configured":
-            settings = Settings()
+            # Load the saved config explicitly rather than relying on os.environ
+            # injection: exporting credentials into the process environment
+            # leaks them to every subprocess and third-party dependency,
+            # defeating the encrypted store. _read_single_user_config honours the
+            # active backend (local config.enc or CF KV).
+            saved_config = _read_single_user_config()
+            if saved_config:
+                settings = Settings.from_relay_config(saved_config)
     return settings
 
 
@@ -649,8 +658,9 @@ def main() -> None:
         # Universal MCP client compatibility (Claude Code, Cursor, VS Code Copilot, etc.).
         # Credentials come from env, the encrypted single-user config, or a saved
         # Telethon session (bot token OR phone+session). resolve_credential_state
-        # consults all three and hydrates os.environ from a saved config so the
-        # lifespan below picks it up; only a truly unconfigured stdio server exits.
+        # consults all three; the lifespan's _ensure_settings loads a saved
+        # config explicitly (Settings.from_relay_config) without mutating
+        # os.environ. Only a truly unconfigured stdio server exits.
         from .credential_state import CredentialState, resolve_credential_state
 
         if resolve_credential_state() != CredentialState.CONFIGURED:

@@ -185,9 +185,6 @@ def resolve_credential_state() -> CredentialState:
             has_bot = bool(saved.get("TELEGRAM_BOT_TOKEN"))
             has_user = bool(saved.get("TELEGRAM_PHONE"))
             if has_bot or has_user:
-                for key, value in saved.items():
-                    if value and key not in os.environ:
-                        os.environ[key] = value
                 logger.info("Config loaded from encrypted file")
                 _state = CredentialState.CONFIGURED
                 return _state
@@ -291,10 +288,6 @@ async def save_credentials(
 
     # ----- Single-user branch: shared config.enc (local) / KV (CF) + global backend -----
     _write_single_user_config(config)
-
-    for key, value in config.items():
-        if value and key not in os.environ:
-            os.environ[key] = value
 
     logger.info("Credentials saved via local OAuth form")
 

@@ -143,7 +143,7 @@ async def test_lifespan_tries_credential_state_when_unconfigured():
     mock_bot = AsyncMock()
     mock_bot.is_authorized = AsyncMock(return_value=True)
 
-    # First Settings() returns unconfigured, second (after resolve) returns configured
+    # Bare Settings() -> unconfigured; explicit from_relay_config -> configured.
     unconfigured_settings = MagicMock(is_configured=False)
     configured_settings = MagicMock(
         is_configured=True,
@@ -151,21 +151,18 @@ async def test_lifespan_tries_credential_state_when_unconfigured():
         bot_token="relay:TOKEN",
     )
 
-    call_count = 0
-
-    def settings_factory(*args, **kwargs):
-        nonlocal call_count
-        call_count += 1
-        return unconfigured_settings if call_count == 1 else configured_settings
-
     def mock_resolve():
         return CredentialState.CONFIGURED
 
     with (
-        patch.object(srv, "Settings", side_effect=settings_factory),
+        patch.object(srv, "Settings") as mock_settings_cls,
         patch(
             "better_telegram_mcp.credential_state.resolve_credential_state",
             side_effect=mock_resolve,
+        ),
+        patch(
+            "better_telegram_mcp.credential_state._read_single_user_config",
+            return_value={"TELEGRAM_BOT_TOKEN": "relay:TOKEN"},
         ),
         patch.dict(
             "sys.modules",
@@ -176,6 +173,9 @@ async def test_lifespan_tries_credential_state_when_unconfigured():
             },
         ),
     ):
+        mock_settings_cls.return_value = unconfigured_settings
+        mock_settings_cls.from_relay_config.return_value = configured_settings
+
         async with _lifespan(mcp):
             assert srv._backend is mock_bot
             mock_bot.connect.assert_awaited_once()
