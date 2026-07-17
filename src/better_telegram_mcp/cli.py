@@ -246,6 +246,10 @@ def _version() -> str:
 def main() -> int:
     return build_cli(
         "better-telegram-mcp",
+        # Credential slug is "telegram", not the console name minus "-mcp"
+        # ("better-telegram"), so `config`/`doctor` read the same store the
+        # server writes to (credential_state.PLUGIN_NAME).
+        plugin_name=_MARKER_PLUGIN,
         serve=_serve,
         extra=_extras(),
         version=_version(),
