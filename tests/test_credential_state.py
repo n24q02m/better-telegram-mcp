@@ -44,6 +44,27 @@ def _clean_credential_state():
     cs._step_otp_code = None
 
 
+@pytest.fixture(autouse=True)
+def _isolate_home_dir(tmp_path, monkeypatch):
+    """Keep the single-user PerPluginStore + legacy config.enc off the real home.
+
+    Since the single-user cutover (PLUGIN_NAME store), a save writes to
+    ``~/.telegram-mcp/config.json``; without this fixture the reset/save paths
+    that are not fully mocked would touch the developer's real home.
+    """
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("MCP_STORAGE_BACKEND", raising=False)
+
+    from mcp_core.storage import config_file
+
+    config_file.set_config_path(str(tmp_path / "mcp" / "config.enc"))
+    config_file.clear_key_cache_for_testing()
+    yield
+    config_file.set_config_path(None)
+    config_file.clear_key_cache_for_testing()
+
+
 # ---------------------------------------------------------------------------
 # CredentialState enum
 # ---------------------------------------------------------------------------
@@ -319,7 +340,7 @@ async def test_save_credentials_bot_mode_returns_none():
     """Bot mode (token only) should complete immediately."""
     from better_telegram_mcp.credential_state import save_credentials
 
-    with patch("mcp_core.storage.config_file.write_config"):
+    with patch("better_telegram_mcp.credential_state._write_single_user_config"):
         os.environ.pop("TELEGRAM_BOT_TOKEN", None)
         result = await save_credentials(
             {"TELEGRAM_BOT_TOKEN": "123:abc"}, {"sub": "test-sub"}
@@ -338,7 +359,7 @@ async def test_save_credentials_user_mode_returns_otp_required():
     mock_backend.send_code = AsyncMock()
 
     with (
-        patch("mcp_core.storage.config_file.write_config"),
+        patch("better_telegram_mcp.credential_state._write_single_user_config"),
         patch(
             "better_telegram_mcp.backends.user_backend.UserBackend",
             return_value=mock_backend,
@@ -362,7 +383,7 @@ async def test_save_credentials_user_mode_telethon_failure_returns_error():
     from better_telegram_mcp.credential_state import save_credentials
 
     with (
-        patch("mcp_core.storage.config_file.write_config"),
+        patch("better_telegram_mcp.credential_state._write_single_user_config"),
         patch(
             "better_telegram_mcp.config.Settings.from_relay_config",
             side_effect=RuntimeError("bad settings"),
@@ -532,7 +553,7 @@ async def test_save_credentials_bot_mode_callback_invoked():
     callback = AsyncMock()
     cs._on_configured_callback = callback
 
-    with patch("mcp_core.storage.config_file.write_config"):
+    with patch("better_telegram_mcp.credential_state._write_single_user_config"):
         os.environ.pop("TELEGRAM_BOT_TOKEN", None)
         result = await save_credentials(
             {"TELEGRAM_BOT_TOKEN": "cb:token"}, {"sub": "test-sub"}
@@ -553,7 +574,7 @@ async def test_save_credentials_bot_mode_callback_raises():
 
     cs._on_configured_callback = AsyncMock(side_effect=RuntimeError("reinit error"))
 
-    with patch("mcp_core.storage.config_file.write_config"):
+    with patch("better_telegram_mcp.credential_state._write_single_user_config"):
         os.environ.pop("TELEGRAM_BOT_TOKEN", None)
         result = await save_credentials(
             {"TELEGRAM_BOT_TOKEN": "cb-fail:token"}, {"sub": "test-sub"}

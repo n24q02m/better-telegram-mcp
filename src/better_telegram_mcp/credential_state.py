@@ -54,37 +54,64 @@ def _cf_mode() -> bool:
 # collide with a real JWT sub.
 _SINGLE_USER_SUB = "shared-single-user"
 
+# Credential storage slug for the single-user config blob. Deliberately
+# ``"telegram"`` (not the console name ``SERVER_NAME`` = "better-telegram-mcp")
+# so the store lines up with the StringSession / KvSessionStore / api-identity
+# marker namespace AND with the ``plugin_name`` cli.py passes to ``build_cli``:
+# the CLI's ``config``/``doctor`` built-ins read ``PerPluginStore(PLUGIN_NAME)``,
+# so a single-user save MUST land there too or it reads back as "not configured".
+PLUGIN_NAME = "telegram"
+
 
 def _single_user_store(backend=None):
     """Backend-seam store for the single-user config blob (CF mode).
 
-    The storage plugin slug is ``"telegram"`` (matching the StringSession /
-    KvSessionStore key namespace) while ``SERVER_NAME`` ("better-telegram-mcp")
-    stays the namespace for the legacy on-disk ``config.enc`` path. The
-    synthetic ``_SINGLE_USER_SUB`` (non-None) is REQUIRED: a sub=None store
-    would encrypt with the machine ``.secret`` (ephemeral on CF), not
-    CREDENTIAL_SECRET, so the blob would be undecryptable after a recreate.
+    The storage plugin slug is :data:`PLUGIN_NAME` ("telegram", matching the
+    StringSession / KvSessionStore key namespace). The synthetic
+    ``_SINGLE_USER_SUB`` (non-None) is REQUIRED: a sub=None store would encrypt
+    with the machine ``.secret`` (ephemeral on CF), not CREDENTIAL_SECRET, so
+    the blob would be undecryptable after a recreate.
     """
     from mcp_core.storage.backends import backend_from_env
     from mcp_core.storage.per_plugin_store import PerPluginStore
 
     return PerPluginStore(
-        "telegram", _SINGLE_USER_SUB, backend=backend or backend_from_env()
+        PLUGIN_NAME, _SINGLE_USER_SUB, backend=backend or backend_from_env()
     )
+
+
+def _local_store():
+    """Store for the local (non-CF) single-user config blob.
+
+    ``PerPluginStore(PLUGIN_NAME)`` with ``sub=None`` -- the on-disk
+    machine-key store at ``~/.telegram-mcp/config.json``, the exact store
+    ``mcp_core.build_cli``'s ``config``/``doctor`` built-ins read once cli.py
+    passes ``plugin_name=PLUGIN_NAME``. Distinct on-disk key from the CF-mode
+    :func:`_single_user_store` (which keys under ``_SINGLE_USER_SUB``).
+    """
+    from mcp_core.storage.per_plugin_store import PerPluginStore
+
+    return PerPluginStore(PLUGIN_NAME)
 
 
 def _write_single_user_config(config: dict, backend=None) -> None:
     if backend is not None or _cf_mode():
         _single_user_store(backend).save(config)
         return
-    from mcp_core.storage.config_file import write_config
-
-    write_config(SERVER_NAME, config)
+    # Local single-user cutover onto PerPluginStore (mcp-core #668). This write
+    # is also the migration trigger: any pre-cutover legacy ``config.enc`` blob
+    # is superseded because the read below prefers the per-plugin store.
+    _local_store().save(config)
 
 
 def _read_single_user_config(backend=None) -> dict | None:
     if backend is not None or _cf_mode():
         return _single_user_store(backend).load()
+    # Prefer the per-plugin store; fall back to the legacy shared ``config.enc``
+    # so credentials saved before the cutover keep working with ZERO re-auth.
+    saved = _local_store().load()
+    if saved is not None:
+        return saved
     from mcp_core.storage.config_file import read_config
 
     return read_config(SERVER_NAME)
@@ -94,6 +121,9 @@ def _delete_single_user_config(backend=None) -> None:
     if backend is not None or _cf_mode():
         _single_user_store(backend).clear()
         return
+    # Clear BOTH stores so logout / reset leaves nothing behind regardless of
+    # which path originally persisted the credentials.
+    _local_store().clear()
     from mcp_core.storage.config_file import delete_config
 
     delete_config(SERVER_NAME)

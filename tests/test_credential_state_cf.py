@@ -27,15 +27,23 @@ def test_cf_mode_roundtrip_via_backend(monkeypatch):
     assert _read_single_user_config(backend=mem) == cfg
 
 
-def test_local_default_uses_config_enc(monkeypatch, tmp_path):
-    """Without cf-kv the legacy config.enc path is used (machine-bound)."""
-    monkeypatch.delenv("MCP_STORAGE_BACKEND", raising=False)
-    from mcp_core.storage import config_file
+def test_local_default_uses_per_plugin_store(monkeypatch, tmp_path):
+    """Without cf-kv the single-user blob lands in PerPluginStore (sub=None).
 
-    config_file.set_config_path(str(tmp_path / "config.enc"))
-    try:
-        _write_single_user_config({"TELEGRAM_PHONE": "+1"})
-        assert _read_single_user_config() == {"TELEGRAM_PHONE": "+1"}
-    finally:
-        config_file.set_config_path(None)
-        config_file.clear_key_cache_for_testing()
+    That sub=None machine-key store (``telegram/config`` ->
+    ``~/.telegram-mcp/config.json``) is exactly what ``config``/``doctor`` read
+    via ``build_cli(plugin_name="telegram")`` -- distinct from the CF-mode
+    synthetic-sub blob asserted above.
+    """
+    monkeypatch.delenv("MCP_STORAGE_BACKEND", raising=False)
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    from mcp_core.storage.per_plugin_store import PerPluginStore
+
+    _write_single_user_config({"TELEGRAM_PHONE": "+1"})
+
+    assert PerPluginStore("telegram").load() == {"TELEGRAM_PHONE": "+1"}
+    # The local path must NOT use the CF synthetic-sub key.
+    assert PerPluginStore("telegram", "shared-single-user").load() is None
+    assert _read_single_user_config() == {"TELEGRAM_PHONE": "+1"}
