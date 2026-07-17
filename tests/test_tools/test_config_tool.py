@@ -80,6 +80,50 @@ async def test_set_persists_across_calls(mock_backend):
 
 
 @pytest.mark.asyncio
+async def test_set_generic_key_value(mock_backend):
+    """Generic key/value form (parity with the other servers' set)."""
+    result = await handle_config(mock_backend, "set", key="message_limit", value="55")
+    assert result["updated"]["message_limit"] == 55
+    assert result["current"]["message_limit"] == 55
+
+
+@pytest.mark.asyncio
+async def test_set_generic_timeout(mock_backend):
+    result = await handle_config(mock_backend, "set", key="timeout", value="75")
+    assert result["updated"]["timeout"] == 75
+
+
+@pytest.mark.asyncio
+async def test_set_generic_missing_value(mock_backend):
+    result = await handle_config(mock_backend, "set", key="message_limit")
+    assert "error" in result
+    assert "both key and value" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_set_generic_invalid_key(mock_backend):
+    result = await handle_config(mock_backend, "set", key="mesage_limit", value="10")
+    assert "error" in result
+    assert "Invalid key" in result["error"]
+    # Fuzzy suggestion points at the real key.
+    assert "message_limit" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_set_generic_non_int_value(mock_backend):
+    result = await handle_config(mock_backend, "set", key="timeout", value="abc")
+    assert "error" in result
+    assert "must be an integer" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_set_generic_persists_across_calls(mock_backend):
+    await handle_config(mock_backend, "set", key="message_limit", value="33")
+    result = await handle_config(mock_backend, "status")
+    assert result["config"]["message_limit"] == 33
+
+
+@pytest.mark.asyncio
 async def test_cache_clear(mock_backend):
     result = await handle_config(mock_backend, "cache_clear")
     assert "message" in result
