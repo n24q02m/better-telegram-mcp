@@ -472,12 +472,15 @@ async def config(
     message_limit: int | None = None,
     timeout: int | None = None,
     key: str | None = None,
+    value: str | None = None,
 ) -> dict[str, Any]:
     """Server configuration and runtime settings.
 
     Actions (required params):
     - status: Show connection state, mode, and current config
-    - set (message_limit|timeout): Update runtime limits
+    - set (key+value, or message_limit|timeout): Update a runtime limit.
+      Generic form: set(key='message_limit', value='50'). Typed sugar:
+      set(message_limit=50).
     - cache_clear: Clear internal caches
     - setup_status: Show credential state and relay URL
     - setup_start (-> key='force'): Start relay setup via browser
@@ -586,6 +589,8 @@ async def config(
         action,
         message_limit=message_limit,
         timeout=timeout,
+        key=key,
+        value=value,
     )
 
 
