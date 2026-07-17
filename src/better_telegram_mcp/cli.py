@@ -2,9 +2,10 @@
 
 Bare invocation and any leading-dash argv (e.g. --http) start the server
 exactly as before; subcommands run one-shot operator actions. The
-``login``/``logout`` subcommands are single-user / local-machine only:
-they write the on-disk session and the encrypted single-user config, so
-running them makes sense on the machine that hosts the stdio server.
+``auth``/``logout`` subcommands (``login`` is a deprecated alias of ``auth``)
+are single-user / local-machine only: they write the on-disk session and the
+encrypted single-user config, so running them makes sense on the machine that
+hosts the stdio server.
 """
 
 from __future__ import annotations
@@ -27,15 +28,11 @@ def _serve(argv: list[str]) -> int | None:
     return 0
 
 
-# --- login ---
+# --- auth / login ---
 
 
-def _configure_login(p: argparse.ArgumentParser) -> None:
-    p.description = (
-        "Authenticate this local machine (single-user). Bot mode validates "
-        "the token; phone mode runs the interactive OTP/2FA flow and stores "
-        "the Telethon session on disk."
-    )
+def _add_credential_args(p: argparse.ArgumentParser) -> None:
+    """Add the mutually-exclusive bot-token / phone credential flags."""
     group = p.add_mutually_exclusive_group(required=True)
     group.add_argument(
         "--bot-token",
@@ -49,10 +46,41 @@ def _configure_login(p: argparse.ArgumentParser) -> None:
     )
 
 
-def _handle_login(args: argparse.Namespace) -> int:
+def _configure_auth(p: argparse.ArgumentParser) -> None:
+    p.description = (
+        "Authenticate this local machine (single-user). Bot mode validates "
+        "the token; phone mode runs the interactive OTP/2FA flow and stores "
+        "the Telethon session on disk."
+    )
+    # Optional provider positional for CLI parity with multi-provider servers;
+    # telegram has a single provider.
+    p.add_argument(
+        "provider",
+        nargs="?",
+        default="telegram",
+        choices=["telegram"],
+        help="Credential provider to authorize (only 'telegram')",
+    )
+    _add_credential_args(p)
+
+
+def _configure_login(p: argparse.ArgumentParser) -> None:
+    p.description = "Deprecated alias of `auth`; authenticate this local machine."
+    _add_credential_args(p)
+
+
+def _handle_auth(args: argparse.Namespace) -> int:
     if args.bot_token:
         return _login_bot(args.bot_token)
     return _login_phone(args.phone)
+
+
+def _handle_login(args: argparse.Namespace) -> int:
+    print(
+        "better-telegram-mcp: `login` is deprecated; use `auth` instead.",
+        file=sys.stderr,
+    )
+    return _handle_auth(args)
 
 
 def _login_bot(bot_token: str) -> int:
@@ -232,6 +260,8 @@ def _api_identity_store():
 
 def _extras() -> dict:
     return {
+        "auth": (_configure_auth, _handle_auth),
+        # `login` is a deprecated alias of `auth`, kept one release cycle.
         "login": (_configure_login, _handle_login),
         "logout": _handle_logout,
     }

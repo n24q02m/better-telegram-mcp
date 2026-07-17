@@ -383,3 +383,106 @@ class TestLogout:
 
         assert rc == 0
         assert "Nothing to log out" in capsys.readouterr().out
+
+
+class TestAuth:
+    """`auth` is the standard name; same credential flags as `login`."""
+
+    def test_bot_token_persists_without_deprecation_notice(self, capsys):
+        from better_telegram_mcp import cli
+
+        mock_backend = MagicMock()
+        mock_backend.connect = AsyncMock()
+        mock_backend.disconnect = AsyncMock()
+
+        with (
+            patch.object(
+                sys, "argv", ["better-telegram-mcp", "auth", "--bot-token", "123:ABC"]
+            ),
+            patch(
+                "better_telegram_mcp.backends.bot_backend.BotBackend",
+                return_value=mock_backend,
+            ),
+            patch(
+                "better_telegram_mcp.credential_state._write_single_user_config"
+            ) as mock_write,
+        ):
+            rc = cli.main()
+
+        assert rc == 0
+        mock_write.assert_called_once_with({"TELEGRAM_BOT_TOKEN": "123:ABC"})
+        captured = capsys.readouterr()
+        assert "bot mode" in captured.out
+        assert "deprecated" not in captured.err
+
+    def test_provider_positional_accepted(self):
+        from better_telegram_mcp import cli
+
+        mock_backend = MagicMock()
+        mock_backend.connect = AsyncMock()
+        mock_backend.disconnect = AsyncMock()
+
+        with (
+            patch.object(
+                sys,
+                "argv",
+                ["better-telegram-mcp", "auth", "telegram", "--bot-token", "123:ABC"],
+            ),
+            patch(
+                "better_telegram_mcp.backends.bot_backend.BotBackend",
+                return_value=mock_backend,
+            ),
+            patch("better_telegram_mcp.credential_state._write_single_user_config"),
+        ):
+            rc = cli.main()
+
+        assert rc == 0
+
+    def test_rejects_unknown_provider(self):
+        from better_telegram_mcp import cli
+
+        with patch.object(
+            sys, "argv", ["better-telegram-mcp", "auth", "notion", "--bot-token", "x"]
+        ):
+            with pytest.raises(SystemExit) as exc:
+                cli.main()
+        assert exc.value.code == 2
+
+    def test_no_credential_errors(self):
+        from better_telegram_mcp import cli
+
+        with patch.object(sys, "argv", ["better-telegram-mcp", "auth"]):
+            with pytest.raises(SystemExit) as exc:
+                cli.main()
+        assert exc.value.code == 2
+
+
+class TestLoginDeprecated:
+    """`login` still works but warns and delegates to `auth`."""
+
+    def test_login_warns_and_persists(self, capsys):
+        from better_telegram_mcp import cli
+
+        mock_backend = MagicMock()
+        mock_backend.connect = AsyncMock()
+        mock_backend.disconnect = AsyncMock()
+
+        with (
+            patch.object(
+                sys, "argv", ["better-telegram-mcp", "login", "--bot-token", "123:ABC"]
+            ),
+            patch(
+                "better_telegram_mcp.backends.bot_backend.BotBackend",
+                return_value=mock_backend,
+            ),
+            patch(
+                "better_telegram_mcp.credential_state._write_single_user_config"
+            ) as mock_write,
+        ):
+            rc = cli.main()
+
+        assert rc == 0
+        mock_write.assert_called_once_with({"TELEGRAM_BOT_TOKEN": "123:ABC"})
+        err = capsys.readouterr().err
+        assert "deprecated" in err
+        assert "auth" in err
