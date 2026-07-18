@@ -46,33 +46,41 @@ class UserBackend(TelegramBackend):
             raise RuntimeError(msg)
         return self._client
 
-    def _prepare_session_file(self) -> None:
+    async def _prepare_session_file(self) -> None:
         """Prepare session directory and file with secure permissions."""
-        s = self._settings
-        s.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
 
-        # Pre-create session file with secure permissions to avoid TOCTOU
-        # where Telethon creates it with default (insecure) permissions
-        session_path = s.data_dir / s.session_name
-        actual_session_path = session_path.with_suffix(".session")
-        try:
-            fd = os.open(str(actual_session_path), os.O_CREAT | os.O_WRONLY, 0o600)
-            os.close(fd)
-        except OSError as e:
-            # Windows may not support this or file already exists
-            logger.debug("Could not pre-create session file: {e}", e=e)
+        def _sync_prepare():
+            s = self._settings
+            s.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
 
-    def _secure_session_file(self) -> None:
-        """Ensure existing session files are secured with 0o600 permissions."""
-        s = self._settings
-        session_file = (s.data_dir / s.session_name).with_suffix(".session")
-        if session_file.exists():
+            # Pre-create session file with secure permissions to avoid TOCTOU
+            # where Telethon creates it with default (insecure) permissions
+            session_path = s.data_dir / s.session_name
+            actual_session_path = session_path.with_suffix(".session")
             try:
-                os.chmod(session_file, 0o600)
+                fd = os.open(str(actual_session_path), os.O_CREAT | os.O_WRONLY, 0o600)
+                os.close(fd)
             except OSError as e:
-                logger.debug("Could not set session file permissions: {e}", e=e)
+                # Windows may not support this or file already exists
+                logger.debug("Could not pre-create session file: {e}", e=e)
 
-    def _warn_on_api_identity_change(self) -> None:
+        await asyncio.to_thread(_sync_prepare)
+
+    async def _secure_session_file(self) -> None:
+        """Ensure existing session files are secured with 0o600 permissions."""
+
+        def _sync_secure():
+            s = self._settings
+            session_file = (s.data_dir / s.session_name).with_suffix(".session")
+            if session_file.exists():
+                try:
+                    os.chmod(session_file, 0o600)
+                except OSError as e:
+                    logger.debug("Could not set session file permissions: {e}", e=e)
+
+        await asyncio.to_thread(_sync_secure)
+
+    async def _warn_on_api_identity_change(self) -> None:
         """Warn (do not act) when the recorded api_id differs from the current one.
 
         ``better-telegram-mcp login --phone`` records the ``api_id`` the session
@@ -84,25 +92,30 @@ class UserBackend(TelegramBackend):
         """
         from mcp_core.storage.per_plugin_store import PerPluginStore
 
-        try:
-            marker = PerPluginStore("telegram", sub_key="tokens/app-identity").load()
-        except Exception as e:
-            logger.debug("Could not read api identity marker: {e}", e=e)
-            return
-        if not marker:
-            return
-        recorded = marker.get("api_id")
-        current = str(self._settings.api_id)
-        if recorded and recorded != current:
-            logger.warning(
-                "Telegram api_id changed since this session was created "
-                "(session api_id={recorded}, current api_id={current}). The "
-                "saved session may fail to authorize. Run "
-                "`better-telegram-mcp logout` then `better-telegram-mcp login` "
-                "to re-create it.",
-                recorded=recorded,
-                current=current,
-            )
+        def _sync_warn():
+            try:
+                marker = PerPluginStore(
+                    "telegram", sub_key="tokens/app-identity"
+                ).load()
+            except Exception as e:
+                logger.debug("Could not read api identity marker: {e}", e=e)
+                return
+            if not marker:
+                return
+            recorded = marker.get("api_id")
+            current = str(self._settings.api_id)
+            if recorded and recorded != current:
+                logger.warning(
+                    "Telegram api_id changed since this session was created "
+                    "(session api_id={recorded}, current api_id={current}). The "
+                    "saved session may fail to authorize. Run "
+                    "`better-telegram-mcp logout` then `better-telegram-mcp login` "
+                    "to re-create it.",
+                    recorded=recorded,
+                    current=current,
+                )
+
+        await asyncio.to_thread(_sync_warn)
 
     @staticmethod
     def _serialize_message(msg: Any) -> dict[str, Any]:
@@ -166,9 +179,8 @@ class UserBackend(TelegramBackend):
             self._client = TelegramClient(session, s.api_id, s.api_hash)
         else:
             # Local default: durable on-disk ``.session`` SQLite.
-            self._warn_on_api_identity_change()
-            # Bolt: Move blocking I/O to a background thread.
-            await asyncio.to_thread(self._prepare_session_file)
+            await self._warn_on_api_identity_change()
+            await self._prepare_session_file()
             # Telethon auto-appends .session, so pass path without extension.
             session_path = s.data_dir / s.session_name
             self._client = TelegramClient(str(session_path), s.api_id, s.api_hash)
@@ -229,8 +241,7 @@ class UserBackend(TelegramBackend):
         # Local FS deployments secure the on-disk .session (0o600). On an
         # externalized backend the StringSession save-on-change sink persists the
         # auth_key and this is a no-op (no .session file exists to chmod).
-        # Bolt: Move blocking I/O to a background thread.
-        await asyncio.to_thread(self._secure_session_file)
+        await self._secure_session_file()
 
         return {
             "authenticated_as": getattr(me, "first_name", ""),

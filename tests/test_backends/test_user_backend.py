@@ -1579,7 +1579,7 @@ class TestUserBackendLogging:
         backend = UserBackend(settings)
 
         with patch("os.chmod", side_effect=OSError("chmod failed")):
-            backend._secure_session_file()
+            await backend._secure_session_file()
 
         mock_logger.debug.assert_called()
         # Verify the specific message
@@ -1635,7 +1635,7 @@ class TestApiIdentityMarker:
         )
         return UserBackend(settings)
 
-    def test_no_marker_no_warning(self, tmp_path):
+    async def test_no_marker_no_warning(self, tmp_path):
         backend = self._backend(tmp_path)
         store = MagicMock()
         store.load.return_value = None
@@ -1646,10 +1646,10 @@ class TestApiIdentityMarker:
             ),
             patch("better_telegram_mcp.backends.user_backend.logger") as mock_logger,
         ):
-            backend._warn_on_api_identity_change()
+            await backend._warn_on_api_identity_change()
         mock_logger.warning.assert_not_called()
 
-    def test_matching_marker_no_warning(self, tmp_path):
+    async def test_matching_marker_no_warning(self, tmp_path):
         backend = self._backend(tmp_path, api_id=12345)
         store = MagicMock()
         store.load.return_value = {"api_id": "12345"}
@@ -1660,10 +1660,10 @@ class TestApiIdentityMarker:
             ),
             patch("better_telegram_mcp.backends.user_backend.logger") as mock_logger,
         ):
-            backend._warn_on_api_identity_change()
+            await backend._warn_on_api_identity_change()
         mock_logger.warning.assert_not_called()
 
-    def test_differing_marker_warns(self, tmp_path):
+    async def test_differing_marker_warns(self, tmp_path):
         backend = self._backend(tmp_path, api_id=12345)
         store = MagicMock()
         store.load.return_value = {"api_id": "99999"}
@@ -1674,10 +1674,10 @@ class TestApiIdentityMarker:
             ),
             patch("better_telegram_mcp.backends.user_backend.logger") as mock_logger,
         ):
-            backend._warn_on_api_identity_change()
+            await backend._warn_on_api_identity_change()
         mock_logger.warning.assert_called_once()
 
-    def test_marker_read_error_is_swallowed(self, tmp_path):
+    async def test_marker_read_error_is_swallowed(self, tmp_path):
         backend = self._backend(tmp_path)
         with (
             patch(
@@ -1686,7 +1686,7 @@ class TestApiIdentityMarker:
             ),
             patch("better_telegram_mcp.backends.user_backend.logger") as mock_logger,
         ):
-            backend._warn_on_api_identity_change()
+            await backend._warn_on_api_identity_change()
         mock_logger.warning.assert_not_called()
 
 
