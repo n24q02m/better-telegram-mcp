@@ -2,6 +2,67 @@
 
 <!-- version list -->
 
+## v4.17.0-beta.1 (2026-07-18)
+
+### Bug Fixes
+
+- Add orphan-tag integrity guard to release CI
+  ([#944](https://github.com/n24q02m/better-telegram-mcp/pull/944),
+  [`75bac8d`](https://github.com/n24q02m/better-telegram-mcp/commit/75bac8d5b8a358c74ce4beb40522b3e3aeb1ea91))
+
+- Adopt better-semantic-release for built-in release guards
+  ([`56e65be`](https://github.com/n24q02m/better-telegram-mcp/commit/56e65be364f399e9772b18ec914a31d916e0c719))
+
+- Bump mcp-core floor to 1.19.0 stable
+  ([#942](https://github.com/n24q02m/better-telegram-mcp/pull/942),
+  [`2b2f0ef`](https://github.com/n24q02m/better-telegram-mcp/commit/2b2f0efbe38c041dde849b719ea7da63a78b2bf2))
+
+- Clear error when getFile response lacks file_path
+  ([#941](https://github.com/n24q02m/better-telegram-mcp/pull/941),
+  [`2ecdb3f`](https://github.com/n24q02m/better-telegram-mcp/commit/2ecdb3f9964c279e6fce4a159bc29f840732cb15))
+
+- Load credentials without os.environ mutation
+  ([#947](https://github.com/n24q02m/better-telegram-mcp/pull/947),
+  [`6abdd89`](https://github.com/n24q02m/better-telegram-mcp/commit/6abdd89c24d15dc0388080d28a4cdaae77f33eb0))
+
+- Pin rangeStrategy on delayed packageRules to fix renovate artifacts failure
+  ([#945](https://github.com/n24q02m/better-telegram-mcp/pull/945),
+  [`c8910da`](https://github.com/n24q02m/better-telegram-mcp/commit/c8910da245b83982e7d90a8d5b9cc5b01da3ffb9))
+
+- Stream media downloads with 50MB size cap to prevent OOM
+  ([`a999622`](https://github.com/n24q02m/better-telegram-mcp/commit/a999622fcf60156796e9396f4274df06a841595e))
+
+- Unify single-user credential storage onto PerPluginStore
+  ([#949](https://github.com/n24q02m/better-telegram-mcp/pull/949),
+  [`950a4b2`](https://github.com/n24q02m/better-telegram-mcp/commit/950a4b213eb87b9e22f3e9ca8cb41c234ce6c4fa))
+
+### Features
+
+- Accept generic key/value form for config set
+  ([#950](https://github.com/n24q02m/better-telegram-mcp/pull/950),
+  [`00db1ab`](https://github.com/n24q02m/better-telegram-mcp/commit/00db1ab9d892647d3c9fca373320c8dd37bd7c35))
+
+- Add auth subcommand as the standard alias of login
+  ([#950](https://github.com/n24q02m/better-telegram-mcp/pull/950),
+  [`00db1ab`](https://github.com/n24q02m/better-telegram-mcp/commit/00db1ab9d892647d3c9fca373320c8dd37bd7c35))
+
+- Add PR-title conventional-commit gate + no-bump release warning
+  ([#948](https://github.com/n24q02m/better-telegram-mcp/pull/948),
+  [`8e68111`](https://github.com/n24q02m/better-telegram-mcp/commit/8e68111d93fba71387767a9be7e2de713dde19e7))
+
+- Config set key/value parity + auth subcommand alias
+  ([#950](https://github.com/n24q02m/better-telegram-mcp/pull/950),
+  [`00db1ab`](https://github.com/n24q02m/better-telegram-mcp/commit/00db1ab9d892647d3c9fca373320c8dd37bd7c35))
+
+- Document CLI, smithery, and self-host endpoint in README
+  ([#938](https://github.com/n24q02m/better-telegram-mcp/pull/938),
+  [`4882eab`](https://github.com/n24q02m/better-telegram-mcp/commit/4882eab36751b0813d73e99c059091fce2cae1fb))
+
+- Use core credential form renderer with tabs schema, drop fork
+  ([#943](https://github.com/n24q02m/better-telegram-mcp/pull/943),
+  [`9fef7cc`](https://github.com/n24q02m/better-telegram-mcp/commit/9fef7cc58cd23b68b8b4208954a7af038c0910d8))
+
+
 ## v4.16.0 (2026-07-14)
 
 ### Bug Fixes
