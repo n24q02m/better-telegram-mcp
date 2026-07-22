@@ -131,6 +131,17 @@ TELEGRAM_TABS: list[dict[str, Any]] = [
 ]
 
 
+# Opt in to the username-derived stable subject, so a returning user reaches the
+# same per-``sub`` bucket instead of the random subject minted per ``/authorize``.
+#
+# This server supplies its own ``custom_credential_form_html``, and mcp-core's
+# local OAuth app only passes ``include_username_field`` to its *default*
+# renderer -- a custom renderer wins and never receives the flag. So the form
+# side has to opt in here while ``server.py`` opts in on the transport side.
+# Both read this one constant so they cannot drift apart.
+STABLE_SUB_ENABLED = True
+
+
 def render_telegram_form(
     schema: dict[str, Any],
     submit_url: str,
@@ -168,4 +179,5 @@ def render_telegram_form(
         submit_url=submit_url,
         prefill=prefill,
         initial_tab=initial_tab,
+        include_username_field=STABLE_SUB_ENABLED,
     )
