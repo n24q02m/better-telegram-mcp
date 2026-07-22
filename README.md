@@ -313,6 +313,24 @@ This plugin implements **TC-NearZK** (in-memory, ephemeral). See [mcp-core trust
 | HTTP self-host | Same as hosted | Same | Only you (admin = user) |
 | stdio | `~/.config/mcp/config.enc` (credentials) + `~/.better-telegram-mcp/<name>.session` (Telethon session) | AES-GCM, machine-bound key | Only your OS user (file perm 0600) |
 
+### Workspace username (HTTP setup form)
+
+The browser setup form has an optional **workspace username** field. Entering the
+same username always lands you in the same per-`sub` bucket, so your session stays
+reachable across a re-authorization and across devices, instead of being tied to
+the one-off subject minted for each `/authorize` round-trip. Leaving it blank
+keeps the previous per-authorize behaviour.
+
+Trust boundary: when the form is gated by a *shared* `MCP_RELAY_PASSWORD`, the
+username is a partition key, not a secret -- anyone who knows that password can
+type any username and reach that bucket. That is fine for a trusted group; an
+untrusted multi-tenant deployment needs a per-user secret or delegated OAuth
+instead.
+
+**One-time migration:** existing users must re-authenticate once after this
+change. Nothing is deleted; sessions stored under the old random subject are
+simply no longer addressed.
+
 ## License
 
 MIT -- See [LICENSE](LICENSE).
