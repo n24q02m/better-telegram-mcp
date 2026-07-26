@@ -139,6 +139,48 @@ TELEGRAM_TABS: list[dict[str, Any]] = [
 # renderer -- a custom renderer wins and never receives the flag. So the form
 # side has to opt in here while ``server.py`` opts in on the transport side.
 # Both read this one constant so they cannot drift apart.
+
+_PASSWORD_TOGGLE_INJECTION = """
+<style>
+.password-wrapper{position:relative;display:block;width:100%}
+.password-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:#a1a1aa;font-size:0.75rem;font-weight:600;cursor:pointer;padding:4px;letter-spacing:0.05em}
+.password-toggle:not(:disabled):hover{color:#f4f4f5}
+.password-toggle:disabled{opacity:0.5;cursor:not-allowed}
+</style>
+<script>
+(function(){
+  function wrap(inp) {
+    if (inp.dataset.pwd) return;
+    inp.dataset.pwd = '1';
+    var w = document.createElement('div'), btn = document.createElement('button');
+    w.className = 'password-wrapper'; inp.parentNode.insertBefore(w, inp); w.appendChild(inp);
+    btn.type = 'button'; btn.className = 'password-toggle'; btn.textContent = 'SHOW';
+    btn.setAttribute('aria-pressed', 'false'); btn.setAttribute('aria-label', 'Show password');
+    w.appendChild(btn);
+    btn.onclick = function() {
+      var isP = inp.getAttribute('type') === 'password';
+      inp.dataset.toggled = isP ? '1' : ''; inp.setAttribute('type', isP ? 'text' : 'password');
+      btn.textContent = isP ? 'HIDE' : 'SHOW';
+      btn.setAttribute('aria-pressed', isP ? 'true' : 'false');
+      btn.setAttribute('aria-label', isP ? 'Hide password' : 'Show password');
+    };
+    new MutationObserver(function() {
+      btn.disabled = inp.disabled; var isP = inp.getAttribute('type') === 'password';
+      btn.style.display = (!isP && !inp.dataset.toggled) ? 'none' : '';
+      if (isP && inp.dataset.toggled) {
+        inp.dataset.toggled = ''; btn.textContent = 'SHOW';
+        btn.setAttribute('aria-pressed', 'false'); btn.setAttribute('aria-label', 'Show password');
+      }
+    }).observe(inp, {attributes: true, attributeFilter: ['disabled', 'type']});
+  }
+  document.querySelectorAll('input[type="password"]').forEach(wrap);
+  new MutationObserver(function() {
+    document.querySelectorAll('input[type="password"]').forEach(wrap);
+  }).observe(document.body, {childList: true, subtree: true, attributes: true, attributeFilter: ['type']});
+})();
+</script>
+"""
+
 STABLE_SUB_ENABLED = True
 
 
@@ -174,10 +216,13 @@ def render_telegram_form(
         "description": schema.get("description", ""),
         "tabs": TELEGRAM_TABS,
     }
-    return render_credential_form(
+    html = render_credential_form(
         render_schema,
         submit_url=submit_url,
         prefill=prefill,
         initial_tab=initial_tab,
         include_username_field=STABLE_SUB_ENABLED,
     )
+    if "</body>" in html:
+        return html.replace("</body>", _PASSWORD_TOGGLE_INJECTION + "</body>")
+    return html + _PASSWORD_TOGGLE_INJECTION
