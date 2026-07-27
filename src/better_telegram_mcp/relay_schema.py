@@ -174,10 +174,62 @@ def render_telegram_form(
         "description": schema.get("description", ""),
         "tabs": TELEGRAM_TABS,
     }
-    return render_credential_form(
+    html = render_credential_form(
         render_schema,
         submit_url=submit_url,
         prefill=prefill,
         initial_tab=initial_tab,
         include_username_field=STABLE_SUB_ENABLED,
     )
+
+    toggle_script = """
+<script>
+(function() {
+    var botTokenInput = document.getElementById("field-TELEGRAM_BOT_TOKEN");
+    if (!botTokenInput) return;
+
+    var wrapper = document.createElement("div");
+    wrapper.style.position = "relative";
+    wrapper.style.display = "flex";
+    wrapper.style.alignItems = "center";
+
+    botTokenInput.parentNode.insertBefore(wrapper, botTokenInput);
+    wrapper.appendChild(botTokenInput);
+    botTokenInput.style.paddingRight = "60px";
+
+    var toggleBtn = document.createElement("button");
+    toggleBtn.type = "button";
+    toggleBtn.textContent = "Show";
+    toggleBtn.setAttribute("aria-label", "Show password");
+    toggleBtn.setAttribute("aria-pressed", "false");
+    toggleBtn.style.position = "absolute";
+    toggleBtn.style.right = "10px";
+    toggleBtn.style.background = "none";
+    toggleBtn.style.border = "none";
+    toggleBtn.style.color = "inherit";
+    toggleBtn.style.cursor = "pointer";
+    toggleBtn.style.padding = "0";
+    toggleBtn.style.fontSize = "0.9em";
+    toggleBtn.style.textDecoration = "underline";
+
+    toggleBtn.addEventListener("click", function() {
+        var isPassword = botTokenInput.type === "password";
+        botTokenInput.type = isPassword ? "text" : "password";
+        toggleBtn.textContent = isPassword ? "Hide" : "Show";
+        toggleBtn.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
+        toggleBtn.setAttribute("aria-pressed", isPassword ? "true" : "false");
+    });
+
+    wrapper.appendChild(toggleBtn);
+
+    var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === "attributes" && mutation.attributeName === "disabled") {
+                toggleBtn.disabled = botTokenInput.disabled;
+            }
+        });
+    });
+    observer.observe(botTokenInput, { attributes: true });
+})();
+</script>"""
+    return html + toggle_script
