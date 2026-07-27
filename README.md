@@ -111,11 +111,11 @@ Stdio mode is **bot mode only** (`TELEGRAM_BOT_TOKEN`). User mode (full account 
 phone + OTP) runs in HTTP mode, where credentials are entered through the
 browser-based relay form at `/authorize`.
 
-**Hosted endpoint** -- a managed instance runs at `https://telegram.n24q02m.com/mcp`
-(HTTP transport, OAuth-gated). Point any MCP client that speaks Streamable HTTP +
-OAuth 2.1 at that URL to use it without self-hosting; each user completes the browser
-relay setup (bot token, or phone + OTP) on first connect. To run your own instance,
-use the Docker HTTP method above or the [Cloudflare deploy](#deploy-to-cloudflare) below.
+**Remote endpoint** -- an HTTP deployment is OAuth-gated and serves `/mcp`. Point any
+MCP client that speaks Streamable HTTP + OAuth 2.1 at `https://<your-host>/mcp`; each
+user completes the browser relay setup (bot token, or phone + OTP) on first connect.
+To run one, use the Docker HTTP method above or the
+[Cloudflare deploy](#deploy-to-cloudflare) below.
 
 Full setup matrices live at the canonical docs site
 [mcp.n24q02m.com/servers/better-telegram-mcp/setup/](https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/),
@@ -197,7 +197,7 @@ The `login` / `logout` subcommands are single-user and local-machine only -- the
 the on-disk Telethon session and the encrypted single-user config, so run them on the
 machine that hosts the stdio server. For remote / multi-user HTTP deployments,
 credentials are entered through the browser relay form instead (see the
-[hosted endpoint](#install) and [Configuration](#configuration)).
+[remote endpoint](#install) and [Configuration](#configuration)).
 
 ## Documentation
 
