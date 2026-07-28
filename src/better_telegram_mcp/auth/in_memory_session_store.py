@@ -47,6 +47,10 @@ class InMemorySessionStore:
     def __init__(self) -> None:
         self._store: dict[str, dict] = {}
 
+    def has_any(self) -> bool:
+        """Check if any sessions exist."""
+        return len(self._store) > 0
+
     def store(self, bearer: str, info: SessionInfo) -> None:
         """Store a session for the given bearer token. Overwrites existing."""
         self._store[bearer] = info.to_dict()

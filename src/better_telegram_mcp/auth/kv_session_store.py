@@ -72,6 +72,14 @@ class KvSessionStore:
     # Public API (mirrors InMemorySessionStore)
     # ------------------------------------------------------------------
 
+    def has_any(self) -> bool:
+        """Check if any sessions exist without loading/decrypting them.
+
+        This turns an O(N+1) PBKDF2 cryptography bottleneck into an O(1)
+        check by only loading the shared index.
+        """
+        return len(self._load_index()) > 0
+
     def store(self, bearer: str, info: SessionInfo) -> None:
         """Persist encrypted session info for bearer. Updates index."""
         self._sub_store(bearer).save(info.to_dict())
