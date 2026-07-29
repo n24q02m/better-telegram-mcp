@@ -367,7 +367,7 @@ class BotBackend(TelegramBackend):
         except httpx.HTTPError as e:
             # httpx exceptions include the request URL, which carries the bot
             # token; redact before re-raising so it cannot leak into logs.
-            raise TelegramAPIError(redact_bot_token(str(e))) from None
+            raise TelegramAPIError(str(e)) from None
         return str(target)
 
     # --- Contacts (user-only) ---

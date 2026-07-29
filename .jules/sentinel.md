@@ -15,3 +15,7 @@
 **Vulnerability:** `BotBackend.download_media` used `httpx.AsyncClient.get` which loads the entire response into memory at once. If a bot is tricked into downloading a massive file, this could lead to Out-Of-Memory (OOM) Denial of Service (DoS).
 **Learning:** Even internal API wrappers (like Telegram Bot API wrappers) must treat large file downloads securely, especially if the input `file_id` is passed by users (e.g. from an MCP query).
 **Prevention:** Always stream media downloads using `httpx.stream`, check `Content-Length`, enforce a `max_size` limit, and iterate over the response chunks using `aiter_bytes()`. Avoid using `asyncio.to_thread` for every small chunk, relying instead on OS-level buffering to minimize overhead.
+## 2025-02-28 - Avoid redundant redaction in TelegramAPIError
+**Vulnerability:** Redundant calls to `redact_bot_token` at the `raise` site when `TelegramAPIError.__init__` already handles redaction automatically.
+**Learning:** `TelegramAPIError` automatically applies `redact_bot_token` to its message argument in `__init__`. Attempting to redact the message before passing it to `TelegramAPIError` is redundant and can obscure the actual problem.
+**Prevention:** Always check exception class definitions (e.g., `TelegramAPIError`) before applying manual sanitization to ensure it's not already handled centrally.
