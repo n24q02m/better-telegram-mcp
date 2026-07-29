@@ -1,0 +1,7 @@
+fix: redundant bot token redaction
+
+🚨 Severity: MEDIUM
+💡 Vulnerability: Redundant calls to `redact_bot_token` at the `raise` site when `TelegramAPIError.__init__` already handles redaction automatically.
+🎯 Impact: Double-redacting the error message can result in obscure/corrupted error logs, and it creates maintenance overhead by falsely suggesting that manual redaction at the raise site is necessary.
+🔧 Fix: Removed the redundant `redact_bot_token` call in `bot_backend.py`'s `download_media` method.
+✅ Verification: Ensure that HTTP errors during media download are correctly intercepted and wrapped by `TelegramAPIError`, which continues to automatically apply the redaction in its `__init__`.
