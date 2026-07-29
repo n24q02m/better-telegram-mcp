@@ -72,6 +72,10 @@ class KvSessionStore:
     # Public API (mirrors InMemorySessionStore)
     # ------------------------------------------------------------------
 
+    def has_any(self) -> bool:
+        """Check if any stored sessions exist using the index (O(1))."""
+        return len(self._load_index()) > 0
+
     def store(self, bearer: str, info: SessionInfo) -> None:
         """Persist encrypted session info for bearer. Updates index."""
         self._sub_store(bearer).save(info.to_dict())
