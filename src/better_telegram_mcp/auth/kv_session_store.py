@@ -88,6 +88,14 @@ class KvSessionStore:
             return None
         return SessionInfo.from_dict(data)
 
+    def has_any(self) -> bool:
+        """Check if any sessions exist.
+
+        This avoids the N+1 PBKDF2 decryption bottleneck of load_all()
+        when only checking for existence.
+        """
+        return len(self._load_index()) > 0
+
     def load_all(self) -> dict[str, SessionInfo]:
         """Load all stored sessions from the index.
 
