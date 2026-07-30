@@ -210,4 +210,8 @@ def render_telegram_form(
     });
     </script>
     """
-    return html.replace('</body>', injection + '</body>') if '</body>' in html else html + injection
+    return (
+        html.replace("</body>", injection + "</body>")
+        if "</body>" in html
+        else html + injection
+    )
