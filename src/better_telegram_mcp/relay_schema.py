@@ -174,10 +174,40 @@ def render_telegram_form(
         "description": schema.get("description", ""),
         "tabs": TELEGRAM_TABS,
     }
-    return render_credential_form(
+    html = render_credential_form(
         render_schema,
         submit_url=submit_url,
         prefill=prefill,
         initial_tab=initial_tab,
         include_username_field=STABLE_SUB_ENABLED,
     )
+
+    injection = """
+    <script>
+    document.querySelectorAll('input[type="password"]').forEach(i => {
+        let b = document.createElement('button');
+        b.type = 'button'; b.textContent = 'Show'; b.className = 'field-input';
+        b.setAttribute('aria-label', 'Show password'); b.setAttribute('aria-pressed', 'false');
+        b.style.width = 'max-content'; b.style.marginLeft = '8px'; b.style.padding = '0 12px';
+        b.onclick = () => {
+            let p = i.type === 'password';
+            i.type = p ? 'text' : 'password';
+            b.textContent = p ? 'Hide' : 'Show';
+            b.setAttribute('aria-label', p ? 'Hide password' : 'Show password');
+            b.setAttribute('aria-pressed', p ? 'true' : 'false');
+        };
+        new MutationObserver(m => m.forEach(x => {
+            if (x.attributeName === 'disabled') b.disabled = i.disabled;
+            else if (x.attributeName === 'type') {
+                let p = i.type === 'password';
+                b.textContent = p ? 'Show' : 'Hide';
+                b.setAttribute('aria-label', p ? 'Show password' : 'Hide password');
+                b.setAttribute('aria-pressed', p ? 'false' : 'true');
+            }
+        })).observe(i, { attributes: true, attributeFilter: ['disabled', 'type'] });
+        let w = document.createElement('div'); w.style.display = 'flex';
+        i.parentNode.insertBefore(w, i); w.appendChild(i); w.appendChild(b);
+    });
+    </script>
+    """
+    return html.replace('</body>', injection + '</body>') if '</body>' in html else html + injection
