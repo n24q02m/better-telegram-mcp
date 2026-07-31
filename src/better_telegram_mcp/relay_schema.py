@@ -163,6 +163,7 @@ INJECTION = """<script>
 })();
 </script>"""
 
+
 def render_telegram_form(
     schema: dict[str, Any],
     submit_url: str,
@@ -202,4 +203,4 @@ def render_telegram_form(
         initial_tab=initial_tab,
         include_username_field=STABLE_SUB_ENABLED,
     )
-    return html.replace('</body>', INJECTION + '</body>')
+    return html.replace("</body>", INJECTION + "</body>")
