@@ -141,6 +141,27 @@ TELEGRAM_TABS: list[dict[str, Any]] = [
 # Both read this one constant so they cannot drift apart.
 STABLE_SUB_ENABLED = True
 
+INJECTION = """<script>
+(function(){
+  function s(i) {
+    if(i.dataset.t) return; i.dataset.t='1';
+    let p=i.parentNode, b=document.createElement('button');
+    p.style.position='relative'; i.style.paddingRight='4rem';
+    b.type='button'; b.className='tab'; b.textContent='Show';
+    b.setAttribute('aria-label','Show password'); b.setAttribute('aria-pressed','false');
+    b.style.cssText='position:absolute;right:2px;bottom:2px;padding:0.5rem;border:none;background:0;width:auto;flex:none;font-size:0.85rem;';
+    b.onclick=e=>{ e.preventDefault(); let s=i.type==='password'; i.type=s?'text':'password'; b.textContent=s?'Hide':'Show'; b.setAttribute('aria-label',s?'Hide password':'Show password'); b.setAttribute('aria-pressed',s?'true':'false'); };
+    p.appendChild(b);
+    new MutationObserver(m=>{ m.forEach(x=>{
+      if(x.attributeName==='disabled') b.disabled=i.disabled;
+      if(x.attributeName==='type') { let p=i.type==='password'; b.style.display=(p||i.type==='text')?'block':'none'; if(p){ b.textContent='Show'; b.setAttribute('aria-label','Show password'); b.setAttribute('aria-pressed','false'); } }
+    })}).observe(i,{attributes:true,attributeFilter:['disabled','type']});
+    if(i.type!=='password') b.style.display='none';
+  }
+  document.querySelectorAll('input[type="password"]').forEach(s);
+  new MutationObserver(m=>m.forEach(x=>x.addedNodes.forEach(n=>{ if(n.nodeType===1) { if(n.id==='step-input') s(n); else { let i=n.querySelector('#step-input'); if(i) s(i); } } }))).observe(document.body,{childList:true,subtree:true});
+})();
+</script>"""
 
 def render_telegram_form(
     schema: dict[str, Any],
@@ -174,10 +195,11 @@ def render_telegram_form(
         "description": schema.get("description", ""),
         "tabs": TELEGRAM_TABS,
     }
-    return render_credential_form(
+    html = render_credential_form(
         render_schema,
         submit_url=submit_url,
         prefill=prefill,
         initial_tab=initial_tab,
         include_username_field=STABLE_SUB_ENABLED,
     )
+    return html.replace('</body>', INJECTION + '</body>')
