@@ -13,3 +13,6 @@
 ## 2025-08-30 - Internalizing Thread Offloading for Blocking I/O
 **Learning:** In asynchronous backends, internal helper methods that perform blocking filesystem I/O (like `os.open`, `os.chmod`, or file-backed key-value lookups) can block the main asyncio event loop if not properly offloaded. While the offloading could be done at the call site, doing so clutters the call site and relies on callers to remember the implementation detail.
 **Action:** Always refactor internal helper methods that perform blocking I/O to be `async def`. Wrap their synchronous logic in a nested function and internally offload it using `await asyncio.to_thread()`. This improves API clarity and ensures non-blocking behavior wherever the method is invoked.
+## 2025-09-10 - O(1) Existence Check for Cryptographic KV Stores
+**Learning:** Checking if a record exists in an encrypted Key-Value store (like `KvSessionStore`) by using `len(store.load_all()) > 0` is extremely inefficient, as it triggers N+1 costly PBKDF2 decryption operations.
+**Action:** When a boolean existence check is all that's required, implement and use index-only checks (like `has_any()`) which achieve O(1) performance and completely avoid the bulk cryptographic overhead.

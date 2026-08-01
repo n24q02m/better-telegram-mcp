@@ -32,7 +32,7 @@ class KvSessionStore:
     """Per-user MTProto session store backed by an mcp-core CredentialBackend.
 
     Drop-in replacement for InMemorySessionStore — same public API:
-    store / load / load_all / delete.  On CF the backend is CfKvBackend;
+    store / load / load_all / has_any / delete.  On CF the backend is CfKvBackend;
     in unit tests pass InMemoryBackend.
     """
 
@@ -106,6 +106,10 @@ class KvSessionStore:
                 result[sub] = info
 
         return result
+
+    def has_any(self) -> bool:
+        """Check if any sessions exist using the index to avoid N+1 PBKDF2 overhead."""
+        return bool(self._load_index())
 
     def delete(self, bearer: str) -> bool:
         """Delete session for bearer. Returns True if it existed."""
