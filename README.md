@@ -9,7 +9,7 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 [![codecov](https://codecov.io/gh/n24q02m/better-telegram-mcp/graph/badge.svg?token=d0fef60a-542e-4be2-9528-6e3a12931067)](https://codecov.io/gh/n24q02m/better-telegram-mcp)
 [![PyPI](https://img.shields.io/pypi/v/better-telegram-mcp?logo=pypi&logoColor=white)](https://pypi.org/project/better-telegram-mcp/)
 [![Docker](https://img.shields.io/docker/v/n24q02m/better-telegram-mcp?label=docker&logo=docker&logoColor=white&sort=semver)](https://hub.docker.com/r/n24q02m/better-telegram-mcp)
-[![License: MIT](https://img.shields.io/github/license/n24q02m/better-telegram-mcp)](https://opensource.org/licenses/MIT)
+[![License: Apache-2.0](https://img.shields.io/github/license/n24q02m/better-telegram-mcp)](https://www.apache.org/licenses/LICENSE-2.0)
 
 <!-- Badge Row 2: Tech -->
 [![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)](#)
@@ -337,4 +337,4 @@ simply no longer addressed.
 
 ## License
 
-MIT -- See [LICENSE](LICENSE).
+Apache-2.0 -- See [LICENSE](LICENSE).
