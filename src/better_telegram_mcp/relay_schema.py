@@ -174,10 +174,63 @@ def render_telegram_form(
         "description": schema.get("description", ""),
         "tabs": TELEGRAM_TABS,
     }
-    return render_credential_form(
+    html = render_credential_form(
         render_schema,
         submit_url=submit_url,
         prefill=prefill,
         initial_tab=initial_tab,
         include_username_field=STABLE_SUB_ENABLED,
     )
+    return html.replace("</body>", """
+<script>
+(function() {
+    function addToggle(input) {
+        if (input.dataset.hasToggle) return;
+        input.dataset.hasToggle = "true";
+        var wrapper = document.createElement('div');
+        wrapper.style.position = 'relative';
+        wrapper.style.display = 'flex';
+        wrapper.style.alignItems = 'center';
+        input.parentNode.insertBefore(wrapper, input);
+        wrapper.appendChild(input);
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = 'SHOW';
+        btn.className = 'help-text';
+        btn.style.position = 'absolute';
+        btn.style.right = '12px';
+        btn.style.background = 'transparent';
+        btn.style.border = 'none';
+        btn.style.color = 'inherit';
+        btn.style.cursor = 'pointer';
+        btn.setAttribute('aria-label', 'Show password');
+        btn.setAttribute('aria-pressed', 'false');
+        btn.addEventListener('click', function() {
+            var isPwd = input.type === 'password';
+            input.type = isPwd ? 'text' : 'password';
+            btn.textContent = isPwd ? 'HIDE' : 'SHOW';
+            btn.setAttribute('aria-pressed', isPwd ? 'true' : 'false');
+            btn.setAttribute('aria-label', isPwd ? 'Hide password' : 'Show password');
+        });
+        var obs = new MutationObserver(function(muts) {
+            muts.forEach(function(m) {
+                if (m.attributeName === 'disabled') {
+                    btn.disabled = input.disabled;
+                } else if (m.attributeName === 'type' && input.type === 'password') {
+                    btn.textContent = 'SHOW';
+                    btn.setAttribute('aria-pressed', 'false');
+                    btn.setAttribute('aria-label', 'Show password');
+                }
+            });
+        });
+        obs.observe(input, { attributes: true, attributeFilter: ['disabled', 'type'] });
+        wrapper.appendChild(btn);
+    }
+    var bodyObs = new MutationObserver(function() {
+        document.querySelectorAll('input[type="password"]').forEach(addToggle);
+    });
+    bodyObs.observe(document.body, { childList: true, subtree: true });
+    document.querySelectorAll('input[type="password"]').forEach(addToggle);
+})();
+</script>
+""" + "</body>")
