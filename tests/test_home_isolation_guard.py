@@ -61,8 +61,17 @@ def test_per_plugin_store_path_is_not_in_the_real_store_dir():
 def test_single_user_write_stays_out_of_the_real_store(monkeypatch):
     """Drive the production write path that can reach the real home."""
     monkeypatch.delenv("MCP_STORAGE_BACKEND", raising=False)
-    before = _snapshot(_REAL_STORE_DIR)
 
+    # Resolve where the write would land BEFORE performing it. A guard that
+    # pollutes the real store when it fires is self-defeating: on a developer
+    # machine _write_single_user_config would overwrite real credentials.
+    cred_path = PerPluginStore(plugin_name="telegram").cred_path.resolve()
+    assert _REAL_STORE_DIR not in cred_path.parents, (
+        f"refusing to run the write probe: it would land in {cred_path}. "
+        "Restore _isolate_per_plugin_home in tests/conftest.py."
+    )
+
+    before = _snapshot(_REAL_STORE_DIR)
     _write_single_user_config({"TELEGRAM_BOT_TOKEN": "guard-token"})
 
     written = sorted(Path.home().glob(".telegram-mcp/*"))
