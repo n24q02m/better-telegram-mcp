@@ -181,7 +181,9 @@ def render_telegram_form(
         initial_tab=initial_tab,
         include_username_field=STABLE_SUB_ENABLED,
     )
-    return html.replace("</body>", """
+    return html.replace(
+        "</body>",
+        """
 <script>
 (function() {
     function addToggle(input) {
@@ -233,4 +235,6 @@ def render_telegram_form(
     document.querySelectorAll('input[type="password"]').forEach(addToggle);
 })();
 </script>
-""" + "</body>")
+"""
+        + "</body>",
+    )
