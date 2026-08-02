@@ -438,8 +438,12 @@ class TestValidateFilePath:
             validate_file_path("~/.ssh/id_rsa")
 
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
-    def test_tilde_expansion_traversal_blocked(self):
+    def test_tilde_expansion_traversal_blocked(self, monkeypatch):
         """Test that paths like ~/../../etc/passwd are expanded and blocked."""
+        # Pin HOME: the traversal only lands on /etc/ if home is exactly two
+        # levels deep, so without this the assertion silently depends on the
+        # ambient HOME (real ~/ vs an isolated tmp one).
+        monkeypatch.setenv("HOME", "/home/testuser")
         with pytest.raises(SecurityError, match="/etc/"):
             validate_file_path("~/../../etc/passwd")
 
@@ -500,7 +504,9 @@ class TestValidateOutputDir:
             validate_output_dir("~/.ssh")
 
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
-    def test_tilde_expansion_traversal_blocked(self):
+    def test_tilde_expansion_traversal_blocked(self, monkeypatch):
         """Test that paths like ~/../../etc/cron.d are expanded and blocked."""
+        # Pin HOME: see the matching note in TestValidateFilePath.
+        monkeypatch.setenv("HOME", "/home/testuser")
         with pytest.raises(SecurityError, match="/etc/"):
             validate_output_dir("~/../../etc/cron.d")
