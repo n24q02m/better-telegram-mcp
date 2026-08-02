@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import socket
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -16,6 +17,23 @@ from better_telegram_mcp.backends.security import (
 )
 
 _IS_WINDOWS = sys.platform == "win32"
+
+
+def _tilde_traversal_to(target: str) -> str:
+    """Build a ``~/../..././<target>`` path that always lands on ``/<target>``.
+
+    The number of ``..`` segments is derived from the real depth of ``~`` so
+    the traversal reaches the filesystem root wherever home happens to be --
+    ``/home/runner``, ``/Users/runner``, or an isolated tmp dir. Hardcoding
+    two levels made these tests depend on the ambient HOME.
+
+    Takes the deeper of the raw and resolved home (macOS resolves /var and
+    /tmp through /private, so the two differ). Over-climbing is harmless:
+    ``/..`` is ``/``.
+    """
+    home = Path.home()
+    depth = max(len(home.parts), len(home.resolve().parts)) - 1
+    return "/".join(["~", *([".."] * depth), target])
 
 
 class TestValidateUrl:
@@ -438,14 +456,10 @@ class TestValidateFilePath:
             validate_file_path("~/.ssh/id_rsa")
 
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
-    def test_tilde_expansion_traversal_blocked(self, monkeypatch):
+    def test_tilde_expansion_traversal_blocked(self):
         """Test that paths like ~/../../etc/passwd are expanded and blocked."""
-        # Pin HOME: the traversal only lands on /etc/ if home is exactly two
-        # levels deep, so without this the assertion silently depends on the
-        # ambient HOME (real ~/ vs an isolated tmp one).
-        monkeypatch.setenv("HOME", "/home/testuser")
         with pytest.raises(SecurityError, match="/etc/"):
-            validate_file_path("~/../../etc/passwd")
+            validate_file_path(_tilde_traversal_to("etc/passwd"))
 
 
 class TestValidateOutputDir:
@@ -504,9 +518,7 @@ class TestValidateOutputDir:
             validate_output_dir("~/.ssh")
 
     @pytest.mark.skipif(_IS_WINDOWS, reason="Unix-only blocked paths")
-    def test_tilde_expansion_traversal_blocked(self, monkeypatch):
+    def test_tilde_expansion_traversal_blocked(self):
         """Test that paths like ~/../../etc/cron.d are expanded and blocked."""
-        # Pin HOME: see the matching note in TestValidateFilePath.
-        monkeypatch.setenv("HOME", "/home/testuser")
         with pytest.raises(SecurityError, match="/etc/"):
-            validate_output_dir("~/../../etc/cron.d")
+            validate_output_dir(_tilde_traversal_to("etc/cron.d"))
