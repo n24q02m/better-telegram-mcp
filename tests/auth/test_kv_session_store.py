@@ -39,6 +39,15 @@ def test_survives_new_instance_same_backend():
     assert loaded.session_name == "bob_session"
 
 
+def test_has_any():
+    backend = InMemoryBackend()
+    store = KvSessionStore(backend=backend)
+    assert store.has_any() is False
+
+    store.store("sub-test", _info("test", "+1"))
+    assert store.has_any() is True
+
+
 def test_load_all_returns_all():
     backend = InMemoryBackend()
     store = KvSessionStore(backend=backend)

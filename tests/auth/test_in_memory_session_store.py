@@ -40,6 +40,12 @@ class TestInMemorySessionStoreRoundTrip:
         store = InMemorySessionStore()
         assert store.load("any-bearer") is None
 
+    def test_has_any(self) -> None:
+        store = InMemorySessionStore()
+        assert store.has_any() is False
+        store.store("bearer-a", _bot_info())
+        assert store.has_any() is True
+
     def test_overwrite_existing(self) -> None:
         store = InMemorySessionStore()
         store.store("b1", _bot_info("old"))
