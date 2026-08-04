@@ -174,10 +174,85 @@ def render_telegram_form(
         "description": schema.get("description", ""),
         "tabs": TELEGRAM_TABS,
     }
-    return render_credential_form(
+    html = render_credential_form(
         render_schema,
         submit_url=submit_url,
         prefill=prefill,
         initial_tab=initial_tab,
         include_username_field=STABLE_SUB_ENABLED,
     )
+
+    injection = """
+<script>
+(function() {
+    function injectToggle(input) {
+        if (input.dataset.hasToggle) return;
+        input.dataset.hasToggle = "true";
+
+        var wrapper = document.createElement("div");
+        wrapper.style.position = "relative";
+        wrapper.style.display = "flex";
+        wrapper.style.alignItems = "center";
+
+        input.parentNode.insertBefore(wrapper, input);
+        wrapper.appendChild(input);
+
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = "Show";
+        btn.className = "submit-btn"; // reuse style
+        btn.style.position = "absolute";
+        btn.style.right = "8px";
+        btn.style.padding = "2px 8px";
+        btn.style.minHeight = "24px";
+        btn.style.fontSize = "0.75rem";
+        btn.style.width = "auto";
+        btn.style.marginTop = "0";
+        btn.setAttribute("aria-label", "Show password");
+        btn.setAttribute("aria-pressed", "false");
+
+        wrapper.appendChild(btn);
+
+        btn.addEventListener("click", function() {
+            var isPassword = input.type === "password";
+            input.type = isPassword ? "text" : "password";
+            btn.textContent = isPassword ? "Hide" : "Show";
+            btn.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
+            btn.setAttribute("aria-pressed", isPassword ? "true" : "false");
+        });
+
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.attributeName === "disabled") {
+                    btn.disabled = input.disabled;
+                }
+                if (mutation.attributeName === "type") {
+                    if (input.type !== "password" && input.type !== "text") {
+                        btn.style.display = "none";
+                    } else {
+                        btn.style.display = "block";
+                        var isPass = input.type === "password";
+                        btn.textContent = isPass ? "Show" : "Hide";
+                        btn.setAttribute("aria-label", isPass ? "Show password" : "Hide password");
+                        btn.setAttribute("aria-pressed", isPass ? "false" : "true");
+                    }
+                }
+            });
+        });
+        observer.observe(input, { attributes: true, attributeFilter: ["disabled", "type"] });
+    }
+
+    function scan() {
+        document.querySelectorAll('input[type="password"]').forEach(injectToggle);
+    }
+
+    scan();
+
+    var domObserver = new MutationObserver(function() {
+        scan();
+    });
+    domObserver.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
+"""
+    return html.replace("</body>", injection + "\n</body>")
