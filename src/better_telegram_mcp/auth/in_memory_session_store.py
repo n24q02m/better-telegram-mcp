@@ -42,6 +42,7 @@ class InMemorySessionStore:
     """Per-user MTProto session store with no disk persistence.
 
     Constructor takes no arguments — no data_dir or secret needed.
+    Public API: store / load / load_all / has_any / delete.
     """
 
     def __init__(self) -> None:
@@ -68,6 +69,10 @@ class InMemorySessionStore:
             bearer: SessionInfo.from_dict(data.copy())
             for bearer, data in self._store.items()
         }
+
+    def has_any(self) -> bool:
+        """Check if any sessions exist without loading them (O(1) existence check)."""
+        return len(self._store) > 0
 
     def delete(self, bearer: str) -> bool:
         """Delete a session. Returns True if it existed."""

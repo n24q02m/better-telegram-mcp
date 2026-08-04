@@ -80,6 +80,17 @@ class TestInMemorySessionStoreIsolation:
         assert store2.load("bearer-a") is None
 
 
+class TestInMemorySessionStoreHasAny:
+    def test_has_any_empty(self) -> None:
+        store = InMemorySessionStore()
+        assert store.has_any() is False
+
+    def test_has_any_with_sessions(self) -> None:
+        store = InMemorySessionStore()
+        store.store("b1", _bot_info())
+        assert store.has_any() is True
+
+
 class TestInMemorySessionStoreDelete:
     def test_delete_existing_returns_true(self) -> None:
         store = InMemorySessionStore()
