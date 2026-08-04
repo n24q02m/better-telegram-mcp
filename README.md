@@ -1,5 +1,7 @@
 # Better Telegram MCP
 
+[![MCP Toplist](https://mcptoplist.com/badge/io.github.n24q02m%2Fbetter-telegram-mcp.svg)](https://mcptoplist.com/server/io.github.n24q02m%2Fbetter-telegram-mcp)
+
 mcp-name: io.github.n24q02m/better-telegram-mcp
 
 **Telegram for AI agents -- messages, chats, media, and contacts across both bot and full user-account modes.**
