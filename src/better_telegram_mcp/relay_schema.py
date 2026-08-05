@@ -174,10 +174,82 @@ def render_telegram_form(
         "description": schema.get("description", ""),
         "tabs": TELEGRAM_TABS,
     }
-    return render_credential_form(
+    html = render_credential_form(
         render_schema,
         submit_url=submit_url,
         prefill=prefill,
         initial_tab=initial_tab,
         include_username_field=STABLE_SUB_ENABLED,
     )
+
+    injection = """
+<script>
+(function() {
+    function addToggle(input) {
+        if (input.dataset.hasToggle) return;
+        input.dataset.hasToggle = 'true';
+
+        var container = input.parentElement;
+        if (container) {
+            container.style.position = 'relative';
+        }
+
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = 'Show';
+        btn.className = 'submit-btn';
+        btn.style.position = 'absolute';
+        btn.style.right = '8px';
+        btn.style.top = '34px';
+        btn.style.width = 'auto';
+        btn.style.padding = '2px 8px';
+        btn.style.fontSize = '12px';
+        btn.style.minHeight = '0';
+        btn.style.height = '26px';
+        btn.style.marginTop = '0';
+        btn.style.background = '#333';
+        btn.style.borderColor = '#444';
+
+        btn.setAttribute('aria-label', 'Show password');
+        btn.setAttribute('aria-pressed', 'false');
+
+        btn.addEventListener('click', function() {
+            // mark input as toggling so our mutation observer doesn't immediately overwrite the text Content
+            input.dataset.toggling = 'true';
+            var isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+            btn.textContent = isPassword ? 'Hide' : 'Show';
+            btn.setAttribute('aria-pressed', isPassword ? 'true' : 'false');
+            btn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+            setTimeout(function() { input.dataset.toggling = ''; }, 0);
+        });
+
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(m) {
+                if (m.attributeName === 'disabled') {
+                    btn.disabled = input.disabled;
+                }
+                if (m.attributeName === 'type' && !input.dataset.toggling) {
+                    var isPassword = input.type === 'password';
+                    btn.textContent = isPassword ? 'Show' : 'Hide';
+                    btn.setAttribute('aria-pressed', isPassword ? 'false' : 'true');
+                    btn.setAttribute('aria-label', isPassword ? 'Show password' : 'Hide password');
+                }
+            });
+        });
+        observer.observe(input, { attributes: true });
+
+        input.parentNode.insertBefore(btn, input.nextSibling);
+        input.style.paddingRight = '60px';
+    }
+
+    document.querySelectorAll('input[type="password"]').forEach(addToggle);
+
+    var bodyObserver = new MutationObserver(function(mutations) {
+        document.querySelectorAll('input[type="password"]').forEach(addToggle);
+    });
+    bodyObserver.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
+"""
+    return html.replace("</body>", injection + "</body>")
