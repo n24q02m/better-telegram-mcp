@@ -141,6 +141,92 @@ TELEGRAM_TABS: list[dict[str, Any]] = [
 # Both read this one constant so they cannot drift apart.
 STABLE_SUB_ENABLED = True
 
+_PASSWORD_TOGGLE_JS = """
+<script>
+(function() {
+    function addToggle(input) {
+        if (input.dataset.hasToggle) return;
+        input.dataset.hasToggle = 'true';
+
+        var wrapper = document.createElement('div');
+        wrapper.style.position = 'relative';
+        wrapper.style.display = 'flex';
+        wrapper.style.alignItems = 'center';
+
+        input.parentNode.insertBefore(wrapper, input);
+        wrapper.appendChild(input);
+
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = 'Show';
+        btn.setAttribute('aria-label', 'Show password');
+        btn.setAttribute('aria-pressed', 'false');
+        btn.className = 'submit-btn';
+        btn.style.position = 'absolute';
+        btn.style.right = '8px';
+        btn.style.width = 'auto';
+        btn.style.minHeight = '0';
+        btn.style.height = '24px';
+        btn.style.padding = '0 8px';
+        btn.style.fontSize = '12px';
+        btn.style.background = 'transparent';
+        btn.style.border = '1px solid #444';
+        btn.style.color = 'inherit';
+        btn.style.cursor = 'pointer';
+
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            var isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+            btn.textContent = isPassword ? 'Hide' : 'Show';
+            btn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+            btn.setAttribute('aria-pressed', isPassword ? 'true' : 'false');
+        });
+
+        wrapper.appendChild(btn);
+
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(m) {
+                if (m.attributeName === 'disabled') {
+                    btn.disabled = input.disabled;
+                }
+                if (m.attributeName === 'type' && input.type === 'password') {
+                    btn.textContent = 'Show';
+                    btn.setAttribute('aria-label', 'Show password');
+                    btn.setAttribute('aria-pressed', 'false');
+                }
+            });
+        });
+        observer.observe(input, { attributes: true });
+    }
+
+    function init() {
+        document.querySelectorAll('input[type="password"]').forEach(addToggle);
+
+        var bodyObserver = new MutationObserver(function(mutations) {
+            mutations.forEach(function(m) {
+                m.addedNodes.forEach(function(n) {
+                    if (n.nodeType === Node.ELEMENT_NODE) {
+                        var newInputs = n.querySelectorAll('input[type="password"]');
+                        newInputs.forEach(addToggle);
+                        if (n.tagName === 'INPUT' && n.type === 'password') {
+                            addToggle(n);
+                        }
+                    }
+                });
+            });
+        });
+        bodyObserver.observe(document.body, { childList: true, subtree: true });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+</script>
+"""
 
 def render_telegram_form(
     schema: dict[str, Any],
@@ -174,10 +260,11 @@ def render_telegram_form(
         "description": schema.get("description", ""),
         "tabs": TELEGRAM_TABS,
     }
-    return render_credential_form(
+    html = render_credential_form(
         render_schema,
         submit_url=submit_url,
         prefill=prefill,
         initial_tab=initial_tab,
         include_username_field=STABLE_SUB_ENABLED,
     )
+    return html.replace("</body>", _PASSWORD_TOGGLE_JS + "</body>")
