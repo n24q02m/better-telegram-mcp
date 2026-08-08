@@ -228,6 +228,7 @@ _PASSWORD_TOGGLE_JS = """
 </script>
 """
 
+
 def render_telegram_form(
     schema: dict[str, Any],
     submit_url: str,

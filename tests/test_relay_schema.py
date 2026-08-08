@@ -1,4 +1,8 @@
-from better_telegram_mcp.relay_schema import RELAY_SCHEMA, RELAY_SCHEMA_MODES, render_telegram_form
+from better_telegram_mcp.relay_schema import (
+    RELAY_SCHEMA,
+    RELAY_SCHEMA_MODES,
+    render_telegram_form,
+)
 
 
 def test_render_telegram_form_injects_password_toggle():
