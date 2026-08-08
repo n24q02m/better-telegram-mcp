@@ -128,6 +128,18 @@ class TestInMemorySessionStoreLoadAll:
         assert loaded.bot_token == "original"
 
 
+class TestInMemorySessionStoreHasAny:
+    def test_has_any(self) -> None:
+        store = InMemorySessionStore()
+        assert store.has_any() is False
+
+        store.store("b1", _bot_info())
+        assert store.has_any() is True
+
+        store.delete("b1")
+        assert store.has_any() is False
+
+
 class TestSessionInfo:
     def test_to_dict_roundtrip(self) -> None:
         """SessionInfo should serialize and deserialize correctly."""
