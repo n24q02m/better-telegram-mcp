@@ -69,6 +69,10 @@ class InMemorySessionStore:
             for bearer, data in self._store.items()
         }
 
+    def has_any(self) -> bool:
+        """Check if any sessions exist without loading their metadata."""
+        return bool(self._store)
+
     def delete(self, bearer: str) -> bool:
         """Delete a session. Returns True if it existed."""
         if bearer not in self._store:

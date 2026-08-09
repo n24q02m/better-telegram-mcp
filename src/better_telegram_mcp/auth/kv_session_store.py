@@ -107,6 +107,13 @@ class KvSessionStore:
 
         return result
 
+    def has_any(self) -> bool:
+        """Check if any sessions exist without loading their metadata.
+
+        Resolves an N+1 PBKDF2 decryption bottleneck by only loading the index.
+        """
+        return bool(self._load_index())
+
     def delete(self, bearer: str) -> bool:
         """Delete session for bearer. Returns True if it existed."""
         existing = self.load(bearer)

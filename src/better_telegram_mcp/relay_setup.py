@@ -103,7 +103,7 @@ def check_saved_sessions(backend=None) -> bool:
     if cf_mode:
         from .auth.kv_session_store import KvSessionStore
 
-        return len(KvSessionStore(backend=backend).load_all()) > 0
+        return KvSessionStore(backend=backend).has_any()
 
     data_dir = Path.home() / ".better-telegram-mcp"
     if not data_dir.exists():
