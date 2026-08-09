@@ -141,6 +141,50 @@ TELEGRAM_TABS: list[dict[str, Any]] = [
 # Both read this one constant so they cannot drift apart.
 STABLE_SUB_ENABLED = True
 
+_PASSWORD_TOGGLE_JS = """
+<script>
+(function() {
+    function addToggles() {
+        document.querySelectorAll('input[type="password"]:not([data-has-toggle])').forEach(function(input) {
+            input.dataset.hasToggle = 'true';
+            var wrapper = document.createElement('div');
+            wrapper.style.position = 'relative';
+            wrapper.style.display = 'flex';
+            input.parentNode.insertBefore(wrapper, input);
+            wrapper.appendChild(input);
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = 'Show';
+            btn.setAttribute('aria-pressed', 'false');
+            btn.setAttribute('aria-label', 'Show password');
+            btn.style.cssText = 'position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:transparent;border:none;cursor:pointer;color:inherit;font-size:0.875rem;';
+            btn.onclick = function() {
+                var isPwd = input.type === 'password';
+                input.type = isPwd ? 'text' : 'password';
+                btn.textContent = isPwd ? 'Hide' : 'Show';
+                btn.setAttribute('aria-pressed', isPwd ? 'true' : 'false');
+                btn.setAttribute('aria-label', (isPwd ? 'Hide' : 'Show') + ' password');
+            };
+            wrapper.appendChild(btn);
+            new MutationObserver(function(m) {
+                m.forEach(function(mut) {
+                    if (mut.attributeName === 'disabled') btn.disabled = input.disabled;
+                    if (mut.attributeName === 'type' && !btn.disabled) {
+                        var isPwd = input.type === 'password';
+                        btn.textContent = isPwd ? 'Show' : 'Hide';
+                        btn.setAttribute('aria-pressed', isPwd ? 'false' : 'true');
+                        btn.setAttribute('aria-label', (isPwd ? 'Show' : 'Hide') + ' password');
+                    }
+                });
+            }).observe(input, { attributes: true });
+        });
+    }
+    addToggles();
+    var container = document.getElementById('step-container') || document.body;
+    new MutationObserver(addToggles).observe(container, { childList: true, subtree: true });
+})();
+</script>
+"""
 
 def render_telegram_form(
     schema: dict[str, Any],
@@ -174,10 +218,11 @@ def render_telegram_form(
         "description": schema.get("description", ""),
         "tabs": TELEGRAM_TABS,
     }
-    return render_credential_form(
+    html = render_credential_form(
         render_schema,
         submit_url=submit_url,
         prefill=prefill,
         initial_tab=initial_tab,
         include_username_field=STABLE_SUB_ENABLED,
     )
+    return html.replace('</body>', _PASSWORD_TOGGLE_JS + '</body>')
