@@ -81,6 +81,10 @@ class KvSessionStore:
             subs.append(bearer)
             self._save_index(subs)
 
+    def has_any(self) -> bool:
+        """Check if any sessions exist without loading their data."""
+        return len(self._load_index()) > 0
+
     def load(self, bearer: str) -> SessionInfo | None:
         """Load session info for bearer. Returns None if not found."""
         data = self._sub_store(bearer).load()

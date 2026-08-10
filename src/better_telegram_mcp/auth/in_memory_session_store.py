@@ -51,6 +51,10 @@ class InMemorySessionStore:
         """Store a session for the given bearer token. Overwrites existing."""
         self._store[bearer] = info.to_dict()
 
+    def has_any(self) -> bool:
+        """Check if any sessions exist without loading their data."""
+        return len(self._store) > 0
+
     def load(self, bearer: str) -> SessionInfo | None:
         """Load session info for a bearer token. Returns None if not found."""
         data = self._store.get(bearer)
