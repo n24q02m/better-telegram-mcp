@@ -30,7 +30,10 @@ def test_relay_schema_modes_backward_compat():
 
 def test_render_telegram_form_injects_toggle():
     """Ensure the password toggle JS is injected into the HTML."""
-    from better_telegram_mcp.relay_schema import _PASSWORD_TOGGLE_JS, render_telegram_form
+    from better_telegram_mcp.relay_schema import (
+        _PASSWORD_TOGGLE_JS,
+        render_telegram_form,
+    )
 
     html = render_telegram_form(RELAY_SCHEMA, submit_url="/test-submit")
     assert _PASSWORD_TOGGLE_JS in html
