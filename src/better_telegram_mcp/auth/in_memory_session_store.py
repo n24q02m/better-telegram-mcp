@@ -62,6 +62,10 @@ class InMemorySessionStore:
         # are flat dictionaries of primitive types.
         return SessionInfo.from_dict(data.copy())
 
+    def has_any(self) -> bool:
+        """Check if any sessions exist."""
+        return len(self._store) > 0
+
     def load_all(self) -> dict[str, SessionInfo]:
         """Load all stored sessions."""
         return {
