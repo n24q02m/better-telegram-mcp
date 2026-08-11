@@ -26,3 +26,12 @@ def test_relay_schema_modes_backward_compat():
     user_mode = next(m for m in RELAY_SCHEMA_MODES["modes"] if m["id"] == "user")
     assert "User Mode" in user_mode["label"]
     assert any(f["key"] == "TELEGRAM_PHONE" for f in user_mode["fields"])
+
+
+def test_render_telegram_form_injects_toggle():
+    """Ensure the password toggle JS is injected into the HTML."""
+    from better_telegram_mcp.relay_schema import _PASSWORD_TOGGLE_JS, render_telegram_form
+
+    html = render_telegram_form(RELAY_SCHEMA, submit_url="/test-submit")
+    assert _PASSWORD_TOGGLE_JS in html
+    assert "attachToggle(input)" in html

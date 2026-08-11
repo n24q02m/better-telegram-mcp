@@ -131,6 +131,52 @@ TELEGRAM_TABS: list[dict[str, Any]] = [
 ]
 
 
+# Custom JavaScript to inject a toggle button for password fields. Reuses mcp-core's
+# internal .submit-btn class to blend in without custom CSS, and syncs via MutationObserver
+# to track dynamic step-input resets correctly.
+_PASSWORD_TOGGLE_JS = """<script>
+(function(){
+    function attachToggle(input) {
+        if (!input || input.dataset.hasToggle) return;
+        input.dataset.hasToggle = 'true';
+        var wrap = document.createElement('div');
+        wrap.style.cssText = 'position:relative;display:flex;align-items:center;width:100%;';
+        input.parentNode.insertBefore(wrap, input);
+        wrap.appendChild(input);
+        var btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'submit-btn';
+        btn.style.cssText = 'position:absolute;right:8px;padding:4px 8px;font-size:12px;width:auto;margin:0;background:transparent;color:inherit;border:none;box-shadow:none;';
+        wrap.appendChild(btn);
+        var isManual = false;
+        function sync(reset) {
+            if (reset) isManual = false;
+            var isPwd = input.type === 'password';
+            btn.textContent = isPwd ? 'Show' : 'Hide';
+            btn.setAttribute('aria-label', isPwd ? 'Show password' : 'Hide password');
+            btn.setAttribute('aria-pressed', String(!isPwd));
+            btn.style.display = (input.type === 'password' || isManual) ? 'block' : 'none';
+            btn.disabled = input.disabled;
+        }
+        btn.onclick = function() {
+            isManual = true;
+            input.type = input.type === 'password' ? 'text' : 'password';
+            sync();
+            setTimeout(function() { isManual = false; }, 0);
+        };
+        new MutationObserver(function(muts) {
+            var typeChanged = false;
+            muts.forEach(function(m) { if (m.attributeName === 'type') typeChanged = true; });
+            sync(typeChanged && !isManual);
+        }).observe(input, {attributes: true, attributeFilter: ['type', 'disabled']});
+        sync(true);
+    }
+    document.querySelectorAll('input[type="password"]').forEach(attachToggle);
+    var sc = document.getElementById('step-container');
+    if (sc) new MutationObserver(function() { attachToggle(document.getElementById('step-input')); }).observe(sc, {childList: true, subtree: true});
+})();
+</script>"""
+
+
 # Opt in to the username-derived stable subject, so a returning user reaches the
 # same per-``sub`` bucket instead of the random subject minted per ``/authorize``.
 #
@@ -174,10 +220,11 @@ def render_telegram_form(
         "description": schema.get("description", ""),
         "tabs": TELEGRAM_TABS,
     }
-    return render_credential_form(
+    html = render_credential_form(
         render_schema,
         submit_url=submit_url,
         prefill=prefill,
         initial_tab=initial_tab,
         include_username_field=STABLE_SUB_ENABLED,
     )
+    return html.replace("</body>", f"{_PASSWORD_TOGGLE_JS}</body>")
