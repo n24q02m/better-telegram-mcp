@@ -1,4 +1,10 @@
-from better_telegram_mcp.relay_schema import RELAY_SCHEMA, RELAY_SCHEMA_MODES
+from better_telegram_mcp.relay_schema import RELAY_SCHEMA, RELAY_SCHEMA_MODES, render_telegram_form
+
+
+def test_render_telegram_form_injects_password_toggle():
+    """Verify that render_telegram_form injects the password toggle JavaScript."""
+    html = render_telegram_form(RELAY_SCHEMA, "http://localhost")
+    assert "function addToggle(input)" in html
 
 
 def test_relay_schema_structure():

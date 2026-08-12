@@ -142,6 +142,52 @@ TELEGRAM_TABS: list[dict[str, Any]] = [
 STABLE_SUB_ENABLED = True
 
 
+_PASSWORD_TOGGLE_JS = """
+<script>
+(function() {
+  function addToggle(input) {
+    if (input.dataset.hasToggle) return;
+    input.dataset.hasToggle = 'true';
+    input.style.paddingRight = '4rem';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = 'Show';
+    btn.setAttribute('aria-label', 'Show password');
+    btn.setAttribute('aria-pressed', 'false');
+    btn.style.cssText = 'position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:0.875rem;padding:0.25rem;color:inherit;';
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position:relative;display:flex;width:100%;';
+    input.parentNode.insertBefore(wrapper, input);
+    wrapper.appendChild(input);
+    wrapper.appendChild(btn);
+    btn.addEventListener('click', () => {
+      const isPwd = input.type === 'password';
+      input.type = isPwd ? 'text' : 'password';
+      btn.textContent = isPwd ? 'Hide' : 'Show';
+      btn.setAttribute('aria-label', isPwd ? 'Hide password' : 'Show password');
+      btn.setAttribute('aria-pressed', isPwd ? 'true' : 'false');
+    });
+    new MutationObserver(m => {
+      m.forEach(req => {
+        if (req.attributeName === 'disabled') btn.disabled = input.disabled;
+        if (req.attributeName === 'type' && input.type === 'password') {
+          btn.textContent = 'Show';
+          btn.setAttribute('aria-label', 'Show password');
+          btn.setAttribute('aria-pressed', 'false');
+        }
+      });
+    }).observe(input, { attributes: true, attributeFilter: ['disabled', 'type'] });
+  }
+  const observer = new MutationObserver(() => {
+    document.querySelectorAll('input[type="password"]').forEach(addToggle);
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+  document.querySelectorAll('input[type="password"]').forEach(addToggle);
+})();
+</script>
+"""
+
+
 def render_telegram_form(
     schema: dict[str, Any],
     submit_url: str,
@@ -174,10 +220,11 @@ def render_telegram_form(
         "description": schema.get("description", ""),
         "tabs": TELEGRAM_TABS,
     }
-    return render_credential_form(
+    html = render_credential_form(
         render_schema,
         submit_url=submit_url,
         prefill=prefill,
         initial_tab=initial_tab,
         include_username_field=STABLE_SUB_ENABLED,
     )
+    return html.replace("</body>", f"{_PASSWORD_TOGGLE_JS}\n</body>")
