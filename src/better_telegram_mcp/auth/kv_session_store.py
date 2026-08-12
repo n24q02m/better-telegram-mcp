@@ -107,6 +107,10 @@ class KvSessionStore:
 
         return result
 
+    def has_any(self) -> bool:
+        """Check if any sessions exist without loading their decrypted contents."""
+        return len(self._load_index()) > 0
+
     def delete(self, bearer: str) -> bool:
         """Delete session for bearer. Returns True if it existed."""
         existing = self.load(bearer)

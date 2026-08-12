@@ -76,3 +76,17 @@ def test_delete():
     # load_all no longer returns deleted sub
     all_sessions = store.load_all()
     assert "sub-del" not in all_sessions
+
+
+def test_has_any():
+    """Existence check works without loading decrypted contents."""
+    backend = InMemoryBackend()
+    store = KvSessionStore(backend=backend)
+
+    assert store.has_any() is False
+
+    store.store("sub-first", _info("sess_first", "+1"))
+    assert store.has_any() is True
+
+    store.delete("sub-first")
+    assert store.has_any() is False
