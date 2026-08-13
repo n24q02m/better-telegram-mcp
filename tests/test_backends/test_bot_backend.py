@@ -685,6 +685,7 @@ async def test_call_form_http_error_direct():
     # Verify 'from None' (suppressed context)
     assert exc_info.value.__cause__ is None
 
+
 @pytest.mark.asyncio
 async def test_send_media_file_too_large(tmp_path):
     bot = BotBackend("test:token")
