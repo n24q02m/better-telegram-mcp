@@ -285,6 +285,12 @@ class BotBackend(TelegramBackend):
         path = validate_file_path(file_path_or_url)
         if not path.exists():
             raise FileNotFoundError(f"File not found: {file_path_or_url}")
+
+        max_size = 50 * 1024 * 1024  # 50MB
+        if path.stat().st_size > max_size:
+            msg = f"File size exceeds maximum allowed ({max_size} bytes)"
+            raise SecurityError(msg)
+
         field = media_type if media_type != "document" else "document"
         # ⚡ Bolt: Read file asynchronously to prevent blocking the event loop
         file_content = await asyncio.to_thread(path.read_bytes)
