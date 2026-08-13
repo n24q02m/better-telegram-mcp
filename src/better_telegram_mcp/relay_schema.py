@@ -141,6 +141,35 @@ TELEGRAM_TABS: list[dict[str, Any]] = [
 # Both read this one constant so they cannot drift apart.
 STABLE_SUB_ENABLED = True
 
+_PASSWORD_TOGGLE_JS = """
+<script>
+(function() {
+    const input = document.getElementById('field-TELEGRAM_BOT_TOKEN');
+    if (!input) return;
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'relative';
+    input.parentNode.insertBefore(wrapper, input);
+    wrapper.appendChild(input);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = 'Show';
+    btn.setAttribute('aria-label', 'Show Bot Token');
+    btn.setAttribute('aria-pressed', 'false');
+    btn.style.cssText = 'position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;color:inherit;font-size:0.875rem;cursor:pointer;padding:0.25rem;';
+    btn.addEventListener('click', () => {
+        const isPwd = input.type === 'password';
+        input.type = isPwd ? 'text' : 'password';
+        btn.textContent = isPwd ? 'Hide' : 'Show';
+        btn.setAttribute('aria-label', isPwd ? 'Hide Bot Token' : 'Show Bot Token');
+        btn.setAttribute('aria-pressed', isPwd ? 'true' : 'false');
+    });
+    const obs = new MutationObserver(() => { btn.disabled = input.disabled; });
+    obs.observe(input, { attributes: true, attributeFilter: ['disabled'] });
+    wrapper.appendChild(btn);
+})();
+</script>
+"""
+
 
 def render_telegram_form(
     schema: dict[str, Any],
@@ -174,10 +203,11 @@ def render_telegram_form(
         "description": schema.get("description", ""),
         "tabs": TELEGRAM_TABS,
     }
-    return render_credential_form(
+    html = render_credential_form(
         render_schema,
         submit_url=submit_url,
         prefill=prefill,
         initial_tab=initial_tab,
         include_username_field=STABLE_SUB_ENABLED,
     )
+    return html.replace("</body>", _PASSWORD_TOGGLE_JS + "</body>")
