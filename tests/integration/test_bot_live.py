@@ -69,7 +69,7 @@ async def test_connect_bot_username():
     """The connected bot has the expected username."""
     backend = BotBackend(BOT_TOKEN)
     await backend.connect()
-    assert backend._bot_info.get("username") == "better_telegram_mcp_bot"
+    assert backend._bot_info.get("username") == "n24q02m_vps_hermes_bot"
     await backend.disconnect()
 
 

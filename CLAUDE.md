@@ -39,8 +39,9 @@ src/better_telegram_mcp/
 
 ## Auth flow
 
-Stdio mode (default): bot-only via `TELEGRAM_BOT_TOKEN` env. User mode is
-HTTP-only.
+Stdio mode (default): local single-user mode. Bot mode uses
+`TELEGRAM_BOT_TOKEN`; user mode can be configured with the local `auth` CLI
+(`login` is a deprecated alias).
 
 HTTP mode (`--http` / `MCP_TRANSPORT=http`): mcp-core `run_http_server`
 serves the local OAuth AS at `/authorize`. The custom credential form
@@ -61,15 +62,17 @@ Session persist: `~/.better-telegram-mcp/<name>.session`, permission 600.
 
 - `TELEGRAM_BOT_TOKEN` -- bot mode
 - `TELEGRAM_API_ID` + `TELEGRAM_API_HASH` -- user mode (built-in defaults, override optional)
-- `TELEGRAM_PHONE` -- phone (required for auth web UI)
+- `TELEGRAM_PHONE` -- phone for local auth or the HTTP relay form
 - `TELEGRAM_SESSION_NAME`, `TELEGRAM_DATA_DIR` -- optional
 - `MCP_TRANSPORT` / `TRANSPORT_MODE` -- set to `http` to opt into HTTP mode (default wire transport is stdio); `--http` CLI flag does the same
 - `PUBLIC_URL` -- deployed hostname; presence flips on the multi-user OAuth branch (with the DCR secret + api_id/api_hash)
 - `MCP_DCR_SERVER_SECRET` -- multi-user remote OAuth shared secret (with `PUBLIC_URL`); legacy `DCR_SERVER_SECRET` still accepted
 
-No `TELEGRAM_AUTH_URL` -- the in-process `local` auth server and the remote-relay client were removed; HTTP setup is served by mcp-core's OAuth AS off `PUBLIC_URL`.
+No `TELEGRAM_AUTH_URL` -- auth is not configured through a URL environment
+variable. HTTP user setup is served by mcp-core's OAuth AS and relay form,
+locally or under `PUBLIC_URL`; local single-user setup uses the `auth` CLI.
 
-NO `TELEGRAM_PASSWORD` -- 2FA nhap qua web UI, KHONG luu env.
+NO `TELEGRAM_PASSWORD` -- HTTP relay 2FA nhap qua web UI; local CLI auth prompts interactively, KHONG luu env.
 
 ## Release & Deploy
 
@@ -86,7 +89,7 @@ NO `TELEGRAM_PASSWORD` -- 2FA nhap qua web UI, KHONG luu env.
 
 ## Luu y
 
-- Config tool: `status|set|cache_clear|setup_*` (auth flow lives in mcp-core HTTP OAuth AS)
+- Config tool: `status|set|cache_clear|setup_*` (HTTP user auth lives in mcp-core's OAuth AS; local single-user auth uses the `auth` CLI)
 - Security: SSRF, path traversal, error sanitization, rate limiting on relay
 - Secrets: skret SSM namespace `/better-telegram-mcp/prod` (region `ap-southeast-1`)
 

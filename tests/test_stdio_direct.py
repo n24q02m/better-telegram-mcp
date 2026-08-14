@@ -1,146 +1,95 @@
-"""Verify better-telegram-mcp runs in stdio direct mode (no smart_stdio bridge).
+"""Verify the intentional stdio credential gate before MCP startup.
 
 Spawns ``python -m better_telegram_mcp`` with ``MCP_TRANSPORT=stdio`` and
-exercises the JSON-RPC handshake plus ``tools/list`` to prove the FastMCP
-stdio server is wired directly (no daemon-spawn bridge layer in front of
-it).
+asserts that missing credentials produce a bounded nonzero exit, no MCP
+response on stdout, and the documented local auth guidance. The gate runs
+before FastMCP initializes, so handshake and ``tools/list`` expectations
+without credentials would be invalid.
 
-Marked ``live`` because it spawns a real subprocess and speaks the MCP
-protocol; excluded from the default ``pytest`` invocation but runs under
-``uv run pytest -m live``.
+Marked ``live`` because it spawns a real subprocess and sends a real MCP
+initialize request; excluded from the default ``pytest`` invocation but runs
+under ``uv run pytest -m live``.
 """
 
 from __future__ import annotations
 
-import json
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
 pytestmark = [pytest.mark.live, pytest.mark.timeout(60)]
 
 
-def _spawn_stdio_server() -> subprocess.Popen[str]:
-    """Start ``python -m better_telegram_mcp`` with stdio transport.
+def _stdio_env_without_credentials(tmp_path: Path) -> dict[str, str]:
+    """Build an isolated environment without Telegram or saved credentials."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("TELEGRAM_")}
+    for key in (
+        "MCP_STORAGE_BACKEND",
+        "CREDENTIAL_SECRET",
+        "MCP_DCR_SERVER_SECRET",
+        "DCR_SERVER_SECRET",
+        "MASTER_SECRET",
+    ):
+        env.pop(key, None)
 
-    Returns the running subprocess. Caller is responsible for terminating it.
-    """
-    env = {**os.environ, "MCP_TRANSPORT": "stdio"}
-    return subprocess.Popen(
-        [sys.executable, "-m", "better_telegram_mcp"],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        env=env,
-        text=True,
-        bufsize=1,
+    env.update(
+        {
+            "MCP_TRANSPORT": "stdio",
+            "HOME": str(tmp_path),
+            "USERPROFILE": str(tmp_path),
+            "APPDATA": str(tmp_path / "AppData" / "Roaming"),
+            "LOCALAPPDATA": str(tmp_path / "AppData" / "Local"),
+            "XDG_CONFIG_HOME": str(tmp_path / ".config"),
+        }
+    )
+    return env
+
+
+def _run_stdio_without_credentials(tmp_path: Path) -> subprocess.CompletedProcess[str]:
+    """Run stdio with an initialize request but no credential input."""
+    args = [sys.executable, "-m", "better_telegram_mcp"]
+    stdout_path = tmp_path / "stdio-stdout.txt"
+    stderr_path = tmp_path / "stdio-stderr.txt"
+    with (
+        stdout_path.open("w", encoding="utf-8") as stdout,
+        stderr_path.open("w", encoding="utf-8") as stderr,
+    ):
+        result = subprocess.run(
+            args,
+            env=_stdio_env_without_credentials(tmp_path),
+            input='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n',
+            stdout=stdout,
+            stderr=stderr,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    return subprocess.CompletedProcess(
+        args,
+        result.returncode,
+        stdout_path.read_text(encoding="utf-8"),
+        stderr_path.read_text(encoding="utf-8"),
     )
 
 
-def _read_response(proc: subprocess.Popen[str]) -> dict:
-    """Read one JSON-RPC line from stdout, parsed as dict."""
-    assert proc.stdout is not None and proc.stderr is not None
-    line = proc.stdout.readline()
-    if not line:
-        stderr = proc.stderr.read()
-        raise RuntimeError(
-            f"server closed stdout without sending a response. stderr=\n{stderr}"
-        )
-    return json.loads(line)
+def test_stdio_credential_gate_exits_before_mcp_handshake(tmp_path: Path) -> None:
+    """Missing stdio credentials stop startup before MCP can respond."""
+    result = _run_stdio_without_credentials(tmp_path)
+    assert result.returncode != 0
+    assert result.stdout.strip() == ""
 
-
-def test_stdio_direct_init_responds():
-    """Spawn the server with MCP_TRANSPORT=stdio; verify init response shape."""
-    proc = _spawn_stdio_server()
-    assert proc.stdin is not None
-    init_request = (
-        json.dumps(
-            {
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "initialize",
-                "params": {
-                    "protocolVersion": "2025-11-25",
-                    "capabilities": {},
-                    "clientInfo": {"name": "test", "version": "1.0"},
-                },
-            }
-        )
-        + "\n"
-    )
-    try:
-        proc.stdin.write(init_request)
-        proc.stdin.flush()
-        response = _read_response(proc)
-        assert response["id"] == 1
-        assert "result" in response, f"unexpected response: {response}"
-        # FastMCP negotiates protocol version; just assert it returned one.
-        assert "protocolVersion" in response["result"]
-        assert response["result"]["serverInfo"]["name"] == "better-telegram-mcp"
-    finally:
-        proc.terminate()
-        try:
-            proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-
-
-def test_stdio_direct_tools_list_returns_expected_tools():
-    """Verify tools/list returns the expected telegram tool set over stdio."""
-    proc = _spawn_stdio_server()
+    stderr = result.stderr
     assert (
-        proc.stdin is not None and proc.stdout is not None and proc.stderr is not None
+        "[better-telegram-mcp] No Telegram credentials configured for stdio mode."
+        in stderr
     )
-    requests = [
-        json.dumps(
-            {
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "initialize",
-                "params": {
-                    "protocolVersion": "2025-11-25",
-                    "capabilities": {},
-                    "clientInfo": {"name": "test", "version": "1.0"},
-                },
-            }
-        ),
-        json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}),
-        json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}),
-    ]
-    try:
-        for r in requests:
-            proc.stdin.write(r + "\n")
-            proc.stdin.flush()
-        responses: dict[int, dict] = {}
-        while len(responses) < 2:
-            line = proc.stdout.readline()
-            if not line:
-                stderr = proc.stderr.read()
-                raise RuntimeError(
-                    f"server closed stdout before tools/list response. "
-                    f"stderr=\n{stderr}"
-                )
-            data = json.loads(line)
-            if "id" in data:
-                responses[data["id"]] = data
-        assert 2 in responses, f"missing tools/list response: {responses}"
-        tools = responses[2]["result"]["tools"]
-        tool_names = {t["name"] for t in tools}
-        # Core telegram tools that must be exposed in stdio mode. The full
-        # 7-tool set is chat, message, media, contact, config, help,
-        # config__open_relay; we assert the 6 always-on ones (config__open_relay
-        # registration may depend on relay-setup state, so we don't require it
-        # here) and accept any tool count >= 5.
-        expected = {"chat", "message", "media", "contact", "config", "help"}
-        assert expected.issubset(tool_names), (
-            f"missing tools: {expected - tool_names}; got: {tool_names}"
-        )
-        assert len(tools) >= 5
-    finally:
-        proc.terminate()
-        try:
-            proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            proc.kill()
+    assert "better-telegram-mcp auth --bot-token <token>" in stderr
+    assert "better-telegram-mcp auth --phone <+number>" in stderr
+    assert "login is a deprecated alias of auth" in stderr
+    assert (
+        "Documentation: https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/"
+        in stderr
+    )

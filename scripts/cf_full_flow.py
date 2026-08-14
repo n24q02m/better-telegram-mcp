@@ -14,14 +14,14 @@ email/imagine CF harnesses):
                        for the E.1 outbound-interception race). Bot mode REQUIRES a
                        real bot token; the server resolves the per-sub Bot API backend.
   4. token          -- POST /token (code + verifier) -> bearer JWT
-  5. tool call      -- config(status) + chats(action="list"); assert the bot backend
-                       resolves (a chat listing with no hard error -- an empty list is
-                       a valid PASS for a fresh bot).
+  5. tool call      -- config(status) + chat(info, @telegram); assert the bot backend
+                       resolves and a representative read-only chat-domain operation
+                       succeeds.
 
 Recreate gate (SUCCESS CRITERION 4 -- the whole point of the migration):
   --save-only  : save the bot token for one sub, dump the EXACT JWT (relay-login
                  mints a random sub per /authorize, so verify MUST replay this token).
-  --auth-only  : replay the dumped JWT WITHOUT re-saving; chats(list) must still
+  --auth-only  : replay the dumped JWT WITHOUT re-saving; chat(info) must still
                  resolve the bot -> the token survived container delete+recreate in KV.
 
 Secrets from env (skret): TELEGRAM_BOT_TOKEN from /better-telegram-mcp/prod; relay
@@ -241,6 +241,20 @@ def _assert_bot_connected(txt: str | None) -> None:
     print("ASSERT OK: bot backend connected + authorized (real getMe round-trip).")
 
 
+def _assert_chat_info(txt: str | None) -> None:
+    """Assert that chat(info) returned a real Telegram chat object."""
+    assert txt is not None, "chat(info) returned no payload"
+    assert not _not_ready(txt), f"chat(info) backend was not ready: {txt[:300]}"
+    low = txt.lower()
+    assert '"id"' in low or '"id":' in low, (
+        f"chat(info) did not return a chat id: {txt[:300]}"
+    )
+    assert '"type"' in low or '"type":' in low, (
+        f"chat(info) did not return a chat type: {txt[:300]}"
+    )
+    print("ASSERT OK: chat(info, @telegram) returned a real chat object.")
+
+
 async def _session(endpoint: str, token: str):
     from mcp import ClientSession  # lazy
     from mcp.client.streamable_http import streamablehttp_client
@@ -264,6 +278,13 @@ async def run_full(endpoint: str) -> None:
         print("TOOLS:", [t.name for t in tools.tools])
         txt = await _call(s, "CONFIG_STATUS", "config", {"action": "status"})
         _assert_bot_connected(txt)
+        chat_txt = await _call(
+            s,
+            "CHAT_INFO",
+            "chat",
+            {"action": "info", "chat_id": "@telegram"},
+        )
+        _assert_chat_info(chat_txt)
     print("FULL FLOW PASS.")
 
 
@@ -284,6 +305,13 @@ async def run_auth_only(endpoint: str) -> None:
         await s.initialize()
         txt = await _call(s, "CONFIG_STATUS", "config", {"action": "status"})
         _assert_bot_connected(txt)
+        chat_txt = await _call(
+            s,
+            "CHAT_INFO",
+            "chat",
+            {"action": "info", "chat_id": "@telegram"},
+        )
+        _assert_chat_info(chat_txt)
     print("AUTH-ONLY PASS: bot token survived recreate (KV resolved, no re-save).")
 
 
