@@ -1,6 +1,6 @@
 """Full E2E test for better-telegram-mcp -- single file, 3 setup modes, 2 backend modes.
 
-Tests 6 tools, 31 actions via MCP protocol.
+Tests 7 tools, 31 actions via MCP protocol.
 Bot mode tests a subset (bot API limitations).
 User mode tests all actions.
 
@@ -36,7 +36,15 @@ pytestmark = [
     pytest.mark.asyncio(loop_scope="module"),
 ]
 
-EXPECTED_TOOLS = {"message", "chat", "media", "contact", "config", "help"}
+EXPECTED_TOOLS = {
+    "message",
+    "chat",
+    "media",
+    "contact",
+    "config",
+    "help",
+    "config__open_relay",
+}
 
 BOT_CREDENTIAL_VARS = ["TELEGRAM_BOT_TOKEN"]
 USER_CREDENTIAL_VARS = ["TELEGRAM_PHONE"]

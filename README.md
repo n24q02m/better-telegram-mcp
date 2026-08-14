@@ -75,14 +75,15 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 - **Dual mode** -- Bot API (httpx) for bots, MTProto (Telethon) for user accounts
 - **7 tools** with action dispatch: `message`, `chat`, `media`, `contact`, `config`, `help`, `config__open_relay`
 - **Auto-detect mode** -- Set bot token for bot mode, or API credentials for user mode
-- **Web-based OTP auth** -- HTTP-mode browser relay form handles phone, OTP, and 2FA for user accounts (no session strings, no CLI sign-in)
+- **Web-based OTP auth** -- HTTP-mode browser relay form handles phone, OTP, and 2FA for user accounts
+- **Local CLI auth** -- `auth` configures a single-user machine; `login` remains a deprecated alias
 - **Tool annotations** -- Each tool declares `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`
 - **MCP Resources** -- Documentation available as `telegram://docs/*` resources
 - **Security hardened** -- SSRF protection, path traversal prevention, error sanitization
 
 ## Status
 
-Two clean transports: **stdio** (default, bot mode) and **HTTP** (bot + user mode, browser relay setup, optional multi-user). No daemon-bridge layer and no auto-spawn from stdio. See [Modes overview](https://mcp.n24q02m.com/get-started/modes-overview/) for the full transport model.
+Two clean transports: **stdio** (default, local single-user mode) and **HTTP** (bot + user mode, browser relay setup, optional multi-user). No daemon-bridge layer and no auto-spawn from stdio. See [Modes overview](https://mcp.n24q02m.com/get-started/modes-overview/) for the full transport model.
 
 Sister MCP servers from the same author are listed in the [collapsible section above](#better-telegram-mcp) -- they share this architecture, so install patterns transfer.
 
@@ -107,9 +108,9 @@ docker run -d --name better-telegram-mcp-http -p 8080:8080 \
   n24q02m/better-telegram-mcp:latest
 ```
 
-Stdio mode is **bot mode only** (`TELEGRAM_BOT_TOKEN`). User mode (full account via
-phone + OTP) runs in HTTP mode, where credentials are entered through the
-browser-based relay form at `/authorize`.
+Stdio mode is local single-user mode. Bot mode uses `TELEGRAM_BOT_TOKEN`; user mode
+can be configured locally with `better-telegram-mcp auth --phone <+number>`. HTTP
+user mode uses the browser-based relay form at `/authorize` for phone, OTP, and 2FA.
 
 **Remote endpoint** -- an HTTP deployment is OAuth-gated and serves `/mcp`. Point any
 MCP client that speaks Streamable HTTP + OAuth 2.1 at `https://<your-host>/mcp`; each
@@ -128,14 +129,15 @@ Also listed on [Smithery](https://smithery.ai/servers/n24q02m/better-telegram-mc
 Per [`smithery.yaml`](smithery.yaml), Smithery starts the server over **stdio** with
 `uvx --python 3.13 better-telegram-mcp` and takes **no install-time configuration**
 (empty `configSchema`) -- credentials are provided at runtime through the server's own
-setup flow: the `TELEGRAM_BOT_TOKEN` env var for stdio bot mode, or the browser relay
-form for HTTP user mode (see [Configuration](#configuration)).
+setup flow: the `TELEGRAM_BOT_TOKEN` env var or local `auth` command for stdio
+single-user mode, or the browser relay form for HTTP user mode (see
+[Configuration](#configuration)).
 
 ## Configuration
 
 Settings load from `TELEGRAM_`-prefixed environment variables (Pydantic Settings).
 
-**Stdio mode (bot only):**
+**Stdio mode (local single-user):**
 
 | Variable | Required | Description |
 |:---------|:---------|:------------|
@@ -156,8 +158,8 @@ not env vars. Server-side env vars for self-hosting:
 `TELEGRAM_API_HASH` ship with built-in public dev defaults, so only
 `TELEGRAM_PHONE` is needed to start the phone + OTP flow. `TELEGRAM_SESSION_NAME`
 and `TELEGRAM_DATA_DIR` customize the Telethon session file location. There is no
-`TELEGRAM_PASSWORD` env var -- 2FA is entered through the web UI and never stored
-in the environment.
+`TELEGRAM_PASSWORD` env var -- HTTP relay 2FA is entered through the web UI; local
+CLI auth prompts interactively and never stores it in the environment.
 
 ## CLI
 
@@ -176,7 +178,8 @@ better-telegram-mcp --version  # print the version
 
 | Subcommand | Usage | Description |
 |:-----------|:------|:------------|
-| `login` | `login --bot-token <token>` or `login --phone <+number>` | Authenticate this machine (single-user). Bot mode validates the token; phone mode runs the interactive OTP/2FA flow and stores the Telethon session on disk |
+| `auth` | `auth --bot-token <token>` or `auth --phone <+number>` | Authenticate this machine (single-user). Bot mode validates the token; phone mode runs the interactive OTP/2FA flow and stores the Telethon session on disk |
+| `login` | Same arguments as `auth` | Deprecated alias of `auth` |
 | `logout` | `logout` | Revoke the Telegram session server-side, delete the local session file, and clear saved credentials |
 | `config` | `config status`, `config delete [--yes]` | Show or delete the saved local credential config (env overrides still take precedence at server start) |
 | `relay` | `relay status`, `relay open`, `relay reset` | Inspect, open (print a fresh setup URL for), or reset the browser relay setup session |
@@ -184,16 +187,16 @@ better-telegram-mcp --version  # print the version
 
 ```bash
 # Bot mode: validate a bot token and save it to the local config
-better-telegram-mcp login --bot-token 123456:ABC-DEF
+better-telegram-mcp auth --bot-token 123456:ABC-DEF
 
 # User mode: interactive phone + OTP (+ 2FA if enabled) sign-in
-better-telegram-mcp login --phone +15551234567
+better-telegram-mcp auth --phone +15551234567
 
 # Remove local credentials and revoke the session
 better-telegram-mcp logout
 ```
 
-The `login` / `logout` subcommands are single-user and local-machine only -- they write
+The `auth` command, its deprecated `login` alias, and `logout` are single-user and local-machine only -- they write
 the on-disk Telethon session and the encrypted single-user config, so run them on the
 machine that hosts the stdio server. For remote / multi-user HTTP deployments,
 credentials are entered through the browser relay form instead (see the
@@ -204,7 +207,7 @@ credentials are entered through the browser relay form instead (see the
 Full docs at **[mcp.n24q02m.com/servers/better-telegram-mcp/setup/](https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/)**:
 
 - [Setup](https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/) -- install methods for Claude Code, Codex, Gemini CLI, Cursor, Windsurf, mcp.json
-- [Modes overview](https://mcp.n24q02m.com/get-started/modes-overview/) -- stdio (local, bot mode) and HTTP (remote, OAuth 2.1)
+- [Modes overview](https://mcp.n24q02m.com/get-started/modes-overview/) -- stdio (local, single-user) and HTTP (remote, OAuth 2.1)
 - [Multi-user setup](https://mcp.n24q02m.com/get-started/multi-user/) -- per-JWT-sub credential model
 
 **Install with AI agent** -- paste this to your AI coding agent:
