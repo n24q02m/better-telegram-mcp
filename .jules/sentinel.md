@@ -15,3 +15,7 @@
 **Vulnerability:** `BotBackend.download_media` used `httpx.AsyncClient.get` which loads the entire response into memory at once. If a bot is tricked into downloading a massive file, this could lead to Out-Of-Memory (OOM) Denial of Service (DoS).
 **Learning:** Even internal API wrappers (like Telegram Bot API wrappers) must treat large file downloads securely, especially if the input `file_id` is passed by users (e.g. from an MCP query).
 **Prevention:** Always stream media downloads using `httpx.stream`, check `Content-Length`, enforce a `max_size` limit, and iterate over the response chunks using `aiter_bytes()`. Avoid using `asyncio.to_thread` for every small chunk, relying instead on OS-level buffering to minimize overhead.
+## 2025-10-24 - Fix DoS via memory exhaustion in bot_backend send_media
+**Vulnerability:** `BotBackend.send_media` loaded entire local files into memory at once using `path.read_bytes()`. An attacker could exploit this by instructing the MCP bot to send an excessively large file, leading to an Out-Of-Memory (OOM) Denial of Service (DoS) attack that crashes the server.
+**Learning:** File read operations must enforce a strict size limit before loading contents into memory, even for local files validated for path traversal, as local files can be gigabytes in size.
+**Prevention:** Always check `path.stat().st_size` against a `max_size` limit (e.g., 50MB for Telegram Bot API) before reading the entire file into memory using `read_bytes()`.

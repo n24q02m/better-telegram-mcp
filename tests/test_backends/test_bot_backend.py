@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
@@ -12,6 +12,7 @@ from better_telegram_mcp.backends.bot_backend import (
     BotBackend,
     TelegramAPIError,
 )
+from better_telegram_mcp.backends.security import SecurityError
 
 
 def _make_transport(result: dict | list | bool, ok: bool = True):
@@ -683,3 +684,15 @@ async def test_call_form_http_error_direct():
     assert "<redacted>" in str(exc_info.value)
     # Verify 'from None' (suppressed context)
     assert exc_info.value.__cause__ is None
+
+
+@pytest.mark.asyncio
+async def test_send_media_file_too_large(tmp_path):
+    bot = BotBackend("test:token")
+    bot._client = httpx.AsyncClient(transport=_make_transport({"message_id": 42}))
+    f = tmp_path / "huge.txt"
+    f.write_text("X")
+    with patch("pathlib.Path.stat") as mock_stat:
+        mock_stat.return_value.st_size = 50 * 1024 * 1024 + 1
+        with pytest.raises(SecurityError, match="File size exceeds maximum allowed"):
+            await bot.send_media(123, "document", str(f))
