@@ -122,11 +122,24 @@ class UserBackend(TelegramBackend):
         sender_id = None
         if msg.sender_id is not None:
             sender_id = msg.sender_id
+        # Extract forum topic ID if present (Telegram forum/topic feature)
+        # Forum messages have reply_to.forum_topic=True and reply_to.reply_to_top_id
+        # Ordinary replies have reply_to.forum_topic=False (or no reply_to)
+        topic_id = None
+        if hasattr(msg, "reply_to") and msg.reply_to is not None:
+            # Check if this is a forum topic message
+            if getattr(msg.reply_to, "forum_topic", False):
+                # reply_to_top_id is the topic root; reply_to_msg_id is the replied-to message
+                topic_id = getattr(msg.reply_to, "reply_to_top_id", None)
+                # Fallback: if reply_to_top_id is None, use reply_to_msg_id (topic root)
+                if topic_id is None:
+                    topic_id = getattr(msg.reply_to, "reply_to_msg_id", None)
         return {
             "message_id": msg.id,
             "text": msg.text or "",
             "date": str(msg.date) if msg.date else None,
             "sender_id": sender_id,
+            "topic_id": topic_id,
         }
 
     @staticmethod
