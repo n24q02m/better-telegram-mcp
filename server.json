@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.n24q02m/better-telegram-mcp",
   "title": "Better Telegram MCP",
-  "description": "Telegram MCP server — dual-mode Bot API + MTProto, composite tools.",
+  "description": "Telegram for AI agents -- messages, chats, media, and contacts across both bot and full user-account modes.",
   "repository": {
     "url": "https://github.com/n24q02m/better-telegram-mcp.git",
     "source": "github"

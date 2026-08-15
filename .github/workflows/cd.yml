@@ -25,6 +25,17 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  readme-sync:
+    name: Verify README registry metadata
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      - name: Verify README registry metadata
+        run: python scripts/repo-bootstrap/verify_readme_sync.py --repo-root=.
+
   # =================== Release ===================
   release:
     name: Semantic Release
@@ -140,7 +151,7 @@ jobs:
   # =================== Publish to PyPI ===================
   publish-pypi:
     name: Publish to PyPI
-    needs: release
+    needs: [readme-sync, release]
     if: needs.release.outputs.released == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -160,7 +171,7 @@ jobs:
   # =================== Build Docker ===================
   build-docker:
     name: Build Docker (${{ matrix.platform }})
-    needs: release
+    needs: [readme-sync, release]
     if: needs.release.outputs.released == 'true'
     strategy:
       fail-fast: false
@@ -351,7 +362,7 @@ jobs:
     # auto-rollback (prev_ref != new) is inert here; a failed canary still fails
     # this job (exit 1, no silent bad deploy). Live-image prev_ref for true CI
     # rollback is a tracked follow-up.
-    needs: [release]
+    needs: [readme-sync, release]
     if: needs.release.outputs.released == 'true'
     runs-on: ubuntu-latest
     steps:

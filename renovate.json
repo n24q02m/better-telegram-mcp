@@ -82,7 +82,7 @@
       "pinDigests": true
     },
     {
-      "description": "Pin PSR to v10 — block Renovate downgrades",
+      "description": "Pin PSR to v10 \u2014 block Renovate downgrades",
       "matchManagers": [
         "github-actions"
       ],

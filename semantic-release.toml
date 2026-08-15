@@ -1,0 +1,11 @@
+[semantic_release]
+tag_format = "v{version}"
+commit_message = "feat(release): v{version} [skip ci]"
+major_on_zero = false
+allow_zero_version = true
+
+[semantic_release.changelog]
+changelog_file = "CHANGELOG.md"
+
+[semantic_release.remote]
+type = "github"

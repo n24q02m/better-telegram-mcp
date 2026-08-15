@@ -26,9 +26,9 @@ If applicable, add screenshots to help explain your problem.
 **Environment (please complete the following information):**
 
 - OS: [e.g. macOS, Linux, Windows]
-- Python version: [e.g. 3.13]
-- Package version: [e.g. 1.0.0]
-- Installation method: [e.g. uvx, pip, Docker]
+- Go version: [output of `go version`]
+- better-telegram-mcp version: [output of `better-telegram-mcp --version`]
+- Installation method: [e.g. go install, Docker, brew, scoop, apt, direct binary]
 
 **Additional context**
 Add any other context about the problem here.

@@ -85,6 +85,17 @@ repos:
         exclude_types: [image]
 
   # ============================================================================
+  # Registry metadata: keep package manifests and server.json aligned with README.
+  # ============================================================================
+  - repo: local
+    hooks:
+      - id: verify-readme-sync
+        name: Verify README registry metadata
+        entry: python scripts/repo-bootstrap/verify_readme_sync.py --repo-root=.
+        language: system
+        pass_filenames: false
+
+  # ============================================================================
   # Commit Message Enforcement
   # ============================================================================
   - repo: local

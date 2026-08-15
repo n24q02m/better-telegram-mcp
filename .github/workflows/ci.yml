@@ -120,6 +120,22 @@ jobs:
       - name: Run worker type check
         run: npm run type-check
 
+  readme-sync:
+    name: Verify README registry metadata
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Python 3.13
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+
+      - name: Verify README registry metadata
+        run: python scripts/repo-bootstrap/verify_readme_sync.py --repo-root=.
+
   dependency-review:
     name: Dependency Review
     if: github.event_name == 'pull_request'
