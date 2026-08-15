@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "tier": 1,
+  "description": "Telegram for AI agents -- messages, chats, media, and contacts across both bot and full user-account modes.",
+  "homepage": "https://mcp.n24q02m.com/servers/better-telegram-mcp/",
+  "topics": [
+    "claude",
+    "claude-code",
+    "cursor",
+    "docker",
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "open-source",
+    "telegram",
+    "ai-agents",
+    "ai-coding",
+    "python",
+    "telegram-bot",
+    "telethon"
+  ]
+}

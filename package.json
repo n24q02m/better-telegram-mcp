@@ -1,6 +1,10 @@
 {
   "name": "better-telegram-mcp-worker",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/n24q02m/better-telegram-mcp.git"
+  },
   "type": "module",
   "scripts": {
     "type-check": "tsc --noEmit",
