@@ -63,6 +63,18 @@ def test_per_sub_isolation():
     assert store.load("sub-z") is None
 
 
+def test_has_any():
+    backend = InMemoryBackend()
+    store = KvSessionStore(backend=backend)
+    assert store.has_any() is False
+
+    store.store("sub-a", _info("sess_a", "+1"))
+    assert store.has_any() is True
+
+    store.delete("sub-a")
+    assert store.has_any() is False
+
+
 def test_delete():
     backend = InMemoryBackend()
     store = KvSessionStore(backend=backend)
