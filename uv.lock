@@ -108,7 +108,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "cryptg", specifier = ">=0.6.0" },
-    { name = "cryptography", specifier = ">=49.0.0" },
+    { name = "cryptography", specifier = ">=50.0.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.28.1" },
