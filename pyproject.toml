@@ -42,8 +42,8 @@ dev = [
     "pytest-cov>=7.1.0",
     "pytest-xdist>=3.8.0",
     "ruff>=0.15.20",
-    "ty>=0.0.56",
-    "pre-commit>=4.6.0",
+    "ty>=0.0.69",
+    "pre-commit>=4.6.1",
 ]
 [project.scripts]
 better-telegram-mcp = "better_telegram_mcp.cli:main"
