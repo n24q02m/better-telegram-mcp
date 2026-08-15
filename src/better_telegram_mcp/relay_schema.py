@@ -142,6 +142,37 @@ TELEGRAM_TABS: list[dict[str, Any]] = [
 STABLE_SUB_ENABLED = True
 
 
+_PASSWORD_TOGGLE_JS = """<script>
+(function() {
+    var input = document.getElementById('field-TELEGRAM_BOT_TOKEN');
+    if (!input) return;
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'position: relative; display: flex; align-items: center; width: 100%;';
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+    input.style.flex = '1';
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = 'Show';
+    btn.className = 'submit-btn';
+    btn.style.cssText = 'margin-left: 8px; margin-top: 0; padding: 0.5rem 1rem; width: auto; font-size: 0.875rem; background: transparent; border: 1px solid #ccc; color: inherit;';
+    btn.setAttribute('aria-label', 'Show Bot Token');
+    btn.setAttribute('aria-pressed', 'false');
+    btn.addEventListener('click', function() {
+        var isPwd = input.type === 'password';
+        input.type = isPwd ? 'text' : 'password';
+        btn.textContent = isPwd ? 'Hide' : 'Show';
+        btn.setAttribute('aria-label', isPwd ? 'Hide Bot Token' : 'Show Bot Token');
+        btn.setAttribute('aria-pressed', isPwd ? 'true' : 'false');
+    });
+    wrap.appendChild(btn);
+    new MutationObserver(function(m) {
+        m.forEach(function(r) { if (r.attributeName === 'disabled') btn.disabled = input.disabled; });
+    }).observe(input, {attributes: true});
+})();
+</script>"""
+
+
 def render_telegram_form(
     schema: dict[str, Any],
     submit_url: str,
@@ -174,10 +205,11 @@ def render_telegram_form(
         "description": schema.get("description", ""),
         "tabs": TELEGRAM_TABS,
     }
-    return render_credential_form(
+    html = render_credential_form(
         render_schema,
         submit_url=submit_url,
         prefill=prefill,
         initial_tab=initial_tab,
         include_username_field=STABLE_SUB_ENABLED,
     )
+    return html.replace("</body>", _PASSWORD_TOGGLE_JS + "\n</body>")
