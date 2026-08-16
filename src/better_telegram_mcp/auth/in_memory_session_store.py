@@ -69,6 +69,10 @@ class InMemorySessionStore:
             for bearer, data in self._store.items()
         }
 
+    def has_any(self) -> bool:
+        """Check if any sessions exist without copying dict values."""
+        return len(self._store) > 0
+
     def delete(self, bearer: str) -> bool:
         """Delete a session. Returns True if it existed."""
         if bearer not in self._store:

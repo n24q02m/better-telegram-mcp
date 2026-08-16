@@ -101,6 +101,17 @@ class TestInMemorySessionStoreDelete:
         assert loaded is not None and loaded.bot_token == "t2"
 
 
+class TestInMemorySessionStoreHasAny:
+    def test_has_any_empty(self) -> None:
+        store = InMemorySessionStore()
+        assert store.has_any() is False
+
+    def test_has_any_with_items(self) -> None:
+        store = InMemorySessionStore()
+        store.store("b1", _bot_info("t1"))
+        assert store.has_any() is True
+
+
 class TestInMemorySessionStoreLoadAll:
     def test_load_all_empty(self) -> None:
         store = InMemorySessionStore()

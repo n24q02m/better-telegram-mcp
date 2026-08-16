@@ -39,6 +39,15 @@ def test_survives_new_instance_same_backend():
     assert loaded.session_name == "bob_session"
 
 
+def test_has_any():
+    backend = InMemoryBackend()
+    store = KvSessionStore(backend=backend)
+    assert store.has_any() is False
+
+    store.store("sub-a", _info("sess_a", "+1"))
+    assert store.has_any() is True
+
+
 def test_load_all_returns_all():
     backend = InMemoryBackend()
     store = KvSessionStore(backend=backend)
@@ -72,7 +81,24 @@ def test_delete():
     result = store.delete("sub-del")
     assert result is True
     assert store.load("sub-del") is None
+    assert store.has_any() is False
 
     # load_all no longer returns deleted sub
     all_sessions = store.load_all()
     assert "sub-del" not in all_sessions
+
+
+def test_delete_preserves_record_when_index_update_fails(monkeypatch):
+    backend = InMemoryBackend()
+    store = KvSessionStore(backend=backend)
+    store.store("sub-del", _info("del_session", "+9"))
+
+    def fail_save_index(_subs: list[str]) -> None:
+        raise RuntimeError("index unavailable")
+
+    monkeypatch.setattr(store, "_save_index", fail_save_index)
+    with pytest.raises(RuntimeError, match="index unavailable"):
+        store.delete("sub-del")
+
+    assert store.load("sub-del") is not None
+    assert store.has_any() is True
