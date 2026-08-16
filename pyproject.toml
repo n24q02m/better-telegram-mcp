@@ -22,7 +22,7 @@ classifiers = [
     "Topic :: Communications :: Chat",
 ]
 dependencies = [
-    "mcp[cli]>=1.28.1",
+    "mcp[cli]>=2.0.0",
     "httpx>=0.28.1",
     "telethon>=1.44.0",
     "pydantic>=2.13.4,<2.14",
