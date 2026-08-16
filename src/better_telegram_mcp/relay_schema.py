@@ -143,24 +143,33 @@ STABLE_SUB_ENABLED = True
 
 _PASSWORD_TOGGLE_JS = """<script>
 (function(){
-var i = document.getElementById("field-TELEGRAM_BOT_TOKEN");
-if(!i) return;
-var d = document.createElement("div"); d.style.position = "relative";
-i.parentNode.insertBefore(d, i); d.appendChild(i);
-var b = document.createElement("button"); b.type = "button";
-b.textContent = "SHOW"; b.setAttribute("aria-label", "Show password"); b.setAttribute("aria-pressed", "false");
-b.style.cssText = "position:absolute; right:0.5rem; top:50%; transform:translateY(-50%); background:none; border:none; color:inherit; font-size:0.75rem; cursor:pointer; padding:0.25rem; font-weight:bold;";
-d.appendChild(b); i.style.paddingRight = "3.5rem";
-b.addEventListener("click", function() {
-    var pwd = i.type === "password"; i.type = pwd ? "text" : "password";
-    b.textContent = pwd ? "HIDE" : "SHOW"; b.setAttribute("aria-label", pwd ? "Hide password" : "Show password"); b.setAttribute("aria-pressed", pwd ? "true" : "false");
-});
-new MutationObserver(function() {
-    b.disabled = i.disabled;
-    if(i.type === "password" && b.textContent !== "SHOW") {
-        b.textContent = "SHOW"; b.setAttribute("aria-label", "Show password"); b.setAttribute("aria-pressed", "false");
-    }
-}).observe(i, {attributes: true, attributeFilter: ["disabled", "type"]});
+function attach(i) {
+    if(!i || i._t) return; i._t = true;
+    var d = document.createElement("div"); d.style.position = "relative";
+    i.parentNode.insertBefore(d, i); d.appendChild(i);
+    var b = document.createElement("button"); b.type = "button";
+    b.textContent = "SHOW"; b.setAttribute("aria-label", "Show password"); b.setAttribute("aria-pressed", "false");
+    b.style.cssText = "position:absolute; right:0.5rem; top:50%; transform:translateY(-50%); background:none; border:none; color:inherit; font-size:0.75rem; cursor:pointer; padding:0.25rem; font-weight:bold;";
+    d.appendChild(b); if(i.type !== "password") b.style.display = "none"; else i.style.paddingRight = "3.5rem";
+    b.addEventListener("click", function() {
+        if(i.type !== "password" && i.type !== "text") return;
+        var pwd = i.type === "password"; i.type = pwd ? "text" : "password";
+        b.textContent = pwd ? "HIDE" : "SHOW"; b.setAttribute("aria-label", pwd ? "Hide password" : "Show password"); b.setAttribute("aria-pressed", pwd ? "true" : "false");
+    });
+    new MutationObserver(function() {
+        b.disabled = i.disabled;
+        if(i.type === "password" || i.getAttribute("type") === "password") {
+            if(b.style.display === "none") { b.style.display = ""; i.style.paddingRight = "3.5rem"; }
+            if(b.textContent !== "SHOW" && (!document.activeElement || document.activeElement !== b) && i.type === "password") {
+                b.textContent = "SHOW"; b.setAttribute("aria-label", "Show password"); b.setAttribute("aria-pressed", "false");
+            }
+        } else if(b.textContent === "SHOW") {
+            if(b.style.display !== "none") { b.style.display = "none"; i.style.paddingRight = ""; }
+        }
+    }).observe(i, {attributes: true, attributeFilter: ["disabled", "type"]});
+}
+attach(document.getElementById("field-TELEGRAM_BOT_TOKEN"));
+new MutationObserver(function() { attach(document.getElementById("step-input")); }).observe(document.body, {childList: true, subtree: true});
 })();
 </script>"""
 
