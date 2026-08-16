@@ -108,16 +108,16 @@ class KvSessionStore:
         return result
 
     def has_any(self) -> bool:
-        """Check if any sessions exist using O(1) index read instead of O(N) load_all."""
-        return len(self._load_index()) > 0
+        """Check whether the session index contains any saved session."""
+        return bool(self._load_index())
 
     def delete(self, bearer: str) -> bool:
-        """Delete session for bearer. Returns True if it existed."""
+        """Delete session for bearer without leaving a stale positive index."""
         existing = self.load(bearer)
         if existing is None:
             return False
-        self._sub_store(bearer).clear()
         subs = self._load_index()
         subs = [s for s in subs if s != bearer]
         self._save_index(subs)
+        self._sub_store(bearer).clear()
         return True
