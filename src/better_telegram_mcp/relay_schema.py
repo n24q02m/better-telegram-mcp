@@ -157,6 +157,8 @@ b.addEventListener("click", function() {
 });
 new MutationObserver(function() {
     b.disabled = i.disabled;
+    var isReallyPwd = i.type === "password" || b.textContent === "HIDE";
+    b.style.display = isReallyPwd ? "block" : "none";
     if(i.type === "password" && b.textContent !== "SHOW") {
         b.textContent = "SHOW"; b.setAttribute("aria-label", "Show password"); b.setAttribute("aria-pressed", "false");
     }
