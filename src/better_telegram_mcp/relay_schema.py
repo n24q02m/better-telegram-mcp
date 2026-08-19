@@ -157,6 +157,11 @@ b.addEventListener("click", function() {
 });
 new MutationObserver(function() {
     b.disabled = i.disabled;
+    b.style.opacity = b.disabled ? "0.5" : "1";
+    b.style.cursor = b.disabled ? "not-allowed" : "pointer";
+    var isPwdField = i.type === "password" || b.textContent === "HIDE";
+    b.style.display = isPwdField ? "" : "none";
+    i.style.paddingRight = isPwdField ? "3.5rem" : "";
     if(i.type === "password" && b.textContent !== "SHOW") {
         b.textContent = "SHOW"; b.setAttribute("aria-label", "Show password"); b.setAttribute("aria-pressed", "false");
     }
