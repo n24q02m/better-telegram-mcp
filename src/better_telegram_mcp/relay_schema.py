@@ -155,12 +155,16 @@ b.addEventListener("click", function() {
     var pwd = i.type === "password"; i.type = pwd ? "text" : "password";
     b.textContent = pwd ? "HIDE" : "SHOW"; b.setAttribute("aria-label", pwd ? "Hide password" : "Show password"); b.setAttribute("aria-pressed", pwd ? "true" : "false");
 });
-new MutationObserver(function() {
+var u = function() {
     b.disabled = i.disabled;
+    b.style.opacity = i.disabled ? "0.5" : "1";
+    b.style.cursor = i.disabled ? "not-allowed" : "pointer";
     if(i.type === "password" && b.textContent !== "SHOW") {
         b.textContent = "SHOW"; b.setAttribute("aria-label", "Show password"); b.setAttribute("aria-pressed", "false");
     }
-}).observe(i, {attributes: true, attributeFilter: ["disabled", "type"]});
+};
+u();
+new MutationObserver(u).observe(i, {attributes: true, attributeFilter: ["disabled", "type"]});
 })();
 </script>"""
 
