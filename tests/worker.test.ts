@@ -204,3 +204,59 @@ describe('edge declines the standing GET /mcp SSE stream (container never pinned
     expect(calls()).toBe(0)
   })
 })
+
+describe('tombstone contract (W4 dehost preparation & drill)', () => {
+  function makeEnv(flags: Record<string, string> = {}) {
+    let stubCalls = 0
+    const env = {
+      TELEGRAM: {
+        idFromName(n: string) { return { n } },
+        get() { return { fetch: async () => { stubCalls++; return new Response('ok') } } },
+      },
+      ...flags,
+    }
+    return { env: env as never, calls: () => stubCalls }
+  }
+
+  it('returns 410 Gone with non-sensitive successor message and headers when DEHOSTED is true', async () => {
+    const { env, calls } = makeEnv({ DEHOSTED: 'true' })
+    const res = await worker.fetch(
+      new Request('https://telegram.n24q02m.com/mcp', {
+        method: 'POST',
+        headers: { authorization: 'Bearer valid.jwt.token' },
+      }),
+      env
+    )
+
+    expect(res.status).toBe(410)
+    expect(res.headers.get('Content-Type')).toBe('application/json')
+    expect(res.headers.get('X-Dehosted-Successor')).toBe('https://mcp.n24q02m.com/servers/better-telegram-mcp/')
+
+    const body = await res.json()
+    expect(body).toMatchObject({
+      error: 'hosted_runtime_dehosted',
+      status: 410,
+      successor: 'https://mcp.n24q02m.com/servers/better-telegram-mcp/',
+    })
+    expect(body.message).toContain('retired')
+    expect(body.message).toContain('stdio')
+
+    // CRITICAL: 0 requests reach the Container DO
+    expect(calls()).toBe(0)
+  })
+
+  it('returns 410 Gone on all routes when TOMBSTONE is true', async () => {
+    const { env, calls } = makeEnv({ TOMBSTONE: 'true' })
+
+    for (const path of ['/authorize', '/health', '/.well-known/jwks.json', '/mcp/v1']) {
+      const res = await worker.fetch(
+        new Request(`https://telegram.n24q02m.com${path}`, { method: 'GET' }),
+        env
+      )
+      expect(res.status).toBe(410)
+      expect(res.headers.get('X-Dehosted-Successor')).toBe('https://mcp.n24q02m.com/servers/better-telegram-mcp/')
+    }
+
+    expect(calls()).toBe(0)
+  })
+})
