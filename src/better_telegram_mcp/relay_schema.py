@@ -150,6 +150,7 @@ i.parentNode.insertBefore(d, i); d.appendChild(i);
 var b = document.createElement("button"); b.type = "button";
 b.textContent = "SHOW"; b.setAttribute("aria-label", "Show password"); b.setAttribute("aria-pressed", "false");
 b.style.cssText = "position:absolute; right:0.5rem; top:50%; transform:translateY(-50%); background:none; border:none; color:inherit; font-size:0.75rem; cursor:pointer; padding:0.25rem; font-weight:bold;";
+if (i.disabled) { b.disabled = true; b.style.opacity = "0.5"; b.style.cursor = "not-allowed"; }
 d.appendChild(b); i.style.paddingRight = "3.5rem";
 b.addEventListener("click", function() {
     var pwd = i.type === "password"; i.type = pwd ? "text" : "password";
@@ -157,6 +158,8 @@ b.addEventListener("click", function() {
 });
 new MutationObserver(function() {
     b.disabled = i.disabled;
+    b.style.opacity = i.disabled ? "0.5" : "1";
+    b.style.cursor = i.disabled ? "not-allowed" : "pointer";
     if(i.type === "password" && b.textContent !== "SHOW") {
         b.textContent = "SHOW"; b.setAttribute("aria-label", "Show password"); b.setAttribute("aria-pressed", "false");
     }
