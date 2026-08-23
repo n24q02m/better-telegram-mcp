@@ -13,3 +13,6 @@
 ## 2025-08-30 - Internalizing Thread Offloading for Blocking I/O
 **Learning:** In asynchronous backends, internal helper methods that perform blocking filesystem I/O (like `os.open`, `os.chmod`, or file-backed key-value lookups) can block the main asyncio event loop if not properly offloaded. While the offloading could be done at the call site, doing so clutters the call site and relies on callers to remember the implementation detail.
 **Action:** Always refactor internal helper methods that perform blocking I/O to be `async def`. Wrap their synchronous logic in a nested function and internally offload it using `await asyncio.to_thread()`. This improves API clarity and ensures non-blocking behavior wherever the method is invoked.
+## 2025-08-31 - O(1) Existence Checks for Encrypted Stores
+**Learning:** Checking for session existence using bulk data retrieval methods like `load_all()` incurs massive overhead from N+1 decryption operations (e.g., PBKDF2) in the Cryptographic KV Store, even when no sessions exist, due to ThreadPoolExecutor initialization and index iteration.
+**Action:** When checking if any records exist or before processing bulk operations like `restore_sessions` or `cleanup_expired`, always implement and utilize index-only checks like `has_any()` to achieve O(1) existence verification and skip expensive bulk loads when empty.

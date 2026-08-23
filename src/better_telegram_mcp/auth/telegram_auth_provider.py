@@ -111,6 +111,9 @@ class TelegramAuthProvider:
         """
         import asyncio
 
+        if not self._store.has_any():
+            return 0
+
         sessions = self._store.load_all()
         now = time.time()
 
@@ -418,26 +421,27 @@ class TelegramAuthProvider:
 
     async def cleanup_expired(self) -> int:
         """Remove expired sessions. Returns count of removed sessions."""
-        sessions = self._store.load_all()
         removed = 0
         now = time.time()
 
-        to_revoke = [
-            bearer
-            for bearer, info in sessions.items()
-            if now - info.created_at > _SESSION_TTL
-        ]
+        if self._store.has_any():
+            sessions = self._store.load_all()
+            to_revoke = [
+                bearer
+                for bearer, info in sessions.items()
+                if now - info.created_at > _SESSION_TTL
+            ]
 
-        if to_revoke:
-            results = await asyncio.gather(
-                *(self.revoke_session(b) for b in to_revoke),
-                return_exceptions=True,
-            )
-            for res in results:
-                if isinstance(res, Exception):
-                    logger.warning("Error revoking session during cleanup: {}", res)
-                elif res is True:
-                    removed += 1
+            if to_revoke:
+                results = await asyncio.gather(
+                    *(self.revoke_session(b) for b in to_revoke),
+                    return_exceptions=True,
+                )
+                for res in results:
+                    if isinstance(res, Exception):
+                        logger.warning("Error revoking session during cleanup: {}", res)
+                    elif res is True:
+                        removed += 1
 
         # Clean up stale pending OTPs (5 min TTL) using chronological insertion order.
         # Since start_user_auth pops-then-reinserts each bearer, the oldest entries
