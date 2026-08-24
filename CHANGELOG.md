@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v4.18.0-beta.2 (2026-08-24)
+
+### Bug Fixes
+
+- Accept dehost tombstone canary ([#1033](https://github.com/n24q02m/better-telegram-mcp/pull/1033),
+  [`096f0da`](https://github.com/n24q02m/better-telegram-mcp/commit/096f0da86a8ba83d61b86c5c97879b92ab95ff61))
+
+
 ## v4.18.0-beta.1 (2026-08-24)
 
 ### Bug Fixes
