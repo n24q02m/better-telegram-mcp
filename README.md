@@ -314,10 +314,11 @@ into a single credential bucket.
 
 This plugin implements **TC-NearZK** (in-memory, ephemeral). See [mcp-core trust model](https://mcp.n24q02m.com/servers/mcp-core/trust-model/) for full classification.
 
+The project no longer operates an n24q02m-hosted Telegram endpoint. HTTP mode is available only on infrastructure an operator deploys and controls.
+
 | Mode | Storage | Encryption | Who can read your data? |
 |---|---|---|---|
-| HTTP n24q02m-hosted (default) | In-memory `dict[sub] = MTProtoSession` | In-process only | Server process (cleared on restart) |
-| HTTP self-host | Same as hosted | Same | Only you (admin = user) |
+| HTTP self-host (opt-in) | In-memory `dict[sub] = MTProtoSession` | In-process only | Operator-controlled server process (cleared on restart) |
 | stdio | `~/.config/mcp/config.enc` (credentials) + `~/.better-telegram-mcp/<name>.session` (Telethon session) | AES-GCM, machine-bound key | Only your OS user (file perm 0600) |
 
 ### Workspace username (HTTP setup form)
