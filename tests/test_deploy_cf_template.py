@@ -70,3 +70,4 @@ def test_committed_template_renders_to_valid_json(monkeypatch):
     )
     assert cfg["kv_namespaces"][0]["id"] == "kvid"
     assert cfg["vars"]["PUBLIC_URL"] == "https://telegram.n24q02m.com"
+    assert cfg["vars"]["DEHOSTED"] == "true"
