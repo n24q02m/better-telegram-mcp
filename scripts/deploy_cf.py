@@ -66,6 +66,7 @@ for _stream in (sys.stdout, sys.stderr):
 
 DEPLOY_CONFIG = "wrangler.deploy.jsonc"
 TEMPLATE_CONFIG = "wrangler.deploy.template.jsonc"
+DEHOST_SUCCESSOR = "https://mcp.n24q02m.com/servers/better-telegram-mcp/"
 
 
 def render_template(path: str) -> str:
@@ -298,14 +299,36 @@ def _retry_gate(fn, public_url: str, *, tries: int = 10, delay: int = 6) -> bool
     return False
 
 
-def _canary(public_url: str, *, dry: bool) -> bool:
-    if dry:
-        print(
-            "  (dry-run) would run canary: Gate A /authorize->/login, "
-            "Gate B /mcp 401, JWKS kid-stable"
+def _gate_dehosted(public_url: str) -> bool:
+    """Every public route must expose the deterministic dehost tombstone."""
+    ok = True
+    for path in ("/authorize", "/mcp", "/.well-known/jwks.json", "/health"):
+        status, headers, _ = _get(f"{public_url}{path}")
+        successor = headers.get("x-dehosted-successor", "")
+        route_ok = status == 410 and successor == DEHOST_SUCCESSOR
+        detail = (
+            "OK"
+            if route_ok
+            else (f"FAIL (status={status}, successor={successor or 'missing'})")
         )
+        print(f"  [canary] Dehost {path} -> {status}  {detail}")
+        ok = ok and route_ok
+    return ok
+
+
+def _canary(public_url: str, *, dry: bool, dehosted: bool = False) -> bool:
+    if dry:
+        if dehosted:
+            print("  (dry-run) would require the 410 dehost tombstone on every route")
+        else:
+            print(
+                "  (dry-run) would run canary: Gate A /authorize->/login, "
+                "Gate B /mcp 401, JWKS kid-stable"
+            )
         return True
     print(f"Canary gate against {public_url} (credential-free):")
+    if dehosted:
+        return _retry_gate(_gate_dehosted, public_url)
     results = [
         _retry_gate(_gate_a, public_url),
         _retry_gate(_gate_b, public_url),
@@ -402,11 +425,17 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
 
-    if _canary(_public_url(cfg), dry=args.dry_run):
-        print(
-            f"DONE: {worker} deployed at tag {tag}, canary PASS. "
-            "Run scripts/cf_full_flow.py for the authenticated tool round-trip."
-        )
+    dehosted = str((cfg.get("vars") or {}).get("DEHOSTED", "")).lower() == "true"
+    if _canary(_public_url(cfg), dry=args.dry_run, dehosted=dehosted):
+        if dehosted:
+            print(
+                f"DONE: {worker} deployed at tag {tag}, dehost tombstone canary PASS."
+            )
+        else:
+            print(
+                f"DONE: {worker} deployed at tag {tag}, canary PASS. "
+                "Run scripts/cf_full_flow.py for the authenticated tool round-trip."
+            )
         return 0
 
     if prev_ref == full:
