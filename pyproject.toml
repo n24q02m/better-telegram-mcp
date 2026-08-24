@@ -27,7 +27,8 @@ dependencies = [
     "httpx>=0.28.1",
     "telethon>=1.44.0",
     "pydantic>=2.13.4,<2.14",
-    "pydantic-settings>=2.15.0",
+    # 2.15 warns while constructing MCP SDK Settings; lift after upstream rebuilds its model.
+    "pydantic-settings>=2.14.2,<2.15",
     "loguru>=0.7.3",
     "n24q02m-mcp-core>=1.23.0,<2",
     "cryptography>=50.0.0",
