@@ -2,6 +2,131 @@
 
 <!-- version list -->
 
+## v4.18.0-beta.1 (2026-08-24)
+
+### Bug Fixes
+
+- Derive the tilde-traversal depth from the real home
+  ([#975](https://github.com/n24q02m/better-telegram-mcp/pull/975),
+  [`e4f61ec`](https://github.com/n24q02m/better-telegram-mcp/commit/e4f61ec4633cfc6d601ff21e4774995247c4c725))
+
+- Describe the HTTP mode instead of advertising a personal instance
+  ([`8f42d52`](https://github.com/n24q02m/better-telegram-mcp/commit/8f42d52efb7b2a85d6a20f6097bdbdd096fbe2b0))
+
+- Drop code_quality from the main ruleset
+  ([#958](https://github.com/n24q02m/better-telegram-mcp/pull/958),
+  [`1ef1ea2`](https://github.com/n24q02m/better-telegram-mcp/commit/1ef1ea2716adc686c7d9aa862ec7bc6fcac18e0f))
+
+- Drop rangeStrategy from update-type package rules
+  ([#956](https://github.com/n24q02m/better-telegram-mcp/pull/956),
+  [`da37457`](https://github.com/n24q02m/better-telegram-mcp/commit/da37457208ad81a2bfe1a69ce05d6f7e6e158763))
+
+- Isolate test HOME so per-plugin stores cannot reach the real home
+  ([#975](https://github.com/n24q02m/better-telegram-mcp/pull/975),
+  [`e4f61ec`](https://github.com/n24q02m/better-telegram-mcp/commit/e4f61ec4633cfc6d601ff21e4774995247c4c725))
+
+- Move this repo to Apache-2.0 ([#973](https://github.com/n24q02m/better-telegram-mcp/pull/973),
+  [`5a630fe`](https://github.com/n24q02m/better-telegram-mcp/commit/5a630fe0e5860a1e627a1557cabdbec56bd0e9c8))
+
+- Offload blocking Telegram I/O to worker threads
+  ([`2e04e07`](https://github.com/n24q02m/better-telegram-mcp/commit/2e04e074fa08f8c8c56ec0bc4d46971fe7ebc7e6))
+
+- Pin GitHub Action references to commit SHAs
+  ([#954](https://github.com/n24q02m/better-telegram-mcp/pull/954),
+  [`a7a7ac4`](https://github.com/n24q02m/better-telegram-mcp/commit/a7a7ac4d12f250ed76587ac1e7d56d8982281b21))
+
+- Pin HOME in the tilde-traversal security tests
+  ([#975](https://github.com/n24q02m/better-telegram-mcp/pull/975),
+  [`e4f61ec`](https://github.com/n24q02m/better-telegram-mcp/commit/e4f61ec4633cfc6d601ff21e4774995247c4c725))
+
+- Preserve session index consistency
+  ([#1006](https://github.com/n24q02m/better-telegram-mcp/pull/1006),
+  [`c127816`](https://github.com/n24q02m/better-telegram-mcp/commit/c1278169ba8bcb1995551f2f307f352e314915b1))
+
+- Prevent OOM in bot media uploads
+  ([`8e985c2`](https://github.com/n24q02m/better-telegram-mcp/commit/8e985c23a848d2518a727a4a7bea285955ebaa75))
+
+- Remove redundant orphan-tag shell guard (better-semantic-release @v1 has a built-in one)
+  ([#953](https://github.com/n24q02m/better-telegram-mcp/pull/953),
+  [`626f0b0`](https://github.com/n24q02m/better-telegram-mcp/commit/626f0b099307ef178fdc2dc65788a27feb954436))
+
+- Respect managed CodeQL setup ([#1008](https://github.com/n24q02m/better-telegram-mcp/pull/1008),
+  [`84d25c3`](https://github.com/n24q02m/better-telegram-mcp/commit/84d25c360677a52e313beffc03b937135f965c29))
+
+- Stop the home-isolation guard from polluting the real store when it fires
+  ([#975](https://github.com/n24q02m/better-telegram-mcp/pull/975),
+  [`e4f61ec`](https://github.com/n24q02m/better-telegram-mcp/commit/e4f61ec4633cfc6d601ff21e4774995247c4c725))
+
+- **deps**: Bump mcp-core to 1.23.0
+  ([#1010](https://github.com/n24q02m/better-telegram-mcp/pull/1010),
+  [`9dff895`](https://github.com/n24q02m/better-telegram-mcp/commit/9dff8958c29fcb4663e2a50fd149019c29f2cb69))
+
+- **deps**: Remediate postcss security alert
+  ([#1009](https://github.com/n24q02m/better-telegram-mcp/pull/1009),
+  [`e11f36d`](https://github.com/n24q02m/better-telegram-mcp/commit/e11f36d5ce26ccf5490aaf5054a62bc06a5b71b1))
+
+- **deps**: Update @cloudflare/workers-types to ^5.20260809.1
+  ([#1019](https://github.com/n24q02m/better-telegram-mcp/pull/1019),
+  [`2470f80`](https://github.com/n24q02m/better-telegram-mcp/commit/2470f80ee9a1ab9cdc12ae5942e2d1e546df10d1))
+
+- **deps**: Update cryptography to v50 [SECURITY]
+  ([#984](https://github.com/n24q02m/better-telegram-mcp/pull/984),
+  [`3be7c4c`](https://github.com/n24q02m/better-telegram-mcp/commit/3be7c4cb6768b7075ae6c20d6df88b988223ded9))
+
+- **deps**: Update dependency uvicorn to >=0.51.0
+  ([#911](https://github.com/n24q02m/better-telegram-mcp/pull/911),
+  [`7203301`](https://github.com/n24q02m/better-telegram-mcp/commit/7203301455fecaf16396292a15d8d25bd72b053f))
+
+- **deps**: Update patch dependencies
+  ([#1011](https://github.com/n24q02m/better-telegram-mcp/pull/1011),
+  [`fa196d2`](https://github.com/n24q02m/better-telegram-mcp/commit/fa196d2b65cb96d27e5c63518c4039115847c6fb))
+
+- **deps**: Update python:3.13-slim-bookworm Docker digest to 00faa2d
+  ([#935](https://github.com/n24q02m/better-telegram-mcp/pull/935),
+  [`d258458`](https://github.com/n24q02m/better-telegram-mcp/commit/d258458c90caedaafcc1b2e1dd90c8f25ab94333))
+
+- **deps**: Update ruff to >=0.16.2
+  ([#1013](https://github.com/n24q02m/better-telegram-mcp/pull/1013),
+  [`37837de`](https://github.com/n24q02m/better-telegram-mcp/commit/37837de3a7eb5efc9acb495a1fe93d1b7cc5675c))
+
+- **deps**: Update typescript to v7
+  ([#920](https://github.com/n24q02m/better-telegram-mcp/pull/920),
+  [`3af74ad`](https://github.com/n24q02m/better-telegram-mcp/commit/3af74ad385070bd45a343b6219c72b0a58bb6c59))
+
+- **telegram**: Align bot auth and e2e coverage
+  ([#1004](https://github.com/n24q02m/better-telegram-mcp/pull/1004),
+  [`04e7f98`](https://github.com/n24q02m/better-telegram-mcp/commit/04e7f98fc40bec7ffde0d54fdc9314118d0a6787))
+
+### Chores
+
+- **deps**: Bump sharp in the npm_and_yarn group across 1 directory
+  ([#980](https://github.com/n24q02m/better-telegram-mcp/pull/980),
+  [`5b8b1e4`](https://github.com/n24q02m/better-telegram-mcp/commit/5b8b1e4303e6c7b37f7dffb24d9058902b613f2f))
+
+### Features
+
+- Add hosted runtime tombstone ([#1032](https://github.com/n24q02m/better-telegram-mcp/pull/1032),
+  [`f02ddb5`](https://github.com/n24q02m/better-telegram-mcp/commit/f02ddb503a9215483dc974fbf72be299377f2ebe))
+
+- Apply repository bootstrap standards
+  ([#1008](https://github.com/n24q02m/better-telegram-mcp/pull/1008),
+  [`84d25c3`](https://github.com/n24q02m/better-telegram-mcp/commit/84d25c360677a52e313beffc03b937135f965c29))
+
+- Derive a stable subject from the workspace username
+  ([#955](https://github.com/n24q02m/better-telegram-mcp/pull/955),
+  [`dcaf609`](https://github.com/n24q02m/better-telegram-mcp/commit/dcaf609a258e422772e2b718ab17d4cd6a51a5c4))
+
+- Sync cross-promo section ([#963](https://github.com/n24q02m/better-telegram-mcp/pull/963),
+  [`99912ed`](https://github.com/n24q02m/better-telegram-mcp/commit/99912ed66591aff4845fa8e1ea25b22eaab6a473))
+
+- ⚡ bolt: o(1) existence checks ([#1006](https://github.com/n24q02m/better-telegram-mcp/pull/1006),
+  [`c127816`](https://github.com/n24q02m/better-telegram-mcp/commit/c1278169ba8bcb1995551f2f307f352e314915b1))
+
+- 🎨 palette: add password visibility toggle to bot token field
+  ([#1007](https://github.com/n24q02m/better-telegram-mcp/pull/1007),
+  [`d8c09cd`](https://github.com/n24q02m/better-telegram-mcp/commit/d8c09cd446936a32f2f49227899c6528420b60d4))
+
+
 ## v4.17.0 (2026-07-18)
 
 
