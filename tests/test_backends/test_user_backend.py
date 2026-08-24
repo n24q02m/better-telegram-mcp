@@ -1461,6 +1461,95 @@ class TestSerializeMessage:
         assert result["date"] is None
         assert result["sender_id"] is None
 
+    def test_serialize_message_topic_id_forum_message(self):
+        """Forum topic message should have topic_id from reply_to_top_id."""
+        from types import SimpleNamespace
+
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        # Forum message with reply_to_top_id
+        reply_to = SimpleNamespace(
+            forum_topic=True,
+            reply_to_top_id=12345,
+            reply_to_msg_id=67890,  # replied-to message, not topic
+        )
+        msg = SimpleNamespace(
+            id=1,
+            text="test",
+            date=None,
+            sender_id=42,
+            reply_to=reply_to,
+        )
+
+        result = UserBackend._serialize_message(msg)
+
+        assert result["topic_id"] == 12345  # topic root, not replied-to message
+
+    def test_serialize_message_topic_id_forum_fallback(self):
+        """Forum message without reply_to_top_id falls back to reply_to_msg_id."""
+        from types import SimpleNamespace
+
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        # Forum message where reply_to_top_id is None (topic root message)
+        reply_to = SimpleNamespace(
+            forum_topic=True,
+            reply_to_top_id=None,
+            reply_to_msg_id=12345,  # topic root when reply_to_top_id is None
+        )
+        msg = SimpleNamespace(
+            id=1,
+            text="test",
+            date=None,
+            sender_id=42,
+            reply_to=reply_to,
+        )
+
+        result = UserBackend._serialize_message(msg)
+
+        assert result["topic_id"] == 12345
+
+    def test_serialize_message_no_topic_for_ordinary_reply(self):
+        """Ordinary reply (forum_topic=False) should have topic_id=None."""
+        from types import SimpleNamespace
+
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        # Ordinary reply, not in a forum topic
+        reply_to = SimpleNamespace(
+            forum_topic=False,
+            reply_to_msg_id=999,  # replied-to message, NOT a topic
+        )
+        msg = SimpleNamespace(
+            id=1,
+            text="test",
+            date=None,
+            sender_id=42,
+            reply_to=reply_to,
+        )
+
+        result = UserBackend._serialize_message(msg)
+
+        assert result["topic_id"] is None  # not a forum topic
+
+    def test_serialize_message_no_topic_no_reply(self):
+        """Message without reply_to should have topic_id=None."""
+        from types import SimpleNamespace
+
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        msg = SimpleNamespace(
+            id=1,
+            text="test",
+            date=None,
+            sender_id=42,
+            reply_to=None,
+        )
+
+        result = UserBackend._serialize_message(msg)
+
+        assert result["topic_id"] is None
+
     def test_serialize_dialog_no_title(self):
         from better_telegram_mcp.backends.user_backend import UserBackend
 
