@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v4.18.0-beta.6 (2026-08-24)
+
+### Bug Fixes
+
+- **deps**: Update actions/setup-node action to v7
+  ([#1014](https://github.com/n24q02m/better-telegram-mcp/pull/1014),
+  [`079d601`](https://github.com/n24q02m/better-telegram-mcp/commit/079d601a47fba4e74893097496b96f627bf04f9a))
+
+- **deps**: Update actions/setup-python action to v7
+  ([#1015](https://github.com/n24q02m/better-telegram-mcp/pull/1015),
+  [`4fc5c50`](https://github.com/n24q02m/better-telegram-mcp/commit/4fc5c508a893e8e80ce1073f339178ad77f8c1e5))
+
+### Features
+
+- ⚡ bolt: o(1) existence checks ([#1031](https://github.com/n24q02m/better-telegram-mcp/pull/1031),
+  [`b099582`](https://github.com/n24q02m/better-telegram-mcp/commit/b099582bbb8abbc27373672c8b47213b181ff33f))
+
+
 ## v4.18.0-beta.5 (2026-08-24)
 
 ### Bug Fixes
