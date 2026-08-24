@@ -2,6 +2,25 @@
 
 <!-- version list -->
 
+## v4.18.0-beta.5 (2026-08-24)
+
+### Bug Fixes
+
+- Remove retired Telegram host claim
+  ([#1035](https://github.com/n24q02m/better-telegram-mcp/pull/1035),
+  [`86eec8d`](https://github.com/n24q02m/better-telegram-mcp/commit/86eec8db80a3d122ca753399b6ffa2864f157e19))
+
+### Features
+
+- Expose forum topic_id in serialized messages
+  ([#1036](https://github.com/n24q02m/better-telegram-mcp/pull/1036),
+  [`d9586cb`](https://github.com/n24q02m/better-telegram-mcp/commit/d9586cbe33711b2a6a110cb806ab008678596575))
+
+- 🎨 palette: visually unambiguous disabled state for password toggle
+  ([#1030](https://github.com/n24q02m/better-telegram-mcp/pull/1030),
+  [`34c223a`](https://github.com/n24q02m/better-telegram-mcp/commit/34c223a5f2200953698811c36c703afa8e188a5e))
+
+
 ## v4.18.0-beta.4 (2026-08-24)
 
 ### Bug Fixes
