@@ -92,6 +92,13 @@
       ]
     },
     {
+      "description": "Hold mcp below 1.29 until the dedicated MCP 2 migration lands",
+      "matchPackageNames": [
+        "mcp"
+      ],
+      "allowedVersions": "<1.29"
+    },
+    {
       "description": "Pin Python runtime to 3.13.x",
       "matchPackageNames": [
         "python"
