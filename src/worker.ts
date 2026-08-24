@@ -40,6 +40,9 @@ export interface Env {
   MCP_DCR_SERVER_SECRET: string
   TELEGRAM_API_ID?: string
   TELEGRAM_API_HASH?: string
+  // Dehost / tombstone drill flag (W4)
+  DEHOSTED?: string
+  TOMBSTONE?: string
 }
 
 // Keys forwarded from the Worker env (wrangler vars + secrets) into the container
@@ -108,8 +111,30 @@ function unauthenticated(request: Request): Response {
   })
 }
 
+function tombstoneResponse(): Response {
+  return new Response(
+    JSON.stringify({
+      error: 'hosted_runtime_dehosted',
+      status: 410,
+      message:
+        'The hosted Cloudflare endpoint for better-telegram-mcp has been retired. The package remains active via local stdio (uvx better-telegram-mcp / docker run -i n24q02m/better-telegram-mcp) and self-hosted HTTP. See https://mcp.n24q02m.com/servers/better-telegram-mcp/ for instructions.',
+      successor: 'https://mcp.n24q02m.com/servers/better-telegram-mcp/',
+    }),
+    {
+      status: 410,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Dehosted-Successor': 'https://mcp.n24q02m.com/servers/better-telegram-mcp/',
+      },
+    }
+  )
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    if (env.DEHOSTED === 'true' || env.TOMBSTONE === 'true') {
+      return tombstoneResponse()
+    }
     // Edge auth gate. mcp-core's OAuth AS runs INSIDE the container, so before
     // this gate every anonymous /mcp request started the container and reset
     // its 5m idle timer -- an unauthenticated caller could pin it awake and
