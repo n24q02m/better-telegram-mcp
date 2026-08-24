@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v4.18.0-beta.3 (2026-08-24)
+
+### Bug Fixes
+
+- Pin workflow actions ([#1029](https://github.com/n24q02m/better-telegram-mcp/pull/1029),
+  [`d175c6f`](https://github.com/n24q02m/better-telegram-mcp/commit/d175c6f0d682249364bdcfad7862ca4f45c93e16))
+
+- **deps**: Keep MCP 1 compatibility boundary
+  ([#1012](https://github.com/n24q02m/better-telegram-mcp/pull/1012),
+  [`4416ef0`](https://github.com/n24q02m/better-telegram-mcp/commit/4416ef0bda973ba8fb0d881f96a6010dedc53149))
+
+- **deps**: Update minor dependencies
+  ([#1012](https://github.com/n24q02m/better-telegram-mcp/pull/1012),
+  [`4416ef0`](https://github.com/n24q02m/better-telegram-mcp/commit/4416ef0bda973ba8fb0d881f96a6010dedc53149))
+
+
 ## v4.18.0-beta.2 (2026-08-24)
 
 ### Bug Fixes
