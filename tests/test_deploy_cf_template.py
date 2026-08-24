@@ -1,9 +1,9 @@
-"""Tests for the CI CF-deploy template rendering in ``scripts/deploy_cf.py``.
+"""Tests for CI Cloudflare deployment rendering and post-deploy canaries.
 
 ``deploy_cf.py --from-template`` reconstructs the gitignored
-``wrangler.deploy.jsonc`` from the committed placeholder template + env (CI
-provides the real IDs as GitHub Actions secrets). These tests exercise the pure
-``render_template`` substitution without touching docker/wrangler.
+``wrangler.deploy.jsonc`` from the committed placeholder template + env. The
+canary tests stay credential-free and never touch Docker, Wrangler, or the
+network.
 """
 
 from __future__ import annotations
@@ -71,3 +71,60 @@ def test_committed_template_renders_to_valid_json(monkeypatch):
     assert cfg["kv_namespaces"][0]["id"] == "kvid"
     assert cfg["vars"]["PUBLIC_URL"] == "https://telegram.n24q02m.com"
     assert cfg["vars"]["DEHOSTED"] == "true"
+
+
+def test_dehosted_canary_accepts_only_the_tombstone_contract(monkeypatch):
+    requested: list[str] = []
+
+    def fake_get(url: str, *, timeout: int = 12):
+        requested.append(url)
+        return (
+            410,
+            {
+                "x-dehosted-successor": (
+                    "https://mcp.n24q02m.com/servers/better-telegram-mcp/"
+                )
+            },
+            url,
+        )
+
+    monkeypatch.setattr(deploy_cf, "_get", fake_get)
+    monkeypatch.setattr(
+        deploy_cf,
+        "_retry_gate",
+        lambda gate, public_url: gate(public_url),
+    )
+    monkeypatch.setattr(
+        deploy_cf,
+        "_gate_a",
+        lambda _public_url: pytest.fail("active Gate A must not run after dehost"),
+    )
+    monkeypatch.setattr(
+        deploy_cf,
+        "_gate_b",
+        lambda _public_url: pytest.fail("active Gate B must not run after dehost"),
+    )
+    monkeypatch.setattr(
+        deploy_cf,
+        "_gate_kid_stable",
+        lambda _public_url: pytest.fail("JWKS must not run after dehost"),
+    )
+
+    assert deploy_cf._canary("https://telegram.n24q02m.com", dry=False, dehosted=True)
+    assert requested == [
+        "https://telegram.n24q02m.com/authorize",
+        "https://telegram.n24q02m.com/mcp",
+        "https://telegram.n24q02m.com/.well-known/jwks.json",
+        "https://telegram.n24q02m.com/health",
+    ]
+
+
+def test_dehosted_gate_rejects_a_route_that_is_not_tombstoned(monkeypatch):
+    def fake_get(url: str, *, timeout: int = 12):
+        if url.endswith("/health"):
+            return 200, {}, url
+        return 410, {"x-dehosted-successor": "successor"}, url
+
+    monkeypatch.setattr(deploy_cf, "_get", fake_get)
+
+    assert not deploy_cf._gate_dehosted("https://telegram.n24q02m.com")
