@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v4.18.0-beta.4 (2026-08-24)
+
+### Bug Fixes
+
+- **deps**: Prevent pydantic settings startup warning
+  ([#1034](https://github.com/n24q02m/better-telegram-mcp/pull/1034),
+  [`764c134`](https://github.com/n24q02m/better-telegram-mcp/commit/764c134837cb24253f915dc5c2c532afe1438411))
+
+
 ## v4.18.0-beta.3 (2026-08-24)
 
 ### Bug Fixes
