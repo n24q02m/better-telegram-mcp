@@ -1026,9 +1026,7 @@ class TestSendMedia:
         assert result["message_id"] == 1
         from pathlib import Path
 
-        mock_client.send_file.assert_awaited_once_with(
-            123, Path(f).resolve()
-        )
+        mock_client.send_file.assert_awaited_once_with(123, Path(f).resolve())
 
     async def test_send_media_file_too_large(
         self, tmp_path, mock_client, mock_client_class
@@ -1047,7 +1045,9 @@ class TestSendMedia:
 
         with patch("pathlib.Path.stat") as mock_stat:
             mock_stat.return_value.st_size = 50 * 1024 * 1024 + 1
-            with pytest.raises(SecurityError, match="File size exceeds maximum allowed"):
+            with pytest.raises(
+                SecurityError, match="File size exceeds maximum allowed"
+            ):
                 await backend.send_media(123, "document", str(f))
 
 
