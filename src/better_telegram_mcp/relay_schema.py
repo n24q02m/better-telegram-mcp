@@ -160,6 +160,9 @@ new MutationObserver(function() {
     b.disabled = i.disabled;
     b.style.opacity = i.disabled ? "0.5" : "1";
     b.style.cursor = i.disabled ? "not-allowed" : "pointer";
+    var isPwd = i.type === "password" || b.textContent === "HIDE";
+    b.style.display = isPwd ? "block" : "none";
+    i.style.paddingRight = isPwd ? "3.5rem" : "";
     if(i.type === "password" && b.textContent !== "SHOW") {
         b.textContent = "SHOW"; b.setAttribute("aria-label", "Show password"); b.setAttribute("aria-pressed", "false");
     }
