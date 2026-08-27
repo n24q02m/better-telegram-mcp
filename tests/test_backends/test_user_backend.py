@@ -976,13 +976,15 @@ class TestSendMedia:
         backend = UserBackend(settings)
         await backend.connect()
 
-        result = await backend.send_media(123, "voice", "/tmp/voice.ogg")
+        f = tmp_path / "voice.ogg"
+        f.write_text("audio")
+
+        result = await backend.send_media(123, "voice", str(f))
 
         assert result["message_id"] == 1
-        from pathlib import Path
 
         mock_client.send_file.assert_awaited_once_with(
-            123, Path("/tmp/voice.ogg").resolve(), voice_note=True
+            123, f.resolve(), voice_note=True
         )
 
     async def test_send_video(self, tmp_path, mock_client, mock_client_class):
@@ -994,13 +996,15 @@ class TestSendMedia:
         backend = UserBackend(settings)
         await backend.connect()
 
-        result = await backend.send_media(123, "video", "/tmp/video.mp4")
+        f = tmp_path / "video.mp4"
+        f.write_text("video")
+
+        result = await backend.send_media(123, "video", str(f))
 
         assert result["message_id"] == 1
-        from pathlib import Path
 
         mock_client.send_file.assert_awaited_once_with(
-            123, Path("/tmp/video.mp4").resolve(), video_note=False
+            123, f.resolve(), video_note=False
         )
 
     async def test_send_document(self, tmp_path, mock_client, mock_client_class):
@@ -1012,9 +1016,29 @@ class TestSendMedia:
         backend = UserBackend(settings)
         await backend.connect()
 
-        result = await backend.send_media(123, "document", "/tmp/doc.pdf")
+        f = tmp_path / "doc.pdf"
+        f.write_text("doc")
+
+        result = await backend.send_media(123, "document", str(f))
 
         assert result["message_id"] == 1
+
+    async def test_send_media_file_too_large(self, tmp_path, mock_client, mock_client_class):
+        from unittest.mock import patch
+
+        from better_telegram_mcp.backends.security import SecurityError
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        f = tmp_path / "huge.txt"
+        f.write_text("X")
+        with patch("pathlib.Path.stat") as mock_stat:
+            mock_stat.return_value.st_size = 50 * 1024 * 1024 + 1
+            with pytest.raises(SecurityError, match="File size exceeds maximum allowed"):
+                await backend.send_media(123, "document", str(f))
 
 
 class TestDownloadMedia:
