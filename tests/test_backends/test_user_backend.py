@@ -1023,6 +1023,41 @@ class TestSendMedia:
 
         assert result["message_id"] == 1
 
+    async def test_send_media_missing_file_does_not_send(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        missing = tmp_path / "missing.txt"
+        with pytest.raises(FileNotFoundError, match="File not found"):
+            await backend.send_media(123, "document", str(missing))
+
+        mock_client.send_file.assert_not_awaited()
+
+    async def test_send_media_exact_max_file_size_succeeds(
+        self, tmp_path, mock_client, mock_client_class
+    ):
+        from better_telegram_mcp.backends.user_backend import UserBackend
+
+        mock_client.send_file = AsyncMock(return_value=_mock_message())
+
+        settings = _make_settings(tmp_path)
+        backend = UserBackend(settings)
+        await backend.connect()
+
+        f = tmp_path / "exact.bin"
+        with f.open("wb") as stream:
+            stream.truncate(50 * 1024 * 1024)
+
+        result = await backend.send_media(123, "document", str(f))
+
+        assert result["message_id"] == 1
+        mock_client.send_file.assert_awaited_once_with(123, f.resolve())
+
     @pytest.mark.asyncio
     async def test_send_media_file_too_large(
         self, tmp_path, mock_client, mock_client_class
@@ -1044,6 +1079,7 @@ class TestSendMedia:
                 SecurityError, match="File size exceeds maximum allowed"
             ):
                 await backend.send_media(123, "document", str(f))
+        mock_client.send_file.assert_not_awaited()
 
 
 class TestDownloadMedia:
