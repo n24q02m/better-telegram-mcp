@@ -1,9 +1,9 @@
 """Tests for the telegram credential form.
 
 The renderer was de-forked onto mcp-core's shared ``render_credential_form``
-(schema-level ``tabs`` capability, mcp-core >=1.20.0b1); the only server-side
-render logic left is the ``initial_tab`` hint in
-``relay_schema.render_telegram_form``. These tests assert the functional
+(schema-level ``tabs`` capability, mcp-core >=1.20.0b1); the shared renderer
+owns the form and multi-step flow, while ``relay_schema.render_telegram_form``
+adds the ``initial_tab`` hint and the attach-once password-toggle enhancement.
 contract that survives the de-fork: the Bot/User field set, the two tabs, the
 default-active tab + prefill-driven initial tab, active-panel-only submit, the
 OTP/2FA step chain, ``redirect_url`` follow, and XSS-safety.
