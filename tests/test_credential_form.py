@@ -13,10 +13,10 @@ De-fork behaviour changes vs the old forked template (each covered below):
     than toggled to the active tab. Safe: the form is ``novalidate`` and submit
     validates only ``.tab-panel.active`` fields, so the inactive input is never
     read (see ``test_both_tab_fields_are_required``).
-  * Field decorations the shared renderer does not (yet) emit are dropped: the
-    password show/hide toggle and the per-field ``autocomplete`` / ``inputmode``
-    hints (bot ``current-password``, phone ``tel``, OTP ``one-time-code``).
-    These are cosmetic and out of the ``tabs`` capability's scope.
+  * The server injects the password show/hide toggle after the shared
+    renderer returns HTML; the shared renderer still does not emit this
+    decoration or the per-field ``autocomplete`` / ``inputmode`` hints (bot
+    ``current-password``, phone ``tel``, OTP ``one-time-code``).
 """
 
 from __future__ import annotations
@@ -248,3 +248,24 @@ def test_form_has_xss_safe_submit_url_handling() -> None:
     assert '"><script>' not in html
     # Should contain the escaped form
     assert "&quot;&gt;&lt;script&gt;" in html
+
+
+def test_password_toggle_tracks_recycled_field_identity() -> None:
+    """Data-field changes reset the visible and ARIA SHOW/HIDE state."""
+    html = render_telegram_form(SCHEMA, "/auth")
+    assert 'var lf = i.dataset.field || "";' in html
+    assert 'if((i.dataset.field || "") !== lf)' in html
+    assert (
+        'b.textContent = "SHOW"; b.setAttribute("aria-label", "Show password"); b.setAttribute("aria-pressed", "false");'
+        in html
+    )
+
+
+def test_password_toggle_attaches_static_and_dynamic_inputs_once() -> None:
+    """Static and recycled step inputs share one guarded attachment path."""
+    html = render_telegram_form(SCHEMA, "/auth")
+    assert "if(i.dataset.hasToggle) return;" in html
+    assert 'i.dataset.hasToggle = "true";' in html
+    assert "if(botToken) attach(botToken);" in html
+    assert "if(stepInp) attach(stepInp);" in html
+    assert 'attributeFilter: ["disabled", "type", "data-field"]' in html
