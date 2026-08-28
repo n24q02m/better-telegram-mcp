@@ -143,27 +143,41 @@ STABLE_SUB_ENABLED = True
 
 _PASSWORD_TOGGLE_JS = """<script>
 (function(){
-var i = document.getElementById("field-TELEGRAM_BOT_TOKEN");
-if(!i) return;
-var d = document.createElement("div"); d.style.position = "relative";
-i.parentNode.insertBefore(d, i); d.appendChild(i);
-var b = document.createElement("button"); b.type = "button";
-b.textContent = "SHOW"; b.setAttribute("aria-label", "Show password"); b.setAttribute("aria-pressed", "false");
-b.style.cssText = "position:absolute; right:0.5rem; top:50%; transform:translateY(-50%); background:none; border:none; color:inherit; font-size:0.75rem; cursor:pointer; padding:0.25rem; font-weight:bold;";
-if (i.disabled) { b.disabled = true; b.style.opacity = "0.5"; b.style.cursor = "not-allowed"; }
-d.appendChild(b); i.style.paddingRight = "3.5rem";
-b.addEventListener("click", function() {
-    var pwd = i.type === "password"; i.type = pwd ? "text" : "password";
-    b.textContent = pwd ? "HIDE" : "SHOW"; b.setAttribute("aria-label", pwd ? "Hide password" : "Show password"); b.setAttribute("aria-pressed", pwd ? "true" : "false");
-});
+function attach(i) {
+    if(i.dataset.hasToggle) return;
+    i.dataset.hasToggle = "true";
+    var d = document.createElement("div"); d.style.position = "relative";
+    i.parentNode.insertBefore(d, i); d.appendChild(i);
+    var b = document.createElement("button"); b.type = "button";
+    b.style.cssText = "position:absolute; right:0.5rem; top:50%; transform:translateY(-50%); background:none; border:none; color:inherit; font-size:0.75rem; cursor:pointer; padding:0.25rem; font-weight:bold;";
+    d.appendChild(b);
+    var lf = i.dataset.field || "";
+    var sync = function() {
+        if((i.dataset.field || "") !== lf) {
+            b.textContent = "SHOW"; b.setAttribute("aria-label", "Show password"); b.setAttribute("aria-pressed", "false");
+            lf = i.dataset.field || "";
+        }
+        var isPwd = i.type === "password" || b.textContent === "HIDE";
+        b.style.display = isPwd ? "block" : "none";
+        i.style.paddingRight = isPwd ? "3.5rem" : "";
+        b.disabled = i.disabled; b.style.opacity = i.disabled ? "0.5" : "1"; b.style.cursor = i.disabled ? "not-allowed" : "pointer";
+        if(i.type === "password" && b.textContent !== "SHOW") {
+            b.textContent = "SHOW"; b.setAttribute("aria-label", "Show password"); b.setAttribute("aria-pressed", "false");
+        }
+    };
+    sync();
+    b.addEventListener("click", function() {
+        var pwd = i.type === "password"; i.type = pwd ? "text" : "password";
+        b.textContent = pwd ? "HIDE" : "SHOW"; b.setAttribute("aria-label", pwd ? "Hide password" : "Show password"); b.setAttribute("aria-pressed", pwd ? "true" : "false");
+    });
+    new MutationObserver(sync).observe(i, {attributes: true, attributeFilter: ["disabled", "type", "data-field"]});
+}
+var botToken = document.getElementById("field-TELEGRAM_BOT_TOKEN");
+if(botToken) attach(botToken);
 new MutationObserver(function() {
-    b.disabled = i.disabled;
-    b.style.opacity = i.disabled ? "0.5" : "1";
-    b.style.cursor = i.disabled ? "not-allowed" : "pointer";
-    if(i.type === "password" && b.textContent !== "SHOW") {
-        b.textContent = "SHOW"; b.setAttribute("aria-label", "Show password"); b.setAttribute("aria-pressed", "false");
-    }
-}).observe(i, {attributes: true, attributeFilter: ["disabled", "type"]});
+    var stepInp = document.getElementById("step-input");
+    if(stepInp) attach(stepInp);
+}).observe(document.body, {childList: true, subtree: true});
 })();
 </script>"""
 
@@ -177,13 +191,13 @@ def render_telegram_form(
 
     Matches the ``custom_credential_form_html`` callback contract
     (``(schema, submit_url, *, prefill) -> html``) that ``run_http_server``
-    invokes. The only server-side rendering logic left after the de-fork is the
-    ``initial_tab`` hint: when the driver prefills a phone but no bot token
-    (the ``telegram-user`` E2E case), open on the User tab so the user just
-    clicks Connect instead of retyping the phone or pasting a bot token. Bot-only
-    and dual prefill default to Bot. Field layout, tab switching, active-panel
-    submit, OTP/2FA step chaining, and ``redirect_url`` follow all live in
-    mcp-core's ``render_credential_form``.
+    invokes. The shared renderer owns field layout, tab switching, active-panel
+    submit, OTP/2FA step chaining, and ``redirect_url`` follow. This Telegram
+    wrapper adds the ``initial_tab`` hint: when the driver prefills a phone but
+    no bot token (the ``telegram-user`` E2E case), open on the User tab so the
+    user just clicks Connect instead of retyping the phone or pasting a bot
+    token. Bot-only and dual prefill default to Bot. It also injects the
+    attach-once password-toggle enhancement after the shared HTML is rendered.
 
     ``schema`` supplies the page metadata (server / displayName / description);
     ``TELEGRAM_TABS`` supplies the Bot/User field layout.
