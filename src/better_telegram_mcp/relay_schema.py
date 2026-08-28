@@ -191,13 +191,13 @@ def render_telegram_form(
 
     Matches the ``custom_credential_form_html`` callback contract
     (``(schema, submit_url, *, prefill) -> html``) that ``run_http_server``
-    invokes. The shared renderer owns field layout, tab switching, active-panel
-    submit, OTP/2FA step chaining, and ``redirect_url`` follow. This Telegram
-    wrapper adds the ``initial_tab`` hint: when the driver prefills a phone but
-    no bot token (the ``telegram-user`` E2E case), open on the User tab so the
-    user just clicks Connect instead of retyping the phone or pasting a bot
-    token. Bot-only and dual prefill default to Bot. It also injects the
-    attach-once password-toggle enhancement after the shared HTML is rendered.
+    invokes. The only server-side rendering logic left after the de-fork is the
+    ``initial_tab`` hint: when the driver prefills a phone but no bot token
+    (the ``telegram-user`` E2E case), open on the User tab so the user just
+    clicks Connect instead of retyping the phone or pasting a bot token. Bot-only
+    and dual prefill default to Bot. Field layout, tab switching, active-panel
+    submit, OTP/2FA step chaining, and ``redirect_url`` follow all live in
+    mcp-core's ``render_credential_form``.
 
     ``schema`` supplies the page metadata (server / displayName / description);
     ``TELEGRAM_TABS`` supplies the Bot/User field layout.
