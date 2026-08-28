@@ -17,6 +17,7 @@ from telethon.tl.types import Channel, Chat, InputPhoneContact, User
 from ..config import Settings
 from .base import TelegramBackend
 from .security import (
+    SecurityError,
     fetch_url_safely,
     validate_file_path,
     validate_output_dir,
@@ -566,7 +567,14 @@ class UserBackend(TelegramBackend):
         if file_path_or_url.strip().lower().startswith(("http://", "https://")):
             file_to_send = await fetch_url_safely(file_path_or_url.strip())
         else:
-            file_to_send = validate_file_path(file_path_or_url)
+            path = validate_file_path(file_path_or_url)
+            if not path.exists():
+                raise FileNotFoundError(f"File not found: {file_path_or_url}")
+            max_size = 50 * 1024 * 1024  # 50MB
+            if path.stat().st_size > max_size:
+                msg_err = f"File size exceeds maximum allowed ({max_size} bytes)"
+                raise SecurityError(msg_err)
+            file_to_send = path
         msg = await client.send_file(chat_id, file_to_send, **kwargs)
         return self._serialize_message(msg)
 
