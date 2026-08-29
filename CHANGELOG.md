@@ -2,6 +2,58 @@
 
 <!-- version list -->
 
+## v4.18.0 (2026-08-29)
+
+### Bug Fixes
+
+- 🛡️ sentinel: prevent OOM DoS by limiting local file sizes in user_backend send_media
+  ([#1046](https://github.com/n24q02m/better-telegram-mcp/pull/1046),
+  [`252cdb8`](https://github.com/n24q02m/better-telegram-mcp/commit/252cdb876c733031d4e8928d45541e5ad8221cbc))
+
+- **deps**: Lock file maintenance
+  ([#1047](https://github.com/n24q02m/better-telegram-mcp/pull/1047),
+  [`db7ff53`](https://github.com/n24q02m/better-telegram-mcp/commit/db7ff53fb02a230511947642a72ccdc00ab4409e))
+
+- **deps**: Update non-major dev dependencies
+  ([#1044](https://github.com/n24q02m/better-telegram-mcp/pull/1044),
+  [`274dbfe`](https://github.com/n24q02m/better-telegram-mcp/commit/274dbfe64f98dd3aeddb30a730e9652cfa2646ad))
+
+- **deps**: Update patch dependencies
+  ([#1043](https://github.com/n24q02m/better-telegram-mcp/pull/1043),
+  [`7bc74f8`](https://github.com/n24q02m/better-telegram-mcp/commit/7bc74f887b09167c5981aacb6f8d022d00a9ede7))
+
+- **deps**: Update python:3.13-slim-bookworm Docker digest to c45a22e
+  ([`fadb62f`](https://github.com/n24q02m/better-telegram-mcp/commit/fadb62fb6ff0f92938c17061da5cbeb376f92e49))
+
+### Chores
+
+- Bump better-semantic-release to v1.4.0
+  ([#1038](https://github.com/n24q02m/better-telegram-mcp/pull/1038),
+  [`c0281a6`](https://github.com/n24q02m/better-telegram-mcp/commit/c0281a6be624622a5ff38f0bb5d8c71750337a13))
+
+### Documentation
+
+- **telegram**: Clarify credential renderer ownership
+  ([#1040](https://github.com/n24q02m/better-telegram-mcp/pull/1040),
+  [`e7684c2`](https://github.com/n24q02m/better-telegram-mcp/commit/e7684c234c8aac422f9a6c2b9c49f1d37c15f9cc))
+
+### Features
+
+- 🎨 palette: add dynamic password visibility toggle
+  ([#1040](https://github.com/n24q02m/better-telegram-mcp/pull/1040),
+  [`e7684c2`](https://github.com/n24q02m/better-telegram-mcp/commit/e7684c234c8aac422f9a6c2b9c49f1d37c15f9cc))
+
+### Testing
+
+- Cover user backend media size guards
+  ([#1046](https://github.com/n24q02m/better-telegram-mcp/pull/1046),
+  [`252cdb8`](https://github.com/n24q02m/better-telegram-mcp/commit/252cdb876c733031d4e8928d45541e5ad8221cbc))
+
+- **telegram**: Cover password toggle state
+  ([#1040](https://github.com/n24q02m/better-telegram-mcp/pull/1040),
+  [`e7684c2`](https://github.com/n24q02m/better-telegram-mcp/commit/e7684c234c8aac422f9a6c2b9c49f1d37c15f9cc))
+
+
 ## v4.18.0-beta.6 (2026-08-24)
 
 ### Bug Fixes
