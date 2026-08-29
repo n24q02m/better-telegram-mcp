@@ -161,6 +161,7 @@ function attach(i) {
         b.style.display = isPwd ? "block" : "none";
         i.style.paddingRight = isPwd ? "3.5rem" : "";
         b.disabled = i.disabled; b.style.opacity = i.disabled ? "0.5" : "1"; b.style.cursor = i.disabled ? "not-allowed" : "pointer";
+        b.title = i.disabled ? "Disabled during submission" : (i.type === "password" ? "Show password" : "Hide password");
         if(i.type === "password" && b.textContent !== "SHOW") {
             b.textContent = "SHOW"; b.setAttribute("aria-label", "Show password"); b.setAttribute("aria-pressed", "false");
         }
@@ -169,6 +170,7 @@ function attach(i) {
     b.addEventListener("click", function() {
         var pwd = i.type === "password"; i.type = pwd ? "text" : "password";
         b.textContent = pwd ? "HIDE" : "SHOW"; b.setAttribute("aria-label", pwd ? "Hide password" : "Show password"); b.setAttribute("aria-pressed", pwd ? "true" : "false");
+        b.title = pwd ? "Hide password" : "Show password";
     });
     new MutationObserver(sync).observe(i, {attributes: true, attributeFilter: ["disabled", "type", "data-field"]});
 }
