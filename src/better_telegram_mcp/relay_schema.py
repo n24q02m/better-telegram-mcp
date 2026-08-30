@@ -241,4 +241,6 @@ def render_telegram_form(
         initial_tab=initial_tab,
         include_username_field=STABLE_SUB_ENABLED,
     )
-    return html.replace("</body>", _PASSWORD_TOGGLE_JS + "\n" + _SHAKE_ANIMATION_JS + "\n</body>")
+    return html.replace(
+        "</body>", _PASSWORD_TOGGLE_JS + "\n" + _SHAKE_ANIMATION_JS + "\n</body>"
+    )
