@@ -2,7 +2,7 @@
 
 mcp-name: io.github.n24q02m/better-telegram-mcp
 
-**Telegram for AI agents -- messages, chats, media, and contacts across both bot and full user-account modes.**
+**Telegram for AI agents: messages, chats, media, and contacts in bot and user-account modes.**
 
 <!-- Badge Row 1: Status -->
 [![CI](https://github.com/n24q02m/better-telegram-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/n24q02m/better-telegram-mcp/actions/workflows/ci.yml)
