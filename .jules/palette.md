@@ -68,3 +68,7 @@
 ## 2024-11-21 - Synchronize ARIA Labels When Reusing DOM Containers
 **Learning:** Reusing DOM containers for dynamic form steps (e.g., OTP or password prompts) can lead to desynchronized accessibility states if all associated attributes are not reset. While visual properties like `textContent` might be reset when re-initializing the view, missing updates to attributes like `aria-label` can leave screen readers announcing stale and confusing states (e.g., a button displaying "Show" but announcing "Hide password").
 **Action:** When dynamically resetting or reusing stateful UI components, ensure that invisible attributes like `aria-label` are explicitly reset alongside their visible counterparts (like `textContent` and `aria-pressed`) to prevent out-of-sync UI states.
+
+## 2025-02-09 - Disabled State Tooltips for Utility Controls
+**Learning:** When utility controls (like a password visibility toggle) are dynamically disabled alongside a main form submission, users relying on screen readers or mouse hover can be confused as to why the control is suddenly unresponsive. Adding a dynamic `title` attribute (e.g., "Disabled during submission") provides immediate, helpful context for the disabled state, improving discoverability.
+**Action:** Always provide explanatory `title` tooltips for auxiliary buttons when their disabled state is tied to a broader async operation (like form submission), and dynamically swap the tooltip text back to the action description when re-enabled.
