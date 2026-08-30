@@ -141,6 +141,24 @@ TELEGRAM_TABS: list[dict[str, Any]] = [
 # Both read this one constant so they cannot drift apart.
 STABLE_SUB_ENABLED = True
 
+_SHAKE_ANIMATION_JS = """<script>
+(function(){
+var m = window.matchMedia("(prefers-reduced-motion: reduce)");
+new MutationObserver(function(muts) {
+    if(m.matches) return;
+    muts.forEach(function(mut) {
+        var el = mut.target;
+        if(mut.attributeName === "aria-invalid" && el.getAttribute("aria-invalid") === "true" && el.classList.contains("field-input")) {
+            el.animate([
+                {transform:"translateX(0)"},{transform:"translateX(-4px)"},{transform:"translateX(4px)"},{transform:"translateX(-4px)"},{transform:"translateX(4px)"},{transform:"translateX(0)"}
+            ], {duration: 400, easing: "ease-in-out"});
+        }
+    });
+}).observe(document.body, {attributes: true, subtree: true, attributeFilter: ["aria-invalid"]});
+})();
+</script>"""
+
+
 _PASSWORD_TOGGLE_JS = """<script>
 (function(){
 function attach(i) {
@@ -223,4 +241,4 @@ def render_telegram_form(
         initial_tab=initial_tab,
         include_username_field=STABLE_SUB_ENABLED,
     )
-    return html.replace("</body>", _PASSWORD_TOGGLE_JS + "\n</body>")
+    return html.replace("</body>", _PASSWORD_TOGGLE_JS + "\n" + _SHAKE_ANIMATION_JS + "\n</body>")
