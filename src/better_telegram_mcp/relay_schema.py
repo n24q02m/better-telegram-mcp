@@ -265,5 +265,11 @@ def render_telegram_form(
         include_username_field=STABLE_SUB_ENABLED,
     )
     return html.replace(
-        "</body>", _PASSWORD_TOGGLE_JS + "\n" + _SHAKE_ANIMATION_JS + "\n" + _SERVER_ERROR_JS + "\n</body>"
+        "</body>",
+        _PASSWORD_TOGGLE_JS
+        + "\n"
+        + _SHAKE_ANIMATION_JS
+        + "\n"
+        + _SERVER_ERROR_JS
+        + "\n</body>",
     )
