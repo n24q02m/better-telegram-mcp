@@ -2,6 +2,42 @@
 
 <!-- version list -->
 
+## v4.19.0-beta.1 (2026-08-31)
+
+### Bug Fixes
+
+- Repair MCP registry publication
+  ([`6c58f9a`](https://github.com/n24q02m/better-telegram-mcp/commit/6c58f9a1aaef9bc2ce64c4cb1caee1580afd6a44))
+
+- **deps**: Bump better-semantic-release to v1.5.0
+  ([`be5b930`](https://github.com/n24q02m/better-telegram-mcp/commit/be5b93008aa611644f678ee251e33f08676d0938))
+
+- **deps**: Lock file maintenance
+  ([#1055](https://github.com/n24q02m/better-telegram-mcp/pull/1055),
+  [`6b5bab7`](https://github.com/n24q02m/better-telegram-mcp/commit/6b5bab7442beea11ce884a3f628054052e306b12))
+
+- **deps**: Lock file maintenance
+  ([#1051](https://github.com/n24q02m/better-telegram-mcp/pull/1051),
+  [`4e7d137`](https://github.com/n24q02m/better-telegram-mcp/commit/4e7d13734ba7d2330318a7bf8ac7529d466fd4ff))
+
+- **deps**: Update @cloudflare/workers-types to ^5.20260823.1
+  ([#1054](https://github.com/n24q02m/better-telegram-mcp/pull/1054),
+  [`569fa8e`](https://github.com/n24q02m/better-telegram-mcp/commit/569fa8ed3498854517f70adbfbbd88078cd82429))
+
+- **deps**: Update patch dependencies
+  ([#1049](https://github.com/n24q02m/better-telegram-mcp/pull/1049),
+  [`b1724da`](https://github.com/n24q02m/better-telegram-mcp/commit/b1724da34f516943a8bfd24ad822f96a37060714))
+
+### Features
+
+- Clarify disabled password toggle state
+  ([`6359f6a`](https://github.com/n24q02m/better-telegram-mcp/commit/6359f6a4238557eda6e3503e3a0f370d45e9c334))
+
+- 🎨 palette: add dual-channel validation feedback (shake animation)
+  ([#1056](https://github.com/n24q02m/better-telegram-mcp/pull/1056),
+  [`f00d026`](https://github.com/n24q02m/better-telegram-mcp/commit/f00d0265a21d73c1e45feaefea173c20afc69761))
+
+
 ## v4.18.0 (2026-08-29)
 
 ### Bug Fixes
