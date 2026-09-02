@@ -159,6 +159,29 @@ new MutationObserver(function(muts) {
 </script>"""
 
 
+_SERVER_ERROR_JS = """<script>
+(function(){
+var sb = document.getElementById("status-box");
+if(!sb) return;
+new MutationObserver(function() {
+    if(sb.style.display !== "none" && sb.classList.contains("error")) {
+        var active = document.querySelector(".tab-panel.active");
+        if(active) {
+            var inps = active.querySelectorAll(".field-input");
+            if(inps.length > 0) {
+                var i = inps[0];
+                if(i.getAttribute("aria-invalid") !== "true") {
+                    i.setAttribute("aria-invalid", "true");
+                    i.setAttribute("aria-errormessage", "status-box");
+                    i.focus();
+                }
+            }
+        }
+    }
+}).observe(sb, {attributes: true, attributeFilter: ["style", "class"]});
+})();
+</script>"""
+
 _PASSWORD_TOGGLE_JS = """<script>
 (function(){
 function attach(i) {
@@ -242,5 +265,11 @@ def render_telegram_form(
         include_username_field=STABLE_SUB_ENABLED,
     )
     return html.replace(
-        "</body>", _PASSWORD_TOGGLE_JS + "\n" + _SHAKE_ANIMATION_JS + "\n</body>"
+        "</body>",
+        _PASSWORD_TOGGLE_JS
+        + "\n"
+        + _SHAKE_ANIMATION_JS
+        + "\n"
+        + _SERVER_ERROR_JS
+        + "\n</body>",
     )
