@@ -31,7 +31,7 @@ dependencies = [
     "pydantic-settings>=2.14.2,<2.15",
     "loguru>=0.7.3",
     "n24q02m-mcp-core==1.23.2",
-    "cryptography>=50.0.0",
+    "cryptography>=50.0.1",
     "starlette>=1.6.0",
     "uvicorn>=0.52.4",
     "cryptg>=0.6.0",
@@ -44,7 +44,7 @@ dev = [
     "pytest-cov>=7.1.0",
     "pytest-xdist>=3.8.0",
     "ruff>=0.16.4",
-    "ty>=0.0.74",
+    "ty>=0.0.75",
     "pre-commit>=4.6.2",
 ]
 [project.scripts]
