@@ -141,6 +141,26 @@ TELEGRAM_TABS: list[dict[str, Any]] = [
 # Both read this one constant so they cannot drift apart.
 STABLE_SUB_ENABLED = True
 
+_VIEW_TRANSITION_JS = """<script>
+(function(){
+var m = window.matchMedia("(prefers-reduced-motion: reduce)");
+function animate(el) {
+    if(!m.matches) el.animate([{opacity: 0, transform: "translateY(-4px)"}, {opacity: 1, transform: "translateY(0)"}], {duration: 250, easing: "ease-out"});
+}
+new MutationObserver(function(muts) {
+    muts.forEach(function(mut) {
+        if(mut.type === "attributes" && mut.attributeName === "class" && mut.target.classList.contains("tab-panel") && mut.target.classList.contains("active") && !mut.oldValue.includes("active")) {
+            animate(mut.target);
+        }
+        if(mut.type === "childList") {
+            mut.addedNodes.forEach(function(n) { if(n.id === "step-container") animate(n); });
+        }
+    });
+}).observe(document.body, {childList: true, subtree: true, attributes: true, attributeOldValue: true, attributeFilter: ["class"]});
+})();
+</script>"""
+
+
 _SHAKE_ANIMATION_JS = """<script>
 (function(){
 var m = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -271,5 +291,7 @@ def render_telegram_form(
         + _SHAKE_ANIMATION_JS
         + "\n"
         + _SERVER_ERROR_JS
+        + "\n"
+        + _VIEW_TRANSITION_JS
         + "\n</body>",
     )
