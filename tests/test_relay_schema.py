@@ -12,6 +12,12 @@ def test_render_telegram_form_includes_toggle():
     assert "field-TELEGRAM_BOT_TOKEN" in html
 
 
+def test_render_telegram_form_includes_color_scheme():
+    """Ensure the color-scheme meta tag is injected into the head."""
+    html = render_telegram_form(RELAY_SCHEMA, "/submit")
+    assert '<meta name="color-scheme" content="light dark">' in html
+
+
 def test_relay_schema_structure():
     """Flat schema: server metadata + fields array covering both modes.
 

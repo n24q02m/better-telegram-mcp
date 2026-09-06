@@ -265,6 +265,9 @@ def render_telegram_form(
         include_username_field=STABLE_SUB_ENABLED,
     )
     return html.replace(
+        "<head>",
+        '<head>\n    <meta name="color-scheme" content="light dark">',
+    ).replace(
         "</body>",
         _PASSWORD_TOGGLE_JS
         + "\n"
