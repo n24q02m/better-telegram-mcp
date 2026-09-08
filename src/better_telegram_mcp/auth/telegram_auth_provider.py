@@ -424,7 +424,15 @@ class TelegramAuthProvider:
         removed = 0
         now = time.time()
 
-        if self._store.has_any():
+        has_sessions = self._store.has_any()
+        has_pending_kv = (
+            self._pending_store is not None and self._pending_store.has_any()
+        )
+
+        if not has_sessions and not self._pending_otps and not has_pending_kv:
+            return 0
+
+        if has_sessions:
             sessions = self._store.load_all()
             to_revoke = [
                 bearer
@@ -469,6 +477,12 @@ class TelegramAuthProvider:
                 return_exceptions=True,
             )
             removed += len(stale_otps)
+            if self._pending_store is not None:
+                for bearer, _ in stale_otps:
+                    self._pending_store.delete_pending_otp(sub=bearer, bearer=bearer)
+
+        if self._pending_store is not None and has_pending_kv:
+            removed += self._pending_store.cleanup_expired()
 
         return removed
 

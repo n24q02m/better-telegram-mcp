@@ -51,3 +51,34 @@ async def test_shutdown_logs_pending_otp_disconnect_error(
         assert "Error disconnecting pending OTP backend test-bea" in caplog.text
     finally:
         logger.remove(handler_id)
+
+
+async def test_cleanup_expired_removes_persisted_pending_otp(
+    data_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CREDENTIAL_SECRET", "test-secret-32-bytes-padded-here!")
+    from mcp_core.storage.backends import InMemoryBackend
+
+    from better_telegram_mcp.auth.pending_otp_store import (
+        _OTP_TTL,
+        PendingOtpStore,
+    )
+
+    backend = InMemoryBackend()
+    pending_store = PendingOtpStore(backend=backend)
+    pending_store.save_pending_otp(
+        "bearer-expired",
+        "bearer-expired",
+        {
+            "phone": "+123",
+            "phone_code_hash": "hash",
+            "session_name": "session",
+            "created_at": time.time() - _OTP_TTL - 1,
+        },
+    )
+    provider = TelegramAuthProvider(
+        data_dir, api_id=12345, api_hash="test_hash", pending_store=pending_store
+    )
+
+    assert await provider.cleanup_expired() == 1
+    assert pending_store.has_any() is False

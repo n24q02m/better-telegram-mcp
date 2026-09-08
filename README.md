@@ -83,14 +83,26 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 
 ## Status
 
-Two clean transports: **stdio** (default, local single-user mode) and **HTTP** (bot + user mode, browser relay setup, optional multi-user). No daemon-bridge layer and no auto-spawn from stdio. See [Modes overview](https://mcp.n24q02m.com/get-started/modes-overview/) for the full transport model.
+The executable defaults to **stdio** for local single-user operation. HTTP is
+opted into with `--http`, `MCP_TRANSPORT=http`, or `TRANSPORT_MODE=http`; HTTP
+is the deployment mode for browser relay setup and optional multi-user access.
+The canonical stack mode matrix names **HTTP remote relay** as the deployed
+Telegram default, so changing the executable default requires a separate
+transport-contract decision and migration. This repository does not silently
+claim those two defaults are already reconciled.
 
-Sister MCP servers from the same author are listed in the [collapsible section above](#better-telegram-mcp) -- they share this architecture, so install patterns transfer.
+There are no daemon-bridge layers and no auto-spawn from stdio. See [Modes
+overview](https://mcp.n24q02m.com/get-started/modes-overview/) for the full
+transport model.
+
+Sister MCP servers from the same author are listed in the [collapsible section
+above](#better-telegram-mcp) -- they share this architecture, so install
+patterns transfer.
 
 ## Install
 
 ```bash
-# Method 1 (default): plugin install via Claude Code (stdio, bot mode)
+# Local default: plugin install via Claude Code (stdio, bot mode)
 /plugin marketplace add n24q02m/claude-plugins
 /plugin install better-telegram-mcp@n24q02m-plugins
 
