@@ -74,6 +74,10 @@ class PendingOtpStore:
     def _save_index(self, subs: list[str]) -> None:
         self._index_store().save({"subs": subs})
 
+    def has_any(self) -> bool:
+        """Return whether the shared index contains any pending OTPs."""
+        return bool(self._load_index())
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
