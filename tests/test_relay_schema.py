@@ -10,6 +10,7 @@ def test_render_telegram_form_includes_toggle():
     html = render_telegram_form(RELAY_SCHEMA, "/submit")
     assert "Show password" in html
     assert "field-TELEGRAM_BOT_TOKEN" in html
+    assert '<meta name="color-scheme" content="light dark" />' in html
 
 
 def test_relay_schema_structure():

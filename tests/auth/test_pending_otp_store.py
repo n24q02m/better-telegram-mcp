@@ -206,6 +206,17 @@ def test_load_index_empty_when_unset():
     assert store._load_index() == []
 
 
+def test_has_any_tracks_shared_index():
+    store = PendingOtpStore(backend=InMemoryBackend())
+    assert store.has_any() is False
+
+    store.save_pending_otp("sub-a", "bearer-1", _data("+1"))
+    assert store.has_any() is True
+
+    assert store.delete_pending_otp("sub-a", "bearer-1") is True
+    assert store.has_any() is False
+
+
 def test_load_index_non_dict_returns_empty():
     """Defensive: a corrupted (non-dict) index payload yields []."""
     store = PendingOtpStore(backend=InMemoryBackend())
