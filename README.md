@@ -102,7 +102,7 @@ patterns transfer.
 ## Install
 
 ```bash
-# Method 1 (default): plugin install via Claude Code (stdio, bot mode)
+# Local default: plugin install via Claude Code (stdio, bot mode)
 /plugin marketplace add n24q02m/claude-plugins
 /plugin install better-telegram-mcp@n24q02m-plugins
 
