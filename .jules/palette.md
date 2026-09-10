@@ -72,3 +72,7 @@
 ## 2025-02-09 - Disabled State Tooltips for Utility Controls
 **Learning:** When utility controls (like a password visibility toggle) are dynamically disabled alongside a main form submission, users relying on screen readers or mouse hover can be confused as to why the control is suddenly unresponsive. Adding a dynamic `title` attribute (e.g., "Disabled during submission") provides immediate, helpful context for the disabled state, improving discoverability.
 **Action:** Always provide explanatory `title` tooltips for auxiliary buttons when their disabled state is tied to a broader async operation (like form submission), and dynamically swap the tooltip text back to the action description when re-enabled.
+
+## 2024-07-29 - Enhancing State Change UX with Subtle Animations
+**Learning:** Instantaneous layout shifts or state changes (e.g., switching between tabs or dynamically surfacing complex multi-step forms) can feel jarring or unpolished, potentially increasing cognitive load as users mentally trace the new UI structure. Subtle animations, such as a quick fade-in with a slight downward translation (`translateY`), soften these transitions, providing a much smoother, higher-quality interaction.
+**Action:** Apply lightweight, short-duration CSS `@keyframes` animations (e.g., `<0.3s`) to significant DOM additions or view transitions, particularly when toggling `.active` panel states or appending new user prompts.
