@@ -244,6 +244,34 @@ new MutationObserver(function() {
 })();
 </script>"""
 
+_DYNAMIC_STEP_STYLE_JS = """<script>
+(function(){
+var form = document.getElementById("credential-form");
+if(!form) return;
+new MutationObserver(function(muts) {
+    muts.forEach(function(mut) {
+        if(mut.type === "childList") {
+            mut.addedNodes.forEach(function(n) {
+                if(n.id === "step-container") {
+                    var p = document.getElementById("step-prompt");
+                    var f = n.querySelector(".field-group");
+                    if(p && f && p.parentNode === n) {
+                        p.className = "field-label";
+                        f.insertBefore(p, f.firstChild);
+                        var req = document.createElement("span");
+                        req.className = "required-badge";
+                        req.setAttribute("aria-hidden", "true");
+                        req.textContent = "Required";
+                        p.appendChild(req);
+                    }
+                }
+            });
+        }
+    });
+}).observe(form.parentNode, {childList: true, subtree: true});
+})();
+</script>"""
+
 
 def render_telegram_form(
     schema: dict[str, Any],
@@ -296,5 +324,7 @@ def render_telegram_form(
         + _SERVER_ERROR_JS
         + "\n"
         + _VIEW_TRANSITION_JS
+        + "\n"
+        + _DYNAMIC_STEP_STYLE_JS
         + "\n</body>",
     )
