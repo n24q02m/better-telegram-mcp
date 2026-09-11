@@ -202,6 +202,34 @@ new MutationObserver(function() {
 })();
 </script>"""
 
+_DYNAMIC_FORM_UX_JS = """<script>
+(function(){
+var form = document.getElementById("credential-form");
+if(!form) return;
+new MutationObserver(function(muts) {
+    muts.forEach(function(mut) {
+        if(mut.type === "childList") {
+            mut.addedNodes.forEach(function(n) {
+                if(n.id === "step-container") {
+                    var p = document.getElementById("step-prompt");
+                    var fg = n.querySelector(".field-group");
+                    if(p && fg && p.parentNode === n) {
+                        p.className = "field-label";
+                        var req = document.createElement("span");
+                        req.className = "required-badge";
+                        req.setAttribute("aria-hidden", "true");
+                        req.textContent = "Required";
+                        p.appendChild(req);
+                        fg.insertBefore(p, fg.firstChild);
+                    }
+                }
+            });
+        }
+    });
+}).observe(form.parentNode, {childList: true});
+})();
+</script>"""
+
 _PASSWORD_TOGGLE_JS = """<script>
 (function(){
 function attach(i) {
@@ -296,5 +324,7 @@ def render_telegram_form(
         + _SERVER_ERROR_JS
         + "\n"
         + _VIEW_TRANSITION_JS
+        + "\n"
+        + _DYNAMIC_FORM_UX_JS
         + "\n</body>",
     )
