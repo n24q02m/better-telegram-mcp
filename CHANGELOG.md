@@ -2,6 +2,111 @@
 
 <!-- version list -->
 
+## v4.20.0 (2026-09-11)
+
+### Bug Fixes
+
+- Bump mcp-core to 1.23.2 ([#1058](https://github.com/n24q02m/better-telegram-mcp/pull/1058),
+  [`531b2ab`](https://github.com/n24q02m/better-telegram-mcp/commit/531b2abea5390bac1579d4da787495446ba32cc1))
+
+- Clarify local Telegram install default
+  ([`98ac785`](https://github.com/n24q02m/better-telegram-mcp/commit/98ac7853cd5276699f1f222f9f1a54199000678a))
+
+- **deps**: Lock file maintenance
+  ([#1090](https://github.com/n24q02m/better-telegram-mcp/pull/1090),
+  [`4156b33`](https://github.com/n24q02m/better-telegram-mcp/commit/4156b3364ee4b35bd28ca6e39fb281d6b0524efe))
+
+- **deps**: Lock file maintenance
+  ([#1085](https://github.com/n24q02m/better-telegram-mcp/pull/1085),
+  [`a6ea8ef`](https://github.com/n24q02m/better-telegram-mcp/commit/a6ea8ef6f607f569136436aa307e31f5f7a3549e))
+
+- **deps**: Lock file maintenance
+  ([#1079](https://github.com/n24q02m/better-telegram-mcp/pull/1079),
+  [`4f12571`](https://github.com/n24q02m/better-telegram-mcp/commit/4f125715407533b00ec271a58d67c3b7a0f26161))
+
+- **deps**: Lock file maintenance
+  ([#1076](https://github.com/n24q02m/better-telegram-mcp/pull/1076),
+  [`a460887`](https://github.com/n24q02m/better-telegram-mcp/commit/a460887f24ef293cbe0abe186307aa0c4f5df469))
+
+- **deps**: Lock file maintenance
+  ([#1072](https://github.com/n24q02m/better-telegram-mcp/pull/1072),
+  [`0a74ff1`](https://github.com/n24q02m/better-telegram-mcp/commit/0a74ff1ca52f8e0163617a7e6476001d6afc7296))
+
+- **deps**: Lock file maintenance
+  ([#1065](https://github.com/n24q02m/better-telegram-mcp/pull/1065),
+  [`785e261`](https://github.com/n24q02m/better-telegram-mcp/commit/785e2615f1231bacd477021f53f5cbf7c392502e))
+
+- **deps**: Lock file maintenance
+  ([#1062](https://github.com/n24q02m/better-telegram-mcp/pull/1062),
+  [`4684374`](https://github.com/n24q02m/better-telegram-mcp/commit/46843746e33a0ced16c80687999fe16b6d143442))
+
+- **deps**: Update @cloudflare/workers-types to ^5.20260828.1
+  ([#1071](https://github.com/n24q02m/better-telegram-mcp/pull/1071),
+  [`c6ae360`](https://github.com/n24q02m/better-telegram-mcp/commit/c6ae3604b419322edd9d61a1cf9dd5bd6c86be23))
+
+- **deps**: Update @cloudflare/workers-types to ^5.20260830.1
+  ([#1078](https://github.com/n24q02m/better-telegram-mcp/pull/1078),
+  [`84d05f1`](https://github.com/n24q02m/better-telegram-mcp/commit/84d05f171620ba85650d767929b2526f7a947277))
+
+- **deps**: Update @cloudflare/workers-types to ^5.20260902.1
+  ([#1089](https://github.com/n24q02m/better-telegram-mcp/pull/1089),
+  [`078d579`](https://github.com/n24q02m/better-telegram-mcp/commit/078d57942f02ba8acb03ec82c925b6740c5c53a0))
+
+- **deps**: Update dawidd6/action-send-mail action to v20
+  ([#1084](https://github.com/n24q02m/better-telegram-mcp/pull/1084),
+  [`c1bd733`](https://github.com/n24q02m/better-telegram-mcp/commit/c1bd733595a05ee5efd4df2a1bc9e6529b573a29))
+
+- **deps**: Update n24q02m/better-semantic-release action to v1.6.0
+  ([#1068](https://github.com/n24q02m/better-telegram-mcp/pull/1068),
+  [`46d8ae0`](https://github.com/n24q02m/better-telegram-mcp/commit/46d8ae09c7592077054ea212ce319b74dd22a34a))
+
+- **deps**: Update patch dependencies
+  ([#1083](https://github.com/n24q02m/better-telegram-mcp/pull/1083),
+  [`79840bd`](https://github.com/n24q02m/better-telegram-mcp/commit/79840bd3a3fadaff9e4a9f7f86db29c9614114aa))
+
+- **deps**: Update patch dependencies
+  ([#1075](https://github.com/n24q02m/better-telegram-mcp/pull/1075),
+  [`dc954c9`](https://github.com/n24q02m/better-telegram-mcp/commit/dc954c993edfa81f55f20add3cd9ad039dec8ef2))
+
+- **deps**: Update patch dependencies
+  ([#1070](https://github.com/n24q02m/better-telegram-mcp/pull/1070),
+  [`f032ef4`](https://github.com/n24q02m/better-telegram-mcp/commit/f032ef43164b17b194926307a0511b3fbba400ba))
+
+- **deps**: Update patch dependencies
+  ([#1067](https://github.com/n24q02m/better-telegram-mcp/pull/1067),
+  [`5c91d35`](https://github.com/n24q02m/better-telegram-mcp/commit/5c91d3590a88621b17c100fc7b026384ce698624))
+
+- **deps**: Update patch dependencies
+  ([#1064](https://github.com/n24q02m/better-telegram-mcp/pull/1064),
+  [`d300b99`](https://github.com/n24q02m/better-telegram-mcp/commit/d300b99a1cf9ba1b6b0a6816aedd282459d09776))
+
+- **deps**: Update patch dependencies
+  ([#1061](https://github.com/n24q02m/better-telegram-mcp/pull/1061),
+  [`db71878`](https://github.com/n24q02m/better-telegram-mcp/commit/db718784fff0d0fb9c470d9c946e736031e67012))
+
+- **deps**: Update python:3.13-slim-bookworm Docker digest to ed86c82
+  ([#1060](https://github.com/n24q02m/better-telegram-mcp/pull/1060),
+  [`e41989e`](https://github.com/n24q02m/better-telegram-mcp/commit/e41989e8022107e8ac099b0ba275e6a662b4a246))
+
+### Continuous Integration
+
+- Wire unified merge=release ladder (push staging=beta, main=stable)
+  ([`aea8abe`](https://github.com/n24q02m/better-telegram-mcp/commit/aea8abede3c9ee1771243352fbda4444303733b7))
+
+### Features
+
+- Harden Telegram auth cleanup and relay form
+  ([`f9d130c`](https://github.com/n24q02m/better-telegram-mcp/commit/f9d130c8e98ae6dbdcc433ce6db852b18f97f9b1))
+
+- 🎨 palette: server error validation feedback
+  ([#1059](https://github.com/n24q02m/better-telegram-mcp/pull/1059),
+  [`25a9acb`](https://github.com/n24q02m/better-telegram-mcp/commit/25a9acbe96ed9524d6c79abb4cd9ed45d30c1a93))
+
+- 🎨 palette: smooth view transitions
+  ([#1066](https://github.com/n24q02m/better-telegram-mcp/pull/1066),
+  [`a315709`](https://github.com/n24q02m/better-telegram-mcp/commit/a315709836abb7f16a30b7182d61d5bd1932a5dc))
+
+
 ## v4.19.0 (2026-08-31)
 
 
