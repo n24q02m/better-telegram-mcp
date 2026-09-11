@@ -1,6 +1,10 @@
 name: CD
 
 on:
+  push:
+    branches:
+      - staging
+      - main
   workflow_dispatch:
     inputs:
       release_type:
@@ -17,6 +21,9 @@ permissions:
   id-token: write
 
 env:
+  # Unified release ladder: push to staging = beta, push to main = stable.
+  # workflow_dispatch keeps release_type as an explicit override.
+  RELEASE_TYPE: ${{ github.event_name == 'push' && (github.ref_name == 'staging' && 'beta' || 'stable') || inputs.release_type }}
   DOCKERHUB_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/better-telegram-mcp
   GHCR_IMAGE: ghcr.io/${{ github.repository }}
 
@@ -72,7 +79,7 @@ jobs:
         id: dryrun
         with:
           github_token: ${{ steps.app-token.outputs.token }}
-          prerelease: ${{ inputs.release_type == 'beta' }}
+          prerelease: ${{ env.RELEASE_TYPE == 'beta' }}
           prerelease_token: beta
           no_operation_mode: true
 
@@ -139,7 +146,7 @@ jobs:
         id: release
         with:
           github_token: ${{ steps.app-token.outputs.token }}
-          prerelease: ${{ inputs.release_type == 'beta' }}
+          prerelease: ${{ env.RELEASE_TYPE == 'beta' }}
           prerelease_token: beta
 
       - uses: python-semantic-release/publish-action@6d89e2de8d40ecb3717316ecbbf15a6fa8ea9039 # v10.6.2
