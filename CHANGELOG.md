@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v4.20.1 (2026-09-11)
+
+### Bug Fixes
+
+- **deps**: Update patch dependencies
+  ([#1094](https://github.com/n24q02m/better-telegram-mcp/pull/1094),
+  [`4355d96`](https://github.com/n24q02m/better-telegram-mcp/commit/4355d961461850674e7d6217350cf7cfe5b4555e))
+
+
 ## v4.20.0 (2026-09-11)
 
 ### Bug Fixes
