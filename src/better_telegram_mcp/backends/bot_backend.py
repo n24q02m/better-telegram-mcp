@@ -292,14 +292,22 @@ class BotBackend(TelegramBackend):
             raise SecurityError(msg)
 
         field = media_type if media_type != "document" else "document"
-        # ⚡ Bolt: Read file asynchronously to prevent blocking the event loop
-        file_content = await asyncio.to_thread(path.read_bytes)
-        return await self._call_form(
-            method,
-            files={field: (path.name, file_content)},
-            chat_id=chat_id,
-            caption=caption,
-        )
+
+        # 🛡️ Sentinel: Open file as a stream instead of loading entirely into memory
+        # to prevent Out-Of-Memory (OOM) Denial of Service attacks when sending large files.
+        def _open_file():
+            return open(path, "rb")
+
+        f = await asyncio.to_thread(_open_file)
+        try:
+            return await self._call_form(
+                method,
+                files={field: (path.name, f)},
+                chat_id=chat_id,
+                caption=caption,
+            )
+        finally:
+            await asyncio.to_thread(f.close)
 
     async def download_media(
         self,
