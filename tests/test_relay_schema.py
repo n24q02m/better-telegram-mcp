@@ -13,6 +13,13 @@ def test_render_telegram_form_includes_toggle():
     assert '<meta name="color-scheme" content="light dark" />' in html
 
 
+def test_render_telegram_form_includes_dynamic_form_ux():
+    """Ensure the dynamic form UX script is injected into the HTML string."""
+    html = render_telegram_form(RELAY_SCHEMA, "/submit")
+    assert "required-badge" in html
+    assert 'id === "step-container"' in html
+
+
 def test_relay_schema_structure():
     """Flat schema: server metadata + fields array covering both modes.
 
