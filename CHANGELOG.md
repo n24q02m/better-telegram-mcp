@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v4.21.1 (2026-09-12)
+
+### Bug Fixes
+
+- **deps**: Update @cloudflare/workers-types to ^5.20260905.1
+  ([#1099](https://github.com/n24q02m/better-telegram-mcp/pull/1099),
+  [`9a33cc8`](https://github.com/n24q02m/better-telegram-mcp/commit/9a33cc8a47c8e1606578e18eb486f75a200ecae0))
+
+
 ## v4.21.0 (2026-09-12)
 
 ### Chores
