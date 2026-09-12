@@ -23,14 +23,14 @@ classifiers = [
 ]
 dependencies = [
     # 1.29 removes mcp.server.fastmcp; lift this only with the dedicated MCP migration.
-    "mcp[cli]>=1.28.1,<1.29",
+    "mcp[cli]>=1.28.1,<2",
     "httpx>=0.28.1",
     "telethon>=1.44.0",
     "pydantic>=2.13.5,<2.14",
     # 2.15 warns while constructing MCP SDK Settings; lift after upstream rebuilds its model.
     "pydantic-settings>=2.14.2,<2.15",
     "loguru>=0.7.3",
-    "n24q02m-mcp-core==1.23.2",
+    "n24q02m-mcp-core==1.24.1",
     "cryptography>=50.0.1",
     "starlette>=1.6.0",
     "uvicorn>=0.52.4",
