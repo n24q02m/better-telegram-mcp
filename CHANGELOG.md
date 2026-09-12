@@ -2,6 +2,30 @@
 
 <!-- version list -->
 
+## v4.21.0 (2026-09-12)
+
+### Chores
+
+- Pin BSR action to v1.6.1 stable (6e688489)
+  ([#1092](https://github.com/n24q02m/better-telegram-mcp/pull/1092),
+  [`9a42ae9`](https://github.com/n24q02m/better-telegram-mcp/commit/9a42ae9a1c57237fd5e3540fc422fd7d5fb17038))
+
+- **release**: Fix stale two-branch comment (single-main lane)
+  ([`2953f32`](https://github.com/n24q02m/better-telegram-mcp/commit/2953f329cc59e3d53b9d2aa3115048a9713ea3ce))
+
+- **release**: Single-main release lane (staging branch retired)
+  ([`b4ea45d`](https://github.com/n24q02m/better-telegram-mcp/commit/b4ea45d5d507f1355bd7c879207d60dbab312553))
+
+- **rulesets**: Align IaC with repo-bootstrap template
+  ([`892948c`](https://github.com/n24q02m/better-telegram-mcp/commit/892948c739a5e93b1f5c8af7648e3346190da1c2))
+
+### Features
+
+- 🎨 palette: add dynamic form ux hierarchy
+  ([#1095](https://github.com/n24q02m/better-telegram-mcp/pull/1095),
+  [`e879d69`](https://github.com/n24q02m/better-telegram-mcp/commit/e879d697aeac5dea7197cb72df43177eb0a79041))
+
+
 ## v4.20.1 (2026-09-11)
 
 ### Bug Fixes
