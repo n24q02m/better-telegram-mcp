@@ -12,7 +12,7 @@ importers:
         specifier: ^0.3.7
         version: 0.3.7
       '@cloudflare/workers-types':
-        specifier: ^5.20260904.1
+        specifier: ^5.20260905.1
         version: 5.20260910.1
       typescript:
         specifier: ^7.0.2
