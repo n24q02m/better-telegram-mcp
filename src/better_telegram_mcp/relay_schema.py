@@ -213,14 +213,21 @@ new MutationObserver(function(muts) {
                 if(n.id === "step-container") {
                     var p = document.getElementById("step-prompt");
                     var fg = n.querySelector(".field-group");
-                    if(p && fg && p.parentNode === n) {
-                        p.className = "field-label";
+                    var inp = document.getElementById("step-input");
+                    if(p && fg && p.parentNode === n && inp) {
+                        var lbl = document.createElement("label");
+                        lbl.id = "step-prompt";
+                        lbl.className = "field-label";
+                        lbl.htmlFor = inp.id;
+                        lbl.textContent = p.textContent;
                         var req = document.createElement("span");
                         req.className = "required-badge";
                         req.setAttribute("aria-hidden", "true");
                         req.textContent = "Required";
-                        p.appendChild(req);
-                        fg.insertBefore(p, fg.firstChild);
+                        lbl.appendChild(req);
+                        fg.insertBefore(lbl, fg.firstChild);
+                        p.parentNode.removeChild(p);
+                        inp.removeAttribute("aria-labelledby");
                     }
                 }
             });
