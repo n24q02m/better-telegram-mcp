@@ -2,6 +2,46 @@
 
 <!-- version list -->
 
+## v4.22.0 (2026-09-13)
+
+### Bug Fixes
+
+- 🛡️ sentinel: prevent OOM DoS in bot_backend send_media
+  ([#1100](https://github.com/n24q02m/better-telegram-mcp/pull/1100),
+  [`60aa2d8`](https://github.com/n24q02m/better-telegram-mcp/commit/60aa2d83098e09f48acf19176304902b4096c429))
+
+### Chores
+
+- Bump mcp-core to 1.24.3 (backlog disposition pre-archive, user 2026-09-13)
+  ([`44f9aa5`](https://github.com/n24q02m/better-telegram-mcp/commit/44f9aa5cbd7348496f299a63734845701761db6c))
+
+### Documentation
+
+- Add mode badge, install matrix, CD-managed deployment note
+  ([#1103](https://github.com/n24q02m/better-telegram-mcp/pull/1103),
+  [`b0cf9ea`](https://github.com/n24q02m/better-telegram-mcp/commit/b0cf9eab821a31f3d2fcf47504637870e18d2a22))
+
+- Align mode badge with fleet standard (label 'mode', color 5C6BC0)
+  ([`283bee4`](https://github.com/n24q02m/better-telegram-mcp/commit/283bee4d761cd48e4c7ca0a4efad403d7a9ae78f))
+
+- Archival notice ([#1105](https://github.com/n24q02m/better-telegram-mcp/pull/1105),
+  [`0a38130`](https://github.com/n24q02m/better-telegram-mcp/commit/0a381309d57821a4e2da8169f913c45821683dd0))
+
+- Archival notice — repo no longer maintained (2026-09-13)
+  ([#1105](https://github.com/n24q02m/better-telegram-mcp/pull/1105),
+  [`0a38130`](https://github.com/n24q02m/better-telegram-mcp/commit/0a381309d57821a4e2da8169f913c45821683dd0))
+
+- Move archival notice below tagline to keep registry metadata check green
+  ([#1105](https://github.com/n24q02m/better-telegram-mcp/pull/1105),
+  [`0a38130`](https://github.com/n24q02m/better-telegram-mcp/commit/0a381309d57821a4e2da8169f913c45821683dd0))
+
+### Features
+
+- 🎨 palette: prefer native labels for dynamic prompts
+  ([#1101](https://github.com/n24q02m/better-telegram-mcp/pull/1101),
+  [`618a1af`](https://github.com/n24q02m/better-telegram-mcp/commit/618a1afcb4568d90de7e431927ed387bf9de8377))
+
+
 ## v4.21.2 (2026-09-13)
 
 ### Bug Fixes
