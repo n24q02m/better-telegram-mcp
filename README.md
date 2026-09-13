@@ -5,6 +5,7 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 **Telegram for AI agents: messages, chats, media, and contacts in bot and user-account modes.**
 
 <!-- Badge Row 1: Status -->
+[![Mode](https://img.shields.io/badge/mode:-http_remote_relay_%C2%B7_http_local_relay_%C2%B7_stdio_proxy-5C6BC0)](https://mcp.n24q02m.com/get-started/modes-overview/)
 [![CI](https://github.com/n24q02m/better-telegram-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/n24q02m/better-telegram-mcp/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/n24q02m/better-telegram-mcp/graph/badge.svg?token=d0fef60a-542e-4be2-9528-6e3a12931067)](https://codecov.io/gh/n24q02m/better-telegram-mcp)
 [![PyPI](https://img.shields.io/pypi/v/better-telegram-mcp?logo=pypi&logoColor=white)](https://pypi.org/project/better-telegram-mcp/)
@@ -120,6 +121,15 @@ docker run -d --name better-telegram-mcp-http -p 8080:8080 \
   n24q02m/better-telegram-mcp:latest
 ```
 
+### Install matrix
+
+| Client | Install |
+|:-------|:--------|
+| Claude Code | `/plugin marketplace add n24q02m/claude-plugins` + `/plugin install better-telegram-mcp@n24q02m-plugins` (stdio bot mode), or `claude mcp add` as in the block above |
+| Cursor / Windsurf / Gemini CLI / any MCP client | `mcpServers` JSON in the client's config — stdio `command`, or `type: "http"` + `url` pointing at a deployment |
+
+Full per-client walkthroughs: [mcp.n24q02m.com/servers/better-telegram-mcp/setup/](https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/).
+
 Stdio mode is local single-user mode. Bot mode uses `TELEGRAM_BOT_TOKEN`; user mode
 can be configured locally with `better-telegram-mcp auth --phone <+number>`. HTTP
 user mode uses the browser-based relay form at `/authorize` for phone, OTP, and 2FA.
@@ -216,7 +226,7 @@ credentials are entered through the browser relay form instead (see the
 
 ## Documentation
 
-Full docs at **[mcp.n24q02m.com/servers/better-telegram-mcp/setup/](https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/)**:
+Full docs at **[mcp.n24q02m.com/servers/better-telegram-mcp/](https://mcp.n24q02m.com/servers/better-telegram-mcp/)**:
 
 - [Setup](https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/) -- install methods for Claude Code, Codex, Gemini CLI, Cursor, Windsurf, mcp.json
 - [Modes overview](https://mcp.n24q02m.com/get-started/modes-overview/) -- stdio (local, single-user) and HTTP (remote, OAuth 2.1)
@@ -287,6 +297,22 @@ uv run better-telegram-mcp
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/n24q02m/better-telegram-mcp)
 
 Run your own multi-user better-telegram-mcp serverless on Cloudflare (Worker + Container + KV).
+
+### Deployment (CD-managed)
+
+Managed deployments go through CI, never by hand: the `deploy-cf` job in
+[.github/workflows/cd.yml](.github/workflows/cd.yml) runs after a release,
+checks out the released tag, builds the immutable `http` image at the released
+version, pushes it to the Cloudflare managed registry, deploys, and gates on a
+canary check — a managed instance can therefore only ever run an exact release
+tag. Manual `wrangler deploy` against a managed/operated instance is not
+permitted: it breaks the release-tag ↔ live-image correspondence, and the next
+CD run would overwrite it.
+
+The job is gated by the `CF_HOSTED_ENABLED` repository Actions variable —
+currently `false`, so releases do not publish a hosted endpoint (per the
+[Trust Model](#trust-model), there is no operator-hosted public Telegram
+endpoint). To run your own instance, use the self-host steps below.
 
 **Prerequisites:** a Cloudflare account on the **Workers Paid plan** -- required for Containers (the Cloudflare free tier does not include Containers) -- and the `wrangler` CLI.
 
