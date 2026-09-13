@@ -1,10 +1,10 @@
-> **ARCHIVED 2026-09-13** — This repository is no longer maintained. Use the official Telegram Bot API instead of this MCP server. Existing installations keep working but receive no updates or support.
-
 # Better Telegram MCP
 
 mcp-name: io.github.n24q02m/better-telegram-mcp
 
 **Telegram for AI agents: messages, chats, media, and contacts in bot and user-account modes.**
+
+> **ARCHIVED 2026-09-13** — This repository is no longer maintained. Use the official Telegram Bot API instead of this MCP server. Existing installations keep working but receive no updates or support.
 
 <!-- Badge Row 1: Status -->
 [![Mode](https://img.shields.io/badge/mode-http_remote_relay_%C2%B7_http_local_relay_%C2%B7_stdio_proxy-5C6BC0)](https://mcp.n24q02m.com/get-started/modes-overview/)
