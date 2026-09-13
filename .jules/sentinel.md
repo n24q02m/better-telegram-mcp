@@ -19,3 +19,8 @@
 **Vulnerability:** `BotBackend.send_media` loaded entire local files into memory at once using `path.read_bytes()`. An attacker could exploit this by instructing the MCP bot to send an excessively large file, leading to an Out-Of-Memory (OOM) Denial of Service (DoS) attack that crashes the server.
 **Learning:** File read operations must enforce a strict size limit before loading contents into memory, even for local files validated for path traversal, as local files can be gigabytes in size.
 **Prevention:** Always check `path.stat().st_size` against a `max_size` limit (e.g., 50MB for Telegram Bot API) before reading the entire file into memory using `read_bytes()`.
+
+## 2025-02-28 - Fix DoS via memory exhaustion in bot_backend send_media
+**Vulnerability:** `BotBackend.send_media` loaded entire local files into memory at once using `path.read_bytes()`. An attacker could exploit this by instructing the MCP bot to send an excessively large file, leading to an Out-Of-Memory (OOM) Denial of Service (DoS) attack that crashes the server.
+**Learning:** Even with an upfront size limit check (e.g. `path.stat().st_size`), loading files into memory instead of streaming them is dangerous, especially in multi-user environments where concurrent requests could quickly exhaust container memory limits.
+**Prevention:** Always stream media uploads by passing an open file handle (`open(path, 'rb')`) instead of the file content string/bytes directly, especially to HTTP clients like `httpx` which natively support chunked streaming from file objects. Use a `finally` block to ensure the file handle is closed correctly.
