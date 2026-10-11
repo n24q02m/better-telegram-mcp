@@ -185,3 +185,23 @@ def test_check_saved_sessions_after_migration(home, monkeypatch):
     assert check_saved_sessions() is True
     assert (home / ".telegram" / "default.session").exists()
     assert not (home / ".better-telegram-mcp").exists()
+
+
+def test_check_saved_sessions_honours_data_dir_override(home, monkeypatch, tmp_path):
+    # The server reads and writes sessions under TELEGRAM_DATA_DIR, so the
+    # saved-session probe must look there too -- and must not move the
+    # legacy default dir as a side effect of an explicit override.
+    monkeypatch.delenv("MCP_STORAGE_BACKEND", raising=False)
+    from telegram.relay_setup import check_saved_sessions
+
+    legacy = _seed_legacy(home)
+    custom = tmp_path / "custom"
+    custom.mkdir()
+    monkeypatch.setenv("TELEGRAM_DATA_DIR", str(custom))
+
+    assert check_saved_sessions() is False
+
+    (custom / "default.session").write_bytes(b"custom-session")
+    assert check_saved_sessions() is True
+    assert legacy.exists()
+    assert not (home / ".telegram").exists()

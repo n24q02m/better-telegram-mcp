@@ -90,15 +90,16 @@ def _needs_2fa_password(error_msg: str) -> bool:
 def check_saved_sessions() -> bool:
     """Check for a saved Telethon session from a previous authentication.
 
-    Looks for ``*.session`` files in the default data dir (``~/.telegram/``,
-    moved from the legacy ``~/.better-telegram-mcp/`` on first use).
+    Looks for ``*.session`` files in the data dir the server itself uses:
+    ``TELEGRAM_DATA_DIR`` when set, else the default ``~/.telegram/`` (moved
+    from the legacy ``~/.better-telegram-mcp/`` on first use).
 
     Returns:
         True if at least one saved session exists, False otherwise.
     """
-    from .config import resolve_default_data_dir
+    from .config import Settings
 
-    data_dir = resolve_default_data_dir()
+    data_dir = Settings().data_dir
     if not data_dir.exists():
         return False
     sessions = list(data_dir.glob("*.session"))
