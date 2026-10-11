@@ -13,9 +13,9 @@ import pytest
 from mcp_core.storage.backends import InMemoryBackend
 from mcp_core.storage.string_session_store import StringSessionStore
 
-from better_telegram_mcp.auth.in_memory_session_store import SessionInfo
-from better_telegram_mcp.auth.kv_session_store import KvSessionStore
-from better_telegram_mcp.auth.telegram_auth_provider import TelegramAuthProvider
+from telegram.auth.in_memory_session_store import SessionInfo
+from telegram.auth.kv_session_store import KvSessionStore
+from telegram.auth.telegram_auth_provider import TelegramAuthProvider
 
 pytestmark = pytest.mark.e2e
 
@@ -42,7 +42,7 @@ async def test_session_survives_recreate(monkeypatch, tmp_path):
             pass
 
     monkeypatch.setattr(
-        "better_telegram_mcp.auth.telegram_auth_provider.UserBackend", _FakeUserBackend
+        "telegram.auth.telegram_auth_provider.UserBackend", _FakeUserBackend
     )
     provider = TelegramAuthProvider(
         tmp_path,
@@ -111,7 +111,7 @@ async def test_single_user_config_survives_ephemeral_machine_secret(
     monkeypatch.setenv("MCP_STORAGE_BACKEND", "cf-kv")
     backend = InMemoryBackend()
 
-    from better_telegram_mcp.credential_state import (
+    from telegram.credential_state import (
         _read_single_user_config,
         _write_single_user_config,
     )

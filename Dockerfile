@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Multi-stage build for better-telegram-mcp
+# Multi-stage build for telegram (Telegram MCP server)
 # Python 3.13 + httpx (Bot API) + Telethon (MTProto)
 
 # ========================
@@ -36,7 +36,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Build latest (= http): `docker buildx build --target http -t <repo>:latest .`
 FROM python:3.13-slim-bookworm@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e AS runtime
 
-LABEL org.opencontainers.image.source="https://github.com/n24q02m/better-telegram-mcp"
+LABEL org.opencontainers.image.source="https://github.com/n24q02m/telegram"
 LABEL io.modelcontextprotocol.server.name="io.github.n24q02m/better-telegram-mcp"
 
 WORKDIR /app
@@ -65,7 +65,7 @@ USER appuser
 # ========================
 FROM runtime AS stdio
 ENV MCP_TRANSPORT=stdio
-ENTRYPOINT ["python", "-m", "better_telegram_mcp"]
+ENTRYPOINT ["python", "-m", "telegram"]
 
 # ========================
 # Stage 3b: http target (multi-user remote daemon)
@@ -74,4 +74,4 @@ FROM runtime AS http
 ENV MCP_TRANSPORT=http \
     MCP_PORT=8080
 EXPOSE 8080
-ENTRYPOINT ["python", "-m", "better_telegram_mcp"]
+ENTRYPOINT ["python", "-m", "telegram"]

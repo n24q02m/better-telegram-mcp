@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from better_telegram_mcp.config import Settings
-from better_telegram_mcp.relay_setup import (
+from telegram.config import Settings
+from telegram.relay_setup import (
     _needs_2fa_password,
     _sanitize_error,
     redact_bot_token,
@@ -92,10 +92,10 @@ def test_from_relay_config_missing_keys():
 
 def test_check_saved_sessions_no_dir(tmp_path):
     """Returns False when data directory does not exist."""
-    from better_telegram_mcp.relay_setup import check_saved_sessions
+    from telegram.relay_setup import check_saved_sessions
 
     with patch(
-        "better_telegram_mcp.relay_setup.Path.home",
+        "pathlib.Path.home",
         return_value=tmp_path / "nonexistent",
     ):
         assert check_saved_sessions() is False
@@ -103,13 +103,13 @@ def test_check_saved_sessions_no_dir(tmp_path):
 
 def test_check_saved_sessions_empty_dir(tmp_path):
     """Returns False when data directory exists but has no session files."""
-    from better_telegram_mcp.relay_setup import check_saved_sessions
+    from telegram.relay_setup import check_saved_sessions
 
-    data_dir = tmp_path / ".better-telegram-mcp"
+    data_dir = tmp_path / ".telegram"
     data_dir.mkdir()
 
     with patch(
-        "better_telegram_mcp.relay_setup.Path.home",
+        "pathlib.Path.home",
         return_value=tmp_path,
     ):
         assert check_saved_sessions() is False
@@ -117,14 +117,14 @@ def test_check_saved_sessions_empty_dir(tmp_path):
 
 def test_check_saved_sessions_with_sessions(tmp_path):
     """Returns True when session files exist."""
-    from better_telegram_mcp.relay_setup import check_saved_sessions
+    from telegram.relay_setup import check_saved_sessions
 
-    data_dir = tmp_path / ".better-telegram-mcp"
+    data_dir = tmp_path / ".telegram"
     data_dir.mkdir()
     (data_dir / "user.session").write_text("session_data")
 
     with patch(
-        "better_telegram_mcp.relay_setup.Path.home",
+        "pathlib.Path.home",
         return_value=tmp_path,
     ):
         assert check_saved_sessions() is True
@@ -136,9 +136,9 @@ def test_check_saved_sessions_with_sessions(tmp_path):
 @pytest.mark.asyncio
 async def test_lifespan_tries_credential_state_when_unconfigured():
     """Lifespan should use resolve_credential_state when no env vars are set."""
-    import better_telegram_mcp.server as srv
-    from better_telegram_mcp.credential_state import CredentialState
-    from better_telegram_mcp.server import _lifespan, mcp
+    import telegram.server as srv
+    from telegram.credential_state import CredentialState
+    from telegram.server import _lifespan, mcp
 
     mock_bot = AsyncMock()
     mock_bot.is_authorized = AsyncMock(return_value=True)
@@ -157,17 +157,17 @@ async def test_lifespan_tries_credential_state_when_unconfigured():
     with (
         patch.object(srv, "Settings") as mock_settings_cls,
         patch(
-            "better_telegram_mcp.credential_state.resolve_credential_state",
+            "telegram.credential_state.resolve_credential_state",
             side_effect=mock_resolve,
         ),
         patch(
-            "better_telegram_mcp.credential_state._read_single_user_config",
+            "telegram.credential_state._read_single_user_config",
             return_value={"TELEGRAM_BOT_TOKEN": "relay:TOKEN"},
         ),
         patch.dict(
             "sys.modules",
             {
-                "better_telegram_mcp.backends.bot_backend": type(
+                "telegram.backends.bot_backend": type(
                     "module", (), {"BotBackend": MagicMock(return_value=mock_bot)}
                 )()
             },
@@ -186,9 +186,9 @@ async def test_lifespan_tries_credential_state_when_unconfigured():
 @pytest.mark.asyncio
 async def test_lifespan_falls_back_to_unconfigured_when_no_credentials():
     """Lifespan should fall back to unconfigured state when no credentials found."""
-    import better_telegram_mcp.server as srv
-    from better_telegram_mcp.credential_state import CredentialState
-    from better_telegram_mcp.server import _lifespan, mcp
+    import telegram.server as srv
+    from telegram.credential_state import CredentialState
+    from telegram.server import _lifespan, mcp
 
     def mock_resolve():
         return CredentialState.AWAITING_SETUP
@@ -203,7 +203,7 @@ async def test_lifespan_falls_back_to_unconfigured_when_no_credentials():
         with (
             patch.object(srv, "Settings", return_value=MagicMock(is_configured=False)),
             patch(
-                "better_telegram_mcp.credential_state.resolve_credential_state",
+                "telegram.credential_state.resolve_credential_state",
                 side_effect=mock_resolve,
             ),
         ):
@@ -220,7 +220,7 @@ async def test_lifespan_falls_back_to_unconfigured_when_no_credentials():
 
 def test_relay_schema_structure():
     """Verify relay schema has correct structure (flat fields for local OAuth form)."""
-    from better_telegram_mcp.relay_schema import RELAY_SCHEMA, RELAY_SCHEMA_MODES
+    from telegram.relay_schema import RELAY_SCHEMA, RELAY_SCHEMA_MODES
 
     # Flat schema for local OAuth form
     assert RELAY_SCHEMA["server"] == "better-telegram-mcp"

@@ -1,6 +1,6 @@
 """Verify the intentional stdio credential gate before MCP startup.
 
-Spawns ``python -m better_telegram_mcp`` with ``MCP_TRANSPORT=stdio`` and
+Spawns ``python -m telegram`` with ``MCP_TRANSPORT=stdio`` and
 asserts that missing credentials produce a bounded nonzero exit, no MCP
 response on stdout, and the documented local auth guidance. The gate runs
 before FastMCP initializes, so handshake and ``tools/list`` expectations
@@ -50,7 +50,7 @@ def _stdio_env_without_credentials(tmp_path: Path) -> dict[str, str]:
 
 def _run_stdio_without_credentials(tmp_path: Path) -> subprocess.CompletedProcess[str]:
     """Run stdio with an initialize request but no credential input."""
-    args = [sys.executable, "-m", "better_telegram_mcp"]
+    args = [sys.executable, "-m", "telegram"]
     stdout_path = tmp_path / "stdio-stdout.txt"
     stderr_path = tmp_path / "stdio-stderr.txt"
     with (
@@ -82,12 +82,9 @@ def test_stdio_credential_gate_exits_before_mcp_handshake(tmp_path: Path) -> Non
     assert result.stdout.strip() == ""
 
     stderr = result.stderr
-    assert (
-        "[better-telegram-mcp] No Telegram credentials configured for stdio mode."
-        in stderr
-    )
-    assert "better-telegram-mcp auth --bot-token <token>" in stderr
-    assert "better-telegram-mcp auth --phone <+number>" in stderr
+    assert "[telegram] No Telegram credentials configured for stdio mode." in stderr
+    assert "  telegram auth --bot-token <token>" in stderr
+    assert "  telegram auth --phone <+number>" in stderr
     assert "login is a deprecated alias of auth" in stderr
     assert (
         "Documentation: https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/"

@@ -1,6 +1,6 @@
-"""better-telegram-mcp entry point."""
+"""telegram entry point (``python -m telegram``)."""
 
-from better_telegram_mcp.cli import main as _cli_main
+from telegram.cli import main as _cli_main
 
 
 def _cli() -> int:

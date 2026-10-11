@@ -25,7 +25,7 @@ from pathlib import Path
 
 from mcp_core.storage.per_plugin_store import PerPluginStore
 
-from better_telegram_mcp.credential_state import _write_single_user_config
+from telegram.credential_state import _write_single_user_config
 
 # Captured at import time: collection runs before any fixture, so this is the
 # genuine home directory, whatever the fixture later redirects Path.home() to.

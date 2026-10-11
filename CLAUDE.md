@@ -1,4 +1,4 @@
-# CLAUDE.md - better-telegram-mcp
+# CLAUDE.md - telegram
 
 MCP Server cho Telegram. Python 3.13, uv, hatchling, src layout.
 Dual-mode: Bot API (httpx) + MTProto (Telethon). 7 tools: message, chat, media, contact, config, help, config__open_relay.
@@ -17,7 +17,7 @@ uv run ruff check --fix . && uv run ruff format .  # Fix
 ## Cau truc
 
 ```
-src/better_telegram_mcp/
+src/telegram/
   config.py            # Pydantic Settings, env prefix TELEGRAM_
   server.py            # FastMCP + lifespan + auth mode switching
   credential_state.py  # save_credentials/on_step_submitted callbacks +
@@ -56,7 +56,7 @@ collects bot_token OR phone, posts to `/save`, and chains OTP / 2FA via
   middleware (`_per_request_sub_scope`) pins the JWT sub + per-user
   backend into contextvars before each MCP tool call.
 
-Session persist: `~/.better-telegram-mcp/<name>.session`, permission 600.
+Session persist: `~/.telegram/<name>.session`, permission 600 (moved once from the pre-rename `~/.better-telegram-mcp/` by `config.resolve_default_data_dir()`; `~/.telegram-mcp` written by mcp-core `PerPluginStore` is a separate dir, unchanged).
 
 ## Env vars
 
@@ -77,8 +77,8 @@ NO `TELEGRAM_PASSWORD` -- HTTP relay 2FA nhap qua web UI; local CLI auth prompts
 ## Release & Deploy
 
 - Conventional Commits. Tag format: `v{version}`
-- CD: PSR v10 -> PyPI (uv publish) -> Docker multi-arch (amd64 + arm64) -> MCP Registry
-- Docker images: `n24q02m/better-telegram-mcp`
+- CD: PSR v10 -> PyPI `n24q02m-telegram` (uv publish) -> Docker multi-arch (amd64 + arm64) -> MCP Registry
+- Docker images: `n24q02m/telegram` (Docker Hub) + `ghcr.io/n24q02m/telegram`
 
 ## Pre-commit hooks
 

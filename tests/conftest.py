@@ -14,7 +14,7 @@ except ImportError:
         pass
 
 
-from better_telegram_mcp.backends.base import TelegramBackend
+from telegram.backends.base import TelegramBackend
 
 
 def pytest_addoption(parser):
@@ -203,11 +203,11 @@ def mock_fetch_url_safely():
     """Globally mock fetch_url_safely to avoid network requests during tests."""
 
     with patch(
-        "better_telegram_mcp.backends.bot_backend.fetch_url_safely",
+        "telegram.backends.bot_backend.fetch_url_safely",
         new_callable=AsyncMock,
     ) as mock_fetch_bot:
         with patch(
-            "better_telegram_mcp.backends.user_backend.fetch_url_safely",
+            "telegram.backends.user_backend.fetch_url_safely",
             new_callable=AsyncMock,
         ) as mock_fetch_user:
             mock_fetch_bot.return_value = b"mock content"

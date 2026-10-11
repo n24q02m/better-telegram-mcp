@@ -4,14 +4,14 @@
   "title": "Better Telegram MCP",
   "description": "Telegram for AI agents: messages, chats, media, and contacts in bot and user-account modes.",
   "repository": {
-    "url": "https://github.com/n24q02m/better-telegram-mcp.git",
+    "url": "https://github.com/n24q02m/telegram.git",
     "source": "github"
   },
   "version": "4.22.0",
   "packages": [
     {
       "registryType": "pypi",
-      "identifier": "better-telegram-mcp",
+      "identifier": "n24q02m-telegram",
       "version": "4.22.0",
       "runtimeHint": "uvx",
       "runtimeArgs": [
@@ -44,7 +44,7 @@
     },
     {
       "registryType": "oci",
-      "identifier": "docker.io/n24q02m/better-telegram-mcp:latest",
+      "identifier": "docker.io/n24q02m/telegram:latest",
       "runtimeHint": "docker",
       "transport": {
         "type": "stdio"

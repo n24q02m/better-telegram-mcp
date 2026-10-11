@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from better_telegram_mcp.backends.base import ModeError
-from better_telegram_mcp.tools.messages import MessagesArgs, handle_messages
+from telegram.backends.base import ModeError
+from telegram.tools.messages import MessagesArgs, handle_messages
 
 
 @pytest.mark.asyncio

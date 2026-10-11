@@ -1,4 +1,4 @@
-from better_telegram_mcp.relay_schema import (
+from telegram.relay_schema import (
     RELAY_SCHEMA,
     RELAY_SCHEMA_MODES,
     render_telegram_form,

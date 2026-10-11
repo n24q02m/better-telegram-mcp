@@ -1,4 +1,4 @@
-"""Full E2E test for better-telegram-mcp -- single file, 3 setup modes, 2 backend modes.
+"""Full E2E test for the telegram MCP server -- single file, 3 setup modes, 2 backend modes.
 
 Tests 7 tools, 31 actions via MCP protocol.
 Bot mode tests a subset (bot API limitations).
@@ -71,17 +71,15 @@ def _build_server_params(setup_mode: str, backend_mode: str):
 
     if setup_mode == "relay":
         env = {k: v for k, v in os.environ.items() if k not in strip_vars}
-        params = StdioServerParameters(
-            command="uv", args=["run", "better-telegram-mcp"], env=env
-        )
+        params = StdioServerParameters(command="uv", args=["run", "telegram"], env=env)
     elif setup_mode == "env":
         params = StdioServerParameters(
-            command="uv", args=["run", "better-telegram-mcp"], env=dict(os.environ)
+            command="uv", args=["run", "telegram"], env=dict(os.environ)
         )
     elif setup_mode == "plugin":
         params = StdioServerParameters(
             command="uvx",
-            args=["--python", "3.13", "better-telegram-mcp"],
+            args=["--python", "3.13", "n24q02m-telegram@latest"],
             env=dict(os.environ),
         )
     else:

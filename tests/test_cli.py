@@ -1,4 +1,4 @@
-"""Tests for better_telegram_mcp.cli -- shared mcp_core CLI builder mount.
+"""Tests for telegram.cli -- shared mcp_core CLI builder mount.
 
 Bare invocation and any leading-dash argv start the server unchanged;
 subcommands (login/logout) run one-shot operator actions. No network or
@@ -19,11 +19,11 @@ class TestServeDispatch:
     """Bare/flag argv route to the server unchanged."""
 
     def test_bare_invocation_starts_server(self):
-        from better_telegram_mcp import cli
+        from telegram import cli
 
         with (
             patch.object(sys, "argv", ["better-telegram-mcp"]),
-            patch("better_telegram_mcp.server.main") as mock_server_main,
+            patch("telegram.server.main") as mock_server_main,
         ):
             rc = cli.main()
 
@@ -31,11 +31,11 @@ class TestServeDispatch:
         assert rc == 0
 
     def test_http_flag_passes_through(self):
-        from better_telegram_mcp import cli
+        from telegram import cli
 
         with (
             patch.object(sys, "argv", ["better-telegram-mcp", "--http"]),
-            patch("better_telegram_mcp.server.main") as mock_server_main,
+            patch("telegram.server.main") as mock_server_main,
         ):
             rc = cli.main()
 
@@ -47,7 +47,7 @@ class TestLoginArgs:
     """login requires exactly one of --bot-token / --phone."""
 
     def test_no_flags_errors(self):
-        from better_telegram_mcp import cli
+        from telegram import cli
 
         with patch.object(sys, "argv", ["better-telegram-mcp", "login"]):
             with pytest.raises(SystemExit) as exc:
@@ -55,7 +55,7 @@ class TestLoginArgs:
         assert exc.value.code == 2
 
     def test_both_flags_errors(self):
-        from better_telegram_mcp import cli
+        from telegram import cli
 
         with patch.object(
             sys,
@@ -71,7 +71,7 @@ class TestLoginBot:
     """`login --bot-token` validates via BotBackend then persists config."""
 
     def test_happy_path_persists_and_prints(self, capsys):
-        from better_telegram_mcp import cli
+        from telegram import cli
 
         mock_backend = MagicMock()
         mock_backend.connect = AsyncMock()
@@ -82,12 +82,10 @@ class TestLoginBot:
                 sys, "argv", ["better-telegram-mcp", "login", "--bot-token", "123:ABC"]
             ),
             patch(
-                "better_telegram_mcp.backends.bot_backend.BotBackend",
+                "telegram.backends.bot_backend.BotBackend",
                 return_value=mock_backend,
             ),
-            patch(
-                "better_telegram_mcp.credential_state._write_single_user_config"
-            ) as mock_write,
+            patch("telegram.credential_state._write_single_user_config") as mock_write,
         ):
             rc = cli.main()
 
@@ -98,7 +96,7 @@ class TestLoginBot:
         assert "bot mode" in capsys.readouterr().out
 
     def test_invalid_token_returns_1_and_does_not_persist(self, capsys):
-        from better_telegram_mcp import cli
+        from telegram import cli
 
         mock_backend = MagicMock()
         mock_backend.connect = AsyncMock(side_effect=Exception("Invalid bot token"))
@@ -109,12 +107,10 @@ class TestLoginBot:
                 sys, "argv", ["better-telegram-mcp", "login", "--bot-token", "bad"]
             ),
             patch(
-                "better_telegram_mcp.backends.bot_backend.BotBackend",
+                "telegram.backends.bot_backend.BotBackend",
                 return_value=mock_backend,
             ),
-            patch(
-                "better_telegram_mcp.credential_state._write_single_user_config"
-            ) as mock_write,
+            patch("telegram.credential_state._write_single_user_config") as mock_write,
         ):
             rc = cli.main()
 
@@ -127,7 +123,7 @@ class TestLoginPhone:
     """`login --phone` is interactive tty-only; OTP + optional 2FA."""
 
     def test_non_tty_returns_1(self, capsys):
-        from better_telegram_mcp import cli
+        from telegram import cli
 
         mock_stdin = MagicMock()
         mock_stdin.isatty.return_value = False
@@ -146,7 +142,7 @@ class TestLoginPhone:
         assert "interactive terminal" in capsys.readouterr().err
 
     def test_tty_happy_path_persists_config_and_marker(self, capsys):
-        from better_telegram_mcp import cli
+        from telegram import cli
 
         mock_backend = MagicMock()
         mock_backend.connect = AsyncMock()
@@ -168,12 +164,10 @@ class TestLoginPhone:
             ),
             patch.object(sys, "stdin", mock_stdin),
             patch(
-                "better_telegram_mcp.backends.user_backend.UserBackend",
+                "telegram.backends.user_backend.UserBackend",
                 return_value=mock_backend,
             ),
-            patch(
-                "better_telegram_mcp.credential_state._write_single_user_config"
-            ) as mock_write,
+            patch("telegram.credential_state._write_single_user_config") as mock_write,
             patch(
                 "mcp_core.storage.per_plugin_store.PerPluginStore",
                 return_value=mock_store,
@@ -192,7 +186,7 @@ class TestLoginPhone:
         assert "Logged in as Alice" in capsys.readouterr().out
 
     def test_tty_2fa_path_reissues_signin_with_password(self, capsys):
-        from better_telegram_mcp import cli
+        from telegram import cli
 
         mock_backend = MagicMock()
         mock_backend.connect = AsyncMock()
@@ -221,10 +215,10 @@ class TestLoginPhone:
             patch.object(sys, "stdin", mock_stdin),
             patch("getpass.getpass", return_value="s3cret"),
             patch(
-                "better_telegram_mcp.backends.user_backend.UserBackend",
+                "telegram.backends.user_backend.UserBackend",
                 return_value=mock_backend,
             ),
-            patch("better_telegram_mcp.credential_state._write_single_user_config"),
+            patch("telegram.credential_state._write_single_user_config"),
             patch(
                 "mcp_core.storage.per_plugin_store.PerPluginStore",
                 return_value=mock_store,
@@ -240,7 +234,7 @@ class TestLoginPhone:
         assert "Logged in as Bob" in capsys.readouterr().out
 
     def test_tty_signin_failure_returns_1(self, capsys):
-        from better_telegram_mcp import cli
+        from telegram import cli
 
         mock_backend = MagicMock()
         mock_backend.connect = AsyncMock()
@@ -260,12 +254,10 @@ class TestLoginPhone:
             ),
             patch.object(sys, "stdin", mock_stdin),
             patch(
-                "better_telegram_mcp.backends.user_backend.UserBackend",
+                "telegram.backends.user_backend.UserBackend",
                 return_value=mock_backend,
             ),
-            patch(
-                "better_telegram_mcp.credential_state._write_single_user_config"
-            ) as mock_write,
+            patch("telegram.credential_state._write_single_user_config") as mock_write,
         ):
             rc = cli.main()
 
@@ -279,7 +271,7 @@ class TestLogout:
     """`logout` revokes + deletes the session, config, and marker; idempotent."""
 
     def test_with_session_revokes_and_clears(self, tmp_path, capsys):
-        from better_telegram_mcp import cli
+        from telegram import cli
 
         session_file = tmp_path / "default.session"
         session_file.write_text("x")
@@ -296,16 +288,14 @@ class TestLogout:
             patch.object(sys, "argv", ["better-telegram-mcp", "logout"]),
             patch.dict(os.environ, {"TELEGRAM_DATA_DIR": str(tmp_path)}, clear=False),
             patch(
-                "better_telegram_mcp.backends.user_backend.UserBackend",
+                "telegram.backends.user_backend.UserBackend",
                 return_value=mock_backend,
             ),
             patch(
-                "better_telegram_mcp.credential_state._read_single_user_config",
+                "telegram.credential_state._read_single_user_config",
                 return_value={"TELEGRAM_PHONE": "+84900000000"},
             ),
-            patch(
-                "better_telegram_mcp.credential_state._delete_single_user_config"
-            ) as mock_del,
+            patch("telegram.credential_state._delete_single_user_config") as mock_del,
             patch(
                 "mcp_core.storage.per_plugin_store.PerPluginStore",
                 return_value=mock_store,
@@ -322,7 +312,7 @@ class TestLogout:
         assert "Logged out" in out
 
     def test_revoke_failure_is_best_effort(self, tmp_path, capsys):
-        from better_telegram_mcp import cli
+        from telegram import cli
 
         session_file = tmp_path / "default.session"
         session_file.write_text("x")
@@ -339,14 +329,14 @@ class TestLogout:
             patch.object(sys, "argv", ["better-telegram-mcp", "logout"]),
             patch.dict(os.environ, {"TELEGRAM_DATA_DIR": str(tmp_path)}, clear=False),
             patch(
-                "better_telegram_mcp.backends.user_backend.UserBackend",
+                "telegram.backends.user_backend.UserBackend",
                 return_value=mock_backend,
             ),
             patch(
-                "better_telegram_mcp.credential_state._read_single_user_config",
+                "telegram.credential_state._read_single_user_config",
                 return_value=None,
             ),
-            patch("better_telegram_mcp.credential_state._delete_single_user_config"),
+            patch("telegram.credential_state._delete_single_user_config"),
             patch(
                 "mcp_core.storage.per_plugin_store.PerPluginStore",
                 return_value=mock_store,
@@ -362,7 +352,7 @@ class TestLogout:
         assert "Logged out" in captured.out
 
     def test_no_session_nothing_to_log_out(self, tmp_path, capsys):
-        from better_telegram_mcp import cli
+        from telegram import cli
 
         mock_store = MagicMock()
         mock_store.load.return_value = None
@@ -371,7 +361,7 @@ class TestLogout:
             patch.object(sys, "argv", ["better-telegram-mcp", "logout"]),
             patch.dict(os.environ, {"TELEGRAM_DATA_DIR": str(tmp_path)}, clear=False),
             patch(
-                "better_telegram_mcp.credential_state._read_single_user_config",
+                "telegram.credential_state._read_single_user_config",
                 return_value=None,
             ),
             patch(
@@ -389,7 +379,7 @@ class TestAuth:
     """`auth` is the standard name; same credential flags as `login`."""
 
     def test_bot_token_persists_without_deprecation_notice(self, capsys):
-        from better_telegram_mcp import cli
+        from telegram import cli
 
         mock_backend = MagicMock()
         mock_backend.connect = AsyncMock()
@@ -400,12 +390,10 @@ class TestAuth:
                 sys, "argv", ["better-telegram-mcp", "auth", "--bot-token", "123:ABC"]
             ),
             patch(
-                "better_telegram_mcp.backends.bot_backend.BotBackend",
+                "telegram.backends.bot_backend.BotBackend",
                 return_value=mock_backend,
             ),
-            patch(
-                "better_telegram_mcp.credential_state._write_single_user_config"
-            ) as mock_write,
+            patch("telegram.credential_state._write_single_user_config") as mock_write,
         ):
             rc = cli.main()
 
@@ -416,7 +404,7 @@ class TestAuth:
         assert "deprecated" not in captured.err
 
     def test_provider_positional_accepted(self):
-        from better_telegram_mcp import cli
+        from telegram import cli
 
         mock_backend = MagicMock()
         mock_backend.connect = AsyncMock()
@@ -429,17 +417,17 @@ class TestAuth:
                 ["better-telegram-mcp", "auth", "telegram", "--bot-token", "123:ABC"],
             ),
             patch(
-                "better_telegram_mcp.backends.bot_backend.BotBackend",
+                "telegram.backends.bot_backend.BotBackend",
                 return_value=mock_backend,
             ),
-            patch("better_telegram_mcp.credential_state._write_single_user_config"),
+            patch("telegram.credential_state._write_single_user_config"),
         ):
             rc = cli.main()
 
         assert rc == 0
 
     def test_rejects_unknown_provider(self):
-        from better_telegram_mcp import cli
+        from telegram import cli
 
         with patch.object(
             sys, "argv", ["better-telegram-mcp", "auth", "notion", "--bot-token", "x"]
@@ -449,7 +437,7 @@ class TestAuth:
         assert exc.value.code == 2
 
     def test_no_credential_errors(self):
-        from better_telegram_mcp import cli
+        from telegram import cli
 
         with patch.object(sys, "argv", ["better-telegram-mcp", "auth"]):
             with pytest.raises(SystemExit) as exc:
@@ -461,7 +449,7 @@ class TestLoginDeprecated:
     """`login` still works but warns and delegates to `auth`."""
 
     def test_login_warns_and_persists(self, capsys):
-        from better_telegram_mcp import cli
+        from telegram import cli
 
         mock_backend = MagicMock()
         mock_backend.connect = AsyncMock()
@@ -472,12 +460,10 @@ class TestLoginDeprecated:
                 sys, "argv", ["better-telegram-mcp", "login", "--bot-token", "123:ABC"]
             ),
             patch(
-                "better_telegram_mcp.backends.bot_backend.BotBackend",
+                "telegram.backends.bot_backend.BotBackend",
                 return_value=mock_backend,
             ),
-            patch(
-                "better_telegram_mcp.credential_state._write_single_user_config"
-            ) as mock_write,
+            patch("telegram.credential_state._write_single_user_config") as mock_write,
         ):
             rc = cli.main()
 

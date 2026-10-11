@@ -22,7 +22,7 @@ _MARKER_SUB_KEY = "tokens/app-identity"
 
 
 def _serve(argv: list[str]) -> int | None:
-    from better_telegram_mcp.server import main as server_main
+    from telegram.server import main as server_main
 
     server_main()
     return 0
@@ -77,7 +77,7 @@ def _handle_auth(args: argparse.Namespace) -> int:
 
 def _handle_login(args: argparse.Namespace) -> int:
     print(
-        "better-telegram-mcp: `login` is deprecated; use `auth` instead.",
+        "telegram: `login` is deprecated; use `auth` instead.",
         file=sys.stderr,
     )
     return _handle_auth(args)
@@ -87,12 +87,12 @@ def _login_bot(bot_token: str) -> int:
     try:
         asyncio.run(_verify_bot_token(bot_token))
     except Exception as e:
-        from better_telegram_mcp.relay_setup import _sanitize_error
+        from telegram.relay_setup import _sanitize_error
 
         print(f"Login failed: {_sanitize_error(str(e))}", file=sys.stderr)
         return 1
 
-    from better_telegram_mcp.credential_state import _write_single_user_config
+    from telegram.credential_state import _write_single_user_config
 
     _write_single_user_config({"TELEGRAM_BOT_TOKEN": bot_token})
     print("Logged in (bot mode). Credentials saved to the local config.")
@@ -100,7 +100,7 @@ def _login_bot(bot_token: str) -> int:
 
 
 async def _verify_bot_token(bot_token: str) -> None:
-    from better_telegram_mcp.backends.bot_backend import BotBackend
+    from telegram.backends.bot_backend import BotBackend
 
     backend = BotBackend(bot_token)
     try:
@@ -121,7 +121,7 @@ def _login_phone(phone: str) -> int:
     try:
         result = asyncio.run(_run_phone_login(phone))
     except Exception as e:
-        from better_telegram_mcp.relay_setup import _sanitize_error
+        from telegram.relay_setup import _sanitize_error
 
         print(f"Login failed: {_sanitize_error(str(e))}", file=sys.stderr)
         return 1
@@ -132,9 +132,9 @@ def _login_phone(phone: str) -> int:
 
 
 async def _run_phone_login(phone: str) -> dict:
-    from better_telegram_mcp.backends.user_backend import UserBackend
-    from better_telegram_mcp.config import Settings
-    from better_telegram_mcp.relay_setup import _needs_2fa_password
+    from telegram.backends.user_backend import UserBackend
+    from telegram.config import Settings
+    from telegram.relay_setup import _needs_2fa_password
 
     settings = Settings.from_relay_config({"TELEGRAM_PHONE": phone})
     backend = UserBackend(settings)
@@ -170,7 +170,7 @@ def _prompt_2fa_password() -> str:
 
 
 def _persist_phone_identity(settings, phone: str) -> None:
-    from better_telegram_mcp.credential_state import _write_single_user_config
+    from telegram.credential_state import _write_single_user_config
 
     _write_single_user_config({"TELEGRAM_PHONE": phone})
     _api_identity_store().save({"api_id": str(settings.api_id)})
@@ -180,7 +180,7 @@ def _persist_phone_identity(settings, phone: str) -> None:
 
 
 def _handle_logout(args: argparse.Namespace) -> int:
-    from better_telegram_mcp.config import Settings
+    from telegram.config import Settings
 
     settings = Settings()
     session_path = settings.session_path
@@ -191,7 +191,7 @@ def _handle_logout(args: argparse.Namespace) -> int:
             asyncio.run(_revoke_session(settings))
             actions.append("revoked Telegram session server-side")
         except Exception as e:
-            from better_telegram_mcp.relay_setup import _sanitize_error
+            from telegram.relay_setup import _sanitize_error
 
             print(
                 "Warning: could not revoke session server-side: "
@@ -220,7 +220,7 @@ def _handle_logout(args: argparse.Namespace) -> int:
 
 
 async def _revoke_session(settings) -> None:
-    from better_telegram_mcp.backends.user_backend import UserBackend
+    from telegram.backends.user_backend import UserBackend
 
     backend = UserBackend(settings)
     await backend.connect()
@@ -231,7 +231,7 @@ async def _revoke_session(settings) -> None:
 
 
 def _clear_single_user_config() -> bool:
-    from better_telegram_mcp.credential_state import (
+    from telegram.credential_state import (
         _delete_single_user_config,
         _read_single_user_config,
     )
@@ -268,13 +268,17 @@ def _extras() -> dict:
 
 
 def _version() -> str:
-    from better_telegram_mcp import __version__
+    from telegram import __version__
 
     return __version__
 
 
 def main() -> int:
     return build_cli(
+        # Kept at the pre-rename name (relay_setup.SERVER_NAME) although the
+        # primary console script is now ``telegram``: mcp-core's ``relay`` and
+        # ``doctor`` subcommands key the relay session lock and run mode by
+        # this value, which the server writes under SERVER_NAME.
         "better-telegram-mcp",
         # Credential slug is "telegram", not the console name minus "-mcp"
         # ("better-telegram"), so `config`/`doctor` read the same store the

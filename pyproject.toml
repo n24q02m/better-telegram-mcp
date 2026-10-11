@@ -1,5 +1,5 @@
 [project]
-name = "better-telegram-mcp"
+name = "n24q02m-telegram"
 version = "4.22.0"
 description = "Production-grade MCP server for Telegram — dual-mode Bot API + MTProto, domain-separated tools"
 readme = "README.md"
@@ -48,16 +48,20 @@ dev = [
     "pre-commit>=4.6.2",
 ]
 [project.scripts]
-better-telegram-mcp = "better_telegram_mcp.cli:main"
+telegram = "telegram.cli:main"
+better-telegram-mcp = "telegram.cli:main"  # legacy command alias
+# `uvx <dist>` runs the executable named after the distribution, so MCP Registry
+# clients (server.json identifier), the plugin manifest and Smithery need it.
+n24q02m-telegram = "telegram.cli:main"
 [project.urls]
-Homepage = "https://github.com/n24q02m/better-telegram-mcp"
-Repository = "https://github.com/n24q02m/better-telegram-mcp"
-Issues = "https://github.com/n24q02m/better-telegram-mcp/issues"
+Homepage = "https://github.com/n24q02m/telegram"
+Repository = "https://github.com/n24q02m/telegram"
+Issues = "https://github.com/n24q02m/telegram/issues"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
-packages = ["src/better_telegram_mcp"]
+packages = ["src/telegram"]
 [tool.hatch.build.targets.wheel.sources]
 "src" = ""
 [tool.pytest.ini_options]
@@ -94,7 +98,7 @@ invalid-assignment = "ignore"
 invalid-method-override = "ignore"
 empty-body = "ignore"
 [tool.coverage.run]
-source = ["better_telegram_mcp"]
+source = ["telegram"]
 omit = [
     "tests/*",
 ]

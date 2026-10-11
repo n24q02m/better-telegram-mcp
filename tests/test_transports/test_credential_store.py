@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from better_telegram_mcp.transports.credential_store import CredentialStore
+from telegram.transports.credential_store import CredentialStore
 
 # POSIX file mode bits (0o600) are not meaningful on Windows -- os.chmod()
 # there only toggles the read-only bit. Tests that assert an exact mode are
@@ -75,7 +75,7 @@ class TestAtomicWriteTOCTOU:
         """
         import os
 
-        from better_telegram_mcp.transports.credential_store import (
+        from telegram.transports.credential_store import (
             _atomic_write_bytes_0600,
         )
 
@@ -108,7 +108,7 @@ class TestAtomicWriteTOCTOU:
         import os
         import stat
 
-        from better_telegram_mcp.transports.credential_store import (
+        from telegram.transports.credential_store import (
             _atomic_write_bytes_0600,
         )
 

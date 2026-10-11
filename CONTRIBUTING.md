@@ -1,4 +1,4 @@
-# Contributing to better-telegram-mcp
+# Contributing to telegram
 
 ## Development Setup
 

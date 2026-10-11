@@ -1,4 +1,4 @@
-# Better Telegram MCP
+# telegram
 
 mcp-name: io.github.n24q02m/better-telegram-mcp
 
@@ -6,11 +6,11 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 
 <!-- Badge Row 1: Status -->
 [![Mode](https://img.shields.io/badge/mode-http_remote_relay_%C2%B7_http_local_relay_%C2%B7_stdio_proxy-5C6BC0)](https://mcp.n24q02m.com/get-started/modes-overview/)
-[![CI](https://github.com/n24q02m/better-telegram-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/n24q02m/better-telegram-mcp/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/n24q02m/better-telegram-mcp/graph/badge.svg?token=d0fef60a-542e-4be2-9528-6e3a12931067)](https://codecov.io/gh/n24q02m/better-telegram-mcp)
-[![PyPI](https://img.shields.io/pypi/v/better-telegram-mcp?logo=pypi&logoColor=white)](https://pypi.org/project/better-telegram-mcp/)
-[![Docker](https://img.shields.io/docker/v/n24q02m/better-telegram-mcp?label=docker&logo=docker&logoColor=white&sort=semver)](https://hub.docker.com/r/n24q02m/better-telegram-mcp)
-[![License: Apache-2.0](https://img.shields.io/github/license/n24q02m/better-telegram-mcp)](https://www.apache.org/licenses/LICENSE-2.0)
+[![CI](https://github.com/n24q02m/telegram/actions/workflows/ci.yml/badge.svg)](https://github.com/n24q02m/telegram/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/n24q02m/telegram/graph/badge.svg?token=d0fef60a-542e-4be2-9528-6e3a12931067)](https://codecov.io/gh/n24q02m/telegram)
+[![PyPI](https://img.shields.io/pypi/v/n24q02m-telegram?logo=pypi&logoColor=white)](https://pypi.org/project/n24q02m-telegram/)
+[![Docker](https://img.shields.io/docker/v/n24q02m/telegram?label=docker&logo=docker&logoColor=white&sort=semver)](https://hub.docker.com/r/n24q02m/telegram)
+[![License: Apache-2.0](https://img.shields.io/github/license/n24q02m/telegram)](https://www.apache.org/licenses/LICENSE-2.0)
 
 <!-- Badge Row 2: Tech -->
 [![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)](#)
@@ -97,7 +97,7 @@ overview](https://mcp.n24q02m.com/get-started/modes-overview/) for the full
 transport model.
 
 Sister MCP servers from the same author are listed in the [collapsible section
-above](#better-telegram-mcp) -- they share this architecture, so install
+above](#telegram) -- they share this architecture, so install
 patterns transfer.
 
 ## Install
@@ -108,18 +108,25 @@ patterns transfer.
 /plugin install better-telegram-mcp@n24q02m-plugins
 
 # Method 1 (CLI): direct uvx invocation (stdio, bot mode)
-claude mcp add telegram -e TELEGRAM_BOT_TOKEN=123456:ABC-DEF -- uvx better-telegram-mcp
+claude mcp add telegram -e TELEGRAM_BOT_TOKEN=123456:ABC-DEF -- uvx n24q02m-telegram
 
 # Method 2 (fallback): Docker stdio
-docker run -i --rm -e TELEGRAM_BOT_TOKEN=123456:ABC-DEF n24q02m/better-telegram-mcp
+docker run -i --rm -e TELEGRAM_BOT_TOKEN=123456:ABC-DEF n24q02m/telegram
 
 # Method 3 (recommended for user mode / multi-device / OAuth): Docker HTTP
-docker run -d --name better-telegram-mcp-http -p 8080:8080 \
+docker run -d --name telegram-http -p 8080:8080 \
   -e MCP_TRANSPORT=http \
   -e PUBLIC_URL=https://telegram.example.com \
   -e MCP_DCR_SERVER_SECRET=<32+ random bytes> \
-  n24q02m/better-telegram-mcp:latest
+  n24q02m/telegram:latest
 ```
+
+The package is `n24q02m-telegram` (formerly `better-telegram-mcp`; old package
+receives one final release then freezes). The MCP Registry id stays
+`io.github.n24q02m/better-telegram-mcp`, the Docker image is now
+`n24q02m/telegram`, and the legacy `better-telegram-mcp` command is kept as an
+alias of `telegram`. Local data moves once from `~/.better-telegram-mcp` to
+`~/.telegram` on first start.
 
 ### Install matrix
 
@@ -131,7 +138,7 @@ docker run -d --name better-telegram-mcp-http -p 8080:8080 \
 Full per-client walkthroughs: [mcp.n24q02m.com/servers/better-telegram-mcp/setup/](https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/).
 
 Stdio mode is local single-user mode. Bot mode uses `TELEGRAM_BOT_TOKEN`; user mode
-can be configured locally with `better-telegram-mcp auth --phone <+number>`. HTTP
+can be configured locally with `telegram auth --phone <+number>`. HTTP
 user mode uses the browser-based relay form at `/authorize` for phone, OTP, and 2FA.
 
 **Remote endpoint** -- an HTTP deployment is OAuth-gated and serves `/mcp`. Point any
@@ -149,7 +156,7 @@ and the paste-to-agent snippets at
 
 Also listed on [Smithery](https://smithery.ai/servers/n24q02m/better-telegram-mcp).
 Per [`smithery.yaml`](smithery.yaml), Smithery starts the server over **stdio** with
-`uvx --python 3.13 better-telegram-mcp` and takes **no install-time configuration**
+`uvx --python 3.13 n24q02m-telegram` and takes **no install-time configuration**
 (empty `configSchema`) -- credentials are provided at runtime through the server's own
 setup flow: the `TELEGRAM_BOT_TOKEN` env var or local `auth` command for stdio
 single-user mode, or the browser relay form for HTTP user mode (see
@@ -185,18 +192,18 @@ CLI auth prompts interactively and never stores it in the environment.
 
 ## CLI
 
-The `better-telegram-mcp` console script (installed by `uvx` / `pip`) **starts the
+The `telegram` console script (installed by `uvx` / `pip`; `better-telegram-mcp`
 server** when run with no subcommand, and exposes a few operator subcommands for local
 single-user setup and diagnostics. Any flag that is not a subcommand is passed straight
 through to the server (e.g. `--http`).
 
 ```bash
-better-telegram-mcp            # start the MCP server (stdio, bot mode by default)
-better-telegram-mcp --http     # start in HTTP mode
-better-telegram-mcp --version  # print the version
+telegram            # start the MCP server (stdio, bot mode by default)
+telegram --http     # start in HTTP mode
+telegram --version  # print the version
 ```
 
-**Subcommands** (`better-telegram-mcp <subcommand>`):
+**Subcommands** (`telegram <subcommand>`):
 
 | Subcommand | Usage | Description |
 |:-----------|:------|:------------|
@@ -209,13 +216,13 @@ better-telegram-mcp --version  # print the version
 
 ```bash
 # Bot mode: validate a bot token and save it to the local config
-better-telegram-mcp auth --bot-token 123456:ABC-DEF
+telegram auth --bot-token 123456:ABC-DEF
 
 # User mode: interactive phone + OTP (+ 2FA if enabled) sign-in
-better-telegram-mcp auth --phone +15551234567
+telegram auth --phone +15551234567
 
 # Remove local credentials and revoke the session
-better-telegram-mcp logout
+telegram logout
 ```
 
 The `auth` command, its deprecated `login` alias, and `logout` are single-user and local-machine only -- they write
@@ -234,7 +241,7 @@ Full docs at **[mcp.n24q02m.com/servers/better-telegram-mcp/](https://mcp.n24q02
 
 **Install with AI agent** -- paste this to your AI coding agent:
 
-> Install MCP server `better-telegram-mcp` following the steps at
+> Install MCP server `telegram` following the steps at
 > https://raw.githubusercontent.com/n24q02m/claude-plugins/main/plugins/better-telegram-mcp/setup-with-agent.md
 
 ## Tools
@@ -261,9 +268,9 @@ Full docs at **[mcp.n24q02m.com/servers/better-telegram-mcp/](https://mcp.n24q02
 
 ## Comparison
 
-How better-telegram-mcp stacks up against direct competitors in each pillar:
+How telegram stacks up against direct competitors in each pillar:
 
-| Capability | better-telegram-mcp | chigwell/telegram-mcp | sparfenyuk/mcp-telegram | guangxiangdebizi/telegram-mcp |
+| Capability | telegram | chigwell/telegram-mcp | sparfenyuk/mcp-telegram | guangxiangdebizi/telegram-mcp |
 |---|---|---|---|---|
 | Bot API mode (bot token) | Yes (httpx) | No | No | Yes |
 | MTProto user-account mode | Yes (Telethon) | Yes | Yes | No |
@@ -286,10 +293,10 @@ How better-telegram-mcp stacks up against direct competitors in each pillar:
 ## Build from Source
 
 ```bash
-git clone https://github.com/n24q02m/better-telegram-mcp.git
-cd better-telegram-mcp
+git clone https://github.com/n24q02m/telegram.git
+cd telegram
 uv sync
-uv run better-telegram-mcp
+uv run telegram
 ```
 
 ## Deploy to Cloudflare
@@ -357,7 +364,7 @@ The project no longer operates an n24q02m-hosted Telegram endpoint. HTTP mode is
 | Mode | Storage | Encryption | Who can read your data? |
 |---|---|---|---|
 | HTTP self-host (opt-in) | In-memory `dict[sub] = MTProtoSession` | In-process only | Operator-controlled server process (cleared on restart) |
-| stdio | `~/.config/mcp/config.enc` (credentials) + `~/.better-telegram-mcp/<name>.session` (Telethon session) | AES-GCM, machine-bound key | Only your OS user (file perm 0600) |
+| stdio | `~/.config/mcp/config.enc` (credentials) + `~/.telegram/<name>.session` (Telethon session) | AES-GCM, machine-bound key | Only your OS user (file perm 0600) |
 
 ### Workspace username (HTTP setup form)
 

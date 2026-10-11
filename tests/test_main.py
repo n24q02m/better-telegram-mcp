@@ -11,9 +11,9 @@ def test_cli_runs_server():
         mock_server = MagicMock()
         with patch.dict(
             sys.modules,
-            {"better_telegram_mcp.server": mock_server},
+            {"telegram.server": mock_server},
         ):
-            from better_telegram_mcp.__main__ import _cli
+            from telegram.__main__ import _cli
 
             _cli()
             mock_server.main.assert_called_once()

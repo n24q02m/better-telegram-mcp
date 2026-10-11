@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from better_telegram_mcp.backends.base import ModeError
+from telegram.backends.base import ModeError
 
 
 def test_ensure_mode_passes_correct_mode(mock_backend):

@@ -2,7 +2,7 @@
 
 Regression coverage for the ``config status`` / ``doctor`` mismatch: the
 server used to persist single-user credentials to the legacy shared
-``config.enc`` (keyed by the console name ``better-telegram-mcp``) while
+``config.enc`` (keyed by the pre-rename server name ``better-telegram-mcp``) while
 ``mcp_core.build_cli``'s built-ins read ``PerPluginStore`` (keyed by the
 plugin slug ``telegram``), so a saved credential was reported as "not
 configured".
@@ -23,7 +23,7 @@ import sys
 
 import pytest
 
-from better_telegram_mcp.credential_state import (
+from telegram.credential_state import (
     SERVER_NAME,
     _delete_single_user_config,
     _read_single_user_config,
@@ -120,7 +120,7 @@ def test_legacy_only_install_still_resolves_configured(isolated_home):
     """Zero-data-loss: an existing legacy-only install boots as CONFIGURED."""
     from mcp_core.storage import config_file
 
-    from better_telegram_mcp.credential_state import CredentialState
+    from telegram.credential_state import CredentialState
 
     config_file.write_config(SERVER_NAME, {"TELEGRAM_BOT_TOKEN": "legacy:token"})
 
@@ -129,7 +129,7 @@ def test_legacy_only_install_still_resolves_configured(isolated_home):
 
 def test_config_status_reports_configured_after_save(isolated_home, capsys):
     """End-to-end: `better-telegram-mcp config status` finds a saved credential."""
-    from better_telegram_mcp import cli
+    from telegram import cli
 
     _write_single_user_config({"TELEGRAM_BOT_TOKEN": "123:abc"})
 

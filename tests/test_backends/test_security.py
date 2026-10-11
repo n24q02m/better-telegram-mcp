@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from better_telegram_mcp.backends.security import (
+from telegram.backends.security import (
     SecurityError,
     validate_file_path,
     validate_output_dir,
@@ -90,7 +90,7 @@ class TestValidateUrl:
 
     @pytest.mark.asyncio
     async def test_fetch_url_safely_ipv6_unspecified(self):
-        from better_telegram_mcp.backends.security import fetch_url_safely
+        from telegram.backends.security import fetch_url_safely
 
         with pytest.raises(SecurityError, match="blocked"):
             await fetch_url_safely("http://[::]/")
@@ -195,7 +195,7 @@ class TestValidateUrl:
 
         import httpx
 
-        from better_telegram_mcp.backends.security import fetch_url_safely
+        from telegram.backends.security import fetch_url_safely
 
         target_hostname = "rebinding.attacker.com"
         safe_ip = "93.184.216.34"
@@ -240,7 +240,7 @@ class TestValidateUrl:
 
         import httpx
 
-        from better_telegram_mcp.backends.security import fetch_url_safely
+        from telegram.backends.security import fetch_url_safely
 
         target_hostname = "ipv6.example.com"
         safe_ip = "2606:4700:4700::1111"
@@ -275,7 +275,7 @@ class TestValidateUrl:
 
         import httpx
 
-        from better_telegram_mcp.backends.security import (
+        from telegram.backends.security import (
             SecurityError,
             fetch_url_safely,
         )
@@ -307,7 +307,7 @@ class TestValidateUrl:
 
         import httpx
 
-        from better_telegram_mcp.backends.security import (
+        from telegram.backends.security import (
             SecurityError,
             fetch_url_safely,
         )

@@ -6,7 +6,7 @@ Report privately through GitHub: open the repository's **Security** tab and choo
 **Report a vulnerability**. The report stays visible only to the maintainers until a
 fix ships.
 
-Direct link: <https://github.com/n24q02m/better-telegram-mcp/security/advisories/new>
+Direct link: <https://github.com/n24q02m/telegram/security/advisories/new>
 
 Please do not open a public issue for a security vulnerability.
 

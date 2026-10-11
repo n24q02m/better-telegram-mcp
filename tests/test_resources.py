@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from better_telegram_mcp.resources import register_resources
+from telegram.resources import register_resources
 
 
 @pytest.fixture
@@ -53,7 +53,7 @@ async def test_resource_functions_call_help_tool(mock_mcp):
 
     # Patch handle_help where it's defined because it's imported locally inside the functions
     with patch(
-        "better_telegram_mcp.tools.help_tool.handle_help", new_callable=AsyncMock
+        "telegram.tools.help_tool.handle_help", new_callable=AsyncMock
     ) as mock_handle:
         mock_handle.return_value = "Mocked Help Content"
 

@@ -7,12 +7,12 @@ from unittest.mock import AsyncMock, patch
 import httpx
 import pytest
 
-from better_telegram_mcp.backends.base import ModeError
-from better_telegram_mcp.backends.bot_backend import (
+from telegram.backends.base import ModeError
+from telegram.backends.bot_backend import (
     BotBackend,
     TelegramAPIError,
 )
-from better_telegram_mcp.backends.security import SecurityError
+from telegram.backends.security import SecurityError
 
 
 def _make_transport(result: dict | list | bool, ok: bool = True):
@@ -283,7 +283,7 @@ async def test_download_media_file_get_error_redacts_bot_token():
 async def test_download_media_no_output_dir_uses_tempdir(monkeypatch, tmp_path):
     """Without output_dir, bot mode falls back to the system temp dir."""
     monkeypatch.setattr(
-        "better_telegram_mcp.backends.bot_backend.tempfile.gettempdir",
+        "telegram.backends.bot_backend.tempfile.gettempdir",
         lambda: str(tmp_path),
     )
 

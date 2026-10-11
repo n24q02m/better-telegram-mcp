@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from better_telegram_mcp.credential_state import (
+from telegram.credential_state import (
     CredentialState,
     _current_sub,
     get_setup_url,
@@ -27,7 +27,7 @@ from better_telegram_mcp.credential_state import (
 @pytest.fixture(autouse=True)
 def _clean_credential_state():
     """Reset module-level state before/after each test."""
-    import better_telegram_mcp.credential_state as cs
+    import telegram.credential_state as cs
 
     old_state = cs._state
     old_url = cs._setup_url
@@ -120,7 +120,7 @@ def test_current_sub_contextvar():
 
 
 def test_reset_state():
-    import better_telegram_mcp.credential_state as cs
+    import telegram.credential_state as cs
 
     cs._state = CredentialState.CONFIGURED
     cs._setup_url = "http://127.0.0.1:1/setup"
@@ -135,7 +135,7 @@ def test_reset_state():
 
 def test_reset_state_delete_config_error():
     """reset_state logs delete_config errors."""
-    import better_telegram_mcp.credential_state as cs
+    import telegram.credential_state as cs
 
     cs._state = CredentialState.CONFIGURED
     cs._setup_url = "http://127.0.0.1:1/setup"
@@ -145,7 +145,7 @@ def test_reset_state_delete_config_error():
             "mcp_core.storage.config_file.delete_config",
             side_effect=Exception("disk error"),
         ),
-        patch("better_telegram_mcp.credential_state.logger") as mock_logger,
+        patch("telegram.credential_state.logger") as mock_logger,
     ):
         reset_state()
     mock_logger.warning.assert_called_once()
@@ -232,7 +232,7 @@ def test_resolve_config_file_empty():
         with (
             patch("mcp_core.storage.config_file.read_config", return_value=saved),
             patch(
-                "better_telegram_mcp.credential_state.check_saved_sessions",
+                "telegram.credential_state.check_saved_sessions",
                 return_value=False,
             ),
         ):
@@ -250,7 +250,7 @@ def test_resolve_config_file_none():
         with (
             patch("mcp_core.storage.config_file.read_config", return_value=None),
             patch(
-                "better_telegram_mcp.credential_state.check_saved_sessions",
+                "telegram.credential_state.check_saved_sessions",
                 return_value=False,
             ),
         ):
@@ -271,7 +271,7 @@ def test_resolve_config_file_read_error():
                 side_effect=Exception("decryption failed"),
             ),
             patch(
-                "better_telegram_mcp.credential_state.check_saved_sessions",
+                "telegram.credential_state.check_saved_sessions",
                 return_value=False,
             ),
         ):
@@ -289,7 +289,7 @@ def test_resolve_saved_sessions_found():
         with (
             patch("mcp_core.storage.config_file.read_config", return_value=None),
             patch(
-                "better_telegram_mcp.credential_state.check_saved_sessions",
+                "telegram.credential_state.check_saved_sessions",
                 return_value=True,
             ),
         ):
@@ -307,7 +307,7 @@ def test_resolve_nothing_found():
         with (
             patch("mcp_core.storage.config_file.read_config", return_value=None),
             patch(
-                "better_telegram_mcp.credential_state.check_saved_sessions",
+                "telegram.credential_state.check_saved_sessions",
                 return_value=False,
             ),
         ):
@@ -322,7 +322,7 @@ def test_resolve_nothing_found():
 
 
 def test_credential_keys():
-    from better_telegram_mcp.credential_state import (
+    from telegram.credential_state import (
         CREDENTIAL_KEYS_BOT,
         CREDENTIAL_KEYS_USER,
     )
@@ -338,9 +338,9 @@ def test_credential_keys():
 
 async def test_save_credentials_bot_mode_returns_none():
     """Bot mode (token only) should complete immediately."""
-    from better_telegram_mcp.credential_state import save_credentials
+    from telegram.credential_state import save_credentials
 
-    with patch("better_telegram_mcp.credential_state._write_single_user_config"):
+    with patch("telegram.credential_state._write_single_user_config"):
         os.environ.pop("TELEGRAM_BOT_TOKEN", None)
         result = await save_credentials(
             {"TELEGRAM_BOT_TOKEN": "123:abc"}, {"sub": "test-sub"}
@@ -352,16 +352,16 @@ async def test_save_credentials_bot_mode_returns_none():
 
 async def test_save_credentials_user_mode_returns_otp_required():
     """User mode (phone only) should return otp_required next_step."""
-    from better_telegram_mcp.credential_state import save_credentials
+    from telegram.credential_state import save_credentials
 
     mock_backend = MagicMock()
     mock_backend.connect = AsyncMock()
     mock_backend.send_code = AsyncMock()
 
     with (
-        patch("better_telegram_mcp.credential_state._write_single_user_config"),
+        patch("telegram.credential_state._write_single_user_config"),
         patch(
-            "better_telegram_mcp.backends.user_backend.UserBackend",
+            "telegram.backends.user_backend.UserBackend",
             return_value=mock_backend,
         ),
     ):
@@ -380,12 +380,12 @@ async def test_save_credentials_user_mode_returns_otp_required():
 
 async def test_save_credentials_user_mode_telethon_failure_returns_error():
     """If UserBackend import/construction fails, return error dict."""
-    from better_telegram_mcp.credential_state import save_credentials
+    from telegram.credential_state import save_credentials
 
     with (
-        patch("better_telegram_mcp.credential_state._write_single_user_config"),
+        patch("telegram.credential_state._write_single_user_config"),
         patch(
-            "better_telegram_mcp.config.Settings.from_relay_config",
+            "telegram.config.Settings.from_relay_config",
             side_effect=RuntimeError("bad settings"),
         ),
     ):
@@ -403,7 +403,7 @@ async def test_save_credentials_user_mode_telethon_failure_returns_error():
 
 async def test_on_step_submitted_no_session_returns_error():
     """Without active session, /otp submission returns error."""
-    from better_telegram_mcp.credential_state import on_step_submitted
+    from telegram.credential_state import on_step_submitted
 
     result = await on_step_submitted({"otp_code": "12345"}, {"sub": "test-sub"})
     assert result is not None
@@ -412,7 +412,7 @@ async def test_on_step_submitted_no_session_returns_error():
 
 async def test_on_step_submitted_otp_success_returns_none():
     """OTP success should finalize auth and return None."""
-    import better_telegram_mcp.credential_state as cs
+    import telegram.credential_state as cs
 
     mock_backend = MagicMock()
     mock_backend.sign_in = AsyncMock(return_value={"authenticated_as": "User"})
@@ -427,7 +427,7 @@ async def test_on_step_submitted_otp_success_returns_none():
 
 async def test_on_step_submitted_needs_2fa_returns_password_required():
     """When Telethon indicates 2FA needed, return password_required."""
-    import better_telegram_mcp.credential_state as cs
+    import telegram.credential_state as cs
 
     mock_backend = MagicMock()
     mock_backend.sign_in = AsyncMock(
@@ -446,7 +446,7 @@ async def test_on_step_submitted_needs_2fa_returns_password_required():
 
 async def test_on_step_submitted_otp_invalid_returns_error():
     """When OTP is invalid (non-2FA error), return error and clean up."""
-    import better_telegram_mcp.credential_state as cs
+    import telegram.credential_state as cs
 
     mock_backend = MagicMock()
     mock_backend.sign_in = AsyncMock(side_effect=Exception("phone code invalid"))
@@ -464,7 +464,7 @@ async def test_on_step_submitted_otp_invalid_returns_error():
 
 async def test_on_step_submitted_password_success_returns_none():
     """2FA password success should finalize."""
-    import better_telegram_mcp.credential_state as cs
+    import telegram.credential_state as cs
 
     mock_backend = MagicMock()
     mock_backend.sign_in = AsyncMock(return_value={"authenticated_as": "User"})
@@ -480,7 +480,7 @@ async def test_on_step_submitted_password_success_returns_none():
 
 async def test_on_step_submitted_password_no_otp_returns_error():
     """Password submission without prior OTP should error (restart needed)."""
-    import better_telegram_mcp.credential_state as cs
+    import telegram.credential_state as cs
 
     mock_backend = MagicMock()
     cs._step_backend = mock_backend
@@ -494,7 +494,7 @@ async def test_on_step_submitted_password_no_otp_returns_error():
 
 async def test_on_step_submitted_password_failure_returns_error():
     """2FA password failure returns error and cleans up backend."""
-    import better_telegram_mcp.credential_state as cs
+    import telegram.credential_state as cs
 
     mock_backend = MagicMock()
     mock_backend.sign_in = AsyncMock(side_effect=Exception("wrong password"))
@@ -513,7 +513,7 @@ async def test_on_step_submitted_password_failure_returns_error():
 
 async def test_on_step_submitted_unexpected_input_returns_error():
     """Unknown keys in step_data -> error."""
-    import better_telegram_mcp.credential_state as cs
+    import telegram.credential_state as cs
 
     cs._step_backend = MagicMock()
 
@@ -529,7 +529,7 @@ async def test_on_step_submitted_unexpected_input_returns_error():
 
 def test_set_on_configured_registers_callback():
     """set_on_configured stores callback in module-level variable."""
-    import better_telegram_mcp.credential_state as cs
+    import telegram.credential_state as cs
 
     async def my_callback():
         pass
@@ -547,13 +547,13 @@ def test_set_on_configured_registers_callback():
 @pytest.mark.asyncio
 async def test_save_credentials_bot_mode_callback_invoked():
     """Bot mode: on_configured_callback is called after credentials saved."""
-    import better_telegram_mcp.credential_state as cs
-    from better_telegram_mcp.credential_state import save_credentials
+    import telegram.credential_state as cs
+    from telegram.credential_state import save_credentials
 
     callback = AsyncMock()
     cs._on_configured_callback = callback
 
-    with patch("better_telegram_mcp.credential_state._write_single_user_config"):
+    with patch("telegram.credential_state._write_single_user_config"):
         os.environ.pop("TELEGRAM_BOT_TOKEN", None)
         result = await save_credentials(
             {"TELEGRAM_BOT_TOKEN": "cb:token"}, {"sub": "test-sub"}
@@ -569,12 +569,12 @@ async def test_save_credentials_bot_mode_callback_invoked():
 @pytest.mark.asyncio
 async def test_save_credentials_bot_mode_callback_raises():
     """Bot mode: on_configured_callback exception is swallowed, still returns None."""
-    import better_telegram_mcp.credential_state as cs
-    from better_telegram_mcp.credential_state import save_credentials
+    import telegram.credential_state as cs
+    from telegram.credential_state import save_credentials
 
     cs._on_configured_callback = AsyncMock(side_effect=RuntimeError("reinit error"))
 
-    with patch("better_telegram_mcp.credential_state._write_single_user_config"):
+    with patch("telegram.credential_state._write_single_user_config"):
         os.environ.pop("TELEGRAM_BOT_TOKEN", None)
         result = await save_credentials(
             {"TELEGRAM_BOT_TOKEN": "cb-fail:token"}, {"sub": "test-sub"}
@@ -594,7 +594,7 @@ async def test_save_credentials_bot_mode_callback_raises():
 @pytest.mark.asyncio
 async def test_on_step_submitted_otp_invalid_disconnect_raises():
     """Non-2FA OTP error + disconnect raises -> still cleans up + returns error."""
-    import better_telegram_mcp.credential_state as cs
+    import telegram.credential_state as cs
 
     mock_backend = MagicMock()
     mock_backend.sign_in = AsyncMock(side_effect=Exception("phone code invalid"))
@@ -612,7 +612,7 @@ async def test_on_step_submitted_otp_invalid_disconnect_raises():
 @pytest.mark.asyncio
 async def test_on_step_submitted_password_failure_disconnect_raises():
     """2FA password failure + disconnect raises -> still cleans up + returns error."""
-    import better_telegram_mcp.credential_state as cs
+    import telegram.credential_state as cs
 
     mock_backend = MagicMock()
     mock_backend.sign_in = AsyncMock(side_effect=Exception("wrong password"))
@@ -636,8 +636,8 @@ async def test_on_step_submitted_password_failure_disconnect_raises():
 @pytest.mark.asyncio
 async def test_finalize_auth_disconnect_raises():
     """_finalize_auth: disconnect failure is swallowed, state still CONFIGURED."""
-    import better_telegram_mcp.credential_state as cs
-    from better_telegram_mcp.credential_state import _finalize_auth
+    import telegram.credential_state as cs
+    from telegram.credential_state import _finalize_auth
 
     mock_backend = MagicMock()
     mock_backend.disconnect = AsyncMock(side_effect=Exception("disconnect error"))
@@ -657,8 +657,8 @@ async def test_finalize_auth_disconnect_raises():
 @pytest.mark.asyncio
 async def test_finalize_auth_callback_raises():
     """_finalize_auth: on_configured_callback exception is swallowed."""
-    import better_telegram_mcp.credential_state as cs
-    from better_telegram_mcp.credential_state import _finalize_auth
+    import telegram.credential_state as cs
+    from telegram.credential_state import _finalize_auth
 
     cs._step_backend = None
     cs._on_configured_callback = AsyncMock(side_effect=RuntimeError("reinit error"))
@@ -673,8 +673,8 @@ async def test_finalize_auth_callback_raises():
 @pytest.mark.asyncio
 async def test_finalize_auth_callback_invoked():
     """_finalize_auth: on_configured_callback is called on success."""
-    import better_telegram_mcp.credential_state as cs
-    from better_telegram_mcp.credential_state import _finalize_auth
+    import telegram.credential_state as cs
+    from telegram.credential_state import _finalize_auth
 
     callback = AsyncMock()
     cs._step_backend = None
@@ -696,13 +696,13 @@ async def test_finalize_auth_callback_invoked():
 @pytest.mark.asyncio
 async def test_save_credentials_multiuser_bot_success():
     """Multi-user bot mode: register backend on the per-sub provider."""
-    from better_telegram_mcp.credential_state import save_credentials
+    from telegram.credential_state import save_credentials
 
     provider = MagicMock()
     provider.register_bot = AsyncMock(return_value="sub-abc")
 
     with patch(
-        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        "telegram.auth.telegram_auth_provider.get_global_provider",
         return_value=provider,
     ):
         result = await save_credentials(
@@ -718,13 +718,13 @@ async def test_save_credentials_multiuser_bot_success():
 @pytest.mark.asyncio
 async def test_save_credentials_multiuser_bot_invalid_token():
     """Multi-user bot mode surfaces validation errors via 'error' result."""
-    from better_telegram_mcp.credential_state import save_credentials
+    from telegram.credential_state import save_credentials
 
     provider = MagicMock()
     provider.register_bot = AsyncMock(side_effect=ValueError("Invalid bot token"))
 
     with patch(
-        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        "telegram.auth.telegram_auth_provider.get_global_provider",
         return_value=provider,
     ):
         result = await save_credentials(
@@ -740,12 +740,12 @@ async def test_save_credentials_multiuser_bot_invalid_token():
 @pytest.mark.asyncio
 async def test_save_credentials_multiuser_bot_missing_token():
     """Multi-user mode with neither bot token nor phone returns error."""
-    from better_telegram_mcp.credential_state import save_credentials
+    from telegram.credential_state import save_credentials
 
     provider = MagicMock()
 
     with patch(
-        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        "telegram.auth.telegram_auth_provider.get_global_provider",
         return_value=provider,
     ):
         result = await save_credentials({}, {"sub": "sub-uuid"})
@@ -757,7 +757,7 @@ async def test_save_credentials_multiuser_bot_missing_token():
 @pytest.mark.asyncio
 async def test_save_credentials_multiuser_user_mode_starts_otp():
     """Multi-user user mode: drive the per-sub OTP flow via the provider."""
-    from better_telegram_mcp.credential_state import save_credentials
+    from telegram.credential_state import save_credentials
 
     provider = MagicMock()
     provider.start_user_auth = AsyncMock(
@@ -765,7 +765,7 @@ async def test_save_credentials_multiuser_user_mode_starts_otp():
     )
 
     with patch(
-        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        "telegram.auth.telegram_auth_provider.get_global_provider",
         return_value=provider,
     ):
         result = await save_credentials(
@@ -783,13 +783,13 @@ async def test_save_credentials_multiuser_user_mode_starts_otp():
 @pytest.mark.asyncio
 async def test_save_credentials_multiuser_user_mode_send_code_failure():
     """Multi-user user mode handles upstream Telethon failure with error result."""
-    from better_telegram_mcp.credential_state import save_credentials
+    from telegram.credential_state import save_credentials
 
     provider = MagicMock()
     provider.start_user_auth = AsyncMock(side_effect=ValueError("Telethon: limit"))
 
     with patch(
-        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        "telegram.auth.telegram_auth_provider.get_global_provider",
         return_value=provider,
     ):
         result = await save_credentials(
@@ -804,13 +804,13 @@ async def test_save_credentials_multiuser_user_mode_send_code_failure():
 @pytest.mark.asyncio
 async def test_on_step_submitted_multiuser_otp_success():
     """Multi-user OTP path: provider.complete_user_auth marks CONFIGURED."""
-    from better_telegram_mcp.credential_state import on_step_submitted
+    from telegram.credential_state import on_step_submitted
 
     provider = MagicMock()
     provider.complete_user_auth = AsyncMock(return_value={"user_id": 1})
 
     with patch(
-        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        "telegram.auth.telegram_auth_provider.get_global_provider",
         return_value=provider,
     ):
         result = await on_step_submitted({"otp_code": "12345"}, {"sub": "sub-uuid"})
@@ -823,8 +823,8 @@ async def test_on_step_submitted_multiuser_otp_success():
 @pytest.mark.asyncio
 async def test_on_step_submitted_multiuser_otp_triggers_2fa():
     """Multi-user OTP failure with 2FA hint triggers password_required step."""
-    import better_telegram_mcp.credential_state as cs
-    from better_telegram_mcp.credential_state import on_step_submitted
+    import telegram.credential_state as cs
+    from telegram.credential_state import on_step_submitted
 
     provider = MagicMock()
     provider.complete_user_auth = AsyncMock(
@@ -834,7 +834,7 @@ async def test_on_step_submitted_multiuser_otp_triggers_2fa():
     )
 
     with patch(
-        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        "telegram.auth.telegram_auth_provider.get_global_provider",
         return_value=provider,
     ):
         result = await on_step_submitted({"otp_code": "12345"}, {"sub": "sub-pw"})
@@ -848,8 +848,8 @@ async def test_on_step_submitted_multiuser_otp_triggers_2fa():
 @pytest.mark.asyncio
 async def test_on_step_submitted_multiuser_otp_other_failure():
     """Non-2FA OTP failure returns generic error and clears stash."""
-    import better_telegram_mcp.credential_state as cs
-    from better_telegram_mcp.credential_state import on_step_submitted
+    import telegram.credential_state as cs
+    from telegram.credential_state import on_step_submitted
 
     cs._per_sub_steps["sub-bad"] = (None, "+84", None)
     provider = MagicMock()
@@ -858,7 +858,7 @@ async def test_on_step_submitted_multiuser_otp_other_failure():
     )
 
     with patch(
-        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        "telegram.auth.telegram_auth_provider.get_global_provider",
         return_value=provider,
     ):
         result = await on_step_submitted({"otp_code": "00000"}, {"sub": "sub-bad"})
@@ -871,15 +871,15 @@ async def test_on_step_submitted_multiuser_otp_other_failure():
 @pytest.mark.asyncio
 async def test_on_step_submitted_multiuser_password_success():
     """Multi-user 2FA password completes auth using the stashed OTP."""
-    import better_telegram_mcp.credential_state as cs
-    from better_telegram_mcp.credential_state import on_step_submitted
+    import telegram.credential_state as cs
+    from telegram.credential_state import on_step_submitted
 
     cs._per_sub_steps["sub-2fa"] = (None, "+84", "67890")
     provider = MagicMock()
     provider.complete_user_auth = AsyncMock(return_value={"user_id": 2})
 
     with patch(
-        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        "telegram.auth.telegram_auth_provider.get_global_provider",
         return_value=provider,
     ):
         result = await on_step_submitted({"password": "p4ss"}, {"sub": "sub-2fa"})
@@ -895,14 +895,14 @@ async def test_on_step_submitted_multiuser_password_success():
 @pytest.mark.asyncio
 async def test_on_step_submitted_multiuser_password_no_otp_stash():
     """Submitting password without an OTP-stash returns error."""
-    import better_telegram_mcp.credential_state as cs
-    from better_telegram_mcp.credential_state import on_step_submitted
+    import telegram.credential_state as cs
+    from telegram.credential_state import on_step_submitted
 
     cs._per_sub_steps.pop("sub-orphan", None)
     provider = MagicMock()
 
     with patch(
-        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        "telegram.auth.telegram_auth_provider.get_global_provider",
         return_value=provider,
     ):
         result = await on_step_submitted({"password": "p"}, {"sub": "sub-orphan"})
@@ -914,8 +914,8 @@ async def test_on_step_submitted_multiuser_password_no_otp_stash():
 @pytest.mark.asyncio
 async def test_on_step_submitted_multiuser_password_failure():
     """Multi-user 2FA password failure returns error and clears stash."""
-    import better_telegram_mcp.credential_state as cs
-    from better_telegram_mcp.credential_state import on_step_submitted
+    import telegram.credential_state as cs
+    from telegram.credential_state import on_step_submitted
 
     cs._per_sub_steps["sub-pwfail"] = (None, "+84", "11111")
     provider = MagicMock()
@@ -924,7 +924,7 @@ async def test_on_step_submitted_multiuser_password_failure():
     )
 
     with patch(
-        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        "telegram.auth.telegram_auth_provider.get_global_provider",
         return_value=provider,
     ):
         result = await on_step_submitted({"password": "wrong"}, {"sub": "sub-pwfail"})
@@ -937,12 +937,12 @@ async def test_on_step_submitted_multiuser_password_failure():
 @pytest.mark.asyncio
 async def test_on_step_submitted_multiuser_unexpected_input():
     """Multi-user path with neither otp_code nor password returns error."""
-    from better_telegram_mcp.credential_state import on_step_submitted
+    from telegram.credential_state import on_step_submitted
 
     provider = MagicMock()
 
     with patch(
-        "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+        "telegram.auth.telegram_auth_provider.get_global_provider",
         return_value=provider,
     ):
         result = await on_step_submitted({}, {"sub": "sub-x"})

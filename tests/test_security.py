@@ -21,7 +21,7 @@ import pytest
 from mcp.types import CallToolResult
 from structured import payload, text
 
-from better_telegram_mcp.security import (
+from telegram.security import (
     UNTRUSTED_SOURCE,
     UNTRUSTED_WARNING,
     build_external_tool_result,
@@ -31,7 +31,7 @@ from better_telegram_mcp.security import (
 
 
 def _srv():
-    return importlib.import_module("better_telegram_mcp.server")
+    return importlib.import_module("telegram.server")
 
 
 # --- unit: helpers ---------------------------------------------------------

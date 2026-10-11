@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from better_telegram_mcp.backends.base import ModeError
-from better_telegram_mcp.backends.security import SecurityError
-from better_telegram_mcp.utils.formatting import err, ok, safe_error
+from telegram.backends.base import ModeError
+from telegram.backends.security import SecurityError
+from telegram.utils.formatting import err, ok, safe_error
 
 
 def test_ok_basic_passthrough():

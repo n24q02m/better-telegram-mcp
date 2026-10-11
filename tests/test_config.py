@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from better_telegram_mcp.config import Settings
+from telegram.config import Settings
 
 
 def test_bot_mode_detection(monkeypatch):
@@ -116,7 +116,7 @@ def test_telegram_api_kill_switch_fails_loud_without_override(monkeypatch):
 def test_default_data_dir(monkeypatch):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC")
     s = Settings()
-    assert str(s.data_dir).endswith(".better-telegram-mcp")
+    assert s.data_dir.name == ".telegram"
 
 
 def test_custom_data_dir(monkeypatch, tmp_path):
@@ -146,7 +146,7 @@ def test_session_path(monkeypatch):
     ],
 )
 def test_empty_to_none(input_val, expected):
-    from better_telegram_mcp.config import _empty_to_none
+    from telegram.config import _empty_to_none
 
     assert _empty_to_none(input_val) == expected
 

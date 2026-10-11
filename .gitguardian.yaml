@@ -1,5 +1,5 @@
 # Public-by-design app identifiers -- reviewed and deliberately kept.
-# Telegram's api_id/api_hash pair embedded in src/better_telegram_mcp/config.py
+# Telegram's api_id/api_hash pair embedded in src/telegram/config.py
 # is the official embedded-app-credential pattern (my.telegram.org "App
 # configuration" -- every client using the Telegram API, official or third
 # party, ships an api_id/api_hash baked into the app). Scanner alerts on this
