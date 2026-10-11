@@ -27,7 +27,7 @@ If applicable, add screenshots to help explain your problem.
 
 - OS: [e.g. macOS, Linux, Windows]
 - Go version: [output of `go version`]
-- better-telegram-mcp version: [output of `better-telegram-mcp --version`]
+- telegram version: [output of `telegram --version`]
 - Installation method: [e.g. go install, Docker, brew, scoop, apt, direct binary]
 
 **Additional context**

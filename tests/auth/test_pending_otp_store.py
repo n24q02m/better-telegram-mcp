@@ -12,7 +12,7 @@ import pytest
 from mcp_core.storage.backends import InMemoryBackend
 from mcp_core.storage.per_plugin_store import PerPluginStore
 
-from better_telegram_mcp.auth.pending_otp_store import (
+from telegram.auth.pending_otp_store import (
     _INDEX_LEAF,
     _INDEX_SUB,
     _OTP_TTL,

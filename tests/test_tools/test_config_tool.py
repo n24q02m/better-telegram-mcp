@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from better_telegram_mcp.tools.config_tool import handle_config
+from telegram.tools.config_tool import handle_config
 
 
 @pytest.mark.asyncio
@@ -26,7 +26,7 @@ async def test_status_user_mode(mock_user_backend):
 
 @pytest.mark.asyncio
 async def test_status_shows_pending_auth(mock_backend):
-    import better_telegram_mcp.server as srv
+    import telegram.server as srv
 
     old = srv._pending_auth
     try:

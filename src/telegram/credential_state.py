@@ -1,4 +1,4 @@
-"""Non-blocking credential state management for better-telegram-mcp.
+"""Non-blocking credential state management for the telegram MCP server.
 
 State machine: awaiting_setup -> setup_in_progress -> configured
 Reset: configured -> awaiting_setup (via setup tool).
@@ -55,7 +55,7 @@ def _cf_mode() -> bool:
 _SINGLE_USER_SUB = "shared-single-user"
 
 # Credential storage slug for the single-user config blob. Deliberately
-# ``"telegram"`` (not the console name ``SERVER_NAME`` = "better-telegram-mcp")
+# ``"telegram"`` (not the pre-rename ``SERVER_NAME`` = "better-telegram-mcp")
 # so the store lines up with the StringSession / KvSessionStore / api-identity
 # marker namespace AND with the ``plugin_name`` cli.py passes to ``build_cli``:
 # the CLI's ``config``/``doctor`` built-ins read ``PerPluginStore(PLUGIN_NAME)``,

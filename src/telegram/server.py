@@ -209,14 +209,14 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[None]:
 
 
 mcp = FastMCP(
-    "better-telegram-mcp",
+    "telegram",
     lifespan=_lifespan,
 )
 
 # FastMCP (the SDK class) has no ``version=`` kwarg, so it defaults the
 # advertised serverInfo.version to the mcp SDK's own version. Pin it to this
 # package's version so initialize responses report the right value.
-from better_telegram_mcp import __version__  # noqa: E402
+from telegram import __version__  # noqa: E402
 
 mcp._mcp_server.version = __version__
 
@@ -639,6 +639,7 @@ async def run_http(port: int = 0) -> None:
 
     await run_http_server(
         mcp,
+        # Pre-rename value kept on purpose (see relay_setup.SERVER_NAME).
         server_name="better-telegram-mcp",
         relay_schema=RELAY_SCHEMA,
         port=port,
@@ -671,13 +672,13 @@ def main() -> None:
 
         if resolve_credential_state() != CredentialState.CONFIGURED:
             msg = (
-                "[better-telegram-mcp] No Telegram credentials configured for "
+                "[telegram] No Telegram credentials configured for "
                 "stdio mode.\n"
                 "\n"
                 "Run one of:\n"
-                "  better-telegram-mcp auth --bot-token <token>   "
+                "  telegram auth --bot-token <token>   "
                 "(bot mode, get token from @BotFather)\n"
-                "  better-telegram-mcp auth --phone <+number>     "
+                "  telegram auth --phone <+number>     "
                 "(user mode, interactive OTP/2FA)\n"
                 "  (login is a deprecated alias of auth)\n"
                 "\n"

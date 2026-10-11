@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from better_telegram_mcp.config import Settings
-from better_telegram_mcp.transports.http import (
+from telegram.config import Settings
+from telegram.transports.http import (
     _current_backend,
     _is_multi_user_mode,
     _per_request_sub_scope,
@@ -182,7 +182,7 @@ class TestStartHttp:
                 new_callable=AsyncMock,
             ) as mock_run,
             patch(
-                "better_telegram_mcp.auth.telegram_auth_provider.TelegramAuthProvider"
+                "telegram.auth.telegram_auth_provider.TelegramAuthProvider"
             ) as mock_provider_cls,
         ):
             mock_provider = mock_provider_cls.return_value
@@ -224,7 +224,7 @@ class TestStartHttp:
                 new_callable=AsyncMock,
             ) as mock_run,
             patch(
-                "better_telegram_mcp.auth.telegram_auth_provider.TelegramAuthProvider"
+                "telegram.auth.telegram_auth_provider.TelegramAuthProvider"
             ) as mock_provider_cls,
         ):
             mock_provider = mock_provider_cls.return_value
@@ -261,7 +261,7 @@ class TestStartHttp:
                 new_callable=AsyncMock,
             ) as mock_run,
             patch(
-                "better_telegram_mcp.auth.telegram_auth_provider.TelegramAuthProvider"
+                "telegram.auth.telegram_auth_provider.TelegramAuthProvider"
             ) as mock_provider_cls,
         ):
             mock_provider = mock_provider_cls.return_value
@@ -295,7 +295,7 @@ class TestStartHttp:
                 new_callable=AsyncMock,
             ) as mock_run,
             patch(
-                "better_telegram_mcp.auth.telegram_auth_provider.TelegramAuthProvider"
+                "telegram.auth.telegram_auth_provider.TelegramAuthProvider"
             ) as mock_provider_cls,
         ):
             mock_provider = mock_provider_cls.return_value
@@ -327,7 +327,7 @@ class TestStartHttp:
                 new_callable=AsyncMock,
             ) as mock_run,
             patch(
-                "better_telegram_mcp.auth.telegram_auth_provider.TelegramAuthProvider"
+                "telegram.auth.telegram_auth_provider.TelegramAuthProvider"
             ) as mock_provider_cls,
         ):
             mock_provider = mock_provider_cls.return_value
@@ -379,7 +379,7 @@ class TestPerRequestSubScope:
 
     @pytest.mark.asyncio
     async def test_pins_backend_when_provider_resolves_sub(self) -> None:
-        from better_telegram_mcp.credential_state import _current_sub
+        from telegram.credential_state import _current_sub
 
         mock_backend = MagicMock()
         mock_provider = MagicMock()
@@ -392,7 +392,7 @@ class TestPerRequestSubScope:
             observed["backend"] = get_current_backend()
 
         with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+            "telegram.auth.telegram_auth_provider.get_global_provider",
             return_value=mock_provider,
         ):
             await _per_request_sub_scope({"sub": "sub-uuid-123"}, _next)
@@ -415,7 +415,7 @@ class TestPerRequestSubScope:
             assert get_current_backend() is None
 
         with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.get_global_provider",
+            "telegram.auth.telegram_auth_provider.get_global_provider",
             return_value=mock_provider,
         ):
             await _per_request_sub_scope({"sub": "no-creds-yet"}, _next)

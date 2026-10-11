@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 import pytest
 from loguru import logger
 
-from better_telegram_mcp.auth.telegram_auth_provider import TelegramAuthProvider
+from telegram.auth.telegram_auth_provider import TelegramAuthProvider
 
 
 @pytest.fixture
@@ -59,7 +59,7 @@ async def test_cleanup_expired_removes_persisted_pending_otp(
     monkeypatch.setenv("CREDENTIAL_SECRET", "test-secret-32-bytes-padded-here!")
     from mcp_core.storage.backends import InMemoryBackend
 
-    from better_telegram_mcp.auth.pending_otp_store import (
+    from telegram.auth.pending_otp_store import (
         _OTP_TTL,
         PendingOtpStore,
     )

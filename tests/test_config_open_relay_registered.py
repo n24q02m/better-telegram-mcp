@@ -7,7 +7,7 @@ can re-trigger the relay form via tool call.
 
 from __future__ import annotations
 
-from better_telegram_mcp.server import mcp
+from telegram.server import mcp
 
 
 def test_config_open_relay_tool_registered():

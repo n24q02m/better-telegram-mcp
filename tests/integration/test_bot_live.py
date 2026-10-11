@@ -11,10 +11,10 @@ import os
 
 import pytest
 
-from better_telegram_mcp.backends.base import ModeError
-from better_telegram_mcp.backends.bot_backend import BotBackend, TelegramAPIError
-from better_telegram_mcp.tools.config_tool import handle_config
-from better_telegram_mcp.tools.help_tool import handle_help
+from telegram.backends.base import ModeError
+from telegram.backends.bot_backend import BotBackend, TelegramAPIError
+from telegram.tools.config_tool import handle_config
+from telegram.tools.help_tool import handle_help
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 
@@ -188,7 +188,7 @@ async def test_config_status_connected(bot: BotBackend):
 
 async def test_config_set_and_read_back(bot: BotBackend):
     """config set action updates runtime config."""
-    from better_telegram_mcp.server import _runtime_config
+    from telegram.server import _runtime_config
 
     original_limit = _runtime_config["message_limit"]
     try:

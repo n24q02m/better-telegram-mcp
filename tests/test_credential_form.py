@@ -21,7 +21,7 @@ De-fork behaviour changes vs the old forked template (each covered below):
 
 from __future__ import annotations
 
-from better_telegram_mcp.relay_schema import render_telegram_form
+from telegram.relay_schema import render_telegram_form
 
 SCHEMA: dict = {
     "server": "better-telegram-mcp",

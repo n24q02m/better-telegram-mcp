@@ -1,7 +1,7 @@
 """Integration tests for UserBackend against the live Telegram MTProto API.
 
 These tests require TELEGRAM_API_ID and TELEGRAM_API_HASH environment variables,
-plus an authorized session file at ~/.better-telegram-mcp/default.session.
+plus an authorized session file at ~/.telegram/default.session.
 
 They only exercise read-only operations — no sending, deleting, or destructive actions.
 """
@@ -12,10 +12,10 @@ import os
 
 import pytest
 
-from better_telegram_mcp.backends.user_backend import UserBackend
-from better_telegram_mcp.config import Settings
-from better_telegram_mcp.tools.config_tool import handle_config
-from better_telegram_mcp.tools.help_tool import handle_help
+from telegram.backends.user_backend import UserBackend
+from telegram.config import Settings
+from telegram.tools.config_tool import handle_config
+from telegram.tools.help_tool import handle_help
 
 API_ID = os.environ.get("TELEGRAM_API_ID", "")
 API_HASH = os.environ.get("TELEGRAM_API_HASH", "")

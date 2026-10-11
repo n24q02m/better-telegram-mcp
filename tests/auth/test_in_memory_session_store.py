@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from better_telegram_mcp.auth.in_memory_session_store import (
+from telegram.auth.in_memory_session_store import (
     InMemorySessionStore,
     SessionInfo,
 )

@@ -1,4 +1,4 @@
-# Mise configuration for better-telegram-mcp
+# Mise configuration for telegram
 # https://mise.jdx.dev/
 #
 # Setup: mise run setup
@@ -48,4 +48,4 @@ run = "uv run pytest"
 
 [tasks.dev]
 description = "Run MCP server locally"
-run = "uv run better-telegram-mcp"
+run = "uv run telegram"

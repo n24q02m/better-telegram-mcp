@@ -1,4 +1,4 @@
-"""Credential resolution helpers for better-telegram-mcp.
+"""Credential resolution helpers for the telegram MCP server.
 
 Public surface used by ``credential_state``:
 - ``check_saved_sessions``
@@ -15,8 +15,11 @@ from __future__ import annotations
 
 import os
 import re
-from pathlib import Path
 
+# Kept at the pre-rename value on purpose: mcp-core keys the legacy shared
+# ``config.enc`` entry by this name, and ``run_http_server`` derives the JWT
+# signing seed and the stable per-user ``sub`` from ``server_name``. Renaming it
+# would orphan saved single-user configs and every per-sub session bucket.
 SERVER_NAME = "better-telegram-mcp"
 REQUIRED_FIELDS_BOT = ["TELEGRAM_BOT_TOKEN"]
 REQUIRED_FIELDS_USER = ["TELEGRAM_PHONE"]
@@ -88,8 +91,9 @@ def _needs_2fa_password(error_msg: str) -> bool:
 def check_saved_sessions(backend=None) -> bool:
     """Check for a saved Telethon session from a previous authentication.
 
-    Local FS deployments: look for ``*.session`` files in
-    ``~/.better-telegram-mcp/``. CF / externalized-backend deployments: the
+    Local FS deployments: look for ``*.session`` files in the default data dir
+    (``~/.telegram/``, moved from the legacy ``~/.better-telegram-mcp/`` on
+    first use). CF / externalized-backend deployments: the
     StringSession lives in the credential backend (not on disk), so a glob would
     be a permanent false-negative -- query the ``KvSessionStore`` index instead.
 
@@ -105,7 +109,9 @@ def check_saved_sessions(backend=None) -> bool:
 
         return KvSessionStore(backend=backend).has_any()
 
-    data_dir = Path.home() / ".better-telegram-mcp"
+    from .config import resolve_default_data_dir
+
+    data_dir = resolve_default_data_dir()
     if not data_dir.exists():
         return False
     sessions = list(data_dir.glob("*.session"))

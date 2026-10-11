@@ -84,7 +84,7 @@ class UserBackend(TelegramBackend):
     async def _warn_on_api_identity_change(self) -> None:
         """Warn (do not act) when the recorded api_id differs from the current one.
 
-        ``better-telegram-mcp login --phone`` records the ``api_id`` the session
+        ``telegram auth --phone`` records the ``api_id`` the session
         was created under (via ``PerPluginStore``). A session's auth_key is bound
         to that api_id, so reconnecting under a different one silently fails to
         authorize. We only warn and point at ``logout``/``login`` -- clearing the
@@ -110,7 +110,7 @@ class UserBackend(TelegramBackend):
                     "Telegram api_id changed since this session was created "
                     "(session api_id={recorded}, current api_id={current}). The "
                     "saved session may fail to authorize. Run "
-                    "`better-telegram-mcp logout` then `better-telegram-mcp login` "
+                    "`telegram logout` then `telegram auth --phone <+number>` "
                     "to re-create it.",
                     recorded=recorded,
                     current=current,

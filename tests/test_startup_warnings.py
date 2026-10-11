@@ -12,7 +12,7 @@ def test_server_import_emits_no_runtime_warnings() -> None:
         if not key.startswith("TELEGRAM_")
     }
     result = subprocess.run(
-        [sys.executable, "-Werror", "-c", "import better_telegram_mcp.server"],
+        [sys.executable, "-Werror", "-c", "import telegram.server"],
         capture_output=True,
         check=False,
         env=env,

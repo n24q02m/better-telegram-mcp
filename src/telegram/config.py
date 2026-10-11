@@ -6,6 +6,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import Literal
 
+from loguru import logger
 from mcp_core.auth import BundledClientSpec, resolve_bundled_client
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
@@ -16,6 +17,84 @@ def _empty_to_none(v: str | None) -> str | None:
     if not v or not v.strip():
         return None
     return v
+
+
+# Default data dir (Telethon ``*.session`` files, ``user_sessions/``, the
+# HTTP-mode ``.secret``). Renamed with the project; the pre-rename directory
+# is moved over once on first use. ``TELEGRAM_DATA_DIR`` bypasses all of this.
+# Not to be confused with mcp-core's ``~/.telegram-mcp/`` (PerPluginStore
+# ``"telegram"``), which mcp-core derives itself and is not moved here.
+DATA_DIR_NAME = ".telegram"
+LEGACY_DATA_DIR_NAME = ".better-telegram-mcp"
+
+
+def _holds_server_state(directory: Path) -> bool:
+    """True if ``directory`` contains files this server writes."""
+    return (
+        (directory / ".secret").exists()
+        or (directory / "user_sessions").exists()
+        or any(directory.glob("*.session"))
+    )
+
+
+def resolve_default_data_dir() -> Path:
+    """Return the default data dir, moving the legacy one over once.
+
+    - ``~/.telegram`` exists and holds server state (or no legacy dir
+      exists): use it.
+    - Only ``~/.better-telegram-mcp`` exists: rename it to ``~/.telegram``,
+      read back that the move landed, and use the new path. If the rename
+      fails (for example a file is still open by an old process on Windows)
+      or the readback does not match, keep reading the legacy dir.
+    - Both exist but ``~/.telegram`` holds none of this server's files (an
+      unrelated directory): keep the legacy dir rather than strand its
+      sessions.
+    """
+    home = Path.home()
+    target = home / DATA_DIR_NAME
+    legacy = home / LEGACY_DATA_DIR_NAME
+
+    if not legacy.exists():
+        return target
+    if target.exists():
+        if _holds_server_state(target):
+            logger.warning(
+                "Both {} and legacy {} exist; using {}. The legacy dir was left "
+                "untouched -- remove it once nothing reads it.",
+                target,
+                legacy,
+                target,
+            )
+            return target
+        logger.warning(
+            "{} exists but holds no telegram server state; still reading legacy "
+            "{}. Set TELEGRAM_DATA_DIR to choose explicitly.",
+            target,
+            legacy,
+        )
+        return legacy
+
+    try:
+        os.rename(legacy, target)
+    except OSError as exc:
+        logger.warning(
+            "Could not move legacy data dir {} to {} ({}); reading the legacy "
+            "dir for now.",
+            legacy,
+            target,
+            exc,
+        )
+        return legacy
+
+    if target.is_dir() and not legacy.exists():
+        logger.info("Moved data dir {} -> {}", legacy, target)
+        return target
+    logger.warning(
+        "Data dir move {} -> {} did not read back as expected; reading the legacy dir.",
+        legacy,
+        target,
+    )
+    return legacy if legacy.exists() else target
 
 
 # Telegram api_id/api_hash identity (BYO resolver chain: CLI (unused here) >
@@ -56,7 +135,7 @@ class Settings(BaseSettings):
     session_name: str = "default"
 
     # Data
-    data_dir: Path = Path.home() / ".better-telegram-mcp"
+    data_dir: Path = Field(default_factory=resolve_default_data_dir)
 
     # Security
     trusted_proxies: str | None = None

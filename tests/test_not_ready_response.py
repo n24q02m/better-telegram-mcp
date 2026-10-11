@@ -1,4 +1,4 @@
-import better_telegram_mcp.server as srv
+import telegram.server as srv
 
 
 def test_not_ready_response_unconfigured():

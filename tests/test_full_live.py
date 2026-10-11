@@ -1,4 +1,4 @@
-"""Full/real live MCP protocol tests for better-telegram-mcp (bot mode).
+"""Full/real live MCP protocol tests for the telegram MCP server (bot mode).
 
 Spawns the MCP server as a subprocess and communicates via the MCP protocol
 (JSON-RPC over stdio). All tests exercise tools through the actual transport
@@ -55,7 +55,7 @@ def _server_params(*, with_token: bool = True) -> StdioServerParameters:
         env["TELEGRAM_BOT_TOKEN"] = BOT_TOKEN
     return StdioServerParameters(
         command="uv",
-        args=["run", "python", "-m", "better_telegram_mcp"],
+        args=["run", "python", "-m", "telegram"],
         env=env,
     )
 

@@ -1,10 +1,10 @@
-# Privacy Policy — Better Telegram MCP
+# Privacy Policy — telegram
 
 **Last updated:** 2026-03-18
 
 ## Data Collection
 
-Better Telegram MCP acts as a bridge between MCP clients (Claude, Cursor, etc.) and the Telegram API. It does **not** collect, store, or transmit any user data beyond what is necessary for the current operation.
+The telegram MCP server acts as a bridge between MCP clients (Claude, Cursor, etc.) and the Telegram API. It does **not** collect, store, or transmit any user data beyond what is necessary for the current operation.
 
 ## Auth Relay Server
 
@@ -18,7 +18,7 @@ When using the remote auth relay at `better-telegram-mcp.n24q02m.com`:
 
 ## Session Files
 
-- Telegram session files are stored locally at `~/.better-telegram-mcp/` with `600` permissions (owner-only).
+- Telegram session files are stored locally at `~/.telegram/` (moved once from the pre-rename `~/.better-telegram-mcp/`) with `600` permissions (owner-only).
 - Session files contain your Telegram authentication. Treat them like passwords.
 - Session files are never transmitted to any server.
 
@@ -34,4 +34,4 @@ When authenticated, the MCP server can access your Telegram account with the sam
 
 ## Contact
 
-For privacy concerns, open an issue at [github.com/n24q02m/better-telegram-mcp/issues](https://github.com/n24q02m/better-telegram-mcp/issues).
+For privacy concerns, open an issue at [github.com/n24q02m/telegram/issues](https://github.com/n24q02m/telegram/issues).

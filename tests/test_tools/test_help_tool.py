@@ -4,14 +4,14 @@ import json
 
 import pytest
 
-from better_telegram_mcp.tools.help_tool import handle_help
+from telegram.tools.help_tool import handle_help
 
 
 @pytest.fixture(autouse=True)
 def clear_doc_cache():
-    import better_telegram_mcp.tools.help_tool
+    import telegram.tools.help_tool
 
-    better_telegram_mcp.tools.help_tool._DOC_CACHE.clear()
+    telegram.tools.help_tool._DOC_CACHE.clear()
     yield
 
 
@@ -81,10 +81,10 @@ async def test_help_unknown_topic():
 async def test_help_missing_doc_file(monkeypatch):
     from pathlib import Path
 
-    import better_telegram_mcp.tools.help_tool
+    import telegram.tools.help_tool
 
     monkeypatch.setattr(
-        better_telegram_mcp.tools.help_tool,
+        telegram.tools.help_tool,
         "_DOCS_DIR",
         Path("/tmp/nonexistent_docs_dir_123"),
     )
@@ -99,10 +99,10 @@ async def test_help_missing_doc_file(monkeypatch):
 async def test_help_all_no_docs(monkeypatch):
     from pathlib import Path
 
-    import better_telegram_mcp.tools.help_tool
+    import telegram.tools.help_tool
 
     monkeypatch.setattr(
-        better_telegram_mcp.tools.help_tool,
+        telegram.tools.help_tool,
         "_DOCS_DIR",
         Path("/tmp/nonexistent_docs_dir_123"),
     )
@@ -115,12 +115,12 @@ async def test_help_all_no_docs(monkeypatch):
 @pytest.mark.asyncio
 async def test_help_cache_hit():
     """Verify that _load_doc returns content from _DOC_CACHE if available."""
-    import better_telegram_mcp.tools.help_tool
+    import telegram.tools.help_tool
 
     # Manually populate cache with a sentinel value
     topic = "messages"
     sentinel = "CACHED_CONTENT_SENTINEL"
-    better_telegram_mcp.tools.help_tool._DOC_CACHE[topic] = sentinel
+    telegram.tools.help_tool._DOC_CACHE[topic] = sentinel
 
     result = await handle_help(topic)
     assert result == sentinel

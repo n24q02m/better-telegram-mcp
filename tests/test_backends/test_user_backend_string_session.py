@@ -5,8 +5,8 @@ from __future__ import annotations
 from mcp_core.storage.backends import InMemoryBackend
 from mcp_core.storage.string_session_store import SaveOnChangeStringSession
 
-from better_telegram_mcp.backends.user_backend import UserBackend
-from better_telegram_mcp.config import Settings
+from telegram.backends.user_backend import UserBackend
+from telegram.config import Settings
 from tests.conftest_cf import FakeStringSessionClient
 
 
@@ -28,9 +28,7 @@ async def test_connect_uses_string_session_from_backend(monkeypatch, tmp_path):
         captured["session"] = session
         return FakeStringSessionClient(session)
 
-    monkeypatch.setattr(
-        "better_telegram_mcp.backends.user_backend.TelegramClient", _fake_client
-    )
+    monkeypatch.setattr("telegram.backends.user_backend.TelegramClient", _fake_client)
     backend = UserBackend(_settings(tmp_path), backend=InMemoryBackend())
     await backend.connect()
     # In CF mode the client is constructed with a SaveOnChangeStringSession,
@@ -47,9 +45,7 @@ async def test_save_on_change_flushes_to_backend(monkeypatch, tmp_path):
     def _fake_client(session, *a, **kw):
         return FakeStringSessionClient(session)
 
-    monkeypatch.setattr(
-        "better_telegram_mcp.backends.user_backend.TelegramClient", _fake_client
-    )
+    monkeypatch.setattr("telegram.backends.user_backend.TelegramClient", _fake_client)
     backend = UserBackend(_settings(tmp_path), backend=mem)
     await backend.connect()
     # Simulate a Telethon-internal rewrite (DC migration / key rotation).
@@ -63,9 +59,7 @@ async def test_empty_backend_starts_unauthorized(monkeypatch, tmp_path):
     def _fake_client(session, *a, **kw):
         return FakeStringSessionClient(session)
 
-    monkeypatch.setattr(
-        "better_telegram_mcp.backends.user_backend.TelegramClient", _fake_client
-    )
+    monkeypatch.setattr("telegram.backends.user_backend.TelegramClient", _fake_client)
     backend = UserBackend(_settings(tmp_path), backend=InMemoryBackend())
     await backend.connect()
     assert await backend.is_authorized() is False

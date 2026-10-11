@@ -2,15 +2,15 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from better_telegram_mcp.backends.bot_backend import BotBackend
-from better_telegram_mcp.backends.user_backend import UserBackend
+from telegram.backends.bot_backend import BotBackend
+from telegram.backends.user_backend import UserBackend
 
 
 @pytest.mark.asyncio
 async def test_bot_backend_ssrf_whitespace_url():
     backend = BotBackend("12345:ABCDEF")
     with patch(
-        "better_telegram_mcp.backends.bot_backend.fetch_url_safely",
+        "telegram.backends.bot_backend.fetch_url_safely",
         new_callable=AsyncMock,
     ) as mock_fetch:
         mock_fetch.return_value = b"test"
@@ -27,7 +27,7 @@ async def test_user_backend_ssrf_whitespace_url():
     backend._client = AsyncMock()
     backend._connected = True
     with patch(
-        "better_telegram_mcp.backends.user_backend.fetch_url_safely",
+        "telegram.backends.user_backend.fetch_url_safely",
         new_callable=AsyncMock,
     ) as mock_fetch:
         mock_fetch.return_value = b"test"

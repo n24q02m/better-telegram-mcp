@@ -5,10 +5,10 @@ from unittest.mock import AsyncMock
 import pytest
 from mcp_core.storage.backends import InMemoryBackend
 
-from better_telegram_mcp.auth.in_memory_session_store import SessionInfo
-from better_telegram_mcp.auth.kv_session_store import KvSessionStore
-from better_telegram_mcp.auth.pending_otp_store import PendingOtpStore
-from better_telegram_mcp.auth.telegram_auth_provider import TelegramAuthProvider
+from telegram.auth.in_memory_session_store import SessionInfo
+from telegram.auth.kv_session_store import KvSessionStore
+from telegram.auth.pending_otp_store import PendingOtpStore
+from telegram.auth.telegram_auth_provider import TelegramAuthProvider
 
 
 @pytest.fixture(autouse=True)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from mcp_core.storage.backends import InMemoryBackend
 
-from better_telegram_mcp.credential_state import (
+from telegram.credential_state import (
     _read_single_user_config,
     _write_single_user_config,
 )

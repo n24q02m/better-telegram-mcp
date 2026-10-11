@@ -1,6 +1,6 @@
 """Tests for Settings.cf_mode property."""
 
-from better_telegram_mcp.config import Settings
+from telegram.config import Settings
 
 
 def test_cf_mode_true_when_cf_kv(monkeypatch):

@@ -1,5 +1,5 @@
 {
-  "name": "better-telegram-mcp",
+  "name": "telegram",
   "description": "Telegram dual-mode (Bot API + MTProto) — messages, chats, media, contacts",
   "version": "4.22.0",
   "userConfig": {
@@ -15,14 +15,14 @@
     "name": "n24q02m",
     "url": "https://github.com/n24q02m"
   },
-  "homepage": "https://github.com/n24q02m/better-telegram-mcp",
+  "homepage": "https://github.com/n24q02m/telegram",
   "mcpServers": {
-    "better-telegram-mcp": {
+    "telegram": {
       "command": "uvx",
       "args": [
         "--python",
         "3.13",
-        "better-telegram-mcp@latest"
+        "n24q02m-telegram@latest"
       ],
       "env": {
         "MCP_TRANSPORT": "stdio",

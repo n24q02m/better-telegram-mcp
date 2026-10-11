@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from better_telegram_mcp.auth.in_memory_session_store import SessionInfo
-from better_telegram_mcp.auth.telegram_auth_provider import (
+from telegram.auth.in_memory_session_store import SessionInfo
+from telegram.auth.telegram_auth_provider import (
     _SESSION_TTL,
     TelegramAuthProvider,
 )
@@ -30,9 +30,7 @@ def provider(data_dir: Path) -> TelegramAuthProvider:
 class TestRegisterBot:
     async def test_register_bot_success(self, provider: TelegramAuthProvider) -> None:
         """Should register bot and return bearer token."""
-        with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend"
-        ) as MockBot:
+        with patch("telegram.auth.telegram_auth_provider.BotBackend") as MockBot:
             mock_instance = MockBot.return_value
             mock_instance.connect = AsyncMock()
             mock_instance.disconnect = AsyncMock()
@@ -47,9 +45,7 @@ class TestRegisterBot:
         self, provider: TelegramAuthProvider
     ) -> None:
         """Should raise ValueError for invalid bot token."""
-        with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend"
-        ) as MockBot:
+        with patch("telegram.auth.telegram_auth_provider.BotBackend") as MockBot:
             mock_instance = MockBot.return_value
             mock_instance.connect = AsyncMock(side_effect=Exception("Unauthorized"))
             mock_instance.disconnect = AsyncMock()
@@ -61,9 +57,7 @@ class TestRegisterBot:
         self, provider: TelegramAuthProvider
     ) -> None:
         """Should use provided bearer when non-empty."""
-        with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend"
-        ) as MockBot:
+        with patch("telegram.auth.telegram_auth_provider.BotBackend") as MockBot:
             mock_instance = MockBot.return_value
             mock_instance.connect = AsyncMock()
 
@@ -73,9 +67,7 @@ class TestRegisterBot:
 
     async def test_register_bot_persists(self, provider: TelegramAuthProvider) -> None:
         """Registered bot should be persisted to session store."""
-        with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend"
-        ) as MockBot:
+        with patch("telegram.auth.telegram_auth_provider.BotBackend") as MockBot:
             mock_instance = MockBot.return_value
             mock_instance.connect = AsyncMock()
 
@@ -92,9 +84,7 @@ class TestResolveBackend:
         self, provider: TelegramAuthProvider
     ) -> None:
         """Should return backend for registered bearer."""
-        with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend"
-        ) as MockBot:
+        with patch("telegram.auth.telegram_auth_provider.BotBackend") as MockBot:
             mock_instance = MockBot.return_value
             mock_instance.connect = AsyncMock()
 
@@ -125,7 +115,7 @@ class TestStartUserAuth:
         mock_backend._client = mock_telethon_client
 
         with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.UserBackend",
+            "telegram.auth.telegram_auth_provider.UserBackend",
             return_value=mock_backend,
         ):
             result = await provider.start_user_auth("", "+84912345678")
@@ -154,7 +144,7 @@ class TestStartUserAuth:
         mock_backend._ensure_client = MagicMock(return_value=mock_telethon_client)
 
         with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.UserBackend",
+            "telegram.auth.telegram_auth_provider.UserBackend",
             return_value=mock_backend,
         ):
             with pytest.raises(ValueError, match="Failed to send code"):
@@ -180,7 +170,7 @@ class TestCompleteUserAuth:
         )
 
         with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.UserBackend",
+            "telegram.auth.telegram_auth_provider.UserBackend",
             return_value=mock_backend,
         ):
             result = await provider.start_user_auth("", "+84912345678")
@@ -214,7 +204,7 @@ class TestCompleteUserAuth:
         mock_backend.sign_in = AsyncMock(side_effect=Exception("Invalid code"))
 
         with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.UserBackend",
+            "telegram.auth.telegram_auth_provider.UserBackend",
             return_value=mock_backend,
         ):
             result = await provider.start_user_auth("", "+84912345678")
@@ -232,9 +222,7 @@ class TestRevokeSession:
         self, provider: TelegramAuthProvider
     ) -> None:
         """Should disconnect backend and remove from stores."""
-        with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend"
-        ) as MockBot:
+        with patch("telegram.auth.telegram_auth_provider.BotBackend") as MockBot:
             mock_instance = MockBot.return_value
             mock_instance.connect = AsyncMock()
             mock_instance.disconnect = AsyncMock()
@@ -258,9 +246,7 @@ class TestRevokeSession:
         self, provider: TelegramAuthProvider
     ) -> None:
         """Should clean up session ownership mappings."""
-        with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend"
-        ) as MockBot:
+        with patch("telegram.auth.telegram_auth_provider.BotBackend") as MockBot:
             mock_instance = MockBot.return_value
             mock_instance.connect = AsyncMock()
             mock_instance.disconnect = AsyncMock()
@@ -283,9 +269,7 @@ class TestSessionOwnership:
         self, provider: TelegramAuthProvider
     ) -> None:
         """Different users cannot access each other's sessions."""
-        with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend"
-        ) as MockBot:
+        with patch("telegram.auth.telegram_auth_provider.BotBackend") as MockBot:
             mock_instance = MockBot.return_value
             mock_instance.connect = AsyncMock()
 
@@ -319,9 +303,7 @@ class TestRestoreSessions:
             ),
         )
 
-        with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend"
-        ) as MockBot:
+        with patch("telegram.auth.telegram_auth_provider.BotBackend") as MockBot:
             mock_instance = MockBot.return_value
             mock_instance.connect = AsyncMock()
 
@@ -362,9 +344,7 @@ class TestRestoreSessions:
             ),
         )
 
-        with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend"
-        ) as MockBot:
+        with patch("telegram.auth.telegram_auth_provider.BotBackend") as MockBot:
             mock_instance = MockBot.return_value
             mock_instance.connect = AsyncMock(
                 side_effect=Exception("Connection failed")
@@ -430,9 +410,7 @@ class TestShutdown:
         self, provider: TelegramAuthProvider
     ) -> None:
         """Should disconnect all active backends on shutdown."""
-        with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend"
-        ) as MockBot:
+        with patch("telegram.auth.telegram_auth_provider.BotBackend") as MockBot:
             mock_instance = MockBot.return_value
             mock_instance.connect = AsyncMock()
             mock_instance.disconnect = AsyncMock()
@@ -463,9 +441,7 @@ class TestShutdown:
         N = 5
         delay = 0.1  # seconds per disconnect
 
-        with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend"
-        ) as MockBot:
+        with patch("telegram.auth.telegram_auth_provider.BotBackend") as MockBot:
             disconnects: list[AsyncMock] = []
 
             def make_backend(*_args, **_kwargs):
@@ -507,9 +483,7 @@ class TestShutdown:
         ``asyncio.gather(..., return_exceptions=True)`` collects errors
         instead of cancelling siblings -- this is the contract we rely on.
         """
-        with patch(
-            "better_telegram_mcp.auth.telegram_auth_provider.BotBackend"
-        ) as MockBot:
+        with patch("telegram.auth.telegram_auth_provider.BotBackend") as MockBot:
             instances: list = []
 
             def make_backend(*_args, **_kwargs):

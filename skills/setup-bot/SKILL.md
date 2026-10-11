@@ -6,7 +6,7 @@ argument-hint: "[error message or symptom]"
 
 # Setup Bot -- Error Diagnosis
 
-Diagnose and fix Telegram bot connectivity issues. This skill assumes the bot already exists in BotFather -- focus is on getting it working with better-telegram-mcp.
+Diagnose and fix Telegram bot connectivity issues. This skill assumes the bot already exists in BotFather -- focus is on getting it working with the telegram MCP server.
 
 ## Steps
 

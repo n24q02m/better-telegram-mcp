@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from better_telegram_mcp.backends.base import ModeError
-from better_telegram_mcp.backends.security import SecurityError
-from better_telegram_mcp.tools.contacts import ContactsOptions, handle_contacts
+from telegram.backends.base import ModeError
+from telegram.backends.security import SecurityError
+from telegram.tools.contacts import ContactsOptions, handle_contacts
 
 
 async def test_list(mock_backend):

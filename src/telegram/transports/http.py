@@ -1,4 +1,4 @@
-"""HTTP transport mode for better-telegram-mcp.
+"""HTTP transport mode for the telegram MCP server.
 
 Two outcomes (both via mcp-core ``run_http_server``):
 
@@ -173,6 +173,7 @@ def _start_single_user_http(settings: Settings) -> None:
     asyncio.run(
         run_http_server(
             mcp,
+            # Pre-rename value kept on purpose (see relay_setup.SERVER_NAME).
             server_name="better-telegram-mcp",
             relay_schema=RELAY_SCHEMA,
             port=port,
@@ -324,6 +325,7 @@ def _start_multi_user_http(settings: Settings) -> None:
         try:
             await run_http_server(
                 mcp,
+                # Pre-rename value kept on purpose (see relay_setup.SERVER_NAME).
                 server_name="better-telegram-mcp",
                 relay_schema=RELAY_SCHEMA,
                 port=port,

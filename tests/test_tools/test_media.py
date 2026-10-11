@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from better_telegram_mcp.backends.base import ModeError
-from better_telegram_mcp.backends.security import SecurityError
-from better_telegram_mcp.tools.media import MediaOptions, handle_media
+from telegram.backends.base import ModeError
+from telegram.backends.security import SecurityError
+from telegram.tools.media import MediaOptions, handle_media
 
 
 @pytest.mark.asyncio
