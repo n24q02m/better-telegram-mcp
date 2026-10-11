@@ -187,11 +187,10 @@ def _isolate_per_plugin_home(tmp_path_factory, monkeypatch):
     reach the real ~/.telegram-mcp/ (or a shared one between parallel pytest
     workers). Path.home() reads HOME on POSIX and USERPROFILE on Windows.
 
-    Defense-in-depth, not a bug fix: no test leaks today, because every one
-    passes an explicit backend and every sub is non-None. But
-    KvSessionStore(backend=None) -- the documented production default --
-    routes through backend_from_env() -> LocalFsBackend, which writes under
-    Path.home(). See tests/test_home_isolation_guard.py.
+    Defense-in-depth: the local single-user path
+    (``PerPluginStore("telegram")``, sub=None) routes through
+    backend_from_env() -> LocalFsBackend, which writes under Path.home().
+    See tests/test_home_isolation_guard.py.
     """
     fake_home = tmp_path_factory.mktemp("telegram_test_home")
     monkeypatch.setenv("HOME", str(fake_home))

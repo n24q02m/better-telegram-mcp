@@ -1,12 +1,11 @@
-"""Tests for TelegramAuthProvider session restore from KvSessionStore."""
+"""Tests for TelegramAuthProvider session restore and pending-OTP resume."""
 
 from unittest.mock import AsyncMock
 
 import pytest
 from mcp_core.storage.backends import InMemoryBackend
 
-from telegram.auth.in_memory_session_store import SessionInfo
-from telegram.auth.kv_session_store import KvSessionStore
+from telegram.auth.in_memory_session_store import InMemorySessionStore, SessionInfo
 from telegram.auth.pending_otp_store import PendingOtpStore
 from telegram.auth.telegram_auth_provider import TelegramAuthProvider
 
@@ -17,13 +16,12 @@ def _patch_credential_secret(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_restore_from_kv_store(tmp_path, monkeypatch):
-    """restore_sessions() repopulates active_clients from KvSessionStore."""
+async def test_restore_from_session_store(tmp_path, monkeypatch):
+    """restore_sessions() repopulates active_clients from the session store."""
     monkeypatch.setenv("TELEGRAM_API_ID", "12345")
     monkeypatch.setenv("TELEGRAM_API_HASH", "deadbeef")
 
-    backend = InMemoryBackend()
-    store = KvSessionStore(backend=backend)
+    store = InMemorySessionStore()
     # Pre-populate store with a known sub
     store.store(
         "sub-test-user",
@@ -50,7 +48,7 @@ async def test_complete_user_auth_restores_pending_otp_from_kv(tmp_path, monkeyp
     """complete_user_auth recovers pending OTP metadata from KV after a restart.
 
     Simulates a container sleep/recreate: the RAM ``_pending_otps`` dict is empty,
-    but the metadata persists in the PendingOtpStore (CF KV in prod). The provider
+    but the metadata persists in the PendingOtpStore's durable backend. The provider
     must reload it, recreate a backend, sign in, and consume the KV entry.
     """
     monkeypatch.setenv("TELEGRAM_API_ID", "12345")
@@ -75,7 +73,7 @@ async def test_complete_user_auth_restores_pending_otp_from_kv(tmp_path, monkeyp
         api_id=12345,
         api_hash="deadbeef",
         backend=backend,
-        store=KvSessionStore(backend=backend),
+        store=InMemorySessionStore(),
         pending_store=pending_store,
     )
     # Post-restart: nothing in RAM.

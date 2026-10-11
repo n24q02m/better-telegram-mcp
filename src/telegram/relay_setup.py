@@ -13,7 +13,6 @@ and ``credential_state.on_step_submitted``).
 
 from __future__ import annotations
 
-import os
 import re
 
 # Kept at the pre-rename value on purpose: mcp-core keys the legacy shared
@@ -88,27 +87,15 @@ def _needs_2fa_password(error_msg: str) -> bool:
     )
 
 
-def check_saved_sessions(backend=None) -> bool:
+def check_saved_sessions() -> bool:
     """Check for a saved Telethon session from a previous authentication.
 
-    Local FS deployments: look for ``*.session`` files in the default data dir
-    (``~/.telegram/``, moved from the legacy ``~/.better-telegram-mcp/`` on
-    first use). CF / externalized-backend deployments: the
-    StringSession lives in the credential backend (not on disk), so a glob would
-    be a permanent false-negative -- query the ``KvSessionStore`` index instead.
+    Looks for ``*.session`` files in the default data dir (``~/.telegram/``,
+    moved from the legacy ``~/.better-telegram-mcp/`` on first use).
 
     Returns:
         True if at least one saved session exists, False otherwise.
     """
-    cf_mode = (
-        backend is not None
-        or os.environ.get("MCP_STORAGE_BACKEND", "").lower() == "cf-kv"
-    )
-    if cf_mode:
-        from .auth.kv_session_store import KvSessionStore
-
-        return KvSessionStore(backend=backend).has_any()
-
     from .config import resolve_default_data_dir
 
     data_dir = resolve_default_data_dir()

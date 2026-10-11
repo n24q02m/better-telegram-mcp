@@ -106,20 +106,6 @@ jobs:
         with:
           files: coverage.xml
 
-      - name: Setup Node.js 24
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "24"
-
-      - name: Install worker dependencies
-        run: npm ci
-
-      - name: Run worker tests
-        run: npm run test:worker
-
-      - name: Run worker type check
-        run: npm run type-check
-
   readme-sync:
     name: Verify README registry metadata
     if: github.event_name == 'pull_request' || github.event_name == 'push'

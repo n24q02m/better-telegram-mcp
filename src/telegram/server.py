@@ -111,8 +111,8 @@ def _ensure_settings() -> Settings:
             # Load the saved config explicitly rather than relying on os.environ
             # injection: exporting credentials into the process environment
             # leaks them to every subprocess and third-party dependency,
-            # defeating the encrypted store. _read_single_user_config honours the
-            # active backend (local config.enc or CF KV).
+            # defeating the encrypted store. _read_single_user_config reads the
+            # per-plugin store (falling back to the legacy config.enc).
             saved_config = _read_single_user_config()
             if saved_config:
                 settings = Settings.from_relay_config(saved_config)

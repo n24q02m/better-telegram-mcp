@@ -15,8 +15,6 @@ The public contract is defined by the repository README, `server.json`, package 
 - Format: `uv run --no-sync ruff format --check .`
 - Types: `uv run --no-sync ty check`
 - Tests: `uv run --no-sync pytest tests/`
-- Worker tests: `npm ci`, then `npm run test:worker`
-- Worker types: `npm run type-check`
 
 Integration, live, full, and end-to-end tests require Telegram credentials and an approved test account. A representative protocol check must call a domain operation such as listing chats or updates; configuration status alone is only a handshake.
 
@@ -42,7 +40,7 @@ defaults before closing the global docs item.
 
 - Added the `color-scheme: light dark` form metadata so native browser controls follow the page's supported themes.
 - Added indexed pending-OTP existence checks and an early return in auth cleanup for the empty state.
-- Upgraded the Worker test dependency to Vitest 5 while retaining the repository's npm lockfile workflow.
+- Removed the Cloudflare Worker hosting surface (worker, wrangler configs, CF deploy job, npm lockfiles); self-hosting is Docker HTTP only.
 - Consolidated duplicate palette proposals into the single form metadata implementation. The view-transition proposal was not adopted because it added a second lockfile and animation behavior without a product acceptance requirement.
 
 ## In-flight and release notes
@@ -54,8 +52,8 @@ Rollback is the normal reviewed revert of the source commit and package dependen
 ## Week-one operator checklist
 
 1. Confirm the intended transport and credential mode.
-2. Install with the documented `uv` and `npm` commands.
-3. Run lint, type, Python tests, Worker tests, and Worker type checks.
+2. Install with the documented `uv` command.
+3. Run lint, type, and Python tests.
 4. Exercise one representative read-only Telegram domain operation with approved credentials.
 5. Confirm per-subject credential isolation and pending-OTP expiry behavior.
 6. Review the exact CI run and artifact identity before using a BETA package.
@@ -64,5 +62,4 @@ Rollback is the normal reviewed revert of the source commit and package dependen
 
 - Form theme mismatch: inspect the rendered `<head>` and the shared renderer version.
 - OTP cleanup regression: inspect the shared pending-OTP index and run the auth-store tests with an in-memory backend.
-- Worker dependency mismatch: remove `node_modules`, run `npm ci`, and rerun the Worker tests; never edit the lockfile manually.
 - Authentication failures: distinguish missing credentials, malformed documented credential input, and provider rejection before rotating anything.

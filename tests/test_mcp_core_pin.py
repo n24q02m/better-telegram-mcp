@@ -8,7 +8,7 @@ from packaging.version import Version
 
 # StringSession seam (Subsystem A) lands at 1.18.0b8; the JWKS keys derived
 # from CREDENTIAL_SECRET (#484) + StringSession externalization (#495) needed
-# by the deployed CF image land at 1.18.0b10. The floor must never drop below
+# by HTTP deployments land at 1.18.0b10. The floor must never drop below
 # this seam version (a newer floor is fine).
 MIN_CORE = Version("1.18.0b10")
 
