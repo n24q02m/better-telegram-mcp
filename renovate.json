@@ -24,6 +24,16 @@
   },
   "packageRules": [
     {
+      "description": "Run go mod tidy after every Go module update",
+      "matchCategories": [
+        "golang"
+      ],
+      "postUpdateOptions": [
+        "gomodTidy"
+      ],
+      "minimumReleaseAge": "7 days"
+    },
+    {
       "description": "Group minor updates for review (prod scope by default)",
       "matchUpdateTypes": [
         "minor"
@@ -87,8 +97,8 @@
         "github-actions"
       ],
       "allowedVersions": ">=10.0.0",
-      "matchPackagePatterns": [
-        "^python-semantic-release/"
+      "matchPackageNames": [
+        "/^python-semantic-release\\//"
       ]
     },
     {
@@ -162,10 +172,5 @@
   "commitMessageAction": "update",
   "commitMessageTopic": "{{depName}}",
   "semanticCommitType": "fix",
-  "semanticCommitScope": "deps",
-  "golang": {
-    "postUpdateOptions": [
-      "gomodTidy"
-    ]
-  }
+  "semanticCommitScope": "deps"
 }
