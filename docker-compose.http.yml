@@ -7,7 +7,7 @@ services:
       - CREDENTIAL_SECRET=${CREDENTIAL_SECRET}
       - MCP_RELAY_PASSWORD=${MCP_RELAY_PASSWORD}
     ports:
-      - "8081:8080"
+      - "127.0.0.1:8081:8080"
     volumes:
       - telegram-data:/data
 volumes:

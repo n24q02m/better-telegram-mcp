@@ -29,16 +29,14 @@ class UserBackend(TelegramBackend):
         super().__init__("user")
         self._settings = settings
         self._client: TelegramClient | None = None
-        self._backend = backend  # None -> resolved from env at connect()
+        self._backend = backend  # None -> on-disk .session file at connect()
 
     def _session_store(self):
-        from mcp_core.storage.backends import backend_from_env
         from mcp_core.storage.string_session_store import StringSessionStore
 
-        backend = self._backend or backend_from_env()
         # The per-sub identity is the settings.session_name (sha256(sub)[:16]).
         return StringSessionStore(
-            "telegram", self._settings.session_name, backend=backend
+            "telegram", self._settings.session_name, backend=self._backend
         )
 
     def _ensure_client(self) -> TelegramClient:
@@ -166,24 +164,20 @@ class UserBackend(TelegramBackend):
     def _is_externalized(self) -> bool:
         """True when the session must live in a credential backend, not on disk.
 
-        An injected backend (per-sub multi-user) OR ``MCP_STORAGE_BACKEND=cf-kv``
-        means the FS is ephemeral (Cloudflare container) and the Telethon
-        auth_key would evaporate on recreate -- so it is stored as a
-        StringSession in the backend instead. Local/stdio deployments keep the
-        durable on-disk ``.session`` SQLite.
+        An injected credential backend means the Telethon auth_key is stored
+        as a StringSession in that backend instead of on disk. Without one
+        (the default for stdio and HTTP deployments) the durable on-disk
+        ``.session`` SQLite is used.
         """
-        return (
-            self._backend is not None
-            or os.environ.get("MCP_STORAGE_BACKEND", "").lower() == "cf-kv"
-        )
+        return self._backend is not None
 
     async def connect(self) -> None:
         s = self._settings
 
         if self._is_externalized():
-            # Externalized (CF / injected backend): the auth_key lives in the
-            # credential backend (KV) as a StringSession, so it survives an
-            # ephemeral-FS container recreate. The save-on-change sink flushes on
+            # Externalized (injected backend): the auth_key lives in the
+            # credential backend as a StringSession, so it does not depend on
+            # the local filesystem. The save-on-change sink flushes on
             # every Telethon rewrite (DC migration / key rotation), not just after
             # sign_in -- the fix for the "re-auth a few days later" failure mode.
             from mcp_core.storage.string_session_store import SaveOnChangeStringSession

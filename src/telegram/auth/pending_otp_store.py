@@ -1,7 +1,8 @@
 """Durable per-sub pending OTP metadata store backed by mcp-core PerPluginStore.
 
-Uses CF KV (or InMemoryBackend in tests) via PerPluginStore so pending OTP
-state survives container sleep/recreate during an in-flight OTP flow.
+Uses an mcp-core credential backend (InMemoryBackend in tests) via
+PerPluginStore so pending OTP state survives a process restart during an
+in-flight OTP flow.
 
 Each sub stores at key ``telegram/subs/<sub>/pending_otp`` a dict mapping
 ``bearer -> {phone, phone_code_hash, session_name, created_at}``.
@@ -33,7 +34,8 @@ _OTP_TTL = 300  # 5 minutes
 class PendingOtpStore:
     """Durable per-sub pending OTP metadata store.
 
-    Survives container sleep/recreate via CF KV (or InMemoryBackend in tests).
+    Survives a process restart via the injected credential backend
+    (InMemoryBackend in tests).
     The pending OTP metadata — phone, phone_code_hash, session_name — is
     persisted so ``complete_user_auth()`` can resume after a container restart.
 
@@ -158,7 +160,7 @@ class PendingOtpStore:
         now = time.time()
 
         # Bolt: Parallelize bulk load operations to avoid sequential N+1 blocking
-        # on heavy PBKDF2 key derivations, matching the pattern in KvSessionStore.
+        # on heavy PBKDF2 key derivations.
         with ThreadPoolExecutor() as executor:
             stores = [self._sub_store(sub) for sub in subs]
             # store.load() does the heavy cryptography work

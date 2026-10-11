@@ -61,7 +61,6 @@ mcp-name: io.github.n24q02m/better-telegram-mcp
 - [Comparison](#comparison)
 - [Security](#security)
 - [Build from Source](#build-from-source)
-- [Deploy to Cloudflare](#deploy-to-cloudflare)
 - [Trust Model](#trust-model)
 - [License](#license)
 
@@ -144,8 +143,7 @@ user mode uses the browser-based relay form at `/authorize` for phone, OTP, and 
 **Remote endpoint** -- an HTTP deployment is OAuth-gated and serves `/mcp`. Point any
 MCP client that speaks Streamable HTTP + OAuth 2.1 at `https://<your-host>/mcp`; each
 user completes the browser relay setup (bot token, or phone + OTP) on first connect.
-To run one, use the Docker HTTP method above or the
-[Cloudflare deploy](#deploy-to-cloudflare) below.
+To run one, use the Docker HTTP method above.
 
 Full setup matrices live at the canonical docs site
 [mcp.n24q02m.com/servers/better-telegram-mcp/setup/](https://mcp.n24q02m.com/servers/better-telegram-mcp/setup/),
@@ -298,62 +296,6 @@ cd telegram
 uv sync
 uv run telegram
 ```
-
-## Deploy to Cloudflare
-
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/n24q02m/better-telegram-mcp)
-
-Run your own multi-user better-telegram-mcp serverless on Cloudflare (Worker + Container + KV).
-
-### Deployment (CD-managed)
-
-Managed deployments go through CI, never by hand: the `deploy-cf` job in
-[.github/workflows/cd.yml](.github/workflows/cd.yml) runs after a release,
-checks out the released tag, builds the immutable `http` image at the released
-version, pushes it to the Cloudflare managed registry, deploys, and gates on a
-canary check — a managed instance can therefore only ever run an exact release
-tag. Manual `wrangler deploy` against a managed/operated instance is not
-permitted: it breaks the release-tag ↔ live-image correspondence, and the next
-CD run would overwrite it.
-
-The job is gated by the `CF_HOSTED_ENABLED` repository Actions variable —
-currently `false`, so releases do not publish a hosted endpoint (per the
-[Trust Model](#trust-model), there is no operator-hosted public Telegram
-endpoint). To run your own instance, use the self-host steps below.
-
-**Prerequisites:** a Cloudflare account on the **Workers Paid plan** -- required for Containers (the Cloudflare free tier does not include Containers) -- and the `wrangler` CLI.
-
-1. `git clone https://github.com/n24q02m/better-telegram-mcp && cd better-telegram-mcp`
-2. `wrangler login`
-3. Provision the KV namespace and paste its id into `wrangler.jsonc`:
-   ```
-   wrangler kv namespace create better-telegram-kv
-   ```
-4. Push the container image to your Cloudflare managed registry (CF Containers cannot
-   pull from external registries directly), then set `<YOUR_ACCOUNT_ID>` in `wrangler.jsonc`:
-   ```
-   docker pull ghcr.io/n24q02m/better-telegram-mcp:beta
-   docker tag ghcr.io/n24q02m/better-telegram-mcp:beta better-telegram-mcp:beta
-   wrangler containers push better-telegram-mcp:beta   # prints registry.cloudflare.com/<ACCOUNT_ID>/better-telegram-mcp:beta
-   ```
-5. Set `<YOUR_PUBLIC_URL>` (e.g. `https://telegram.example.com`) and `<YOUR_WORKER_DOMAIN>`
-   (e.g. `telegram.example.com`) in `wrangler.jsonc`, then set secrets:
-   ```
-   wrangler secret put CREDENTIAL_SECRET
-   wrangler secret put MCP_RELAY_PASSWORD
-   wrangler secret put MCP_DCR_SERVER_SECRET
-   ```
-   `CREDENTIAL_SECRET` is REQUIRED: it derives a deterministic OAuth signing key so
-   user identity survives container recreation. `MCP_RELAY_PASSWORD` gates the browser
-   setup form (Gate A shared front door); `MCP_DCR_SERVER_SECRET` (32+ random bytes)
-   marks the deploy as intentionally multi-user.
-6. `wrangler deploy`, then complete setup in the browser relay form at your Worker domain --
-   each user enters their own bot token or phone + OTP there, so no per-user Telegram
-   credentials live on the Worker.
-
-Storage maps to Cloudflare via `MCP_STORAGE_BACKEND=cf-kv` (the encrypted setup config).
-Do NOT set `MCP_AUTH_DISABLE` on a shared/public deployment -- it collapses all users
-into a single credential bucket.
 
 ## Trust Model
 
