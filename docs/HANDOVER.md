@@ -1,8 +1,8 @@
-# Better Telegram MCP Handover
+# Telegram MCP Handover
 
 ## Current product
 
-Better Telegram MCP exposes Telegram messaging, chat, media, and contact operations through MCP. It supports Bot API and MTProto user-account modes, local stdio operation, and HTTP relay setup for self-hosted multi-user deployments.
+Telegram MCP exposes Telegram messaging, chat, media, and contact operations through MCP. It supports Bot API and MTProto user-account modes, local stdio operation, and HTTP relay setup for self-hosted multi-user deployments.
 
 The public contract is defined by the repository README, `server.json`, package metadata, and the documented MCP tools. The credential form is rendered through the shared MCP core renderer; Telegram adds its Bot/User tabs and accessibility enhancements without maintaining a second form renderer.
 
