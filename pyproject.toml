@@ -22,15 +22,21 @@ classifiers = [
     "Topic :: Communications :: Chat",
 ]
 dependencies = [
-    # 1.29 removes mcp.server.fastmcp; lift this only with the dedicated MCP migration.
-    "mcp[cli]>=1.28.1,<2",
+    # Standalone FastMCP: hull's HTTP transport mounts `FastMCP.http_app()`.
+    # Range matches hull's own pin.
+    "fastmcp>=3.4.7,<4",
+    # Pinned to the hull main commit that ships the core-py consumer surface
+    # (hull PR #63) until n24q02m-hull is published to PyPI. A direct
+    # reference (not [tool.uv.sources]) so CI's `uv sync --no-sources`
+    # installs it too. PyPI rejects direct references: replace with
+    # "n24q02m-hull>=<published version>" before the next release.
+    "n24q02m-hull @ git+https://github.com/n24q02m/hull@689ab42d769aa4ad128227c78a40c536997815b7",
     "httpx>=0.28.1",
     "telethon>=1.44.0",
     "pydantic>=2.13.5,<2.14",
     # 2.15 warns while constructing MCP SDK Settings; lift after upstream rebuilds its model.
     "pydantic-settings>=2.14.2,<2.15",
     "loguru>=0.7.3",
-    "n24q02m-mcp-core==1.24.3",
     "cryptography>=50.0.1",
     "starlette>=1.6.0",
     "uvicorn>=0.52.4",
@@ -60,6 +66,9 @@ Issues = "https://github.com/n24q02m/telegram/issues"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+[tool.hatch.metadata]
+# Needed for the n24q02m-hull git pin above; drop together with it.
+allow-direct-references = true
 [tool.hatch.build.targets.wheel]
 packages = ["src/telegram"]
 [tool.hatch.build.targets.wheel.sources]
